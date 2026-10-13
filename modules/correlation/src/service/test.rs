@@ -336,6 +336,7 @@ struct Scenario {
 #[case("S22_cpe_third_party_openssl_phoenix")]
 #[case("S23_suse_codestream_openssl")]
 #[case("S24_rhel10_minor_streams_ubi10")]
+#[case("S25_cve_package_url")]
 #[test_log::test(actix_web::test)]
 async fn scenario(
     ctx: &TrustifyContext,

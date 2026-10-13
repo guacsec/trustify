@@ -3,7 +3,7 @@ use crate::{
         Graph, Outcome,
         advisory::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
-            version::{Version, VersionInfo, VersionSpec},
+            version::{VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
         cpe_status_creator::{CpeStatusCreator, CpeStatusEntry},
@@ -17,12 +17,15 @@ use crate::{
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::cve::{divination::divine_purl, extract_scores},
+        advisory::cve::{
+            extract_scores,
+            statement::{Statement, listed_statements, package_purl, status_slug},
+        },
     },
 };
 use cve::{
     Cve, Timestamp,
-    common::{Description, Product, Status, VersionRange},
+    common::{Description, Product},
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
 use sea_query::Expr;
@@ -154,16 +157,13 @@ impl<'g> CveLoader<'g> {
         let mut cpes = HashSet::new();
 
         for product in affected {
-            if let Some(purl) = divine_purl(product) {
+            let listed = listed_statements(product, &warnings, tx).await?;
+
+            if let Some(purl) = package_purl(product, &warnings) {
                 // Collect base PURL for batch creation
                 base_purls.insert(purl.clone());
 
-                // okay! we have a purl, now
-                // sort out version bounds & status
-                for version in &product.versions {
-                    let (version_spec, version_type, status) = version_spec_and_status(version);
-
-                    // Add package status entry to batch creator
+                for statement in &listed {
                     purl_status_creator.add(PurlStatusEntry {
                         advisory_id: advisory_vuln.advisory.advisory.id,
                         vulnerability_id: advisory_vuln
@@ -171,17 +171,17 @@ impl<'g> CveLoader<'g> {
                             .vulnerability_id
                             .clone(),
                         purl: purl.clone(),
-                        status: status_slug(status),
-                        version_info: VersionInfo {
-                            scheme: version_type
-                                .as_deref()
-                                .map(VersionScheme::from)
-                                .unwrap_or(VersionScheme::Generic),
-                            spec: version_spec,
-                        },
+                        status: statement.status.to_string(),
+                        version_info: statement.version_info.clone(),
                         context_cpe: None,
                     });
                 }
+            }
+
+            // An entry naming a package states the status of that package: its CPEs are the
+            // product the package is in, not the subject of the statements.
+            if product.package_url.is_some() || product.package_name.is_some() {
+                continue;
             }
 
             // CPE-keyed applicability: every parseable CPE in `cpes` is
@@ -194,49 +194,30 @@ impl<'g> CveLoader<'g> {
                 };
                 let identity_cpe = cpe.with_any_version();
 
-                if !product.versions.is_empty() {
-                    for version in &product.versions {
-                        let (version_spec, version_type, status) = version_spec_and_status(version);
-
-                        // `unknown` has no row in the `status` table and
-                        // carries no applicability information; skip it
-                        // instead of failing the whole document.
-                        if matches!(status, Status::Unknown) {
-                            continue;
-                        }
-
-                        cpes.insert(identity_cpe.clone());
-                        cpe_status_creator.add(CpeStatusEntry {
-                            advisory_id: advisory_vuln.advisory.advisory.id,
-                            vulnerability_id: advisory_vuln
-                                .advisory_vulnerability
-                                .vulnerability_id
-                                .clone(),
-                            cpe: identity_cpe.clone(),
-                            status: status_slug(status),
-                            version_info: VersionInfo {
-                                scheme: version_type
-                                    .as_deref()
-                                    .map(VersionScheme::from)
-                                    .unwrap_or(VersionScheme::Generic),
-                                spec: version_spec,
-                            },
-                            context_cpe: None,
-                        });
-                    }
+                let statements = if !product.versions.is_empty() {
+                    listed.clone()
                 } else if let trustify_common::cpe::Component::Value(version) = cpe.version() {
                     // no explicit versions list: fall back to the concrete
-                    // version carried by the CPE itself.
-                    let status = product.default_status.clone().unwrap_or(Status::Unknown);
+                    // version carried by the CPE itself, with the default status
+                    // (`unknown` if missing, which states nothing).
+                    product
+                        .default_status
+                        .as_ref()
+                        .and_then(status_slug)
+                        .map(|status| Statement {
+                            status,
+                            version_info: VersionInfo {
+                                scheme: VersionScheme::Generic,
+                                spec: VersionSpec::Exact(version),
+                            },
+                        })
+                        .into_iter()
+                        .collect()
+                } else {
+                    vec![]
+                };
 
-                    // `unknown` (also the fallback for a missing
-                    // `defaultStatus`) has no row in the `status` table and
-                    // carries no applicability information; skip it instead
-                    // of failing the whole document.
-                    if matches!(status, Status::Unknown) {
-                        continue;
-                    }
-
+                for statement in statements {
                     cpes.insert(identity_cpe.clone());
                     cpe_status_creator.add(CpeStatusEntry {
                         advisory_id: advisory_vuln.advisory.advisory.id,
@@ -245,11 +226,8 @@ impl<'g> CveLoader<'g> {
                             .vulnerability_id
                             .clone(),
                         cpe: identity_cpe.clone(),
-                        status: status_slug(&status),
-                        version_info: VersionInfo {
-                            scheme: VersionScheme::Generic,
-                            spec: VersionSpec::Exact(version),
-                        },
+                        status: statement.status.to_string(),
+                        version_info: statement.version_info,
                         context_cpe: None,
                     });
                 }
@@ -405,49 +383,6 @@ impl<'g> CveLoader<'g> {
     }
 }
 
-/// Maps a CVE 5.x `versions[]` entry to its version bound and CVE status.
-///
-/// Shared by both the purl and CPE ingestion paths so that any future change
-/// to the version-range mapping stays consistent between the two.
-fn version_spec_and_status(
-    version: &cve::common::Version,
-) -> (VersionSpec, Option<String>, &Status) {
-    match version {
-        cve::common::Version::Single(version) => (
-            VersionSpec::Exact(version.version.clone()),
-            version.version_type.clone(),
-            &version.status,
-        ),
-        cve::common::Version::Range(range) => match &range.range {
-            VersionRange::LessThan(upper) => (
-                VersionSpec::Range(
-                    Version::Inclusive(range.version.clone()),
-                    Version::Exclusive(upper.clone()),
-                ),
-                Some(range.version_type.clone()),
-                &range.status,
-            ),
-            VersionRange::LessThanOrEqual(upper) => (
-                VersionSpec::Range(
-                    Version::Inclusive(range.version.clone()),
-                    Version::Inclusive(upper.clone()),
-                ),
-                Some(range.version_type.clone()),
-                &range.status,
-            ),
-        },
-    }
-}
-
-/// Maps a CVE 5.x affected-version status to the trustify status slug.
-fn status_slug(status: &Status) -> String {
-    match status {
-        Status::Affected => "affected".to_string(),
-        Status::Unaffected => "not_affected".to_string(),
-        Status::Unknown => "unknown".to_string(),
-    }
-}
-
 struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
     pub descriptions: &'a Vec<Description>,
@@ -472,6 +407,7 @@ mod test {
     use trustify_common::purl::Purl;
     use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
     use trustify_test_context::{TrustifyContext, document};
+    use uuid::Uuid;
 
     #[rstest]
     #[case::no_scores(
@@ -811,6 +747,232 @@ mod test {
             .expect("version_range must exist");
         assert_eq!(vr.low_version.as_deref(), Some("2019.04"));
 
+        Ok(())
+    }
+
+    /// A stated status: subject, status, scheme, low and high bound.
+    type Stated = (
+        String,
+        String,
+        VersionScheme,
+        (Option<String>, Option<bool>),
+        (Option<String>, Option<bool>),
+    );
+
+    fn stated(
+        subject: &str,
+        status: &str,
+        scheme: VersionScheme,
+        (low, low_inclusive): (Option<&str>, bool),
+        (high, high_inclusive): (Option<&str>, bool),
+    ) -> Stated {
+        (
+            subject.to_string(),
+            status.to_string(),
+            scheme,
+            (low.map(str::to_string), Some(low_inclusive)),
+            (high.map(str::to_string), Some(high_inclusive)),
+        )
+    }
+
+    /// Load a CVE record, returning the ID of its advisory.
+    async fn load(ctx: &TrustifyContext, path: &str) -> anyhow::Result<Uuid> {
+        let (cve, digests): (Cve, _) = document(path).await?;
+        let graph = Graph::new();
+        let loader = CveLoader::new(&graph);
+        let result = ctx
+            .db
+            .transaction(async |tx| loader.load(("file", path), cve, &digests, tx).await)
+            .await?;
+        Ok(Uuid::parse_str(&result.id)?)
+    }
+
+    /// The range of a statement.
+    async fn range(
+        id: Uuid,
+        db: &impl ConnectionTrait,
+    ) -> anyhow::Result<trustify_entity::version_range::Model> {
+        Ok(trustify_entity::version_range::Entity::find_by_id(id)
+            .one(db)
+            .await?
+            .expect("version range of a statement"))
+    }
+
+    /// The PURL statuses of an advisory, sorted.
+    async fn stated_purls(advisory_id: Uuid, db: &impl ConnectionTrait) -> anyhow::Result<Vec<Stated>> {
+        use trustify_entity::{base_purl, purl_status, status};
+
+        let mut result = Vec::new();
+        for (row, status) in purl_status::Entity::find()
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+            .find_also_related(status::Entity)
+            .all(db)
+            .await?
+        {
+            let purl = base_purl::Entity::find_by_id(row.base_purl_id)
+                .one(db)
+                .await?
+                .expect("base purl of a statement");
+            let range = range(row.version_range_id, db).await?;
+            result.push((
+                format!(
+                    "pkg:{}/{}{}",
+                    purl.r#type,
+                    purl.namespace.map(|ns| format!("{ns}/")).unwrap_or_default(),
+                    purl.name
+                ),
+                status.expect("status of a statement").slug,
+                range.version_scheme_id,
+                (range.low_version, range.low_inclusive),
+                (range.high_version, range.high_inclusive),
+            ));
+        }
+        result.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+        Ok(result)
+    }
+
+    /// The CPE statuses of an advisory, sorted.
+    async fn stated_cpes(advisory_id: Uuid, db: &impl ConnectionTrait) -> anyhow::Result<Vec<Stated>> {
+        use trustify_entity::{cpe, cpe_status, status};
+
+        let mut result = Vec::new();
+        for (row, status) in cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory_id))
+            .find_also_related(status::Entity)
+            .all(db)
+            .await?
+        {
+            let cpe = cpe::Entity::find_by_id(row.cpe_id)
+                .one(db)
+                .await?
+                .expect("cpe of a statement");
+            let range = range(row.version_range_id, db).await?;
+            result.push((
+                format!(
+                    "{}:{}",
+                    cpe.vendor.unwrap_or_default(),
+                    cpe.product.unwrap_or_default()
+                ),
+                status.expect("status of a statement").slug,
+                range.version_scheme_id,
+                (range.low_version, range.low_inclusive),
+                (range.high_version, range.high_inclusive),
+            ));
+        }
+        result.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+        Ok(result)
+    }
+
+    /// The packages of `packageURL` (lodash, CVE-2026-2950).
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn package_url(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let id = load(ctx, "cve/CVE-2026-2950.json").await?;
+
+        let package = |name: &str, first: &str| {
+            [
+                stated(
+                    &format!("pkg:npm/{name}"),
+                    "affected",
+                    VersionScheme::Semver,
+                    (Some(first), true),
+                    (Some("4.18.0"), false),
+                ),
+                stated(
+                    &format!("pkg:npm/{name}"),
+                    "not_affected",
+                    VersionScheme::Semver,
+                    (Some("4.18.0"), true),
+                    (Some("4.18.0"), true),
+                ),
+            ]
+        };
+        let mut expected = [
+            package("lodash", "4.17.23"),
+            package("lodash-amd", "4.17.23"),
+            package("lodash-es", "4.17.23"),
+            package("lodash.unset", "4.0.0"),
+        ]
+        .concat();
+        expected.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+
+        assert_eq!(stated_purls(id, &ctx.db).await?, expected);
+
+        Ok(())
+    }
+
+    /// A range changing its status (IBM Cognos Controller, CVE-2024-28780). A single change needs
+    /// no sorting, even if the version type can't compare it.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn changes(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let id = load(ctx, "cve/CVE-2024-28780.json").await?;
+
+        assert_eq!(
+            stated_cpes(id, &ctx.db).await?,
+            [
+                stated(
+                    "ibm:controller",
+                    "affected",
+                    VersionScheme::Generic,
+                    (Some("11.1.0"), true),
+                    (Some("11.1.0"), true),
+                ),
+                stated(
+                    "ibm:controller",
+                    "affected",
+                    VersionScheme::Semver,
+                    (Some("11.0.0"), true),
+                    (Some("FP3"), false),
+                ),
+                stated(
+                    "ibm:controller",
+                    "affected",
+                    VersionScheme::Semver,
+                    (Some("FP3"), true),
+                    (Some("11.0.1"), true),
+                ),
+            ]
+        );
+
+        Ok(())
+    }
+
+    /// Versions are sorted by the scheme's comparison, unless it can't compare them.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn sort_versions(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        use super::super::statement::sort_versions;
+
+        let versions = |v: &[&str]| v.iter().map(|v| v.to_string()).collect::<Vec<_>>();
+        let tx = ctx.db.begin().await?;
+
+        assert_eq!(
+            sort_versions(&versions(&["1.10.0", "1.2.0", "1.9.1"]), VersionScheme::Semver, &tx)
+                .await?,
+            Some(versions(&["1.2.0", "1.9.1", "1.10.0"]))
+        );
+        // equal versions have no order
+        assert_eq!(
+            sort_versions(&versions(&["1.0.0", "1.0.0"]), VersionScheme::Semver, &tx).await?,
+            None
+        );
+        // a generic scheme can't compare
+        assert_eq!(
+            sort_versions(&versions(&["b", "a"]), VersionScheme::Generic, &tx).await?,
+            None
+        );
+        // not a semantic version: no order, and the transaction stays usable
+        assert_eq!(
+            sort_versions(&versions(&["FP3", "11.0.1"]), VersionScheme::Semver, &tx).await?,
+            None
+        );
+        assert_eq!(
+            sort_versions(&versions(&["2", "1"]), VersionScheme::Rpm, &tx).await?,
+            Some(versions(&["1", "2"]))
+        );
+
+        tx.commit().await?;
         Ok(())
     }
 }

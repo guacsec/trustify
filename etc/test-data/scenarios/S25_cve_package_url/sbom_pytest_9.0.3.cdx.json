@@ -1,0 +1,11 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:25250000-0000-4000-8000-252500000005", "version": 1,
+  "metadata": { "component": { "bom-ref": "root", "type": "application", "name": "s25-pytest-9.0.3", "version": "1" } },
+  "components": [
+    { "bom-ref": "pkg-pytest", "type": "library", "name": "pytest", "version": "9.0.3",
+      "purl": "pkg:pypi/pytest@9.0.3" }
+  ],
+  "dependencies": [ { "ref": "root", "dependsOn": ["pkg-pytest"] } ]
+}
