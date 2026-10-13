@@ -53,7 +53,7 @@ async fn load_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<V
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
         .filter(
             correlation_evidence::Column::Extractor.is_in(
-                [PLAIN, STREAM]
+                [PLAIN, STREAM, DEFAULT]
                     .into_iter()
                     .chain(rules.iter().map(|r| r.id())),
             ),
@@ -367,6 +367,74 @@ async fn stated_stream_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6"]),
+                enabled_by: None,
+            }),
+        )]
+    );
+
+    Ok(())
+}
+
+/// A CVE record's default status (lodash, CVE-2026-2950: `unaffected`) applies to a version no
+/// listed statement matches, and is shadowed where one does.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn default_status(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    const BASE: &str = "scenarios/S25_cve_package_url";
+    ctx.ingest_document(&format!("{BASE}/cve/CVE-2026-2950.json"))
+        .await?;
+
+    let evidence = async |sbom: &str| -> anyhow::Result<Vec<Evidence>> {
+        let sbom = ctx.ingest_document(&format!("{BASE}/{sbom}")).await?;
+        let sbom_id = Uuid::parse_str(&sbom.id)?;
+        extract_for_sbom(ctx, sbom_id).await?;
+        load_evidence(ctx, sbom_id).await
+    };
+    let unbounded = MatchedRange {
+        scheme: "generic".into(),
+        low: None,
+        high: None,
+    };
+
+    // not listed: the default
+    assert_eq!(
+        evidence("sbom_lodash_4.17.21.cdx.json").await?,
+        vec![(
+            "pkg-lodash".to_string(),
+            "CVE-2026-2950".to_string(),
+            DEFAULT.to_string(),
+            AssertionStatus::NotAffected,
+            0.9,
+            Some(MatchedValue {
+                identifier: "pkg:npm/lodash".into(),
+                ranges: vec![unbounded],
+                enabled_by: None,
+            }),
+        )]
+    );
+
+    // listed as affected: the default doesn't apply
+    assert_eq!(
+        evidence("sbom_lodash_4.17.23.cdx.json").await?,
+        vec![(
+            "pkg-lodash".to_string(),
+            "CVE-2026-2950".to_string(),
+            PLAIN.to_string(),
+            AssertionStatus::Affected,
+            1.0,
+            Some(MatchedValue {
+                identifier: "pkg:npm/lodash".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "semver".into(),
+                    low: Some(RangeBound {
+                        version: "4.17.23".into(),
+                        inclusive: true,
+                    }),
+                    high: Some(RangeBound {
+                        version: "4.18.0".into(),
+                        inclusive: false,
+                    }),
+                }],
                 enabled_by: None,
             }),
         )]

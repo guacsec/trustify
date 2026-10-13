@@ -19,7 +19,9 @@ use crate::{
         Error, Warnings,
         advisory::cve::{
             extract_scores,
-            statement::{Statement, listed_statements, package_purl, status_slug},
+            statement::{
+                Statement, default_statement, listed_statements, package_purl, status_slug,
+            },
         },
     },
 };
@@ -163,7 +165,7 @@ impl<'g> CveLoader<'g> {
                 // Collect base PURL for batch creation
                 base_purls.insert(purl.clone());
 
-                for statement in &listed {
+                for statement in listed.iter().chain(&default_statement(product)) {
                     purl_status_creator.add(PurlStatusEntry {
                         advisory_id: advisory_vuln.advisory.advisory.id,
                         vulnerability_id: advisory_vuln
@@ -174,6 +176,8 @@ impl<'g> CveLoader<'g> {
                         status: statement.status.to_string(),
                         version_info: statement.version_info.clone(),
                         context_cpe: None,
+                        context_id: None,
+                        default: statement.default,
                     });
                 }
             }
@@ -210,6 +214,7 @@ impl<'g> CveLoader<'g> {
                                 scheme: VersionScheme::Generic,
                                 spec: VersionSpec::Exact(version),
                             },
+                            default: false,
                         })
                         .into_iter()
                         .collect()
@@ -798,7 +803,7 @@ mod test {
             .expect("version range of a statement"))
     }
 
-    /// The PURL statuses of an advisory, sorted.
+    /// The PURL statuses of an advisory, sorted. A default status is marked as such.
     async fn stated_purls(advisory_id: Uuid, db: &impl ConnectionTrait) -> anyhow::Result<Vec<Stated>> {
         use trustify_entity::{base_purl, purl_status, status};
 
@@ -816,10 +821,11 @@ mod test {
             let range = range(row.version_range_id, db).await?;
             result.push((
                 format!(
-                    "pkg:{}/{}{}",
+                    "pkg:{}/{}{}{}",
                     purl.r#type,
                     purl.namespace.map(|ns| format!("{ns}/")).unwrap_or_default(),
-                    purl.name
+                    purl.name,
+                    if row.is_default { " (default)" } else { "" },
                 ),
                 status.expect("status of a statement").slug,
                 range.version_scheme_id,
@@ -871,6 +877,14 @@ mod test {
 
         let package = |name: &str, first: &str| {
             [
+                // the default: all versions not listed
+                stated(
+                    &format!("pkg:npm/{name} (default)"),
+                    "not_affected",
+                    VersionScheme::Generic,
+                    (None, false),
+                    (None, false),
+                ),
                 stated(
                     &format!("pkg:npm/{name}"),
                     "affected",

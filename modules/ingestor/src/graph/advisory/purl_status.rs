@@ -17,6 +17,8 @@ pub struct PurlStatus {
     pub info: VersionInfo,
     /// The product the status is stated in, see [`super::context`].
     pub context_id: Option<Uuid>,
+    /// Whether it is the default status: of all versions no other statement lists.
+    pub default: bool,
 }
 
 impl PurlStatus {
@@ -27,6 +29,7 @@ impl PurlStatus {
             status,
             info,
             context_id: None,
+            default: false,
         }
     }
 
@@ -49,6 +52,7 @@ impl PurlStatus {
             context_cpe_id: Set(cpe_id),
             assertion_context_id: Set(self.context_id),
             version_range_id: version_range.clone().id,
+            is_default: Set(self.default),
         };
 
         (version_range, package_status)
@@ -67,6 +71,10 @@ impl PurlStatus {
 
         if let Some(context_id) = &self.context_id {
             result = Uuid::new_v5(&result, context_id.as_bytes())
+        }
+
+        if self.default {
+            result = Uuid::new_v5(&result, b"default")
         }
 
         result

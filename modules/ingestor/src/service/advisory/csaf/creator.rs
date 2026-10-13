@@ -631,6 +631,7 @@ impl<'a> StatusCreator<'a> {
                         cpe_id: Set(cpe_id),
                         version_range_id: Set(version_range_id),
                         assertion_context_id: Set(*context),
+                        is_default: Set(false),
                     }
                 })
                 .collect::<Vec<_>>();
@@ -794,6 +795,7 @@ impl<'a> StatusCreator<'a> {
             status,
             info: VersionInfo { scheme, spec },
             context_id: product.context,
+            default: false,
         };
         self.product_to_purl_statuses
             .entry(product.clone())

@@ -16,6 +16,11 @@
 //! All other matches (not RPM, or without a stream on either side) are reported as `purl`
 //! evidence.
 //!
+//! A default status (CVE `defaultStatus`, stored as an unbounded range) is the status of all
+//! versions no other statement of the advisory lists for the package. It is only used for a node
+//! if no listed statement of the same advisory, vulnerability, and package matches it, and
+//! reported as `purl_default` evidence.
+//!
 //! Besides the stated ranges, [`rule`]s derive implied ranges from what advisories state (e.g.
 //! Red Hat's "fixed in X" implies "affected before X"), or evaluate stated ranges differently (e.g.
 //! a CSAF vls range, which states no versioning scheme, with the scheme of the PURL type). Those
@@ -63,6 +68,12 @@ pub struct PurlExtractor;
 const PLAIN: &str = "purl";
 /// Type of the evidence matched by version range and RPM stream.
 const STREAM: &str = "purl_stream";
+/// Type of the evidence of a default status.
+const DEFAULT: &str = "purl_default";
+
+/// Confidence of a default status: it covers all versions not listed, which is less specific than a
+/// listed version or range.
+const DEFAULT_CONFIDENCE: f64 = 0.9;
 
 const CONFIDENCE: f64 = 1.0;
 
@@ -159,6 +170,7 @@ impl Candidates {
             .column_as(self.low_inclusive.clone(), "range_low_inclusive")
             .column_as(self.high_version.clone(), "range_high_version")
             .column_as(self.high_inclusive.clone(), "range_high_inclusive")
+            .column_as(purl_status::Column::IsDefault, "is_default")
             .column_as(versioned_purl::Column::Version, "sbom_version")
             .filter(self.condition.clone())
             .filter(self.version_matches())
@@ -204,10 +216,22 @@ struct PurlStatusRow {
     range_low_inclusive: Option<bool>,
     range_high_version: Option<String>,
     range_high_inclusive: Option<bool>,
+    is_default: bool,
     sbom_version: String,
 }
 
 impl PurlStatusRow {
+    /// The package a listed status shadows the default of.
+    fn package(&self) -> (Uuid, &str, &str, Option<&str>, &str) {
+        (
+            self.advisory_id,
+            self.vulnerability_id.as_str(),
+            self.base_purl_type.as_str(),
+            self.base_purl_namespace.as_deref(),
+            self.base_purl_name.as_str(),
+        )
+    }
+
     /// Relation of the RPM streams of the SBOM version and the range.
     ///
     /// The range's stream is taken from its upper bound, falling back to the lower one. SUSE
@@ -318,7 +342,23 @@ fn group<'a, K: Ord + Clone>(
         })
         .collect::<BTreeSet<_>>();
 
-    for (target, source, row, status, stream) in rows {
+    // the packages of a target with a listed status, shadowing their defaults
+    let listed = rows
+        .iter()
+        .filter(|(_, _, row, ..)| !row.is_default)
+        .map(|(target, _, row, ..)| (target.clone(), row.package()))
+        .collect::<BTreeSet<_>>();
+    let shadowed = rows
+        .iter()
+        .map(|(target, _, row, ..)| {
+            row.is_default && listed.contains(&(target.clone(), row.package()))
+        })
+        .collect::<Vec<_>>();
+
+    for ((target, source, row, status, stream), shadowed) in rows.into_iter().zip(shadowed) {
+        if shadowed {
+            continue;
+        }
         if stream == StreamMatch::Minor
             && own_stream.contains(&(
                 target.clone(),
@@ -329,6 +369,7 @@ fn group<'a, K: Ord + Clone>(
             continue;
         }
         let (extractor, confidence) = match source {
+            None if row.is_default => (DEFAULT, stream.confidence() * DEFAULT_CONFIDENCE),
             None => (stream.extractor(), stream.confidence()),
             // rounded, so that e.g. 0.8 × 0.9 is stored as 0.72
             Some(rule) => (

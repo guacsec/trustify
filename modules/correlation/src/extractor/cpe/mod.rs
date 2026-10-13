@@ -945,6 +945,7 @@ mod test {
                 cpe_id: Set(cpe_id),
                 version_range_id: Set(version_range_id),
                 assertion_context_id: Set(None),
+                is_default: Set(false),
             }
             .insert(&ctx.db)
             .await?;

@@ -14,7 +14,11 @@
         "CVE-2026-2950": "not_affected"
       }
     },
-    "sbom_lodash_4.17.21.cdx.json": {},
+    "sbom_lodash_4.17.21.cdx.json": {
+      "pkg-lodash": {
+        "CVE-2026-2950": "not_affected"
+      }
+    },
     "sbom_pytest_8.3.4.cdx.json": {
       "pkg-pytest": {
         "CVE-2025-71176": "affected"

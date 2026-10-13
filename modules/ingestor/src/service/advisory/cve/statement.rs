@@ -28,6 +28,8 @@ pub struct Statement {
     /// The status slug: `affected` or `not_affected`.
     pub status: &'static str,
     pub version_info: VersionInfo,
+    /// Whether it is the default status: of all versions no other statement lists.
+    pub default: bool,
 }
 
 /// The status slug of a CVE status, `None` for `unknown`, which states nothing.
@@ -92,6 +94,7 @@ pub async fn listed_statements<C: ConnectionTrait + TransactionTrait>(
                         scheme: single_scheme(single.version_type.as_deref()),
                         spec: VersionSpec::Exact(single.version.clone()),
                     },
+                    default: false,
                 }));
             }
             common::Version::Range(range) => {
@@ -105,6 +108,7 @@ pub async fn listed_statements<C: ConnectionTrait + TransactionTrait>(
                                 scheme,
                                 spec: VersionSpec::Range(low, high),
                             },
+                            default: false,
                         })
                     },
                 ));
@@ -113,6 +117,19 @@ pub async fn listed_statements<C: ConnectionTrait + TransactionTrait>(
     }
 
     Ok(result)
+}
+
+/// The default status of an entry (`defaultStatus`): the status of all versions it doesn't list,
+/// as an unbounded range. `None` for `unknown`, the default if missing, which states nothing.
+pub fn default_statement(product: &Product) -> Option<Statement> {
+    Some(Statement {
+        status: status_slug(product.default_status.as_ref()?)?,
+        version_info: VersionInfo {
+            scheme: VersionScheme::Generic,
+            spec: VersionSpec::Range(Version::Unbounded, Version::Unbounded),
+        },
+        default: true,
+    })
 }
 
 /// The changes of a range, sorted by their version (`at`).
