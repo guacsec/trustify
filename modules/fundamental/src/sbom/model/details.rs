@@ -123,7 +123,10 @@ impl SbomDetails {
                 qualified_purl::Relation::VersionedPurl.def(),
             )
             .join(JoinType::LeftJoin, versioned_purl::Relation::BasePurl.def())
-            .join(JoinType::Join, base_purl::Relation::PurlStatus.def())
+            .join(
+                JoinType::Join,
+                purl_status::effective(base_purl::Relation::PurlStatus.def()),
+            )
             .join(JoinType::Join, purl_status::Relation::Status.def());
 
         if !statuses.is_empty() {
@@ -147,10 +150,7 @@ impl SbomDetails {
 
         // Collect only IDs from the first query
         let mut id_sets: Vec<IdSet> = query
-            .join(
-                JoinType::LeftJoin,
-                purl_status::Relation::VersionRange.def(),
-            )
+            .join(JoinType::LeftJoin, purl_status::effective_version_range())
             .filter(SimpleExpr::FunctionCall(
                 Func::cust(VersionMatches)
                     .arg(Expr::col((

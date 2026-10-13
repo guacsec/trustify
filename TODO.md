@@ -39,9 +39,11 @@
 - [ ] CSAF `first_fixed`, `first_affected`, `last_affected` and `under_investigation` are only
   stored for advisories ingested after `m0002540`. Existing advisories need to be re-ingested.
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
-  data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
-  fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
-  to the correlation engine, which derives them (`purl_fixed_as_first_fixed_before` evidence).
+  data (ingestion only stores what documents state). As a bridge, the SBOM, PURL and
+  vulnerability APIs of the fundamental module read the views `purl_status_effective` /
+  `version_range_effective` (`m0002560`), which add those "affected" statuses at query time for
+  publishers enabling `fixed_is_first_fixed`, without the stream scoping of the correlation
+  engine. Migrate those APIs to the correlation verdicts, then drop the views.
 - [ ] CSAF ingestion still infers in `product_status` (only used by the fundamental APIs, not by
   correlation): `version_from_cpe` widens a CPE version `X` to the "stream" `[X, X+1 major)`, and
   `set_version` assumes `semver` for a PURL version. Ingestion should store what is stated, and

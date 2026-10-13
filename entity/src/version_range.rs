@@ -3,6 +3,10 @@ use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{Asterisk, Func, IntoCondition, SimpleExpr};
 use trustify_common::db::VersionMatches;
 
+/// The view of the stated ranges plus, for each exact version, the range below it (as a range of
+/// the same ID, flagged `derived`), for the statuses of [`super::purl_status::EFFECTIVE_VIEW`].
+pub const EFFECTIVE_VIEW: &str = "version_range_effective";
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "version_range")]
 pub struct Model {
