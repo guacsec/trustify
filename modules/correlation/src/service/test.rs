@@ -319,32 +319,60 @@ struct Scenario {
     sboms: BTreeMap<String, BTreeMap<String, BTreeMap<String, VerdictStatus>>>,
 }
 
-/// Run a scenario: ingest its documents, extract evidence, and compare the verdicts with
-/// `expected.json`. Components without a verdict must not appear.
+/// Run a scenario: ingest its documents, extracting evidence after each one as the extraction
+/// worker does, and compare the verdicts with `expected.json`. Components without a verdict must
+/// not appear. The verdicts must not depend on whether the SBOMs or the advisories come first.
 #[test_context(TrustifyContext)]
 #[rstest]
+#[case("S1_crossstream_bind-libs")]
+#[case("S2_wrongscheme_golang_oci")]
+#[case("S3_wrongproduct_hummingbird_curl")]
+#[case("S14_productstatus_versionfilter_netty")]
+#[case("S16_crossscheme_purlquery_golang")]
 #[case("S20_cpe_range_wago")]
 #[case("S21_cpe_extended_attributes_beckhoff")]
 #[case("S22_cpe_third_party_openssl_phoenix")]
 #[case("S23_suse_codestream_openssl")]
 #[test_log::test(actix_web::test)]
-async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<()> {
+async fn scenario(
+    ctx: &TrustifyContext,
+    #[case] name: &str,
+    #[values(false, true)] sboms_first: bool,
+) -> anyhow::Result<()> {
     let base = format!("scenarios/{name}");
     let expected: Scenario =
         serde_json::from_slice(&document_bytes(format!("{base}/expected.json")).await?)?;
 
-    for advisory in &expected.advisories {
-        ctx.ingest_document(&format!("{base}/{advisory}")).await?;
+    let extractors = Extractors::default();
+    let ingest_advisories = async || -> anyhow::Result<()> {
+        for advisory in &expected.advisories {
+            let id = ctx.ingest_document(&format!("{base}/{advisory}")).await?.id;
+            let tx = ctx.db.begin().await?;
+            extractors
+                .extract_for_advisory(Uuid::parse_str(&id)?, &tx)
+                .await?;
+            tx.commit().await?;
+        }
+        Ok(())
+    };
+
+    if !sboms_first {
+        ingest_advisories().await?;
+    }
+    let mut sboms = Vec::with_capacity(expected.sboms.len());
+    for (sbom, expected) in &expected.sboms {
+        let sbom_id = Uuid::parse_str(&ctx.ingest_document(&format!("{base}/{sbom}")).await?.id)?;
+        let tx = ctx.db.begin().await?;
+        extractors.extract_for_sbom(sbom_id, &tx).await?;
+        tx.commit().await?;
+        sboms.push((sbom, sbom_id, expected));
+    }
+    if sboms_first {
+        ingest_advisories().await?;
     }
 
     let service = CorrelationService::default();
-    for (sbom, expected) in expected.sboms {
-        let sbom_id = Uuid::parse_str(&ctx.ingest_document(&format!("{base}/{sbom}")).await?.id)?;
-
-        let tx = ctx.db.begin().await?;
-        Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
-        tx.commit().await?;
-
+    for (sbom, sbom_id, expected) in sboms {
         let tx = ctx.db.begin().await?;
         let mut actual = BTreeMap::<_, BTreeMap<_, _>>::new();
         for verdict in service.correlate_sbom(sbom_id, false, &tx).await?.verdicts {
@@ -354,7 +382,10 @@ async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<(
                 .insert(verdict.vulnerability.id, verdict.status);
         }
 
-        assert_eq!(actual, expected, "{name}: {sbom}");
+        assert_eq!(
+            &actual, expected,
+            "{name}: {sbom}, SBOMs first: {sboms_first}"
+        );
 
         // the counts must agree with the verdicts
         let mut counts = SbomVerdictCounts {
@@ -376,6 +407,55 @@ async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<(
             "{name}: {sbom}"
         );
     }
+
+    Ok(())
+}
+
+/// The evidence of a statement in a product lists that product, and how the component got into it.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn evidence_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{ContextCategory, ContextSource, EvidenceContext};
+
+    let sbom = ctx
+        .ingest_document(
+            "scenarios/S16_crossscheme_purlquery_golang/sbom_golang_rpm_storage3.cdx.json",
+        )
+        .await?;
+    ctx.ingest_document("csaf/versionless/redhat.json").await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    let result = CorrelationService::default()
+        .correlate_sbom(sbom_id, false, &tx)
+        .await?;
+
+    let contexts = result
+        .verdicts
+        .iter()
+        .flat_map(|verdict| &verdict.evidence)
+        .flat_map(|evidence| &evidence.contexts)
+        .map(|context| EvidenceContext {
+            // generated
+            context_id: Uuid::nil(),
+            ..context.clone()
+        })
+        .collect::<Vec<_>>();
+    let storage = "cpe:2.3:a:redhat:storage:3:*:*:*:*:*:*:*".to_string();
+    assert_eq!(
+        contexts,
+        [EvidenceContext {
+            context_id: Uuid::nil(),
+            name: "Red Hat Storage 3".into(),
+            category: Some(ContextCategory::DefaultComponentOf),
+            source: ContextSource::AncestorNode,
+            distance: 1,
+            node_identifier: storage.clone(),
+            context_identifier: storage,
+            confidence: 0.9,
+        }]
+    );
 
     Ok(())
 }

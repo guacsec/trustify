@@ -1,9 +1,17 @@
 use super::*;
-use crate::{extractor::Extractors, model::RangeBound};
+use crate::{
+    extractor::Extractors,
+    model::{CorrelationOptionKey, EnabledBy, RangeBound},
+};
 use sea_orm::TransactionTrait;
+use serde_json::json;
 use test_context::test_context;
 use test_log::test;
-use trustify_entity::correlation_evidence;
+use trustify_entity::{
+    correlation_evidence, correlation_evidence_context,
+    correlation_evidence_context::ContextSource,
+    correlation_option::{self, CorrelationOptionKey as EntityOptionKey},
+};
 use trustify_test_context::TrustifyContext;
 
 const S5_SBOM: &str =
@@ -40,13 +48,14 @@ type Evidence = (
 
 /// All PURL evidence of an SBOM (stated and derived by rules), sorted.
 async fn load_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
+    let rules = rule::rules(&ctx.db).await?;
     let mut evidence = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
         .filter(
             correlation_evidence::Column::Extractor.is_in(
                 [PLAIN, STREAM]
                     .into_iter()
-                    .chain(rule::rules().iter().map(|r| r.id())),
+                    .chain(rules.iter().map(|r| r.id())),
             ),
         )
         .all(&ctx.db)
@@ -107,7 +116,22 @@ async fn extract_both_directions(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-const RH_FIXED: &str = "purl_rh_fixed";
+/// Red Hat's `fixed`, read as `first_fixed`: affected before.
+const FIXED_AS_FIRST_FIXED_BEFORE: &str = "purl_fixed_as_first_fixed_before";
+
+/// The default option reading Red Hat's `fixed` as `first_fixed` (see `m0002550`).
+fn redhat_first_fixed() -> EnabledBy {
+    EnabledBy {
+        option_id: Uuid::parse_str("019dc7a4-6a00-7000-8000-000000000003").expect("valid UUID"),
+        key: CorrelationOptionKey::FixedIsFirstFixed,
+        publisher_namespace: "https://www.redhat.com".into(),
+        reason: Some(
+            "Red Hat states `fixed` only for the build fixing a vulnerability in a product \
+             stream: earlier builds of the stream are affected, later ones are fixed."
+                .into(),
+        ),
+    }
+}
 
 const S9_VEX: &str = "scenarios/S9_substream_openssl_el8/vex/CVE-2023-0286.json.xz";
 
@@ -134,14 +158,102 @@ async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
         vec![(
             "pkg-openssl".to_string(),
             "CVE-2023-0215".to_string(),
-            RH_FIXED.to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
             AssertionStatus::Affected,
-            0.72,
+            // 0.72, in RHEL 8 by the PURL's `distro=rhel-8.10` (0.85 × 0.9)
+            0.55,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
+                enabled_by: Some(redhat_first_fixed()),
+            }),
+        ),]
+    );
+
+    Ok(())
+}
+
+/// A later build of the stream is fixed from Red Hat's fix on, as the option reads it as
+/// `first_fixed`.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_later_build(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    assert_eq!(
+        evidence_of(ctx, "correlation/openssl_el8_newer.cdx.json", S5_VEX).await?,
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            "purl_fixed_as_first_fixed".to_string(),
+            AssertionStatus::Fixed,
+            // 0.8 (`el8` and `el8_7` share the major only) × 0.9, in RHEL 8 by the PURL's
+            // `distro=rhel-8.10` (0.85 × 0.9). The `el8_6` fix is stated for RHEL 8.6 EUS, a product
+            // the package isn't in.
+            0.55,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "rpm".into(),
+                    low: Some(RangeBound {
+                        version: "1:1.1.1k-9.el8_7".into(),
+                        inclusive: true,
+                    }),
+                    high: None,
+                }],
+                enabled_by: Some(redhat_first_fixed()),
             }),
         )]
+    );
+
+    Ok(())
+}
+
+/// A build of a later minor is fixed from Red Hat's mainline fix of an earlier minor on, as the
+/// mainline's minors are one line, and nothing is stated for its own stream (`el8_8`). The `el8_6`
+/// fix is stated for RHEL 8.6 EUS, a product the package isn't in.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_later_minor(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    assert_eq!(
+        evidence_of(ctx, "correlation/openssl_el8_minor.cdx.json", S5_VEX).await?,
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            "purl_fixed_as_first_fixed".to_string(),
+            AssertionStatus::Fixed,
+            // 0.8 (another minor) × 0.9, in RHEL 8 by the PURL's `distro=rhel-8.8` (0.85 × 0.9)
+            0.55,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "rpm".into(),
+                    low: Some(RangeBound {
+                        version: "1:1.1.1k-9.el8_7".into(),
+                        inclusive: true,
+                    }),
+                    high: None,
+                }],
+                enabled_by: Some(redhat_first_fixed()),
+            }),
+        )]
+    );
+
+    Ok(())
+}
+
+/// Without the option, Red Hat's `fixed` is only the fixed version.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_option_disabled(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    correlation_option::Entity::update_many()
+        .col_expr(correlation_option::Column::Value, Expr::value(json!(false)))
+        .filter(correlation_option::Column::Key.eq(EntityOptionKey::FixedIsFirstFixed))
+        .exec(&ctx.db)
+        .await?;
+
+    assert_eq!(evidence_of(ctx, S5_SBOM, S5_VEX).await?, vec![]);
+    assert_eq!(
+        evidence_of(ctx, "correlation/openssl_el8_newer.cdx.json", S5_VEX).await?,
+        vec![]
     );
 
     Ok(())
@@ -161,23 +273,27 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
         vec![(
             "pkg-openssl".to_string(),
             "CVE-2023-0286".to_string(),
-            RH_FIXED.to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
             AssertionStatus::Affected,
-            0.9,
+            // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+            0.63,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
+                enabled_by: Some(redhat_first_fixed()),
             }),
-        )]
+        ),]
     );
 
     Ok(())
 }
 
-/// A package at the fixed version only matches the stated fixed version.
+/// A package at the fixed version matches the stated fixed version, and Red Hat's fix read as
+/// `first_fixed`, as it is in the fix's own stream (`el8_2`).
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let fix = "1:1.1.1c-21.el8_2";
     assert_eq!(
         evidence_of(
             ctx,
@@ -185,27 +301,51 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
             S9_VEX
         )
         .await?,
-        vec![(
-            "pkg-openssl".to_string(),
-            "CVE-2023-0286".to_string(),
-            STREAM.to_string(),
-            AssertionStatus::Fixed,
-            1.0,
-            Some(MatchedValue {
-                identifier: "pkg:rpm/redhat/openssl".into(),
-                ranges: vec![MatchedRange {
-                    scheme: "rpm".into(),
-                    low: Some(RangeBound {
-                        version: "1:1.1.1c-21.el8_2".into(),
-                        inclusive: true,
-                    }),
-                    high: Some(RangeBound {
-                        version: "1:1.1.1c-21.el8_2".into(),
-                        inclusive: true,
-                    }),
-                }],
-            }),
-        )]
+        vec![
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0286".to_string(),
+                "purl_fixed_as_first_fixed".to_string(),
+                AssertionStatus::Fixed,
+                // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+                0.63,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: vec![MatchedRange {
+                        scheme: "rpm".into(),
+                        low: Some(RangeBound {
+                            version: fix.into(),
+                            inclusive: true,
+                        }),
+                        high: None,
+                    }],
+                    enabled_by: Some(redhat_first_fixed()),
+                }),
+            ),
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0286".to_string(),
+                STREAM.to_string(),
+                AssertionStatus::Fixed,
+                // stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+                0.7,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: vec![MatchedRange {
+                        scheme: "rpm".into(),
+                        low: Some(RangeBound {
+                            version: fix.into(),
+                            inclusive: true,
+                        }),
+                        high: Some(RangeBound {
+                            version: fix.into(),
+                            inclusive: true,
+                        }),
+                    }],
+                    enabled_by: None,
+                }),
+            ),
+        ]
     );
 
     Ok(())
@@ -227,6 +367,7 @@ async fn stated_stream_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6"]),
+                enabled_by: None,
             }),
         )]
     );
@@ -283,6 +424,7 @@ async fn plain_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
                         }),
                     },
                 ],
+                enabled_by: None,
             }),
         )]
     );
@@ -342,13 +484,45 @@ const SUSE_NEW_PACKAGES: [(&str, &str); 3] = [
 const SUSE_SP6_FIX: &str = "3.1.4-150600.5.15.1";
 
 /// The `openssl` package of the SBOM, which SUSE states as not affected, for all versions.
+/// The evidence type of versionless PURLs, read as all versions.
+const ANY_VERSION: &str = "purl_any_version";
+
+/// The default option enabling versionless PURLs of a publisher (see the migration creating
+/// `correlation_option`).
+fn versionless(id: &str, publisher_namespace: &str, reason: &str) -> EnabledBy {
+    EnabledBy {
+        option_id: Uuid::parse_str(id).expect("valid UUID"),
+        key: CorrelationOptionKey::VersionlessPurl,
+        publisher_namespace: publisher_namespace.into(),
+        reason: Some(reason.into()),
+    }
+}
+
+fn redhat_versionless() -> EnabledBy {
+    versionless(
+        "019dc7a4-6a00-7000-8000-000000000001",
+        "https://www.redhat.com",
+        "Red Hat states the status of a component in a product with a versionless PURL, meaning all versions.",
+    )
+}
+
+fn suse_versionless() -> EnabledBy {
+    versionless(
+        "019dc7a4-6a00-7000-8000-000000000002",
+        "https://www.suse.com",
+        "SUSE states the status of a package in a product with a versionless PURL, meaning all versions.",
+    )
+}
+
+/// SUSE states the meta package `openssl` as not affected in SLE 15 SP6, with a versionless PURL.
+/// The SBOM's packages are in SP6 by their `distro=sles-15.6` qualifier: 0.7 × 0.85 × 0.9.
 fn suse_openssl_not_affected(node: &str) -> Evidence {
     (
         node.to_string(),
         "CVE-2024-6119".to_string(),
-        "purl_suse_any_version".to_string(),
+        ANY_VERSION.to_string(),
         AssertionStatus::NotAffected,
-        0.7,
+        0.54,
         Some(MatchedValue {
             identifier: "pkg:rpm/suse/openssl".into(),
             ranges: vec![MatchedRange {
@@ -356,6 +530,7 @@ fn suse_openssl_not_affected(node: &str) -> Evidence {
                 low: None,
                 high: None,
             }],
+            enabled_by: Some(suse_versionless()),
         }),
     )
 }
@@ -374,10 +549,12 @@ async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()
                 "CVE-2024-6119".to_string(),
                 "purl_suse_recommended_before".to_string(),
                 AssertionStatus::Affected,
-                0.9,
+                // 0.9, in SLE 15 SP6 by the PURL's `distro=sles-15.6` (0.85 × 0.9)
+                0.69,
                 Some(MatchedValue {
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: fixed_in("rpm", &[SUSE_SP6_FIX]),
+                    enabled_by: None,
                 }),
             )
         })
@@ -404,7 +581,8 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
                 "CVE-2024-6119".to_string(),
                 "purl_suse_recommended".to_string(),
                 AssertionStatus::Fixed,
-                0.9,
+                // 0.9, in SLE 15 SP6 by the PURL's `distro=sles-15.6` (0.85 × 0.9)
+                0.69,
                 Some(MatchedValue {
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: vec![MatchedRange {
@@ -415,6 +593,7 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
                         }),
                         high: None,
                     }],
+                    enabled_by: None,
                 }),
             )
         })
@@ -457,10 +636,12 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 "CVE-2099-20001".to_string(),
                 PLAIN.to_string(),
                 AssertionStatus::Affected,
-                1.0,
+                // stated as installed on a platform, which the SBOM doesn't name (×0.7)
+                0.7,
                 Some(MatchedValue {
                     identifier: "pkg:npm/example-app".into(),
                     ranges: below("semver", "2.0.0"),
+                    enabled_by: None,
                 }),
             ),
             (
@@ -472,10 +653,263 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 Some(MatchedValue {
                     identifier: "pkg:npm/example-lib".into(),
                     ranges: below("npm", "4.2"),
+                    enabled_by: None,
                 }),
             ),
         ]
     );
+
+    Ok(())
+}
+
+/// CSAF statuses stating a single version (`first_fixed`, `first_affected`, `last_affected`) mean
+/// a range from or up to that version, of the same stream: the `el9_0` package matches none of
+/// them. `under_investigation` is stated for that exact version.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn csaf_single_version_statuses(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    const VERSION: &str = "1:1.1.1k-9.el8_6";
+    let bound = |inclusive| {
+        Some(RangeBound {
+            version: VERSION.into(),
+            inclusive,
+        })
+    };
+    let from = MatchedRange {
+        scheme: "rpm".into(),
+        low: bound(true),
+        high: None,
+    };
+    let before = MatchedRange {
+        scheme: "rpm".into(),
+        low: None,
+        high: bound(false),
+    };
+    let up_to = MatchedRange {
+        scheme: "rpm".into(),
+        low: None,
+        high: bound(true),
+    };
+    let exact = MatchedRange {
+        scheme: "rpm".into(),
+        low: bound(true),
+        high: bound(true),
+    };
+    let evidence = |node: &str,
+                    vulnerability: &str,
+                    extractor: &str,
+                    status,
+                    confidence,
+                    range: &MatchedRange| {
+        (
+            node.to_string(),
+            vulnerability.to_string(),
+            extractor.to_string(),
+            status,
+            confidence,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![range.clone()],
+                enabled_by: None,
+            }),
+        )
+    };
+
+    use AssertionStatus::{Affected, Fixed, UnderInvestigation};
+    assert_eq!(
+        evidence_of(
+            ctx,
+            "csaf/statuses/openssl.cdx.json",
+            "csaf/statuses/first-last.json"
+        )
+        .await?,
+        vec![
+            evidence(
+                "openssl-12",
+                "CVE-2099-30001",
+                "purl_first_fixed",
+                Fixed,
+                1.0,
+                &from
+            ),
+            evidence(
+                "openssl-12",
+                "CVE-2099-30002",
+                "purl_first_affected",
+                Affected,
+                0.9,
+                &from
+            ),
+            evidence(
+                "openssl-5",
+                "CVE-2099-30001",
+                "purl_first_fixed_before",
+                Affected,
+                0.9,
+                &before
+            ),
+            evidence(
+                "openssl-5",
+                "CVE-2099-30003",
+                "purl_last_affected",
+                Affected,
+                0.9,
+                &up_to
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30001",
+                "purl_first_fixed",
+                Fixed,
+                1.0,
+                &from
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30002",
+                "purl_first_affected",
+                Affected,
+                0.9,
+                &from
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30003",
+                "purl_last_affected",
+                Affected,
+                0.9,
+                &up_to
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30004",
+                STREAM,
+                UnderInvestigation,
+                1.0,
+                &exact
+            ),
+        ]
+    );
+
+    Ok(())
+}
+
+const RH_VERSIONLESS_VEX: &str = "csaf/versionless/redhat.json";
+const GOLANG_SBOM: &str =
+    "scenarios/S16_crossscheme_purlquery_golang/sbom_golang_rpm_storage3.cdx.json";
+
+/// Red Hat states the status of a component in a product with a versionless PURL. With the
+/// default option, it applies to all versions, and the evidence names the option.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn versionless_redhat(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    assert_eq!(
+        evidence_of(ctx, GOLANG_SBOM, RH_VERSIONLESS_VEX).await?,
+        vec![(
+            "pkg-golang".to_string(),
+            "CVE-2023-44487".to_string(),
+            ANY_VERSION.to_string(),
+            AssertionStatus::Affected,
+            // 0.7 × 0.9: the context is the CPE of the root component, depending on the package
+            0.63,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/golang".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "generic".into(),
+                    low: None,
+                    high: None,
+                }],
+                enabled_by: Some(redhat_versionless()),
+            }),
+        )]
+    );
+
+    // the evidence is linked to the context, through the root component's CPE (which is also the
+    // describing CPE, a less specific source of the same CPE)
+    let links = correlation_evidence_context::Entity::find()
+        .all(&ctx.db)
+        .await?
+        .into_iter()
+        .map(|link| {
+            (
+                link.source,
+                link.distance,
+                link.node_identifier,
+                link.context_identifier,
+                link.confidence,
+            )
+        })
+        .collect::<Vec<_>>();
+    let storage = "cpe:2.3:a:redhat:storage:3:*:*:*:*:*:*:*".to_string();
+    assert_eq!(
+        links,
+        vec![(
+            ContextSource::AncestorNode,
+            1,
+            storage.clone(),
+            storage,
+            0.9
+        )]
+    );
+
+    Ok(())
+}
+
+/// Without an enabled option for the publisher, a versionless PURL matches nothing.
+#[test_context(TrustifyContext)]
+#[rstest::rstest]
+#[case::deleted(None)]
+#[case::disabled(Some(serde_json::Value::Bool(false)))]
+#[test_log::test(actix_web::test)]
+async fn versionless_not_enabled(
+    ctx: &TrustifyContext,
+    #[case] value: Option<serde_json::Value>,
+) -> anyhow::Result<()> {
+    use sea_orm::ActiveValue::Set;
+    use trustify_entity::correlation_option;
+
+    let publisher = correlation_option::Column::PublisherNamespace.eq("https://www.redhat.com");
+    match value {
+        None => {
+            correlation_option::Entity::delete_many()
+                .filter(publisher)
+                .exec(&ctx.db)
+                .await?;
+        }
+        Some(value) => {
+            correlation_option::Entity::update_many()
+                .set(correlation_option::ActiveModel {
+                    value: Set(value),
+                    ..Default::default()
+                })
+                .filter(publisher)
+                .exec(&ctx.db)
+                .await?;
+        }
+    }
+
+    assert_eq!(
+        evidence_of(ctx, GOLANG_SBOM, RH_VERSIONLESS_VEX).await?,
+        vec![]
+    );
+
+    Ok(())
+}
+
+/// A publisher without an option: its versionless PURLs match nothing.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn versionless_other_publisher(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let mut vex: serde_json::Value =
+        serde_json::from_slice(&trustify_test_context::document_bytes(RH_VERSIONLESS_VEX).await?)?;
+    vex["document"]["publisher"]["namespace"] = "https://example.com".into();
+
+    let sbom = ctx.ingest_document(GOLANG_SBOM).await?;
+    ctx.ingest_json(vex).await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    extract_for_sbom(ctx, sbom_id).await?;
+
+    assert_eq!(load_evidence(ctx, sbom_id).await?, vec![]);
 
     Ok(())
 }

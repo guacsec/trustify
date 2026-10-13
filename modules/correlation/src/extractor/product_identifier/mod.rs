@@ -49,6 +49,8 @@ fn assertion(ap: &advisory_vulnerability_product_identifier::Model) -> Assertion
         status: ap.status,
         confidence: CONFIDENCE,
         matched_value: MatchedValue::new(ap.value.clone()),
+        context_id: ap.assertion_context_id,
+        requires_context: false,
     }
 }
 
@@ -344,7 +346,8 @@ mod test {
             !evidence.is_empty(),
             "SKU-based evidence should exist between SBOM and advisory"
         );
-        assert_eq!(evidence[0].confidence, 1.0);
+        // stated for a product (a context), which the SBOM component can't be compared with
+        assert_eq!(evidence[0].confidence, 0.7);
         assert_eq!(evidence[0].vulnerability_id, "CVE-2025-41725");
 
         Ok(())

@@ -1,14 +1,18 @@
 use crate::{
     error::Error,
     model::{
-        CorrelationResult, IdentifierKind, IdentifierRef, QueryResult, SbomVerdictCounts,
-        VerdictCountsRequest,
+        AdvisoryStatement, CorrelationResult, IdentifierKind, IdentifierRef, QueryResult,
+        SbomVerdictCounts, StatementKind, VerdictCountsRequest,
     },
-    service::CorrelationService,
+    service::{CorrelationService, option::OptionService, statement::StatementService},
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Deserialize;
-use trustify_common::db;
+use trustify_auth::{ReadAdvisory, authorizer::Require};
+use trustify_common::{
+    db::{self, pagination_cache::PaginationCache},
+    model::Paginated,
+};
 use utoipa::IntoParams;
 use uuid::Uuid;
 
@@ -20,20 +24,28 @@ struct SbomCorrelationParams {
     include_unmatched: bool,
 }
 
+mod option;
 #[cfg(test)]
 mod test;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db_ro: db::ReadOnly,
+    db_rw: db::ReadWrite,
+    cache: PaginationCache,
 ) {
     let service = CorrelationService::default();
     config
         .app_data(web::Data::new(db_ro))
+        .app_data(web::Data::new(db_rw))
         .app_data(web::Data::new(service))
+        .app_data(web::Data::new(OptionService::new(cache.clone())))
+        .app_data(web::Data::new(StatementService::new(cache)))
         .service(get_sbom_correlation)
+        .service(list_advisory_statements)
         .service(count_verdicts)
-        .service(query_correlation);
+        .service(query_correlation)
+        .configure(option::configure);
 }
 
 /// Get correlation verdicts for an SBOM.
@@ -125,6 +137,56 @@ async fn query_correlation(
     let IdentifierQuery { kind, q: value } = params.into_inner();
     let result = service
         .query_identifier(IdentifierRef { kind, value }, &tx)
+        .await?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// Query parameters for listing advisory statements.
+#[derive(Debug, Deserialize, IntoParams)]
+struct StatementQuery {
+    /// The kind of subject of the statements.
+    #[param(inline)]
+    kind: StatementKind,
+    /// Only the statements for this vulnerability, e.g. `CVE-2024-1234`.
+    vulnerability: Option<String>,
+}
+
+/// List the statuses an advisory states, about one kind of subject.
+///
+/// These are the facts as stored when the advisory was ingested, which correlation matches SBOMs
+/// against. An unknown advisory has no statements.
+#[utoipa::path(
+    tag = "correlation",
+    operation_id = "listAdvisoryStatements",
+    params(
+        ("id" = Uuid, Path, description = "The ID of the advisory"),
+        StatementQuery,
+        Paginated,
+    ),
+    responses(
+        (status = 200, description = "The statements", body = inline(trustify_common::model::PaginatedResults<AdvisoryStatement>)),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "The user authenticated, but not authorized for this operation"),
+    ),
+)]
+#[get("/v3/correlation/advisory/{id}/statement")]
+async fn list_advisory_statements(
+    advisory_id: web::Path<Uuid>,
+    web::Query(query): web::Query<StatementQuery>,
+    web::Query(paginated): web::Query<Paginated>,
+    service: web::Data<StatementService>,
+    db: web::Data<db::ReadOnly>,
+    _: Require<ReadAdvisory>,
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    let result = service
+        .list(
+            *advisory_id,
+            query.kind,
+            query.vulnerability.as_deref(),
+            paginated,
+            &tx,
+        )
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }

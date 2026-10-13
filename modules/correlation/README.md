@@ -3,7 +3,7 @@
 Links SBOM components to advisory vulnerability assertions through evidence,
 then resolves the evidence into verdicts.
 
-See [ADR 00022](../../docs/adrs/00022-correlation-engine.md) for the design.
+See [ADR 00023](../../docs/adrs/00023-correlation-engine.md) for the design.
 
 ## API
 

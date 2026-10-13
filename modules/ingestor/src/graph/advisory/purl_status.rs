@@ -15,6 +15,8 @@ pub struct PurlStatus {
     pub purl: Purl,
     pub status: Uuid,
     pub info: VersionInfo,
+    /// The product the status is stated in, see [`super::context`].
+    pub context_id: Option<Uuid>,
 }
 
 impl PurlStatus {
@@ -24,6 +26,7 @@ impl PurlStatus {
             purl,
             status,
             info,
+            context_id: None,
         }
     }
 
@@ -44,6 +47,7 @@ impl PurlStatus {
             status_id: Set(self.status),
             base_purl_id: Set(package_id),
             context_cpe_id: Set(cpe_id),
+            assertion_context_id: Set(self.context_id),
             version_range_id: version_range.clone().id,
         };
 
@@ -59,6 +63,10 @@ impl PurlStatus {
 
         if let Some(cpe) = &self.cpe {
             result = Uuid::new_v5(&result, cpe.uuid().as_bytes())
+        }
+
+        if let Some(context_id) = &self.context_id {
+            result = Uuid::new_v5(&result, context_id.as_bytes())
         }
 
         result

@@ -1087,6 +1087,290 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/advisory/{id}/statement:
+    get:
+      tags:
+      - correlation
+      summary: List the statuses an advisory states, about one kind of subject.
+      description: |-
+        These are the facts as stored when the advisory was ingested, which correlation matches SBOMs
+        against. An unknown advisory has no statements.
+      operationId: listAdvisoryStatements
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the advisory
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: kind
+        in: query
+        description: The kind of subject of the statements.
+        required: true
+        schema:
+          type: string
+          description: The kind of subject an advisory statement is about.
+          enum:
+          - purl
+          - cpe
+          - product
+      - name: vulnerability
+        in: query
+        description: Only the statements for this vulnerability, e.g. `CVE-2024-1234`.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: The statements
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: A status an advisory states for a vulnerability, as stored when the advisory was ingested.
+                      required:
+                      - vulnerability_id
+                      - status
+                      - subject
+                      - range
+                      properties:
+                        range:
+                          $ref: '#/components/schemas/MatchedRange'
+                          description: The versions the statement applies to. Unbounded when it applies to all versions.
+                        status:
+                          type: string
+                          description: The stated status (slug), e.g. `affected`, `fixed` or `first_fixed`.
+                        subject:
+                          $ref: '#/components/schemas/StatementSubject'
+                        vulnerability_id:
+                          type: string
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+  /api/v3/correlation/option:
+    get:
+      tags:
+      - correlation
+      summary: List the correlation options.
+      operationId: listCorrelationOptions
+      parameters:
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: The options
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/CorrelationOptionData'
+                      - type: object
+                        required:
+                        - id
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                      description: |-
+                        An option of the correlation engine, for the advisories of one publisher.
+
+                        A changed option applies to documents extracted afterwards.
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+    post:
+      tags:
+      - correlation
+      summary: Create a correlation option.
+      description: It applies to documents extracted afterwards.
+      operationId: createCorrelationOption
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrelationOptionData'
+        required: true
+      responses:
+        '201':
+          description: The option was created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          description: The value doesn't fit the key
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '409':
+          description: The publisher already has an option of that key
+  /api/v3/correlation/option/{id}:
+    get:
+      tags:
+      - correlation
+      summary: Get a correlation option.
+      operationId: getCorrelationOption
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the option
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The option
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrelationOption'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '404':
+          description: The option doesn't exist
+    put:
+      tags:
+      - correlation
+      summary: Update a correlation option.
+      description: It applies to documents extracted afterwards.
+      operationId: updateCorrelationOption
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the option
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrelationOptionData'
+        required: true
+      responses:
+        '204':
+          description: The option was updated
+        '400':
+          description: The value doesn't fit the key
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '404':
+          description: The option doesn't exist
+        '409':
+          description: The publisher already has an option of that key
+    delete:
+      tags:
+      - correlation
+      summary: Delete a correlation option.
+      description: It applies to documents extracted afterwards.
+      operationId: deleteCorrelationOption
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the option
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: The option was deleted or did not exist
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
   /api/v3/correlation/query:
     get:
       tags:
@@ -3355,6 +3639,16 @@ paths:
         description: |-
           Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
           Can be specified multiple times. Malformed IDs are silently ignored.
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+      - name: crypto
+        in: query
+        description: |-
+          Filter by crypto algorithm name. Only SBOMs containing any of the provided algorithm
+          names will be returned. Can be specified multiple times.
         required: false
         schema:
           type: array
@@ -5683,6 +5977,68 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    ContextCategory:
+      type: string
+      description: How the subject of an assertion relates to its context (CSAF relationship categories).
+      enum:
+      - default_component_of
+      - external_component_of
+      - installed_on
+      - installed_with
+      - optional_component_of
+    ContextSource:
+      type: string
+      description: Where an SBOM component got a CPE putting it into a product from.
+      enum:
+      - node
+      - ancestor_node
+      - describing
+      - ancestor_sbom
+      - purl_qualifier
+      - purl_release
+    CorrelationOption:
+      allOf:
+      - $ref: '#/components/schemas/CorrelationOptionData'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            type: string
+            format: uuid
+      description: |-
+        An option of the correlation engine, for the advisories of one publisher.
+
+        A changed option applies to documents extracted afterwards.
+    CorrelationOptionData:
+      type: object
+      description: The settable content of a correlation option.
+      required:
+      - key
+      - publisher_namespace
+      - value
+      properties:
+        key:
+          $ref: '#/components/schemas/CorrelationOptionKey'
+        publisher_namespace:
+          type: string
+          description: |-
+            The publisher namespace of the advisories the option applies to, e.g.
+            `https://www.redhat.com`.
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Why the option is set, shown with the evidence it enables.
+        value:
+          type: object
+          description: The value, its type depends on the key.
+    CorrelationOptionKey:
+      type: string
+      description: The options of the correlation engine.
+      enum:
+      - versionless_purl
+      - fixed_is_first_fixed
     CorrelationResult:
       type: object
       description: Top-level correlation result for an SBOM.
@@ -5712,12 +6068,13 @@ components:
       format: uri
     CreateResponse:
       type: object
+      description: The ID of a created option.
       required:
       - id
       properties:
         id:
           type: string
-          description: The ID of the newly created group
+          format: uuid
     CredentialSource:
       oneOf:
       - type: object
@@ -5901,6 +6258,25 @@ components:
         properties:
           source:
             type: string
+    EnabledBy:
+      type: object
+      description: The correlation option which enabled a match, as it was when the evidence was extracted.
+      required:
+      - option_id
+      - key
+      - publisher_namespace
+      properties:
+        key:
+          $ref: '#/components/schemas/CorrelationOptionKey'
+        option_id:
+          type: string
+          format: uuid
+        publisher_namespace:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
     ErrorInformation:
       type: object
       required:
@@ -5917,6 +6293,48 @@ components:
         message:
           type: string
           description: A human-readable error message
+    EvidenceContext:
+      type: object
+      description: |-
+        A product (assertion context) a piece of evidence was matched in, and how the SBOM component
+        got into it.
+      required:
+      - context_id
+      - name
+      - source
+      - distance
+      - node_identifier
+      - context_identifier
+      - confidence
+      properties:
+        category:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ContextCategory'
+            description: How the subject of the assertion relates to the product, if stated.
+        confidence:
+          type: number
+          format: double
+          description: The confidence of this context, applied to the evidence.
+        context_id:
+          type: string
+          format: uuid
+        context_identifier:
+          type: string
+          description: The product's CPE which matched.
+        distance:
+          type: integer
+          format: int32
+          description: Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
+        name:
+          type: string
+          description: The name of the product, e.g. "Red Hat Storage 3".
+        node_identifier:
+          type: string
+          description: The SBOM side CPE which matched.
+        source:
+          $ref: '#/components/schemas/ContextSource'
+          description: Where the component got the matching CPE from.
     EvidenceDetail:
       type: object
       description: One piece of evidence from the correlation engine.
@@ -5939,6 +6357,13 @@ components:
         confidence:
           type: number
           format: double
+        contexts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceContext'
+          description: |-
+            The products (assertion contexts) the evidence was matched in. Empty when the assertion
+            has no context, or the SBOM nothing to compare it with.
         created_at:
           type: string
           format: date-time
@@ -6732,6 +7157,11 @@ components:
       required:
       - identifier
       properties:
+        enabled_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EnabledBy'
+            description: The option which enabled the match, if it depends on one.
         identifier:
           type: string
           description: |-
@@ -8924,6 +9354,60 @@ components:
       enum:
       - waiting
       - running
+    StatementSubject:
+      oneOf:
+      - type: object
+        description: A package, by its PURL without a version, e.g. `pkg:rpm/redhat/bind`.
+        required:
+        - purl
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - purl
+          purl:
+            type: string
+      - type: object
+        description: A CPE, as CPE 2.3 formatted string.
+        required:
+        - cpe
+        - kind
+        properties:
+          cpe:
+            type: string
+          kind:
+            type: string
+            enum:
+            - cpe
+      - type: object
+        description: A product, optionally narrowed to a package of it.
+        required:
+        - name
+        - kind
+        properties:
+          cpe_key:
+            type:
+            - string
+            - 'null'
+            description: The CPE key of the product version, if any.
+          csaf_product_ids:
+            type: array
+            items:
+              type: string
+            description: The CSAF product IDs the statement originates from.
+          kind:
+            type: string
+            enum:
+            - product
+          name:
+            type: string
+          package:
+            type:
+            - string
+            - 'null'
+            description: The package of the product the statement is about, if any.
+      description: What an advisory statement is about.
     StatusContext:
       oneOf:
       - type: object
@@ -8974,10 +9458,7 @@ components:
           description: The [`Validator::name`] that produced this report.
     ValidationSeverity:
       type: string
-      description: |-
-        Severity of a single validation finding.
-
-        Ordered from least to most severe, so `>=` comparisons express a threshold.
+      description: Severity of a single validation finding.
       enum:
       - info
       - warning

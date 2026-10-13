@@ -7,12 +7,14 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+trustify-api = { workspace = true, features = ["openapi"] }
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
 trustify-entity = { workspace = true }
-trustify-module-storage = { workspace = true }
 trustify-module-analysis = { workspace = true }
+trustify-module-storage = { workspace = true }
 
+actix-http = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
@@ -48,9 +50,9 @@ thiserror = { workspace = true }
 time = { workspace = true, features = ["serde-well-known"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
+url = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
-url = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
 vers-like-specifier = { workspace = true }
 vers-rs = { workspace = true }
@@ -67,7 +69,6 @@ serde-saphyr = { workspace = true }
 tempfile = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
-wiremock = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 wiremock = { workspace = true }
 zip = { workspace = true }

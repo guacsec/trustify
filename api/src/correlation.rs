@@ -122,8 +122,79 @@ pub struct EvidenceDetail {
     pub advisory_identifier: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matched_value: Option<MatchedValue>,
+    /// The products (assertion contexts) the evidence was matched in. Empty when the assertion
+    /// has no context, or the SBOM nothing to compare it with.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contexts: Vec<EvidenceContext>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+}
+
+/// A product (assertion context) a piece of evidence was matched in, and how the SBOM component
+/// got into it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EvidenceContext {
+    pub context_id: Uuid,
+    /// The name of the product, e.g. "Red Hat Storage 3".
+    pub name: String,
+    /// How the subject of the assertion relates to the product, if stated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<ContextCategory>,
+    /// Where the component got the matching CPE from.
+    pub source: ContextSource,
+    /// Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
+    pub distance: i32,
+    /// The SBOM side CPE which matched.
+    pub node_identifier: String,
+    /// The product's CPE which matched.
+    pub context_identifier: String,
+    /// The confidence of this context, applied to the evidence.
+    pub confidence: f64,
+}
+
+/// How the subject of an assertion relates to its context (CSAF relationship categories).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ContextCategory {
+    DefaultComponentOf,
+    ExternalComponentOf,
+    InstalledOn,
+    InstalledWith,
+    OptionalComponentOf,
+}
+
+/// Where an SBOM component got a CPE putting it into a product from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ContextSource {
+    /// The component's own CPE.
+    Node,
+    /// The CPE of an ancestor component in the same SBOM.
+    AncestorNode,
+    /// A describing CPE of the SBOM.
+    Describing,
+    /// A describing CPE of an ancestor SBOM.
+    AncestorSbom,
+    /// The product of an RPM, by the `distro=` qualifier of its PURL.
+    PurlQualifier,
+    /// The product of an RPM, by the release of its version.
+    PurlRelease,
+}
+
+impl ContextSource {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Node => "component",
+            Self::AncestorNode => "ancestor component",
+            Self::Describing => "SBOM",
+            Self::AncestorSbom => "ancestor SBOM",
+            Self::PurlQualifier => "distro qualifier",
+            Self::PurlRelease => "release",
+        }
+    }
 }
 
 /// The advisory side of a match: what an SBOM identifier was matched against.
@@ -138,6 +209,9 @@ pub struct MatchedValue {
     /// Empty when no version range was involved in the match.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<MatchedRange>,
+    /// The option which enabled the match, if it depends on one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled_by: Option<EnabledBy>,
 }
 
 impl MatchedValue {
@@ -146,8 +220,89 @@ impl MatchedValue {
         Self {
             identifier: identifier.into(),
             ranges: Vec::new(),
+            enabled_by: None,
         }
     }
+}
+
+/// The correlation option which enabled a match, as it was when the evidence was extracted.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EnabledBy {
+    pub option_id: Uuid,
+    pub key: CorrelationOptionKey,
+    pub publisher_namespace: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl fmt::Display for EnabledBy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} for {}", self.key, self.publisher_namespace)?;
+        if let Some(reason) = &self.reason {
+            write!(f, ": {reason}")?;
+        }
+        Ok(())
+    }
+}
+
+/// The options of the correlation engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum CorrelationOptionKey {
+    /// A versionless PURL (e.g. `pkg:rpm/redhat/golang`) states the status of all versions of the
+    /// package. The value is a boolean.
+    VersionlessPurl,
+    /// A `fixed` version means `first_fixed`: earlier versions of the stream are affected, later
+    /// ones are fixed. The value is a boolean.
+    FixedIsFirstFixed,
+}
+
+impl CorrelationOptionKey {
+    /// All option keys.
+    pub const ALL: [Self; 2] = [Self::VersionlessPurl, Self::FixedIsFirstFixed];
+
+    /// The key, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::VersionlessPurl => "versionless_purl",
+            Self::FixedIsFirstFixed => "fixed_is_first_fixed",
+        }
+    }
+}
+
+impl fmt::Display for CorrelationOptionKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// An option of the correlation engine, for the advisories of one publisher.
+///
+/// A changed option applies to documents extracted afterwards.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct CorrelationOption {
+    pub id: Uuid,
+    #[serde(flatten)]
+    pub data: CorrelationOptionData,
+}
+
+/// The settable content of a correlation option.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct CorrelationOptionData {
+    pub key: CorrelationOptionKey,
+    /// The publisher namespace of the advisories the option applies to, e.g.
+    /// `https://www.redhat.com`.
+    pub publisher_namespace: String,
+    /// The value, its type depends on the key.
+    #[cfg_attr(feature = "openapi", schema(value_type = Object))]
+    pub value: serde_json::Value,
+    /// Why the option is set, shown with the evidence it enables.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 impl fmt::Display for MatchedValue {
@@ -290,13 +445,145 @@ pub struct QueryMatch {
     pub confidence: f64,
 }
 
+/// The kind of subject an advisory statement is about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum StatementKind {
+    Purl,
+    Cpe,
+    Product,
+}
+
+impl StatementKind {
+    /// All kinds.
+    pub const ALL: [Self; 3] = [Self::Purl, Self::Cpe, Self::Product];
+
+    /// The kind, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Purl => "purl",
+            Self::Cpe => "cpe",
+            Self::Product => "product",
+        }
+    }
+}
+
+/// A status an advisory states for a vulnerability, as stored when the advisory was ingested.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdvisoryStatement {
+    pub vulnerability_id: String,
+    /// The stated status (slug), e.g. `affected`, `fixed` or `first_fixed`.
+    pub status: String,
+    pub subject: StatementSubject,
+    /// The versions the statement applies to. Unbounded when it applies to all versions.
+    pub range: MatchedRange,
+}
+
+/// What an advisory statement is about.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StatementSubject {
+    /// A package, by its PURL without a version, e.g. `pkg:rpm/redhat/bind`.
+    Purl { purl: String },
+    /// A CPE, as CPE 2.3 formatted string.
+    Cpe { cpe: String },
+    /// A product, optionally narrowed to a package of it.
+    Product {
+        name: String,
+        /// The CPE key of the product version, if any.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cpe_key: Option<String>,
+        /// The package of the product the statement is about, if any.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        package: Option<String>,
+        /// The CSAF product IDs the statement originates from.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        csaf_product_ids: Vec<String>,
+    },
+}
+
 #[cfg(feature = "entity")]
 mod entity_conversions {
     use super::*;
     use trustify_entity::{
         advisory_vulnerability_product_identifier::ProductIdentifierType as EntityProductIdentifierType,
-        correlation_evidence::AssertionStatus as EntityAssertionStatus, version_range,
+        assertion_context::AssertionContextCategory as EntityCategory,
+        correlation_evidence::AssertionStatus as EntityAssertionStatus,
+        correlation_evidence_context::ContextSource as EntityContextSource,
+        correlation_option::{self, CorrelationOptionKey as EntityCorrelationOptionKey},
+        version_range,
     };
+
+    impl From<EntityCategory> for ContextCategory {
+        fn from(value: EntityCategory) -> Self {
+            match value {
+                EntityCategory::DefaultComponentOf => Self::DefaultComponentOf,
+                EntityCategory::ExternalComponentOf => Self::ExternalComponentOf,
+                EntityCategory::InstalledOn => Self::InstalledOn,
+                EntityCategory::InstalledWith => Self::InstalledWith,
+                EntityCategory::OptionalComponentOf => Self::OptionalComponentOf,
+            }
+        }
+    }
+
+    impl From<EntityContextSource> for ContextSource {
+        fn from(value: EntityContextSource) -> Self {
+            match value {
+                EntityContextSource::Node => Self::Node,
+                EntityContextSource::AncestorNode => Self::AncestorNode,
+                EntityContextSource::Describing => Self::Describing,
+                EntityContextSource::AncestorSbom => Self::AncestorSbom,
+                EntityContextSource::PurlQualifier => Self::PurlQualifier,
+                EntityContextSource::PurlRelease => Self::PurlRelease,
+            }
+        }
+    }
+
+    impl From<EntityCorrelationOptionKey> for CorrelationOptionKey {
+        fn from(value: EntityCorrelationOptionKey) -> Self {
+            match value {
+                EntityCorrelationOptionKey::VersionlessPurl => Self::VersionlessPurl,
+                EntityCorrelationOptionKey::FixedIsFirstFixed => Self::FixedIsFirstFixed,
+            }
+        }
+    }
+
+    impl From<CorrelationOptionKey> for EntityCorrelationOptionKey {
+        fn from(value: CorrelationOptionKey) -> Self {
+            match value {
+                CorrelationOptionKey::VersionlessPurl => Self::VersionlessPurl,
+                CorrelationOptionKey::FixedIsFirstFixed => Self::FixedIsFirstFixed,
+            }
+        }
+    }
+
+    impl From<correlation_option::Model> for CorrelationOption {
+        fn from(value: correlation_option::Model) -> Self {
+            Self {
+                id: value.id,
+                data: CorrelationOptionData {
+                    key: value.key.into(),
+                    publisher_namespace: value.publisher_namespace,
+                    value: value.value,
+                    reason: value.reason,
+                },
+            }
+        }
+    }
+
+    impl From<correlation_option::Model> for EnabledBy {
+        fn from(value: correlation_option::Model) -> Self {
+            Self {
+                option_id: value.id,
+                key: value.key.into(),
+                publisher_namespace: value.publisher_namespace,
+                reason: value.reason,
+            }
+        }
+    }
 
     impl From<version_range::Model> for MatchedRange {
         fn from(value: version_range::Model) -> Self {
@@ -384,6 +671,7 @@ mod test {
                 range(bound("1.0", true), bound("1.0", true)),
                 range(None, None),
             ],
+            enabled_by: None,
         };
         assert_eq!(
             value.to_string(),

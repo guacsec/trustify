@@ -86,6 +86,7 @@ impl PurlStatusCreator {
                 purl: entry.purl.clone(),
                 status: status_id,
                 info: entry.version_info.clone(),
+                context_id: None,
             };
 
             let uuid = purl_status.uuid(entry.advisory_id, entry.vulnerability_id.clone());
@@ -109,6 +110,7 @@ impl PurlStatusCreator {
                     base_purl_id: Set(base_purl_id),
                     version_range_id: Set(version_range_id),
                     context_cpe_id: Set(context_cpe_id),
+                    assertion_context_id: Set(None),
                 });
         }
 

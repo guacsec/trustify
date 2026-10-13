@@ -86,6 +86,7 @@ const ASSERTION_COLUMNS: &str = r#"
     a.status::text AS status,
     a.cpe_id,
     a.version_range_id,
+    a.assertion_context_id,
     CASE
         WHEN ac.version <> '*' THEN 'exact'
         WHEN a.version_range_id IS NOT NULL THEN 'range'
@@ -101,6 +102,7 @@ struct AssertionRow {
     status: String,
     cpe_id: Uuid,
     version_range_id: Option<Uuid>,
+    assertion_context_id: Option<Uuid>,
     version_check: String,
 }
 
@@ -232,7 +234,7 @@ WITH sc AS (
         language text, sw_edition text, target_sw text, target_hw text, other text
     )
 )
-SELECT sc.i, {ASSERTION_COLUMNS}
+SELECT DISTINCT sc.i, {ASSERTION_COLUMNS}
 FROM sc
 JOIN cpe ac ON lower(ac.product) = lower(sc.product)
 JOIN advisory_vulnerability_cpe a ON a.cpe_id = ac.id
@@ -278,7 +280,7 @@ WHERE {MATCH_CONDITION}
             DbBackend::Postgres,
             format!(
                 r#"
-SELECT r.sbom_id, r.node_id, {ASSERTION_COLUMNS}
+SELECT DISTINCT r.sbom_id, r.node_id, {ASSERTION_COLUMNS}
 FROM advisory_vulnerability_cpe a
 JOIN cpe ac ON ac.id = a.cpe_id
 JOIN cpe sc ON lower(sc.product) = lower(ac.product)
@@ -329,6 +331,8 @@ fn assertion(
             .unwrap_or_default(),
         advisory_id: row.advisory_id,
         vulnerability_id: row.vulnerability_id,
+        context_id: row.assertion_context_id,
+        requires_context: false,
     })
 }
 
@@ -376,6 +380,7 @@ async fn matched_values(
                     .map(|range| range.clone().into())
                     .into_iter()
                     .collect(),
+                enabled_by: None,
             };
             Some(((cpe_id, range_id), value))
         })
@@ -383,7 +388,7 @@ async fn matched_values(
 }
 
 /// Format a stored CPE as CPE 2.3 formatted string, including the extended attributes.
-fn format_cpe23(model: &cpe::Model) -> String {
+pub(crate) fn format_cpe23(model: &cpe::Model) -> String {
     fn component(value: &Option<String>) -> String {
         match value.as_deref() {
             None => "-".to_string(),
@@ -512,6 +517,8 @@ mod test {
         const MDP_ARM32: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:arm32:*";
         const MDP_X86: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:x86:*";
 
+        // WAGO states its firmware as installed on devices (a context), which the SBOM components
+        // can't be compared with: ×0.7 (unchecked)
         let mut result = Vec::new();
         for (node, vulns, status, confidence, matched) in [
             (
@@ -532,21 +539,21 @@ mod test {
                 "wago-os-affected",
                 WAGO_CVES,
                 AssertionStatus::Affected,
-                0.7,
+                0.49,
                 WAGO_RANGE,
             ),
             (
                 "wago-os-fixed",
                 WAGO_CVES,
                 AssertionStatus::Fixed,
-                0.8,
+                0.56,
                 WAGO_FIXED,
             ),
             (
                 "wago-os-hardened",
                 WAGO_CVES,
                 AssertionStatus::Affected,
-                0.7,
+                0.49,
                 WAGO_HARDENED_RANGE,
             ),
         ] {
@@ -742,7 +749,10 @@ mod test {
                                 inclusive: false,
                             }),
                         }],
+                        enabled_by: None,
                     },
+                    context_id: None,
+                    requires_context: false,
                 })
                 .collect::<Vec<_>>()
         );
@@ -934,6 +944,7 @@ mod test {
                 status: Set(AssertionStatus::Affected),
                 cpe_id: Set(cpe_id),
                 version_range_id: Set(version_range_id),
+                assertion_context_id: Set(None),
             }
             .insert(&ctx.db)
             .await?;

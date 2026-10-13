@@ -4,31 +4,55 @@
     "cve/CVE-2025-10148.json",
     "cve/CVE-2025-10966.json",
     "cve/CVE-2025-13034.json",
-    "vex/CVE-2024-2398.json",
+    "vex/CVE-2024-2398.json.xz",
     "vex/CVE-2025-10148.json",
     "vex/CVE-2025-10966.json",
-    "vex/CVE-2025-13034.json"
+    "vex/CVE-2025-13034.json.xz"
   ],
   "sboms": {
-    "sbom_curl_el8": {
-      "correct": {
-        "CVE-2024-2398": "not_affected",
+    "sbom_curl_el8.cdx.json": {
+      "pkg-curl": {
+        "CVE-2024-2398": "fixed",
         "CVE-2025-10148": "not_affected",
         "CVE-2025-10966": "not_affected",
         "CVE-2025-13034": "affected"
       }
     },
-    "sbom_curl_el8_below-fix": {
-      "correct": {
+    "sbom_curl_el8.spdx.json": {
+      "SPDXRef-Package-rpm-curl-pkg-curl": {
+        "CVE-2024-2398": "fixed",
+        "CVE-2025-10148": "not_affected",
+        "CVE-2025-10966": "not_affected",
+        "CVE-2025-13034": "affected"
+      }
+    },
+    "sbom_curl_el8_below-fix.cdx.json": {
+      "pkg-curl": {
         "CVE-2024-2398": "affected",
         "CVE-2025-10148": "not_affected",
         "CVE-2025-10966": "not_affected",
         "CVE-2025-13034": "affected"
       }
     },
-    "sbom_curl_el8_el8cpe": {
-      "correct": {
-        "CVE-2024-2398": "not_affected",
+    "sbom_curl_el8_below-fix.spdx.json": {
+      "SPDXRef-Package-rpm-curl-pkg-curl": {
+        "CVE-2024-2398": "affected",
+        "CVE-2025-10148": "not_affected",
+        "CVE-2025-10966": "not_affected",
+        "CVE-2025-13034": "affected"
+      }
+    },
+    "sbom_curl_el8_el8cpe.cdx.json": {
+      "pkg-curl": {
+        "CVE-2024-2398": "fixed",
+        "CVE-2025-10148": "not_affected",
+        "CVE-2025-10966": "not_affected",
+        "CVE-2025-13034": "affected"
+      }
+    },
+    "sbom_curl_el8_el8cpe.spdx.json": {
+      "SPDXRef-curl": {
+        "CVE-2024-2398": "fixed",
         "CVE-2025-10148": "not_affected",
         "CVE-2025-10966": "not_affected",
         "CVE-2025-13034": "affected"

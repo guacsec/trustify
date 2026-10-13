@@ -1,5 +1,4 @@
-//! SUSE: a recommended version is the fix of its codestream, and versionless statements cover all
-//! versions.
+//! SUSE: a recommended version is the fix of its codestream.
 //!
 //! SUSE CSAF VEX documents don't state `fixed`, but list the package version to update to as
 //! `recommended`, per product. A package of the same codestream before that version is affected,
@@ -7,14 +6,13 @@
 //! package isn't judged against the fix of another codestream (e.g. SLE 15 SP7 or Tumbleweed for
 //! an SLE 15 SP6 package).
 //!
-//! Statements about all versions of a package in a product (e.g. `known_not_affected`) use a PURL
-//! without a version (`pkg:rpm/suse/openssl-3@`), which is stored as the exact, empty version. As
-//! the product isn't part of the match yet, those apply to the package in any product.
+//! Statements about all versions of a package in a product use a versionless PURL
+//! (`pkg:rpm/suse/openssl-3@`), see [`super::any_version`].
 
-use super::{RangeRule, exact_of, low, published_by};
+use super::{RangeRule, exact_of, low};
 use crate::extractor::purl::{Candidates, stated_scheme};
-use sea_orm::sea_query::{Expr, SimpleExpr};
-use trustify_entity::{status, version_range};
+use sea_orm::sea_query::{Expr, ExprTrait, SimpleExpr};
+use trustify_entity::status;
 
 /// Publisher namespaces of SUSE advisories.
 const NAMESPACES: &[&str] = &["https://www.suse.com"];
@@ -41,13 +39,13 @@ impl RangeRule for SuseRecommendedBefore {
     fn candidates(&self) -> Candidates {
         Candidates {
             condition: recommended(),
-            status: Expr::val("affected").into(),
+            status: Expr::val("affected"),
             scheme: stated_scheme(),
             // (unbounded, < recommended)
             low_version: Expr::cust("NULL"),
-            low_inclusive: Expr::val(false).into(),
+            low_inclusive: Expr::val(false),
             high_version: low(),
-            high_inclusive: Expr::val(false).into(),
+            high_inclusive: Expr::val(false),
         }
     }
 }
@@ -67,45 +65,13 @@ impl RangeRule for SuseRecommended {
     fn candidates(&self) -> Candidates {
         Candidates {
             condition: recommended(),
-            status: Expr::val("fixed").into(),
+            status: Expr::val("fixed"),
             scheme: stated_scheme(),
             // [recommended, unbounded)
             low_version: low(),
-            low_inclusive: Expr::val(true).into(),
+            low_inclusive: Expr::val(true),
             high_version: Expr::cust("NULL"),
-            high_inclusive: Expr::val(false).into(),
-        }
-    }
-}
-
-/// Derives "all versions" from the versionless statements of SUSE advisories.
-pub struct SuseAnyVersion;
-
-impl RangeRule for SuseAnyVersion {
-    fn id(&self) -> &'static str {
-        "purl_suse_any_version"
-    }
-
-    /// Lower, as the statement is about a product, which isn't considered yet.
-    fn confidence(&self) -> f64 {
-        0.7
-    }
-
-    fn candidates(&self) -> Candidates {
-        let high = Expr::col((version_range::Entity, version_range::Column::HighVersion));
-        Candidates {
-            // the exact, empty version, by SUSE
-            condition: Expr::expr(low())
-                .eq("")
-                .and(high.eq(""))
-                .and(published_by(NAMESPACES)),
-            status: Expr::col((status::Entity, status::Column::Slug)).into(),
-            scheme: stated_scheme(),
-            // (unbounded, unbounded)
-            low_version: Expr::cust("NULL"),
-            low_inclusive: Expr::val(false).into(),
-            high_version: Expr::cust("NULL"),
-            high_inclusive: Expr::val(false).into(),
+            high_inclusive: Expr::val(false),
         }
     }
 }

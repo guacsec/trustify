@@ -19,7 +19,9 @@
 //! Besides the stated ranges, [`rule`]s derive implied ranges from what advisories state (e.g.
 //! Red Hat's "fixed in X" implies "affected before X"), or evaluate stated ranges differently (e.g.
 //! a CSAF vls range, which states no versioning scheme, with the scheme of the PURL type). Those
-//! are matched the same way, but reported as evidence of the rule's own type.
+//! are matched the same way, but reported as evidence of the rule's own type. A rule may depend on
+//! a correlation option of the advisory's publisher (e.g. versionless PURLs meaning all versions),
+//! which its evidence then records (`enabled_by`).
 
 pub mod rule;
 pub mod stream;
@@ -34,7 +36,7 @@ use self::{
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef, MatchedRange, MatchedValue},
+    model::{EnabledBy, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue},
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, JoinType,
@@ -48,7 +50,7 @@ use std::{
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::VersionMatches, purl::Purl, rpm::Evr};
 use trustify_entity::{
-    base_purl, correlation_evidence::AssertionStatus, purl_status, qualified_purl,
+    advisory, base_purl, correlation_evidence::AssertionStatus, purl_status, qualified_purl,
     sbom_node_purl_ref, status, version_range, version_scheme::VersionScheme, versioned_purl,
 };
 use uuid::Uuid;
@@ -105,7 +107,7 @@ impl Candidates {
     fn stated() -> Self {
         Self {
             condition: Expr::value(true),
-            status: Expr::col((status::Entity, status::Column::Slug)).into(),
+            status: Expr::col((status::Entity, status::Column::Slug)),
             scheme: stated_scheme(),
             low_version: range_col(version_range::Column::LowVersion),
             low_inclusive: range_col(version_range::Column::LowInclusive),
@@ -146,6 +148,11 @@ impl Candidates {
             .column_as(base_purl::Column::Type, "base_purl_type")
             .column_as(base_purl::Column::Namespace, "base_purl_namespace")
             .column_as(base_purl::Column::Name, "base_purl_name")
+            .column_as(advisory::Column::PublisherNamespace, "publisher_namespace")
+            .column_as(
+                purl_status::Column::AssertionContextId,
+                "assertion_context_id",
+            )
             .column_as(version_range::Column::Id, "range_id")
             .column_as(self.scheme.clone(), "range_scheme")
             .column_as(self.low_version.clone(), "range_low_version")
@@ -165,7 +172,7 @@ pub fn stated_scheme() -> SimpleExpr {
 
 /// A column of the stated `version_range`.
 fn range_col(column: version_range::Column) -> SimpleExpr {
-    Expr::col((version_range::Entity, column)).into()
+    Expr::col((version_range::Entity, column))
 }
 
 /// Where candidates come from: stated (`None`), or a rule.
@@ -189,6 +196,8 @@ struct PurlStatusRow {
     base_purl_type: String,
     base_purl_namespace: Option<String>,
     base_purl_name: String,
+    publisher_namespace: Option<String>,
+    assertion_context_id: Option<Uuid>,
     range_id: Uuid,
     range_scheme: VersionScheme,
     range_low_version: Option<String>,
@@ -268,24 +277,57 @@ struct AdvisoryPurlMatch {
 /// Several ranges (e.g. of different product streams) of the same vulnerability may match. They
 /// result in the same evidence row, which therefore lists all of them, in a stable order.
 ///
-/// Rows of a different RPM stream are dropped. The others are grouped by their evidence type too:
-/// the rule's for derived rows, otherwise [`StreamMatch::extractor`]. The confidence of a group is
-/// the best of its ranges. This is evaluated here, on the rows already loaded by
-/// `version_matches`, as it also determines the type and confidence.
-fn group<'a, K: Ord>(
+/// Rows of a different RPM stream are dropped. Rows of another minor of the same major are only
+/// used as a fallback: if the advisory states nothing about the vulnerability in the target's own
+/// stream. The others are grouped by their evidence type too: the rule's for derived rows,
+/// otherwise [`StreamMatch::extractor`]. The confidence of a group is the best of its ranges. This
+/// is evaluated here, on the rows already loaded by `version_matches`, as it also determines the
+/// type and confidence.
+fn group<'a, K: Ord + Clone>(
     rows: impl IntoIterator<Item = (K, Source<'a>, PurlStatusRow)>,
 ) -> impl Iterator<Item = (K, Assertion)> {
-    let mut groups = BTreeMap::<
-        (K, &'static str, Uuid, String, String, String),
-        (AssertionStatus, f64, BTreeSet<MatchedRange>),
-    >::new();
-    for (target, source, row) in rows {
-        let Some(status) = map_status(&row.slug) else {
+    /// The merged rows of one assertion.
+    struct Group {
+        status: AssertionStatus,
+        confidence: f64,
+        ranges: BTreeSet<MatchedRange>,
+        enabled_by: Option<EnabledBy>,
+        requires_context: bool,
+    }
+
+    let mut groups =
+        BTreeMap::<(K, &'static str, Uuid, String, String, String, Option<Uuid>), Group>::new();
+    let rows = rows
+        .into_iter()
+        .filter_map(|(target, source, row)| {
+            let status = map_status(&row.slug)?;
+            let stream = row.stream_match()?;
+            Some((target, source, row, status, stream))
+        })
+        .collect::<Vec<_>>();
+    // the vulnerabilities an advisory states something about in a target's own stream
+    let own_stream = rows
+        .iter()
+        .filter(|(.., stream)| matches!(stream, StreamMatch::Exact | StreamMatch::Major))
+        .map(|(target, _, row, ..)| {
+            (
+                target.clone(),
+                row.advisory_id,
+                row.vulnerability_id.clone(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+
+    for (target, source, row, status, stream) in rows {
+        if stream == StreamMatch::Minor
+            && own_stream.contains(&(
+                target.clone(),
+                row.advisory_id,
+                row.vulnerability_id.clone(),
+            ))
+        {
             continue;
-        };
-        let Some(stream) = row.stream_match() else {
-            continue;
-        };
+        }
         let (extractor, confidence) = match source {
             None => (stream.extractor(), stream.confidence()),
             // rounded, so that e.g. 0.8 × 0.9 is stored as 0.72
@@ -294,10 +336,22 @@ fn group<'a, K: Ord>(
                 (stream.confidence() * rule.confidence() * 100.0).round() / 100.0,
             ),
         };
-        let (advisory_id, vulnerability_id, slug) = (
+        let enabled_by =
+            source.and_then(|rule| rule.enabled_by(row.publisher_namespace.as_deref()));
+        // an equal RPM stream puts the node into the statement's product already, another minor
+        // only applies within the product
+        let requires_context = match stream {
+            StreamMatch::Exact => false,
+            StreamMatch::Minor => true,
+            StreamMatch::Major | StreamMatch::Unscoped => {
+                source.is_some_and(|rule| rule.requires_context())
+            }
+        };
+        let (advisory_id, vulnerability_id, slug, context_id) = (
             row.advisory_id,
             row.vulnerability_id.clone(),
             row.slug.clone(),
+            row.assertion_context_id,
         );
         let (identifier, range) = row.into_match();
         let entry = groups
@@ -308,29 +362,36 @@ fn group<'a, K: Ord>(
                 vulnerability_id,
                 slug,
                 identifier,
+                context_id,
             ))
-            .or_insert_with(|| (status, confidence, BTreeSet::new()));
-        entry.1 = entry.1.max(confidence);
-        entry.2.insert(range);
+            .or_insert_with(|| Group {
+                status,
+                confidence,
+                ranges: BTreeSet::new(),
+                enabled_by,
+                requires_context,
+            });
+        entry.confidence = entry.confidence.max(confidence);
+        entry.ranges.insert(range);
     }
 
     groups.into_iter().map(
-        |(
-            (target, extractor, advisory_id, vulnerability_id, _, identifier),
-            (status, confidence, ranges),
-        )| {
+        |((target, extractor, advisory_id, vulnerability_id, _, identifier, context_id), group)| {
             (
                 target,
                 Assertion {
                     extractor,
                     advisory_id,
                     vulnerability_id,
-                    status,
-                    confidence,
+                    status: group.status,
+                    confidence: group.confidence,
                     matched_value: MatchedValue {
                         identifier,
-                        ranges: ranges.into_iter().collect(),
+                        ranges: group.ranges.into_iter().collect(),
+                        enabled_by: group.enabled_by,
                     },
+                    context_id,
+                    requires_context: group.requires_context,
                 },
             )
         },
@@ -404,7 +465,7 @@ impl Extractor for PurlExtractor {
         }
 
         let vp_ids: Vec<_> = vp_map.keys().copied().collect();
-        let rules = rules();
+        let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
             for chunk in vp_ids.chunks(5000) {
@@ -438,7 +499,7 @@ impl Extractor for PurlExtractor {
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeMatch>, Error> {
-        let rules = rules();
+        let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
             rows.extend(
@@ -489,6 +550,7 @@ async fn load_purl_status_matches(
             purl_status::Relation::VersionRange.def(),
         )
         .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
         .filter(versioned_purl::Column::Id.is_in(versioned_purl_ids.iter().copied()))
         .into_model::<PurlStatusMatch>()
         .all(connection)
@@ -515,6 +577,7 @@ async fn load_advisory_purl_matches(
             purl_status::Relation::VersionRange.def(),
         )
         .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
         .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
         .join(
             JoinType::InnerJoin,

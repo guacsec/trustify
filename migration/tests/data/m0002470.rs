@@ -11,7 +11,7 @@ use trustify_test_context::TrustifyContext;
 async fn count(ctx: &TrustifyContext, sql: &str) -> anyhow::Result<i64> {
     let row = ctx
         .db
-        .query_one(Statement::from_string(DbBackend::Postgres, sql))
+        .query_one_raw(Statement::from_string(DbBackend::Postgres, sql))
         .await?
         .ok_or_else(|| anyhow::anyhow!("no result"))?;
     Ok(row.try_get("", "c")?)

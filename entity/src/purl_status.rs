@@ -12,6 +12,8 @@ pub struct Model {
     pub base_purl_id: Uuid,
     pub version_range_id: Uuid,
     pub context_cpe_id: Option<Uuid>,
+    /// The product the assertion is stated in, if any.
+    pub assertion_context_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

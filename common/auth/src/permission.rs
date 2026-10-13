@@ -131,6 +131,15 @@ permission! {
         UpdateExploit,
         #[strum(serialize = "delete.exploit")]
         DeleteExploit,
+
+        #[strum(serialize = "create.correlationOption")]
+        CreateCorrelationOption,
+        #[strum(serialize = "read.correlationOption")]
+        ReadCorrelationOption,
+        #[strum(serialize = "update.correlationOption")]
+        UpdateCorrelationOption,
+        #[strum(serialize = "delete.correlationOption")]
+        DeleteCorrelationOption,
     }
 }
 

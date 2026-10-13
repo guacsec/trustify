@@ -232,6 +232,24 @@ impl<'g> CsafLoader<'g> {
 
         creator.add_all(&product_status.fixed, "fixed", self.on_invalid, report)?;
         creator.add_all(
+            &product_status.first_fixed,
+            "first_fixed",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.first_affected,
+            "first_affected",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.last_affected,
+            "last_affected",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
             &product_status.known_not_affected,
             "not_affected",
             self.on_invalid,
@@ -246,6 +264,12 @@ impl<'g> CsafLoader<'g> {
         creator.add_all(
             &product_status.recommended,
             "recommended",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.under_investigation,
+            "under_investigation",
             self.on_invalid,
             report,
         )?;
@@ -643,6 +667,59 @@ mod test {
         Ok(())
     }
 
+    /// All product statuses of CSAF are stored as stated, including those stating a single
+    /// version (`first_fixed`, `first_affected`, `last_affected`).
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn stores_all_product_statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{EntityTrait, JoinType, QueryOrder, QuerySelect, RelationTrait};
+        use trustify_entity::{purl_status, status, version_range};
+
+        let graph = Graph::new();
+        let loader = CsafLoader::new(&graph);
+
+        let (csaf, digests): (Csaf, _) = document("csaf/statuses/first-last.json").await?;
+        loader
+            .load(("source", "test"), csaf, &digests, &ctx.db)
+            .await?;
+
+        let statuses: Vec<(String, String, Option<String>, Option<String>)> =
+            purl_status::Entity::find()
+                .select_only()
+                .column(purl_status::Column::VulnerabilityId)
+                .column(status::Column::Slug)
+                .column(version_range::Column::LowVersion)
+                .column(version_range::Column::HighVersion)
+                .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+                .join(
+                    JoinType::InnerJoin,
+                    purl_status::Relation::VersionRange.def(),
+                )
+                .order_by_asc(purl_status::Column::VulnerabilityId)
+                .into_tuple()
+                .all(&ctx.db)
+                .await?;
+
+        let version = || Some("1:1.1.1k-9.el8_6".to_string());
+        assert_eq!(
+            statuses,
+            [
+                ("CVE-2099-30001", "first_fixed"),
+                ("CVE-2099-30002", "first_affected"),
+                ("CVE-2099-30003", "last_affected"),
+                ("CVE-2099-30004", "under_investigation"),
+            ]
+            .map(|(vulnerability, slug)| (
+                vulnerability.to_string(),
+                slug.to_string(),
+                version(),
+                version()
+            ))
+        );
+
+        Ok(())
+    }
+
     /// Ingest a fixture with the value at `pointer` replaced by an invalid one.
     ///
     /// The patch is applied to the raw JSON so that the value still has to survive
@@ -851,6 +928,72 @@ mod test {
                 Some("2.0.0".to_string()),
                 Some(false),
                 "affected".to_string(),
+            )]
+        );
+
+        Ok(())
+    }
+
+    /// A status stated for a relationship is stored with its context: the platform, with its
+    /// identifiers, name and the relationship category. A product which isn't a relationship has
+    /// no context.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn relationship_context(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use trustify_entity::{
+            assertion_context::{self, AssertionContextCategory},
+            assertion_context_identifier::{self, ContextIdentifierKind},
+            base_purl, purl_status,
+        };
+
+        let result = ctx.ingest_document("csaf/ranges/vers-and-vls.json").await?;
+        let advisory_id = result.id.parse::<Uuid>()?;
+
+        let mut statuses = purl_status::Entity::find()
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+            .find_also_related(base_purl::Entity)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|(status, purl)| {
+                (
+                    purl.map(|purl| purl.name).unwrap_or_default(),
+                    status.assertion_context_id,
+                )
+            })
+            .collect::<Vec<_>>();
+        statuses.sort();
+
+        let [(app, Some(context_id)), (lib, None)] = statuses.as_slice() else {
+            panic!("unexpected statuses: {statuses:?}");
+        };
+        assert_eq!((app.as_str(), lib.as_str()), ("example-app", "example-lib"));
+
+        let context = assertion_context::Entity::find_by_id(*context_id)
+            .one(&ctx.db)
+            .await?
+            .expect("context must exist");
+        assert_eq!(
+            (context.category, context.name.as_str()),
+            (
+                Some(AssertionContextCategory::InstalledOn),
+                "Example Platform < 3.0.0"
+            )
+        );
+
+        let identifiers = assertion_context_identifier::Entity::find()
+            .filter(assertion_context_identifier::Column::ContextId.eq(*context_id))
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|identifier| (identifier.kind, identifier.value))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            identifiers,
+            [(
+                ContextIdentifierKind::Purl,
+                "pkg:npm/example-platform".to_string()
             )]
         );
 

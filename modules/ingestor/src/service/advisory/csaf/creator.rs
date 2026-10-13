@@ -3,6 +3,7 @@ use crate::{
     graph::{
         Graph,
         advisory::{
+            context::{AssertionContext, ContextCreator},
             product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
             vers::parse_range,
@@ -23,7 +24,8 @@ use crate::{
     },
 };
 use csaf::schema::csaf2_0::schema::{
-    CategoryOfTheBranch, CommonSecurityAdvisoryFramework as Csaf, ProductsT, Remediation,
+    CategoryOfTheBranch, CommonSecurityAdvisoryFramework as Csaf, ProductsT, RelationshipCategory,
+    Remediation,
 };
 use sbom_walker::report::ReportSink;
 use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
@@ -39,6 +41,8 @@ use trustify_entity::{
     advisory_vulnerability_cpe, advisory_vulnerability_hash,
     advisory_vulnerability_product_identifier,
     advisory_vulnerability_product_identifier::ProductIdentifierType,
+    assertion_context::AssertionContextCategory,
+    assertion_context_identifier::ContextIdentifierKind,
     correlation_evidence::AssertionStatus,
     organization, product, product_status, product_version_range, purl_status,
     remediation::{self, RemediationCategory},
@@ -58,8 +62,25 @@ const ADVISORY_CPE_NAMESPACE: Uuid = Uuid::from_bytes([
     0x5c, 0x1e, 0x8b, 0x3f, 0x92, 0x7d, 0x4a, 0x06, 0xb4, 0x2e, 0x61, 0xc9, 0x0f, 0xd8, 0x37, 0xa5,
 ]);
 
-/// A CPE (pattern) an advisory makes an assertion about, optionally constrained by a version range.
-type CpeEntry = (Cpe, Option<VersionInfo>, AssertionStatus);
+/// Namespace of the IDs of `advisory_vulnerability_hash` rows.
+const ADVISORY_HASH_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x91, 0x3a, 0x5d, 0x0e, 0x6b, 0x24, 0x4c, 0x7f, 0x8d, 0x12, 0xa9, 0x3e, 0x50, 0xc7, 0x1b, 0x64,
+]);
+
+/// Namespace of the IDs of `advisory_vulnerability_product_identifier` rows.
+const ADVISORY_PRODUCT_IDENTIFIER_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x46, 0xe2, 0x08, 0xb9, 0x3c, 0x71, 0x4a, 0xd5, 0x92, 0x6f, 0x1d, 0x84, 0xe0, 0x3b, 0xa7, 0x58,
+]);
+
+/// A CPE (pattern) an advisory makes an assertion about, optionally constrained by a version
+/// range, in a context.
+type CpeEntry = (Cpe, Option<VersionInfo>, AssertionStatus, Option<Uuid>);
+
+/// A file hash (algorithm, value) an advisory makes an assertion about, in a context.
+type HashEntry = (String, String, AssertionStatus, Option<Uuid>);
+
+/// A product identifier an advisory makes an assertion about, in a context.
+type ProductIdentifierEntry = (ProductIdentifierType, String, AssertionStatus, Option<Uuid>);
 
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
@@ -70,9 +91,10 @@ pub struct StatusCreator<'a> {
     products: HashSet<ProductStatus>,
     product_id_to_product: HashMap<String, ProductStatus>,
     product_to_purl_statuses: HashMap<ProductStatus, Vec<PurlStatus>>,
-    hash_entries: HashSet<(String, String, AssertionStatus)>,
-    product_identifier_entries: HashSet<(ProductIdentifierType, String, AssertionStatus)>,
+    hash_entries: HashSet<HashEntry>,
+    product_identifier_entries: HashSet<ProductIdentifierEntry>,
     cpe_entries: HashSet<CpeEntry>,
+    contexts: ContextCreator,
 }
 
 impl<'a> StatusCreator<'a> {
@@ -89,6 +111,7 @@ impl<'a> StatusCreator<'a> {
             hash_entries: HashSet::new(),
             product_identifier_entries: HashSet::new(),
             cpe_entries: HashSet::new(),
+            contexts: ContextCreator::new(),
         }
     }
 
@@ -103,6 +126,8 @@ impl<'a> StatusCreator<'a> {
             "affected" => Some(AssertionStatus::Affected),
             "fixed" => Some(AssertionStatus::Fixed),
             "not_affected" => Some(AssertionStatus::NotAffected),
+            "under_investigation" => Some(AssertionStatus::UnderInvestigation),
+            // `first_*` / `last_*` are only stored for PURLs (see `TODO.md`)
             _ => None,
         };
 
@@ -114,6 +139,8 @@ impl<'a> StatusCreator<'a> {
             // The products to resolve, and whether each is the subject of the status: for a
             // relationship, the component is, the platform it relates to isn't.
             let parts = self.cache.parts(r);
+            let context = self.context(r, &parts, on_invalid, report)?;
+            product.context = context;
             for (product_id, subject) in &parts {
                 let trace = self.cache.trace_product(product_id);
                 if trace.is_empty() {
@@ -135,8 +162,12 @@ impl<'a> StatusCreator<'a> {
                         for hc in &pih.hashes {
                             for fh in &hc.file_hashes {
                                 let algo = normalize_algorithm(&fh.algorithm);
-                                self.hash_entries
-                                    .insert((algo, fh.value.to_string(), assertion));
+                                self.hash_entries.insert((
+                                    algo,
+                                    fh.value.to_string(),
+                                    assertion,
+                                    context,
+                                ));
                             }
                         }
                         for mn in pih.model_numbers.iter().flatten() {
@@ -144,6 +175,7 @@ impl<'a> StatusCreator<'a> {
                                 ProductIdentifierType::ModelNumber,
                                 mn.to_string(),
                                 assertion,
+                                context,
                             ));
                         }
                         for sn in pih.serial_numbers.iter().flatten() {
@@ -151,6 +183,7 @@ impl<'a> StatusCreator<'a> {
                                 ProductIdentifierType::SerialNumber,
                                 sn.to_string(),
                                 assertion,
+                                context,
                             ));
                         }
                         for sku in &pih.skus {
@@ -158,6 +191,7 @@ impl<'a> StatusCreator<'a> {
                                 ProductIdentifierType::Sku,
                                 sku.to_string(),
                                 assertion,
+                                context,
                             ));
                         }
                     }
@@ -168,7 +202,7 @@ impl<'a> StatusCreator<'a> {
                 // both affected and fixed combinations.
                 for (product_id, subject) in &parts {
                     if *subject {
-                        self.add_cpe_entries(product_id, assertion, on_invalid, report)?;
+                        self.add_cpe_entries(product_id, assertion, context, on_invalid, report)?;
                     }
                 }
             }
@@ -189,6 +223,7 @@ impl<'a> StatusCreator<'a> {
         &mut self,
         product_id: &str,
         assertion: AssertionStatus,
+        context: Option<Uuid>,
         on_invalid: OnInvalidData,
         report: &dyn ReportSink,
     ) -> Result<(), Error> {
@@ -248,7 +283,8 @@ impl<'a> StatusCreator<'a> {
         };
 
         for range in ranges {
-            self.cpe_entries.insert((cpe.clone(), range, assertion));
+            self.cpe_entries
+                .insert((cpe.clone(), range, assertion, context));
         }
 
         Ok(())
@@ -448,7 +484,7 @@ impl<'a> StatusCreator<'a> {
             }
         }
 
-        for (cpe, range, _) in &self.cpe_entries {
+        for (cpe, range, _, _) in &self.cpe_entries {
             cpes.add(cpe.clone());
             if let Some(range) = range {
                 version_ranges.push(range.clone().into_active_model());
@@ -457,6 +493,10 @@ impl<'a> StatusCreator<'a> {
 
         purls.create(connection).await?;
         cpes.create(connection).await?;
+        // contexts are referenced by all assertions below
+        std::mem::take(&mut self.contexts)
+            .create(connection)
+            .await?;
 
         for ps in &self.entries {
             // Warn: into_active_model() sets id with Set(), required for sorting
@@ -517,22 +557,24 @@ impl<'a> StatusCreator<'a> {
                 .hash_entries
                 .iter()
                 .map(
-                    |(algo, value, status)| advisory_vulnerability_hash::ActiveModel {
+                    |(algo, value, status, context)| advisory_vulnerability_hash::ActiveModel {
+                        id: Set(self.entry_id(
+                            ADVISORY_HASH_NAMESPACE,
+                            &[algo, value],
+                            *status,
+                            *context,
+                        )),
                         advisory_id: Set(self.advisory_id),
                         vulnerability_id: Set(self.vulnerability_id.clone()),
                         algorithm: Set(algo.clone()),
                         value: Set(value.clone()),
                         status: Set(*status),
+                        assertion_context_id: Set(*context),
                     },
                 )
                 .collect();
 
-            hash_models.sort_by(|a, b| {
-                a.algorithm
-                    .as_ref()
-                    .cmp(b.algorithm.as_ref())
-                    .then_with(|| a.value.as_ref().cmp(b.value.as_ref()))
-            });
+            hash_models.sort_by_key(|model| *model.id.as_ref());
 
             for batch in &hash_models.chunked() {
                 advisory_vulnerability_hash::Entity::insert_many(batch)
@@ -546,23 +588,25 @@ impl<'a> StatusCreator<'a> {
             let mut pid_models: Vec<advisory_vulnerability_product_identifier::ActiveModel> = self
                 .product_identifier_entries
                 .iter()
-                .map(|(id_type, value, status)| {
+                .map(|(id_type, value, status, context)| {
                     advisory_vulnerability_product_identifier::ActiveModel {
+                        id: Set(self.entry_id(
+                            ADVISORY_PRODUCT_IDENTIFIER_NAMESPACE,
+                            &[&id_type.to_value(), value],
+                            *status,
+                            *context,
+                        )),
                         advisory_id: Set(self.advisory_id),
                         vulnerability_id: Set(self.vulnerability_id.clone()),
                         identifier_type: Set(*id_type),
                         value: Set(value.clone()),
                         status: Set(*status),
+                        assertion_context_id: Set(*context),
                     }
                 })
                 .collect();
 
-            pid_models.sort_by(|a, b| {
-                a.value.as_ref().cmp(b.value.as_ref()).then_with(|| {
-                    format!("{:?}", a.identifier_type.as_ref())
-                        .cmp(&format!("{:?}", b.identifier_type.as_ref()))
-                })
-            });
+            pid_models.sort_by_key(|model| *model.id.as_ref());
 
             for batch in &pid_models.chunked() {
                 advisory_vulnerability_product_identifier::Entity::insert_many(batch)
@@ -576,16 +620,17 @@ impl<'a> StatusCreator<'a> {
             let mut cpe_models = self
                 .cpe_entries
                 .iter()
-                .map(|(cpe, range, status)| {
+                .map(|(cpe, range, status, context)| {
                     let cpe_id = cpe.uuid();
                     let version_range_id = range.as_ref().map(VersionInfo::uuid);
                     advisory_vulnerability_cpe::ActiveModel {
-                        id: Set(self.advisory_cpe_id(cpe_id, version_range_id, *status)),
+                        id: Set(self.advisory_cpe_id(cpe_id, version_range_id, *status, *context)),
                         advisory_id: Set(self.advisory_id),
                         vulnerability_id: Set(self.vulnerability_id.clone()),
                         status: Set(*status),
                         cpe_id: Set(cpe_id),
                         version_range_id: Set(version_range_id),
+                        assertion_context_id: Set(*context),
                     }
                 })
                 .collect::<Vec<_>>();
@@ -616,12 +661,123 @@ impl<'a> StatusCreator<'a> {
         cpe_id: Uuid,
         version_range_id: Option<Uuid>,
         status: AssertionStatus,
+        context: Option<Uuid>,
     ) -> Uuid {
         let mut id = Uuid::new_v5(&ADVISORY_CPE_NAMESPACE, self.advisory_id.as_bytes());
         id = Uuid::new_v5(&id, self.vulnerability_id.as_bytes());
         id = Uuid::new_v5(&id, cpe_id.as_bytes());
         id = Uuid::new_v5(&id, version_range_id.unwrap_or_default().as_bytes());
-        Uuid::new_v5(&id, status.to_value().as_bytes())
+        id = Uuid::new_v5(&id, status.to_value().as_bytes());
+        // without a context, the ID is the same as before contexts existed
+        match context {
+            Some(context) => Uuid::new_v5(&id, context.as_bytes()),
+            None => id,
+        }
+    }
+
+    /// Deterministic ID of an assertion row (hash, product identifier).
+    fn entry_id(
+        &self,
+        namespace: Uuid,
+        values: &[&str],
+        status: AssertionStatus,
+        context: Option<Uuid>,
+    ) -> Uuid {
+        let mut id = Uuid::new_v5(&namespace, self.advisory_id.as_bytes());
+        id = Uuid::new_v5(&id, self.vulnerability_id.as_bytes());
+        for value in values {
+            id = Uuid::new_v5(&id, value.as_bytes());
+        }
+        id = Uuid::new_v5(&id, status.to_value().as_bytes());
+        Uuid::new_v5(&id, context.unwrap_or_default().as_bytes())
+    }
+
+    /// The context a product is stated in: the platform parts of a relationship (not the
+    /// subject), with their identifiers and name. `None` for a product which isn't a
+    /// relationship.
+    fn context(
+        &mut self,
+        product_id: &str,
+        parts: &[(&str, bool)],
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<Option<Uuid>, Error> {
+        let Some(relationship) = self.cache.get_relationship(product_id) else {
+            return Ok(None);
+        };
+
+        let mut context = AssertionContext {
+            category: Some(match relationship.category {
+                RelationshipCategory::DefaultComponentOf => {
+                    AssertionContextCategory::DefaultComponentOf
+                }
+                RelationshipCategory::ExternalComponentOf => {
+                    AssertionContextCategory::ExternalComponentOf
+                }
+                RelationshipCategory::InstalledOn => AssertionContextCategory::InstalledOn,
+                RelationshipCategory::InstalledWith => AssertionContextCategory::InstalledWith,
+                RelationshipCategory::OptionalComponentOf => {
+                    AssertionContextCategory::OptionalComponentOf
+                }
+            }),
+            ..Default::default()
+        };
+
+        let mut names = Vec::new();
+        for (platform, _) in parts.iter().filter(|(_, subject)| !subject) {
+            let name = match self.cache.trace_product(platform).last() {
+                Some(leaf) => leaf.product.as_ref().map(|name| name.name.as_str()),
+                None => self
+                    .cache
+                    .definition(platform)
+                    .map(|name| name.name.as_str()),
+            };
+            names.extend(name);
+
+            for helper in self.cache.helpers(platform) {
+                if let Some(cpe) = helper.cpe.as_deref()
+                    && let Some(cpe) = on_invalid.validate(value::cpe(cpe), report)?
+                {
+                    context.add_cpe(cpe);
+                }
+                if let Some(purl) = helper.purl.as_deref()
+                    && let Some(purl) = on_invalid.validate(value::purl(purl), report)?
+                {
+                    context.add(ContextIdentifierKind::Purl, purl.to_string());
+                }
+                for hashes in &helper.hashes {
+                    for hash in &hashes.file_hashes {
+                        context.add(
+                            ContextIdentifierKind::Digest,
+                            format!("{}:{}", normalize_algorithm(&hash.algorithm), *hash.value),
+                        );
+                    }
+                }
+                let values =
+                    helper
+                        .model_numbers
+                        .iter()
+                        .flatten()
+                        .map(|value| (ContextIdentifierKind::ModelNumber, value.to_string()))
+                        .chain(
+                            helper.serial_numbers.iter().flatten().map(|value| {
+                                (ContextIdentifierKind::SerialNumber, value.to_string())
+                            }),
+                        )
+                        .chain(
+                            helper
+                                .skus
+                                .iter()
+                                .map(|value| (ContextIdentifierKind::Sku, value.to_string())),
+                        );
+                for (kind, value) in values {
+                    context.add(kind, value);
+                }
+            }
+        }
+        context.name = names.join(", ");
+
+        Ok(Some(self.contexts.add(context)))
     }
 
     fn create_purl_status(
@@ -637,6 +793,7 @@ impl<'a> StatusCreator<'a> {
             purl: purl.clone(),
             status,
             info: VersionInfo { scheme, spec },
+            context_id: product.context,
         };
         self.product_to_purl_statuses
             .entry(product.clone())

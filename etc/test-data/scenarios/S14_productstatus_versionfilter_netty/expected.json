@@ -1,12 +1,19 @@
 {
   "advisories": [
-    "vex/CVE-2021-37136.json"
+    "vex/rh-cve-2021-37136.json.xz"
   ],
   "sboms": {
-    "sbom_netty_rhsso7": {
-      "correct": {
+    "sbom_netty-codec_rhsso7.cdx.json": {
+      "pkg-netty": {
         "CVE-2021-37136": "affected"
       }
-    }
+    },
+    "sbom_netty-codec_rhsso7.spdx.json": {
+      "SPDXRef-pkg-netty": {
+        "CVE-2021-37136": "affected"
+      }
+    },
+    "sbom_netty_rhsso7.cdx.json": {},
+    "sbom_netty_rhsso7.spdx.json": {}
   }
 }

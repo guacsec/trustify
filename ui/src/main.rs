@@ -1,15 +1,21 @@
 mod advisory;
+mod advisory_list;
 mod api;
 mod correlation;
 mod ingest;
 mod model;
+mod monaco;
+mod options;
 mod query;
 mod sbom_list;
+mod sort;
 
 use advisory::AdvisoryPage;
+use advisory_list::AdvisoryList;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
 use ingest::IngestPage;
+use options::OptionsPage;
 use patternfly_yew::prelude::*;
 use query::QueryPage;
 use sbom_list::SbomList;
@@ -32,11 +38,13 @@ pub enum AppRoute {
     Correlation {
         id: String,
     },
+    AdvisoryList,
     Advisory {
         id: String,
     },
     Query,
     Ingest,
+    Options,
 }
 
 pub fn main() -> Result<(), JsValue> {
@@ -195,6 +203,11 @@ fn switch_route(target: AppRoute) -> Html {
                 <CorrelationView sbom_id={id} />
             </AppPage>
         },
+        AppRoute::AdvisoryList => html! {
+            <AppPage>
+                <AdvisoryList />
+            </AppPage>
+        },
         AppRoute::Advisory { id } => html! {
             <AppPage>
                 <AdvisoryPage advisory_id={id} />
@@ -208,6 +221,11 @@ fn switch_route(target: AppRoute) -> Html {
         AppRoute::Ingest => html! {
             <AppPage>
                 <IngestPage />
+            </AppPage>
+        },
+        AppRoute::Options => html! {
+            <AppPage>
+                <OptionsPage />
             </AppPage>
         },
     }
@@ -227,11 +245,17 @@ fn page(props: &PageProps) -> Html {
                     <NavRouterItem<AppRoute> to={AppRoute::SbomList}>
                         { "SBOMs" }
                     </NavRouterItem<AppRoute>>
+                    <NavRouterItem<AppRoute> to={AppRoute::AdvisoryList}>
+                        { "Advisories" }
+                    </NavRouterItem<AppRoute>>
                     <NavRouterItem<AppRoute> to={AppRoute::Query}>
                         { "Query" }
                     </NavRouterItem<AppRoute>>
                     <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                         { "Ingest" }
+                    </NavRouterItem<AppRoute>>
+                    <NavRouterItem<AppRoute> to={AppRoute::Options}>
+                        { "Options" }
                     </NavRouterItem<AppRoute>>
                 </NavList>
             </Nav>

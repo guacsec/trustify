@@ -54,7 +54,7 @@ impl MigrationTraitWithData for Migration {
 
                 let namespace = csaf.document.publisher.namespace.to_string();
 
-                tx.execute(Statement::from_sql_and_values(
+                tx.execute_raw(Statement::from_sql_and_values(
                     DbBackend::Postgres,
                     "UPDATE advisory SET publisher_namespace = $1 WHERE id = $2",
                     [namespace.clone().into(), id.advisory.into()],
@@ -65,7 +65,7 @@ impl MigrationTraitWithData for Migration {
                     .ok()
                     .is_some_and(|url| url.host_str() == Some(REDHAT_HOST));
                 if is_redhat {
-                    tx.execute(Statement::from_sql_and_values(
+                    tx.execute_raw(Statement::from_sql_and_values(
                         DbBackend::Postgres,
                         DELETE_DERIVED,
                         [id.advisory.into()],

@@ -89,7 +89,10 @@ pub fn sbom_list() -> Html {
     let counts = use_state(|| Option::<HashMap<Uuid, SbomVerdictCounts>>::None);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
-    let search = use_state(String::new);
+    let search = use_state_eq(String::new);
+    // the total number of matching SBOMs, kept while the next page loads
+    let total = use_state_eq(|| Option::<usize>::None);
+    let pagination = use_pagination(*total, Default::default);
     let router = use_router::<AppRoute>();
 
     let latest_token = use_latest_access_token();
@@ -100,34 +103,43 @@ pub fn sbom_list() -> Html {
         let counts = counts.clone();
         let loading = loading.clone();
         let error = error.clone();
-        let search = search.clone();
+        let total = total.clone();
         let token = token.clone();
-        use_effect_with((*search).clone(), move |query| {
-            let query = query.clone();
-            spawn_local(async move {
-                loading.set(true);
-                error.set(None);
-                counts.set(None);
-                let items = match api::fetch_sboms(&query, 0, 50, token.as_deref()).await {
-                    Ok(result) => result.items,
-                    Err(e) => {
-                        error.set(Some(e.to_string()));
-                        Vec::new()
-                    }
-                };
-                sboms.set(items.clone());
-                loading.set(false);
+        use_effect_with(
+            ((*search).clone(), pagination.control),
+            move |(query, control)| {
+                let query = query.clone();
+                let (offset, limit) = (control.page * control.per_page, control.per_page);
+                spawn_local(async move {
+                    loading.set(true);
+                    error.set(None);
+                    counts.set(None);
+                    let items = match api::fetch_sboms(&query, offset, limit, token.as_deref())
+                        .await
+                    {
+                        Ok(result) => {
+                            total.set(result.total.and_then(|total| usize::try_from(total).ok()));
+                            result.items
+                        }
+                        Err(e) => {
+                            error.set(Some(e.to_string()));
+                            Vec::new()
+                        }
+                    };
+                    sboms.set(items.clone());
+                    loading.set(false);
 
-                // the counts are secondary, the list is shown without them on failure
-                let ids = items.iter().filter_map(sbom_uuid).collect();
-                match api::count_verdicts(ids, token.as_deref()).await {
-                    Ok(result) => {
-                        counts.set(Some(result.into_iter().map(|c| (c.sbom_id, c)).collect()))
+                    // the counts are secondary, the list is shown without them on failure
+                    let ids = items.iter().filter_map(sbom_uuid).collect();
+                    match api::count_verdicts(ids, token.as_deref()).await {
+                        Ok(result) => {
+                            counts.set(Some(result.into_iter().map(|c| (c.sbom_id, c)).collect()))
+                        }
+                        Err(e) => log::warn!("failed to load verdict counts: {e}"),
                     }
-                    Err(e) => log::warn!("failed to load verdict counts: {e}"),
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     let onsearch = {
@@ -180,6 +192,9 @@ pub fn sbom_list() -> Html {
                             value={(*search).clone()}
                         />
                     </ToolbarItem>
+                    <ToolbarItem r#type={ToolbarItemType::Pagination}>
+                        <SimplePagination pagination={pagination.clone()} total={*total} />
+                    </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
 
@@ -205,6 +220,7 @@ pub fn sbom_list() -> Html {
                     {entries}
                     {onrowclick}
                 />
+                <SimplePagination {pagination} total={*total} position={PaginationPosition::Bottom} />
             }
         </PageSection>
     }

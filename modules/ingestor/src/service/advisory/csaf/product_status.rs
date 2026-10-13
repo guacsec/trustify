@@ -8,6 +8,7 @@ use csaf::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductName
 use sbom_walker::report::ReportSink;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::version_scheme::VersionScheme;
+use uuid::Uuid;
 
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
 pub struct ProductStatus {
@@ -21,6 +22,8 @@ pub struct ProductStatus {
     pub vers_specs: Vec<VersionInfo>,
     /// A version range of the product could not be parsed, so its purls must not be used.
     pub invalid_range: bool,
+    /// The product (context) the status is stated in, see [`crate::graph::advisory::context`].
+    pub context: Option<Uuid>,
 }
 
 impl ProductStatus {

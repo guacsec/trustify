@@ -1,7 +1,7 @@
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
 use trustify_common::{
-    db::{DatabaseErrors, DbError},
+    db::{DatabaseErrors, DbError, pagination_cache::LimitError},
     error::ErrorInformation,
 };
 
@@ -13,6 +13,10 @@ pub enum Error {
     NotFound(String),
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
+    #[error(transparent)]
+    Limit(#[from] LimitError),
     #[error("unavailable")]
     Unavailable,
     #[error("failed to serialize the matched value: {0}")]
@@ -51,6 +55,10 @@ impl ResponseError for Error {
             Self::BadRequest(msg) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("BadRequest", msg))
             }
+            Self::Conflict(msg) => {
+                HttpResponse::Conflict().json(ErrorInformation::new("Conflict", msg))
+            }
+            Self::Limit(err) => err.error_response(),
             Self::Unavailable => {
                 HttpResponse::ServiceUnavailable().json(ErrorInformation::new("Unavailable", self))
             }

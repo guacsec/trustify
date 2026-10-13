@@ -2,21 +2,25 @@ use crate::{
     error::Error,
     extractor::Extractors,
     model::{
-        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierRef, QueryMatch, QueryResult,
-        QueryVerdict, SbomVerdictCounts, VerdictStatus, VerdictSummary, VulnerabilityRef,
+        ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierRef,
+        QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts, VerdictStatus, VerdictSummary,
+        VulnerabilityRef,
     },
 };
 use sea_orm::{
-    ColumnTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult, QueryFilter,
-    Statement,
+    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
+    QueryFilter, Statement,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
-    advisory, correlation_evidence, correlation_evidence::AssertionStatus, sbom, sbom_node,
-    vulnerability,
+    advisory, assertion_context, correlation_evidence, correlation_evidence::AssertionStatus,
+    correlation_evidence_context, sbom, sbom_node, vulnerability,
 };
 use uuid::Uuid;
+
+pub mod option;
+pub mod statement;
 
 #[cfg(test)]
 mod test;
@@ -174,6 +178,8 @@ GROUP BY sbom_id, status
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
+        let mut contexts =
+            load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
 
         // Group evidence by (node_id, vulnerability_id).
         let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence::Model>> = BTreeMap::new();
@@ -211,6 +217,7 @@ GROUP BY sbom_id, status
                                 })
                                 .ok()
                         }),
+                        contexts: contexts.remove(&row.id).unwrap_or_default(),
                         created_at: row.created_at,
                     }
                 })
@@ -450,4 +457,47 @@ async fn load_unmatched_components(
     components.sort_by(|a, b| a.node_id.cmp(&b.node_id));
 
     Ok(components)
+}
+
+/// The contexts of evidence, keyed by evidence ID, best confidence first.
+async fn load_evidence_contexts(
+    evidence_ids: impl IntoIterator<Item = Uuid>,
+    connection: &impl ConnectionTrait,
+) -> Result<HashMap<Uuid, Vec<EvidenceContext>>, Error> {
+    let evidence_ids = evidence_ids.into_iter().collect::<Vec<_>>();
+    let mut result = HashMap::<_, Vec<_>>::new();
+    for chunk in evidence_ids.chunks(5000) {
+        let links = correlation_evidence_context::Entity::find()
+            .filter(correlation_evidence_context::Column::EvidenceId.is_in(chunk.iter().copied()))
+            .find_also_related(assertion_context::Entity)
+            .all(connection)
+            .instrument(info_span!("loading evidence contexts"))
+            .await?;
+        for (link, context) in links {
+            let (name, category) = context
+                .map(|context| (context.name, context.category.map(Into::into)))
+                .unwrap_or_default();
+            result
+                .entry(link.evidence_id)
+                .or_default()
+                .push(EvidenceContext {
+                    context_id: link.context_id,
+                    name,
+                    category,
+                    source: link.source.into(),
+                    distance: link.distance,
+                    node_identifier: link.node_identifier,
+                    context_identifier: link.context_identifier,
+                    confidence: link.confidence,
+                });
+        }
+    }
+    for contexts in result.values_mut() {
+        contexts.sort_by(|a, b| {
+            b.confidence
+                .total_cmp(&a.confidence)
+                .then_with(|| a.node_identifier.cmp(&b.node_identifier))
+        });
+    }
+    Ok(result)
 }

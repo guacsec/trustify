@@ -60,7 +60,7 @@ impl DeviceIdentifierCreator {
                     .do_nothing()
                     .to_owned(),
                 )
-                .do_nothing()
+                .try_insert()
                 .exec(db)
                 .await?;
         }
