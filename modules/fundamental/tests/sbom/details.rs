@@ -1,3 +1,5 @@
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;

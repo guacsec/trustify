@@ -1,0 +1,11 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:25250000-0000-4000-8000-252500000001", "version": 1,
+  "metadata": { "component": { "bom-ref": "root", "type": "application", "name": "s25-lodash-4.17.23", "version": "1" } },
+  "components": [
+    { "bom-ref": "pkg-lodash", "type": "library", "name": "lodash", "version": "4.17.23",
+      "purl": "pkg:npm/lodash@4.17.23" }
+  ],
+  "dependencies": [ { "ref": "root", "dependsOn": ["pkg-lodash"] } ]
+}

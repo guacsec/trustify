@@ -38,6 +38,8 @@ pub enum VersionScheme {
     Cargo,
     /// A CSAF vers-like specifier (vls): a range of versions without a versioning scheme.
     Vls,
+    /// A CVE `custom` version type: the versioning scheme is unspecified.
+    Custom,
 }
 
 /// Translate from other ecosystems to our internal version scheme.
@@ -55,7 +57,7 @@ impl From<&str> for VersionScheme {
     fn from(scheme: &str) -> Self {
         match scheme {
             "commit" | "git" => VersionScheme::Git,
-            "custom" => VersionScheme::Generic,
+            "custom" => VersionScheme::Custom,
             "maven" => VersionScheme::Maven,
             "npm" => VersionScheme::Semver,
             "python" => VersionScheme::Python,

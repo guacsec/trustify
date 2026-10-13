@@ -1,4 +1,6 @@
 #![allow(clippy::expect_used)]
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 
 use super::prepare_ps_state_change;
 use test_context::test_context;

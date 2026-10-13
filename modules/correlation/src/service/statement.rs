@@ -123,6 +123,7 @@ impl StatementService {
                         .to_string(),
                     },
                     range: MatchedRange::from(required(range, "version range")?),
+                    default: row.is_default,
                 })
             })
             .collect::<Result<_, Error>>()?;
@@ -175,6 +176,7 @@ impl StatementService {
                         cpe: format_cpe23(&required(cpe, "CPE")?),
                     },
                     range: MatchedRange::from(required(range, "version range")?),
+                    default: false,
                 })
             })
             .collect::<Result<_, Error>>()?;
@@ -238,6 +240,7 @@ impl StatementService {
                         csaf_product_ids: row.csaf_product_ids.unwrap_or_default(),
                     },
                     range: MatchedRange::from(required(range, "version range")?),
+                    default: false,
                 })
             })
             .collect::<Result<_, Error>>()?;

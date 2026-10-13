@@ -1,4 +1,6 @@
 #![allow(clippy::expect_used)]
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 
 use itertools::Itertools;
 use serde_json::json;

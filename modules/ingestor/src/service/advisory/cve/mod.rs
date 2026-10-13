@@ -2,8 +2,11 @@ use crate::graph::cvss::ScoreInformation;
 use cve::Cve;
 use cvss::{Cvss, v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 
+mod creator;
 pub mod divination;
 pub mod loader;
+pub mod record;
+mod statement;
 
 #[derive(Clone, Debug, PartialEq, Default)]
 struct CvssMetric {

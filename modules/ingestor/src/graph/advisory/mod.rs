@@ -23,6 +23,7 @@ use uuid::Uuid;
 
 pub mod advisory_vulnerability;
 pub mod context;
+pub mod cpe_assertion;
 pub mod cpe_status;
 pub mod product_status;
 pub mod purl_status;

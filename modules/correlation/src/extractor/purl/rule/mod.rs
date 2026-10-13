@@ -75,7 +75,8 @@ pub async fn rules<C: ConnectionTrait>(connection: &C) -> Result<Vec<Box<dyn Ran
         ))),
         Box::new(csaf::FirstAffected),
         Box::new(csaf::LastAffected),
-        Box::new(vls::VlsRange),
+        Box::new(vls::SchemelessRange::Vls),
+        Box::new(vls::SchemelessRange::Custom),
     ])
 }
 

@@ -8,6 +8,10 @@
 //! assertion's version range (if any).
 //!
 //! The matching runs in the database (see `MATCH_CONDITION`), returning only actual matches.
+//!
+//! A default status (CVE `defaultStatus`) is the status of all versions no other assertion of the
+//! advisory lists for the CPE. It is only used for a node if no listed assertion of the same
+//! advisory, vulnerability, and CPE matches it, and reported as `cpe_default` evidence.
 
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
@@ -35,6 +39,8 @@ pub struct CpeExtractor;
 
 /// ID of the extractor, and type of its evidence.
 const ID: &str = "cpe";
+/// Type of the evidence of a default status.
+const DEFAULT: &str = "cpe_default";
 
 /// How the SBOM version satisfied the advisory CPE, determining the confidence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,6 +93,7 @@ const ASSERTION_COLUMNS: &str = r#"
     a.cpe_id,
     a.version_range_id,
     a.assertion_context_id,
+    a.is_default,
     CASE
         WHEN ac.version <> '*' THEN 'exact'
         WHEN a.version_range_id IS NOT NULL THEN 'range'
@@ -103,7 +110,44 @@ struct AssertionRow {
     cpe_id: Uuid,
     version_range_id: Option<Uuid>,
     assertion_context_id: Option<Uuid>,
+    is_default: bool,
     version_check: String,
+}
+
+impl AssertionRow {
+    /// The CPE a listed assertion shadows the default of.
+    fn subject(&self) -> (Uuid, &str, Uuid) {
+        (
+            self.advisory_id,
+            self.vulnerability_id.as_str(),
+            self.cpe_id,
+        )
+    }
+}
+
+/// Drop the default assertions of a target for which a listed assertion of the same subject
+/// matches.
+fn without_shadowed_defaults<K: Ord + Clone, R>(
+    rows: Vec<R>,
+    key: impl Fn(&R) -> (K, &AssertionRow),
+) -> Vec<R> {
+    let listed = rows
+        .iter()
+        .map(&key)
+        .filter(|(_, row)| !row.is_default)
+        .map(|(target, row)| {
+            let (advisory, vulnerability, cpe) = row.subject();
+            (target, advisory, vulnerability.to_string(), cpe)
+        })
+        .collect::<BTreeSet<_>>();
+
+    rows.into_iter()
+        .filter(|r| {
+            let (target, row) = key(r);
+            let (advisory, vulnerability, cpe) = row.subject();
+            !row.is_default || !listed.contains(&(target, advisory, vulnerability.to_string(), cpe))
+        })
+        .collect()
 }
 
 /// A match of an identifier passed to [`Extractor::match_identifiers`].
@@ -248,6 +292,7 @@ WHERE {MATCH_CONDITION}
         .instrument(info_span!("matching cpes"))
         .await?;
 
+        let rows = without_shadowed_defaults(rows, |r| (r.i, &r.assertion));
         let matched_values = matched_values(rows.iter().map(|r| &r.assertion), tx).await?;
 
         rows.into_iter()
@@ -295,6 +340,8 @@ WHERE a.advisory_id = $1 AND {MATCH_CONDITION}
         .instrument(info_span!("matching cpes"))
         .await?;
 
+        let rows =
+            without_shadowed_defaults(rows, |r| ((r.sbom_id, r.node_id.clone()), &r.assertion));
         let matched_values = matched_values(rows.iter().map(|r| &r.assertion), tx).await?;
 
         rows.into_iter()
@@ -317,12 +364,14 @@ fn assertion(
     matched_values: &HashMap<(Uuid, Option<Uuid>), MatchedValue>,
 ) -> Result<Assertion, Error> {
     let check = match row.version_check.as_str() {
+        // all versions not listed
+        _ if row.is_default => VersionCheck::Any,
         "exact" => VersionCheck::Exact,
         "range" => VersionCheck::Range,
         _ => VersionCheck::Any,
     };
     Ok(Assertion {
-        extractor: ID,
+        extractor: if row.is_default { DEFAULT } else { ID },
         status: AssertionStatus::try_from_value(&row.status)?,
         confidence: check.confidence(),
         matched_value: matched_values
@@ -945,6 +994,7 @@ mod test {
                 cpe_id: Set(cpe_id),
                 version_range_id: Set(version_range_id),
                 assertion_context_id: Set(None),
+                is_default: Set(false),
             }
             .insert(&ctx.db)
             .await?;

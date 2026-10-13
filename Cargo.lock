@@ -9885,6 +9885,7 @@ version = "0.7.0-rc.1"
 dependencies = [
  "browser-panic-hook",
  "csaf-rs",
+ "cve",
  "cvss-rs 0.5.0",
  "gloo-file",
  "gloo-net 0.7.0",

@@ -19,6 +19,10 @@ pub struct PurlStatusEntry {
     pub status: String,
     pub version_info: VersionInfo,
     pub context_cpe: Option<Cpe>,
+    /// The product the status is stated in, see [`crate::graph::advisory::context`].
+    pub context_id: Option<Uuid>,
+    /// Whether it is the default status: of all versions no other statement lists.
+    pub default: bool,
 }
 
 /// Creator for batch insertion of PURL statuses
@@ -86,7 +90,8 @@ impl PurlStatusCreator {
                 purl: entry.purl.clone(),
                 status: status_id,
                 info: entry.version_info.clone(),
-                context_id: None,
+                context_id: entry.context_id,
+                default: entry.default,
             };
 
             let uuid = purl_status.uuid(entry.advisory_id, entry.vulnerability_id.clone());
@@ -110,7 +115,8 @@ impl PurlStatusCreator {
                     base_purl_id: Set(base_purl_id),
                     version_range_id: Set(version_range_id),
                     context_cpe_id: Set(context_cpe_id),
-                    assertion_context_id: Set(None),
+                    assertion_context_id: Set(entry.context_id),
+                    is_default: Set(entry.default),
                 });
         }
 

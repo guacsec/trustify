@@ -77,3 +77,20 @@
   `fixed` statuses, only the first interval of a range, and no vulnerability without a CVE alias.
   They need to be re-ingested (or a data migration).
 - [ ] UI: the OSV view only parses JSON, records in YAML only have the Source tab.
+- [ ] CVE `cpeApplicability`: non-vulnerable CPEs (e.g. the platform of an `AND` configuration, as
+  NVD uses it) don't scope the vulnerable ones yet; only the vulnerable `cpeMatch` entries are
+  stored. Negated configurations are ignored with a warning. No official CVE record with an `AND`
+  platform has been found to test it with. The `cve` crate doesn't model `cpeApplicability`, the
+  loader reads it from the raw record (`cve/record.rs`); add it upstream.
+- [ ] CVE `cpes` and `packageURL` are synonyms of the affected software (CVE schema RFD 0002), so a
+  publisher using a product CPE together with a package name (e.g. Red Hat: `enterprise_linux:8`
+  and the RPM `gnutls`) states the RPM's versions as versions of the product. They are read as
+  stated; a publisher-specific reading would be a correlation option.
+- [ ] CVE package identity: only `packageURL`, and `collectionURL`s of Maven and Go are translated
+  to PURLs. Other collections (e.g. PyPI, npm, crates.io by URL) are not, nor are container
+  packages, whose versions are tags rather than the PURL version.
+- [ ] CVE `repo` / `git` version ranges (commit hashes), `platforms`, `modules`, `programFiles`,
+  `programRoutines`: informational, not used for matching.
+- [ ] CVE records ingested before the CVE loader read `packageURL`, `changes`, `defaultStatus`,
+  wildcards, and `cpeApplicability`, and wrote CPE statements to `advisory_vulnerability_cpe`, need
+  to be re-ingested.

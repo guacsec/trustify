@@ -81,8 +81,12 @@ pub struct Weakness {
     pub description: Vec<LangString>,
 }
 
+/// A configuration: CPE matches combined by nodes. Also the model of a CVE record's
+/// `cpeApplicability`, which uses the same CPE Applicability Language.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Configuration {
+    #[serde(default)]
+    pub negate: bool,
     #[serde(default)]
     pub nodes: Vec<Node>,
 }
@@ -90,6 +94,8 @@ pub struct Configuration {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Node {
+    #[serde(default)]
+    pub negate: bool,
     #[serde(default)]
     pub cpe_match: Vec<CpeMatch>,
 }

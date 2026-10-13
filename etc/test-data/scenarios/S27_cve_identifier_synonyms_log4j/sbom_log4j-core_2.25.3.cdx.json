@@ -1,0 +1,10 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:27270000-0000-4000-8000-000000000002", "version": 1,
+  "metadata": { "component": { "bom-ref": "root", "type": "application", "name": "sbom_log4j-core_2.25.3", "version": "1" } },
+  "components": [
+    { "bom-ref": "pkg-log4j-core", "type": "library", "name": "log4j-core", "group": "org.apache.logging.log4j", "version": "2.25.3", "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.25.3" }
+  ],
+  "dependencies": [ { "ref": "root", "dependsOn": ["pkg-log4j-core"] } ]
+}

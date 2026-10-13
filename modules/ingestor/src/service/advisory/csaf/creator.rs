@@ -4,6 +4,7 @@ use crate::{
         Graph,
         advisory::{
             context::{AssertionContext, ContextCreator},
+            cpe_assertion::{CpeAssertion, CpeAssertionCreator},
             product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
             vers::parse_range,
@@ -38,8 +39,7 @@ use trustify_common::{
     purl::Purl,
 };
 use trustify_entity::{
-    advisory_vulnerability_cpe, advisory_vulnerability_hash,
-    advisory_vulnerability_product_identifier,
+    advisory_vulnerability_hash, advisory_vulnerability_product_identifier,
     advisory_vulnerability_product_identifier::ProductIdentifierType,
     assertion_context::AssertionContextCategory,
     assertion_context_identifier::ContextIdentifierKind,
@@ -56,11 +56,6 @@ pub struct ProductIdStatusMapping {
     pub purl_status_ids: Vec<Uuid>,
     pub product_status_ids: Vec<Uuid>,
 }
-
-/// Namespace of the IDs of `advisory_vulnerability_cpe` rows.
-const ADVISORY_CPE_NAMESPACE: Uuid = Uuid::from_bytes([
-    0x5c, 0x1e, 0x8b, 0x3f, 0x92, 0x7d, 0x4a, 0x06, 0xb4, 0x2e, 0x61, 0xc9, 0x0f, 0xd8, 0x37, 0xa5,
-]);
 
 /// Namespace of the IDs of `advisory_vulnerability_hash` rows.
 const ADVISORY_HASH_NAMESPACE: Uuid = Uuid::from_bytes([
@@ -484,13 +479,6 @@ impl<'a> StatusCreator<'a> {
             }
         }
 
-        for (cpe, range, _, _) in &self.cpe_entries {
-            cpes.add(cpe.clone());
-            if let Some(range) = range {
-                version_ranges.push(range.clone().into_active_model());
-            }
-        }
-
         purls.create(connection).await?;
         cpes.create(connection).await?;
         // contexts are referenced by all assertions below
@@ -616,34 +604,18 @@ impl<'a> StatusCreator<'a> {
             }
         }
 
-        if !self.cpe_entries.is_empty() {
-            let mut cpe_models = self
-                .cpe_entries
-                .iter()
-                .map(|(cpe, range, status, context)| {
-                    let cpe_id = cpe.uuid();
-                    let version_range_id = range.as_ref().map(VersionInfo::uuid);
-                    advisory_vulnerability_cpe::ActiveModel {
-                        id: Set(self.advisory_cpe_id(cpe_id, version_range_id, *status, *context)),
-                        advisory_id: Set(self.advisory_id),
-                        vulnerability_id: Set(self.vulnerability_id.clone()),
-                        status: Set(*status),
-                        cpe_id: Set(cpe_id),
-                        version_range_id: Set(version_range_id),
-                        assertion_context_id: Set(*context),
-                    }
-                })
-                .collect::<Vec<_>>();
-
-            cpe_models.sort_by_key(|model| *model.id.as_ref());
-
-            for batch in &cpe_models.chunked() {
-                advisory_vulnerability_cpe::Entity::insert_many(batch)
-                    .on_conflict_do_nothing()
-                    .exec(connection)
-                    .await?;
-            }
+        let mut cpe_assertions = CpeAssertionCreator::new(self.advisory_id);
+        for (cpe, range, status, context) in &self.cpe_entries {
+            cpe_assertions.add(CpeAssertion {
+                vulnerability_id: self.vulnerability_id.clone(),
+                cpe: cpe.clone(),
+                range: range.clone(),
+                status: *status,
+                context: *context,
+                default: false,
+            });
         }
+        cpe_assertions.create(connection).await?;
 
         let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
         for (product_id, product) in &self.product_id_to_product {
@@ -653,26 +625,6 @@ impl<'a> StatusCreator<'a> {
         }
 
         Ok(result)
-    }
-
-    /// Deterministic ID of an `advisory_vulnerability_cpe` row.
-    fn advisory_cpe_id(
-        &self,
-        cpe_id: Uuid,
-        version_range_id: Option<Uuid>,
-        status: AssertionStatus,
-        context: Option<Uuid>,
-    ) -> Uuid {
-        let mut id = Uuid::new_v5(&ADVISORY_CPE_NAMESPACE, self.advisory_id.as_bytes());
-        id = Uuid::new_v5(&id, self.vulnerability_id.as_bytes());
-        id = Uuid::new_v5(&id, cpe_id.as_bytes());
-        id = Uuid::new_v5(&id, version_range_id.unwrap_or_default().as_bytes());
-        id = Uuid::new_v5(&id, status.to_value().as_bytes());
-        // without a context, the ID is the same as before contexts existed
-        match context {
-            Some(context) => Uuid::new_v5(&id, context.as_bytes()),
-            None => id,
-        }
     }
 
     /// Deterministic ID of an assertion row (hash, product identifier).
@@ -794,6 +746,7 @@ impl<'a> StatusCreator<'a> {
             status,
             info: VersionInfo { scheme, spec },
             context_id: product.context,
+            default: false,
         };
         self.product_to_purl_statuses
             .entry(product.clone())

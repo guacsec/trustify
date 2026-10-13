@@ -8,6 +8,9 @@
 //! This rule evaluates such a range with the versioning scheme of the matched PURL's type (e.g.
 //! semver for `pkg:npm/…`). PURL types without a known scheme don't match. As the scheme is
 //! inferred, its confidence is lower than the one of a stated range.
+//!
+//! The same applies to a CVE range of the version type `custom` (stored with the version scheme
+//! `custom`), whose versioning scheme is unspecified.
 
 use super::RangeRule;
 use crate::extractor::purl::{Candidates, stated_scheme};
@@ -31,12 +34,30 @@ const PURL_TYPE_SCHEMES: &[(&str, VersionScheme)] = &[
     ("swift", VersionScheme::Swift),
 ];
 
-/// Evaluates vls ranges with the versioning scheme of the PURL type.
-pub struct VlsRange;
+/// Evaluates ranges without a versioning scheme with the one of the PURL type.
+pub enum SchemelessRange {
+    /// A CSAF vls range.
+    Vls,
+    /// A CVE range of the version type `custom`.
+    Custom,
+}
 
-impl RangeRule for VlsRange {
+impl SchemelessRange {
+    /// The version scheme the range is stored with.
+    fn stored(&self) -> VersionScheme {
+        match self {
+            Self::Vls => VersionScheme::Vls,
+            Self::Custom => VersionScheme::Custom,
+        }
+    }
+}
+
+impl RangeRule for SchemelessRange {
     fn id(&self) -> &'static str {
-        "purl_vls_range"
+        match self {
+            Self::Vls => "purl_vls_range",
+            Self::Custom => "purl_custom_range",
+        }
     }
 
     /// Lower, as the versioning scheme is inferred from the PURL type.
@@ -57,7 +78,7 @@ impl RangeRule for VlsRange {
 
         let range = |column| Expr::col((version_range::Entity, column));
         Candidates {
-            condition: Expr::expr(stated_scheme()).eq(VersionScheme::Vls.to_string()),
+            condition: Expr::expr(stated_scheme()).eq(self.stored().to_string()),
             status: Expr::col((status::Entity, status::Column::Slug)),
             scheme: SimpleExpr::Case(Box::new(scheme)),
             low_version: range(version_range::Column::LowVersion),

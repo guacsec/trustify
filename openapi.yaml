@@ -1172,6 +1172,11 @@ paths:
                       - subject
                       - range
                       properties:
+                        default:
+                          type: boolean
+                          description: |-
+                            Whether it is the default status (CVE `defaultStatus`): of all versions no other statement
+                            of the subject lists.
                         range:
                           $ref: '#/components/schemas/MatchedRange'
                           description: The versions the statement applies to. Unbounded when it applies to all versions.
@@ -4128,6 +4133,7 @@ paths:
       tags:
       - sbom
       summary: Get advisories for an SBOM
+      description: 'Deprecated: use the verdicts of the correlation engine, `GET /v3/correlation/sbom/{id}`.'
       operationId: getSbomAdvisories
       parameters:
       - name: id
@@ -4154,6 +4160,7 @@ paths:
                   $ref: '#/components/schemas/SbomAdvisory'
         '404':
           description: The SBOM could not be found
+      deprecated: true
   /api/v3/sbom/{id}/all-license-ids:
     get:
       tags:
@@ -5144,6 +5151,8 @@ paths:
     post:
       tags:
       - vulnerability
+      summary: Analyze the provided purls for the known vulnerabilities
+      description: 'Deprecated: use the correlation engine, `GET /v3/correlation/query`.'
       operationId: analyze_v3
       requestBody:
         content:
@@ -5158,6 +5167,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalysisResponseV3'
+      deprecated: true
   /api/v3/vulnerability/{id}:
     get:
       tags:
@@ -8428,6 +8438,11 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/PurlAdvisory'
+            description: |-
+              The advisories with a status of the PURL.
+
+              Deprecated: use the correlation engine, `GET /v3/correlation/query`.
+            deprecated: true
           base:
             $ref: '#/components/schemas/BasePurlHead'
           licenses:
@@ -9673,17 +9688,27 @@ components:
             minimum: 0
           purls:
             type: object
+            description: |-
+              The statuses of PURLs, by status.
+
+              Deprecated: use the correlation engine, `GET /v3/correlation/advisory/{id}/statement` for
+              what the advisory states, `GET /v3/correlation/sbom/{id}` for the verdicts of an SBOM.
             additionalProperties:
               type: array
               items:
                 $ref: '#/components/schemas/VulnerabilityAdvisoryStatus'
             propertyNames:
               type: string
+            deprecated: true
           sboms:
             type: array
             items:
               $ref: '#/components/schemas/VulnerabilitySbomStatus'
-            description: SBOMs claimed by this advisory to be addressed by this vulnerability.
+            description: |-
+              SBOMs claimed by this advisory to be addressed by this vulnerability.
+
+              Deprecated: use the correlation engine, `GET /v3/correlation/sbom/{id}`.
+            deprecated: true
     VulnerabilityDetails:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'

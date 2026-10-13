@@ -1,3 +1,5 @@
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
 use regex::Regex;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};

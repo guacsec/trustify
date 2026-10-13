@@ -96,7 +96,9 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     assert!(ubi_details.is_some());
     let ubi_details = ubi_details.unwrap();
     let ubi_advisories = ubi_details.advisories;
-    assert_eq!(ubi_advisories.len(), 3);
+    // including the CVE record of CVE-2024-28834: its CPEs are synonyms of the affected product
+    // (here `enterprise_linux:8`), stated not affected from `0:3.6.16-8.el8_9.3` on (`lessThan: *`)
+    assert_eq!(ubi_advisories.len(), 4);
     assert!(
         ubi_advisories
             .iter()

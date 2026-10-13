@@ -255,6 +255,8 @@ fn affected_status(
         status: "affected".to_string(),
         version_info: VersionInfo { scheme, spec },
         context_cpe: None,
+        context_id: None,
+        default: false,
     }
 }
 

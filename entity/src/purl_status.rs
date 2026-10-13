@@ -17,6 +17,9 @@ pub struct Model {
     pub context_cpe_id: Option<Uuid>,
     /// The product the assertion is stated in, if any.
     pub assertion_context_id: Option<Uuid>,
+    /// Whether this is the default status (CVE `defaultStatus`): the status of all versions no
+    /// other statement of the same subject lists.
+    pub is_default: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -1,3 +1,5 @@
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 use actix_web::test::TestRequest;
 use rstest::rstest;
 use serde_json::json;

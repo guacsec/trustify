@@ -4,8 +4,11 @@ use crate::{
     service::{
         Error, JsonSource,
         advisory::{
-            csaf::loader::CsafLoader, cve::loader::CveLoader, nvd::loader::NvdLoader,
-            nvd::schema::NvdCve, osv::loader::OsvLoader,
+            csaf::loader::CsafLoader,
+            cve::{loader::CveLoader, record::CveRecord},
+            nvd::loader::NvdLoader,
+            nvd::schema::NvdCve,
+            osv::loader::OsvLoader,
         },
         kev::{KevLoader, schema::KevCatalog},
         sbom::{
@@ -17,7 +20,6 @@ use crate::{
     },
 };
 use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
-use cve::Cve;
 use cyclonedx_rs::cyclonedx::v_1_7::CycloneDx;
 use osv::schema::Vulnerability;
 use quick_xml::{Reader, events::Event};
@@ -46,7 +48,7 @@ pub enum WireFormat {
 #[derive(Debug)]
 pub enum DetectedDocument {
     Csaf(Box<Csaf>),
-    Cve(Box<Cve>),
+    Cve(Box<CveRecord>),
     /// A bare NVD CVE API `cve` object. NVD is never content-detected (it is
     /// indistinguishable from OSV by sniffing), so it is only produced when
     /// `Format::NVD` is passed explicitly as the hint.
