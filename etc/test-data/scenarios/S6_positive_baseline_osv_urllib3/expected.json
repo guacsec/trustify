@@ -3,20 +3,31 @@
     "osv/GHSA-g4mx-q9vg-27p4.json"
   ],
   "sboms": {
-    "sbom_urllib3_affected": {
-      "correct": {
+    "sbom_urllib3_affected.cdx.json": {
+      "pkg-urllib3": {
         "CVE-2023-45803": "affected"
       }
     },
-    "sbom_urllib3_patched": {
-      "correct": {
-        "CVE-2023-45803": "not_affected"
+    "sbom_urllib3_affected.spdx.json": {
+      "SPDXRef-Package-python-urllib3-pkg-urllib3": {
+        "CVE-2023-45803": "affected"
       }
     },
-    "sbom_python3-urllib3_rpm_el8": {
-      "correct": {
-        "CVE-2023-45803": "not_affected"
+    "sbom_urllib3_v203.cdx.json": {
+      "pkg-urllib3": {
+        "CVE-2023-45803": "affected"
       }
-    }
+    },
+    "sbom_urllib3_v203.spdx.json": {
+      "SPDXRef-Package-python-urllib3-pkg-urllib3": {
+        "CVE-2023-45803": "affected"
+      }
+    },
+    "sbom_urllib3_patched.cdx.json": {},
+    "sbom_urllib3_patched.spdx.json": {},
+    "sbom_urllib3_abovefix.cdx.json": {},
+    "sbom_urllib3_abovefix.spdx.json": {},
+    "sbom_python3-urllib3_rpm_el8.cdx.json": {},
+    "sbom_python3-urllib3_rpm_el8.spdx.json": {}
   }
 }

@@ -3,8 +3,13 @@
     "osv/GHSA-3227-r97m-8j95_real-no-cve.json"
   ],
   "sboms": {
-    "sbom_afire_affected": {
-      "correct": {
+    "sbom_afire_affected.cdx.json": {
+      "pkg-afire": {
+        "GHSA-3227-r97m-8j95": "affected"
+      }
+    },
+    "sbom_afire_affected.spdx.json": {
+      "SPDXRef-afire": {
         "GHSA-3227-r97m-8j95": "affected"
       }
     }

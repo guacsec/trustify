@@ -8,6 +8,11 @@
 //!
 //! Such a statement identifies the package only through its product, so it requires the node to
 //! be in the statement's context (product).
+//!
+//! This doesn't apply to OSV: its PURLs are versionless by the spec ("without the `@version`
+//! component"), identifying the package, while the affected versions are stated by ranges and
+//! lists. OSV ingestion never stores the empty version, and OSV advisories have no publisher
+//! namespace to enable the option for.
 
 use super::{Enabled, RangeRule, low, published_by};
 use crate::{

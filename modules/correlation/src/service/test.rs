@@ -327,6 +327,8 @@ struct Scenario {
 #[case("S1_crossstream_bind-libs")]
 #[case("S2_wrongscheme_golang_oci")]
 #[case("S3_wrongproduct_hummingbird_curl")]
+#[case("S6_positive_baseline_osv_urllib3")]
+#[case("S13_aliasless_osv_drop")]
 #[case("S14_productstatus_versionfilter_netty")]
 #[case("S16_crossscheme_purlquery_golang")]
 #[case("S20_cpe_range_wago")]
