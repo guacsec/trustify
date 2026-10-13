@@ -847,29 +847,15 @@ impl PurlService {
         }
         .to_string();
 
-        // When the same vulnerability appears in multiple advisories with different statuses,
-        // keep the one from the most recent advisory so that newer assessments (e.g. "fixed")
-        // take precedence over older ones (e.g. "affected").
-        let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-        for info in statuses_by_vp
-            .get(&winner.versioned_purl.id)
-            .into_iter()
-            .flatten()
-        {
-            best_by_vuln
-                .entry(&info.vuln_id)
-                .and_modify(|existing| {
-                    if info.advisory_date > existing.advisory_date {
-                        *existing = info;
-                    }
-                })
-                .or_insert(info);
-        }
-
+        // Report all advisory statuses without dedup — each advisory's assessment is
+        // independent. Consumers see every source's view (e.g. vendor "Fixed" alongside
+        // upstream "Affected") with the advisory_id to distinguish them.
         RecommendEntry {
             package: package_str,
-            vulnerabilities: best_by_vuln
-                .into_values()
+            vulnerabilities: statuses_by_vp
+                .get(&winner.versioned_purl.id)
+                .into_iter()
+                .flatten()
                 .map(|info| {
                     let vex_status = match info.status_slug.as_str() {
                         "affected" => VexStatus::Affected,
@@ -884,6 +870,7 @@ impl PurlService {
                         status: Some(vex_status),
                         justification: None,
                         remediations: RemediationSummary::from_entities(&info.remediations),
+                        advisory_id: info.advisory_id.clone(),
                     }
                 })
                 .collect(),
