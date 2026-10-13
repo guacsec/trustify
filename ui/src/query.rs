@@ -1,11 +1,10 @@
-use crate::{AppRoute, api, correlation::matched_value};
+use crate::{advisory::advisory_link, api, correlation::matched_value};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
     AssertionStatus, IdentifierKind, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 #[function_component(QueryPage)]
@@ -209,11 +208,11 @@ impl TableEntryRenderer<MatchColumn> for MatchEntry {
         match context.column {
             MatchColumn::MatchType => html!(<Label label={self.0.kind.label()} />).into(),
             MatchColumn::Value => matched_value(&self.0.value).into(),
-            MatchColumn::Advisory => html! {
-                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
-                    { &self.0.advisory_identifier }
-                </Link<AppRoute>>
-            }
+            MatchColumn::Advisory => advisory_link(
+                self.0.advisory_id,
+                &self.0.advisory_identifier,
+                self.0.advisory_type.as_deref(),
+            )
             .into(),
             MatchColumn::Status => html!(assertion_label(self.0.status)).into(),
             MatchColumn::Confidence => html!(format!("{:.0}%", self.0.confidence * 100.0)).into(),

@@ -113,6 +113,9 @@ pub struct VulnerabilityRef {
     pub title: Option<String>,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_type: Option<String>,
 }
 
 /// One piece of evidence from the correlation engine.
@@ -125,6 +128,9 @@ pub struct EvidenceDetail {
     pub extractor: String,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matched_value: Option<MatchedValue>,
     /// The products (assertion contexts) the evidence was matched in. Empty when the assertion
@@ -479,6 +485,9 @@ pub struct QueryMatch {
     pub value: MatchedValue,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_type: Option<String>,
     pub status: AssertionStatus,
     /// The type of evidence, i.e. how the match was established (e.g. `purl` or `purl_stream`).
     pub extractor: String,

@@ -1,5 +1,7 @@
 use crate::{
-    AppRoute, api,
+    AppRoute,
+    advisory::advisory_link,
+    api,
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
         IdentifierRef, MatchedValue, VerdictStatus, VerdictSummary,
@@ -9,7 +11,6 @@ use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 #[derive(Clone, Debug, PartialEq, Properties)]
@@ -126,11 +127,11 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
-            VerdictColumn::Advisory => html! {
-                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.vulnerability.advisory_id.to_string() }}>
-                    { &self.0.vulnerability.advisory_identifier }
-                </Link<AppRoute>>
-            }
+            VerdictColumn::Advisory => advisory_link(
+                self.0.vulnerability.advisory_id,
+                &self.0.vulnerability.advisory_identifier,
+                self.0.vulnerability.advisory_type.as_deref(),
+            )
             .into(),
             VerdictColumn::Status => html! {
                 <div>
@@ -212,11 +213,11 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 None => html!("\u{2014}").into(),
             },
             EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
-            EvidenceColumn::Advisory => html! {
-                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
-                    { &self.0.advisory_identifier }
-                </Link<AppRoute>>
-            }
+            EvidenceColumn::Advisory => advisory_link(
+                self.0.advisory_id,
+                &self.0.advisory_identifier,
+                self.0.advisory_type.as_deref(),
+            )
             .into(),
             EvidenceColumn::Created => html!(&self.0.created_at).into(),
         }

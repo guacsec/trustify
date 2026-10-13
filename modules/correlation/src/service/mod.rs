@@ -231,11 +231,7 @@ impl CorrelationService {
             let evidence: Vec<_> = rows
                 .iter()
                 .map(|row| {
-                    let advisory_identifier = advisory_map
-                        .get(&row.advisory_id)
-                        .map(String::as_str)
-                        .unwrap_or("unknown")
-                        .to_string();
+                    let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
 
                     EvidenceDetail {
                         id: row.id,
@@ -243,7 +239,8 @@ impl CorrelationService {
                         confidence: row.confidence,
                         extractor: row.extractor.clone(),
                         advisory_id: row.advisory_id,
-                        advisory_identifier,
+                        advisory_identifier: advisory.identifier,
+                        advisory_type: advisory.r#type,
                         matched_value: row.matched_value.clone().and_then(|value| {
                             serde_json::from_value(value)
                                 .inspect_err(|err| {
@@ -278,11 +275,7 @@ impl CorrelationService {
                 .find(|row| Some(row.advisory_id) == decision.winning_advisory)
                 .copied()
                 .unwrap_or(rows[0]);
-            let advisory_identifier = advisory_map
-                .get(&first.advisory_id)
-                .map(String::as_str)
-                .unwrap_or("unknown")
-                .to_string();
+            let advisory = AdvisoryName::of(&advisory_map, first.advisory_id);
 
             let vuln_title = vuln_titles.get(*vuln_id).cloned().flatten();
 
@@ -296,7 +289,8 @@ impl CorrelationService {
                     id: vuln_id.to_string(),
                     title: vuln_title,
                     advisory_id: first.advisory_id,
-                    advisory_identifier,
+                    advisory_identifier: advisory.identifier,
+                    advisory_type: advisory.r#type,
                 },
                 status,
                 resolution,
@@ -386,11 +380,7 @@ impl CorrelationService {
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
         let mut groups = BTreeMap::<&str, Vec<(AssertionStatus, QueryMatch)>>::new();
         for assertion in &matches {
-            let advisory_identifier = advisory_map
-                .get(&assertion.advisory_id)
-                .map(String::as_str)
-                .unwrap_or("unknown")
-                .to_string();
+            let advisory = AdvisoryName::of(&advisory_map, assertion.advisory_id);
 
             groups
                 .entry(assertion.vulnerability_id.as_str())
@@ -401,7 +391,8 @@ impl CorrelationService {
                         kind: identifier.kind,
                         value: assertion.matched_value.clone(),
                         advisory_id: assertion.advisory_id,
-                        advisory_identifier,
+                        advisory_identifier: advisory.identifier,
+                        advisory_type: advisory.r#type,
                         status: assertion.status.into(),
                         extractor: assertion.extractor.to_string(),
                         confidence: assertion.confidence,
@@ -482,11 +473,29 @@ fn decision_evidence(
     })
 }
 
-/// Load advisory identifiers by ID.
+/// The identifier and format of an advisory, for references to it.
+#[derive(Clone)]
+struct AdvisoryName {
+    identifier: String,
+    /// The format, from the `type` label the ingestor sets.
+    r#type: Option<String>,
+}
+
+impl AdvisoryName {
+    /// The name of an advisory, `unknown` if it isn't loaded.
+    fn of(names: &HashMap<Uuid, AdvisoryName>, id: Uuid) -> Self {
+        names.get(&id).cloned().unwrap_or_else(|| Self {
+            identifier: "unknown".to_string(),
+            r#type: None,
+        })
+    }
+}
+
+/// Load advisory identifiers and formats by ID.
 async fn load_advisory_names(
     advisory_ids: &[Uuid],
     connection: &DatabaseTransaction,
-) -> Result<HashMap<Uuid, String>, Error> {
+) -> Result<HashMap<Uuid, AdvisoryName>, Error> {
     let advisories = advisory::Entity::find()
         .filter(advisory::Column::Id.is_in(advisory_ids.iter().copied()))
         .all(connection)
@@ -495,7 +504,16 @@ async fn load_advisory_names(
 
     Ok(advisories
         .into_iter()
-        .map(|a| (a.id, a.identifier))
+        .map(|a| {
+            let r#type = a.labels.0.get("type").cloned();
+            (
+                a.id,
+                AdvisoryName {
+                    identifier: a.identifier,
+                    r#type,
+                },
+            )
+        })
         .collect())
 }
 

@@ -6299,6 +6299,11 @@ components:
           format: uuid
         advisory_identifier:
           type: string
+        advisory_type:
+          type:
+          - string
+          - 'null'
+          description: The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
         assertion_status:
           $ref: '#/components/schemas/AssertionStatus'
         confidence:
@@ -8502,6 +8507,11 @@ components:
           format: uuid
         advisory_identifier:
           type: string
+        advisory_type:
+          type:
+          - string
+          - 'null'
+          description: The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
         confidence:
           type: number
           format: double
@@ -9694,6 +9704,11 @@ components:
           format: uuid
         advisory_identifier:
           type: string
+        advisory_type:
+          type:
+          - string
+          - 'null'
+          description: The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
         id:
           type: string
         title:

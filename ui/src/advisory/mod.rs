@@ -21,6 +21,7 @@ use std::rc::Rc;
 use trustify_client::api::types::{AdvisoryDetails, Labels};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 /// The format of an advisory's source document, from the `type` label the ingestor sets.
@@ -41,7 +42,12 @@ impl AdvisoryFormat {
 
     /// The format, from the labels of an advisory.
     pub fn from_labels(labels: &Labels) -> Self {
-        match labels.0.get("type").map(String::as_str) {
+        Self::from_type(labels.0.get("type").map(String::as_str))
+    }
+
+    /// The format, from the `type` label of an advisory.
+    pub fn from_type(r#type: Option<&str>) -> Self {
+        match r#type {
             Some("csaf") => Self::Csaf,
             Some("cve") => Self::Cve,
             Some("osv") => Self::Osv,
@@ -119,6 +125,21 @@ impl<T> Fetch<T> {
             },
             Self::Ready(value) => f(value),
         }
+    }
+}
+
+/// A link to an advisory, with a label of its format (from its `type` label), if known.
+pub fn advisory_link(id: impl ToString, identifier: &str, r#type: Option<&str>) -> Html {
+    html! {
+        <>
+            <Link<AppRoute> to={AppRoute::Advisory { id: id.to_string() }}>
+                { identifier }
+            </Link<AppRoute>>
+            if r#type.is_some() {
+                { " " }
+                <Label label={AdvisoryFormat::from_type(r#type).label()} color={Color::Blue} compact=true />
+            }
+        </>
     }
 }
 
