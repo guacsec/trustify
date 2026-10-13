@@ -1157,6 +1157,11 @@ paths:
                       - subject
                       - range
                       properties:
+                        default:
+                          type: boolean
+                          description: |-
+                            Whether it is the default status (CVE `defaultStatus`): of all versions no other statement
+                            of the subject lists.
                         range:
                           $ref: '#/components/schemas/MatchedRange'
                           description: The versions the statement applies to. Unbounded when it applies to all versions.

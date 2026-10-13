@@ -13,8 +13,7 @@ use crate::{
 };
 use cve::common::{self, Product, Status, VersionRange};
 use sea_orm::{
-    ConnectionTrait, DbBackend, DbErr, FromQueryResult, Statement as SqlStatement,
-    TransactionTrait,
+    ConnectionTrait, DbBackend, DbErr, FromQueryResult, Statement as SqlStatement, TransactionTrait,
 };
 use std::str::FromStr;
 use trustify_common::purl::Purl;

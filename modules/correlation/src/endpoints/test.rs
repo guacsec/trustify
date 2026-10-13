@@ -339,6 +339,7 @@ async fn advisory_statements(ctx: &TrustifyContext) -> anyhow::Result<()> {
         status: "affected".into(),
         subject,
         range,
+        default: false,
     };
     let bound = |version: &str, inclusive| {
         Some(RangeBound {

@@ -1,28 +1,14 @@
 use crate::{
     graph::{
         Graph, Outcome,
-        advisory::{
-            AdvisoryInformation, AdvisoryVulnerabilityInformation,
-            version::{VersionInfo, VersionSpec},
-        },
-        cpe::CpeCreator,
-        cpe_status_creator::{CpeStatusCreator, CpeStatusEntry},
+        advisory::{AdvisoryInformation, AdvisoryVulnerabilityInformation},
         cvss::{ScoreCreator, best_base_score},
-        purl::{
-            self,
-            status_creator::{PurlStatusCreator, PurlStatusEntry},
-        },
         vulnerability::{VulnerabilityInformation, creator::VulnerabilityCreator},
     },
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::cve::{
-            extract_scores,
-            statement::{
-                Statement, default_statement, listed_statements, package_purl, status_slug,
-            },
-        },
+        advisory::cve::{creator::StatementCreator, extract_scores, record::CveRecord},
     },
 };
 use cve::{
@@ -31,12 +17,11 @@ use cve::{
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
 use sea_query::Expr;
-use std::str::FromStr;
-use std::{collections::HashSet, fmt::Debug};
+use std::fmt::Debug;
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::{cpe::Cpe, hashing::Digests};
-use trustify_entity::{labels::Labels, version_scheme::VersionScheme, vulnerability};
+use trustify_common::hashing::Digests;
+use trustify_entity::{labels::Labels, vulnerability};
 
 /// Loader capable of parsing a CVE Record JSON file
 /// and manipulating the Graph to integrate it into
@@ -55,14 +40,15 @@ impl<'g> CveLoader<'g> {
         Self { graph }
     }
 
-    #[instrument(skip(self, cve, tx), err(level=tracing::Level::INFO))]
+    #[instrument(skip(self, record, tx), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: impl Into<Labels> + Debug,
-        cve: Cve,
+        record: impl Into<CveRecord>,
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
+        let CveRecord { cve, applicability } = record.into();
         let warnings = Warnings::new();
         let id = cve.id();
         let labels = labels.into().add("type", "cve");
@@ -152,106 +138,21 @@ impl<'g> CveLoader<'g> {
             .exec(tx)
             .await?;
 
-        // Initialize batch creators for efficient status ingestion
-        let mut purl_status_creator = PurlStatusCreator::new();
-        let mut cpe_status_creator = CpeStatusCreator::new();
-        let mut base_purls = HashSet::new();
-        let mut cpes = HashSet::new();
-
+        let mut statements = StatementCreator::new(
+            advisory.advisory.id,
+            advisory_vuln
+                .advisory_vulnerability
+                .vulnerability_id
+                .clone(),
+            &warnings,
+        );
         for product in affected {
-            let listed = listed_statements(product, &warnings, tx).await?;
-
-            if let Some(purl) = package_purl(product, &warnings) {
-                // Collect base PURL for batch creation
-                base_purls.insert(purl.clone());
-
-                for statement in listed.iter().chain(&default_statement(product)) {
-                    purl_status_creator.add(PurlStatusEntry {
-                        advisory_id: advisory_vuln.advisory.advisory.id,
-                        vulnerability_id: advisory_vuln
-                            .advisory_vulnerability
-                            .vulnerability_id
-                            .clone(),
-                        purl: purl.clone(),
-                        status: statement.status.to_string(),
-                        version_info: statement.version_info.clone(),
-                        context_cpe: None,
-                        context_id: None,
-                        default: statement.default,
-                    });
-                }
-            }
-
-            // An entry naming a package states the status of that package: its CPEs are the
-            // product the package is in, not the subject of the statements.
-            if product.package_url.is_some() || product.package_name.is_some() {
-                continue;
-            }
-
-            // CPE-keyed applicability: every parseable CPE in `cpes` is
-            // stored as a vendor/product identity (version normalized to
-            // ANY), with the affected version(s) expressed via
-            // version_range, mirroring the purl path above.
-            for cpe_str in &product.cpes {
-                let Ok(cpe) = Cpe::from_str(cpe_str) else {
-                    continue;
-                };
-                let identity_cpe = cpe.with_any_version();
-
-                let statements = if !product.versions.is_empty() {
-                    listed.clone()
-                } else if let trustify_common::cpe::Component::Value(version) = cpe.version() {
-                    // no explicit versions list: fall back to the concrete
-                    // version carried by the CPE itself, with the default status
-                    // (`unknown` if missing, which states nothing).
-                    product
-                        .default_status
-                        .as_ref()
-                        .and_then(status_slug)
-                        .map(|status| Statement {
-                            status,
-                            version_info: VersionInfo {
-                                scheme: VersionScheme::Generic,
-                                spec: VersionSpec::Exact(version),
-                            },
-                            default: false,
-                        })
-                        .into_iter()
-                        .collect()
-                } else {
-                    vec![]
-                };
-
-                for statement in statements {
-                    cpes.insert(identity_cpe.clone());
-                    cpe_status_creator.add(CpeStatusEntry {
-                        advisory_id: advisory_vuln.advisory.advisory.id,
-                        vulnerability_id: advisory_vuln
-                            .advisory_vulnerability
-                            .vulnerability_id
-                            .clone(),
-                        cpe: identity_cpe.clone(),
-                        status: statement.status.to_string(),
-                        version_info: statement.version_info,
-                        context_cpe: None,
-                    });
-                }
-            }
+            statements.add_product(product, tx).await?;
         }
-
-        // Batch create base PURLs (without versions/qualifiers)
-        purl::batch_create_base_purls(base_purls, tx).await?;
-
-        // Batch create CPEs (vendor/product identity, version normalized to ANY)
-        let mut cpe_creator = CpeCreator::new();
-        for cpe in cpes {
-            cpe_creator.add(cpe);
+        for configuration in &applicability {
+            statements.add_applicability(configuration);
         }
-        cpe_creator.create(tx).await?;
-
-        // Batch create statuses
-        purl_status_creator.create(tx).await?;
-        cpe_status_creator.create(tx).await?;
+        statements.create(tx).await?;
 
         // Manage vulnerability descriptions without needing to query the vulnerability
         Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
@@ -411,6 +312,7 @@ mod test {
     use time::macros::datetime;
     use trustify_common::purl::Purl;
     use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
+    use trustify_entity::version_scheme::VersionScheme;
     use trustify_test_context::{TrustifyContext, document};
     use uuid::Uuid;
 
@@ -804,7 +706,10 @@ mod test {
     }
 
     /// The PURL statuses of an advisory, sorted. A default status is marked as such.
-    async fn stated_purls(advisory_id: Uuid, db: &impl ConnectionTrait) -> anyhow::Result<Vec<Stated>> {
+    async fn stated_purls(
+        advisory_id: Uuid,
+        db: &impl ConnectionTrait,
+    ) -> anyhow::Result<Vec<Stated>> {
         use trustify_entity::{base_purl, purl_status, status};
 
         let mut result = Vec::new();
@@ -823,7 +728,9 @@ mod test {
                 format!(
                     "pkg:{}/{}{}{}",
                     purl.r#type,
-                    purl.namespace.map(|ns| format!("{ns}/")).unwrap_or_default(),
+                    purl.namespace
+                        .map(|ns| format!("{ns}/"))
+                        .unwrap_or_default(),
                     purl.name,
                     if row.is_default { " (default)" } else { "" },
                 ),
@@ -838,7 +745,10 @@ mod test {
     }
 
     /// The CPE statuses of an advisory, sorted.
-    async fn stated_cpes(advisory_id: Uuid, db: &impl ConnectionTrait) -> anyhow::Result<Vec<Stated>> {
+    async fn stated_cpes(
+        advisory_id: Uuid,
+        db: &impl ConnectionTrait,
+    ) -> anyhow::Result<Vec<Stated>> {
         use trustify_entity::{cpe, cpe_status, status};
 
         let mut result = Vec::new();
@@ -962,8 +872,12 @@ mod test {
         let tx = ctx.db.begin().await?;
 
         assert_eq!(
-            sort_versions(&versions(&["1.10.0", "1.2.0", "1.9.1"]), VersionScheme::Semver, &tx)
-                .await?,
+            sort_versions(
+                &versions(&["1.10.0", "1.2.0", "1.9.1"]),
+                VersionScheme::Semver,
+                &tx
+            )
+            .await?,
             Some(versions(&["1.2.0", "1.9.1", "1.10.0"]))
         );
         // equal versions have no order

@@ -164,7 +164,16 @@ struct StatementEntry(AdvisoryStatement);
 impl TableEntryRenderer<StatementColumn> for StatementEntry {
     fn render_cell(&self, context: CellContext<'_, StatementColumn>) -> Cell {
         match context.column {
-            StatementColumn::Status => status_label(&self.0.status).into(),
+            StatementColumn::Status => html! {
+                <>
+                    { status_label(&self.0.status) }
+                    if self.0.default {
+                        { " " }
+                        <Label label="default" compact=true />
+                    }
+                </>
+            }
+            .into(),
             StatementColumn::Subject => subject(&self.0.subject).into(),
             StatementColumn::Versions => html!(<code>{ range(&self.0.range) }</code>).into(),
         }

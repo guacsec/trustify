@@ -479,6 +479,10 @@ pub struct AdvisoryStatement {
     pub subject: StatementSubject,
     /// The versions the statement applies to. Unbounded when it applies to all versions.
     pub range: MatchedRange,
+    /// Whether it is the default status (CVE `defaultStatus`): of all versions no other statement
+    /// of the subject lists.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub default: bool,
 }
 
 /// What an advisory statement is about.

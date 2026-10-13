@@ -225,7 +225,7 @@ impl<'g> NvdLoader<'g> {
 ///
 /// Returns `None` when the entry carries neither explicit version bounds nor a
 /// concrete version in its CPE criteria (i.e. an unbounded "all versions" match).
-fn version_spec(cpe_match: &CpeMatch, cpe: &Cpe) -> Option<VersionSpec> {
+pub(crate) fn version_spec(cpe_match: &CpeMatch, cpe: &Cpe) -> Option<VersionSpec> {
     let has_bounds = cpe_match.version_start_including.is_some()
         || cpe_match.version_start_excluding.is_some()
         || cpe_match.version_end_including.is_some()

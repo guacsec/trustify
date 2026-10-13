@@ -1,0 +1,19 @@
+{
+  "advisories": [
+    "cve/CVE-2024-26581.json"
+  ],
+  "sboms": {
+    "sbom_kernel_5.4.268.cdx.json": {
+      "kernel": {
+        "CVE-2024-26581": "affected"
+      }
+    },
+    "sbom_kernel_5.4.269.cdx.json": {},
+    "sbom_kernel_6.4.8.cdx.json": {
+      "kernel": {
+        "CVE-2024-26581": "affected"
+      }
+    },
+    "sbom_kernel_4.19.0.cdx.json": {}
+  }
+}
