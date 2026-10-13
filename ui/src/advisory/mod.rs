@@ -3,11 +3,15 @@
 
 mod common;
 mod csaf;
+mod cve;
 mod osv;
 mod source;
 mod statements;
 
-use self::osv::{OsvTab, OsvView};
+use self::{
+    cve::{CveTab, CveView},
+    osv::{OsvTab, OsvView},
+};
 use crate::{AppRoute, api};
 use common::CommonTab;
 use csaf::{CsafTab, CsafView};
@@ -62,6 +66,7 @@ impl AdvisoryFormat {
     fn tabs(&self) -> Vec<AdvisoryTab> {
         let mut tabs = match self {
             Self::Csaf => CsafTab::ALL.into_iter().map(AdvisoryTab::Csaf).collect(),
+            Self::Cve => CveTab::ALL.into_iter().map(AdvisoryTab::Cve).collect(),
             Self::Osv => OsvTab::ALL.into_iter().map(AdvisoryTab::Osv).collect(),
             _ => Vec::new(),
         };
@@ -73,6 +78,7 @@ impl AdvisoryFormat {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AdvisoryTab {
     Csaf(CsafTab),
+    Cve(CveTab),
     Osv(OsvTab),
     Common,
     Source,
@@ -82,6 +88,7 @@ impl AdvisoryTab {
     fn title(self) -> &'static str {
         match self {
             Self::Csaf(tab) => tab.title(),
+            Self::Cve(tab) => tab.title(),
             Self::Osv(tab) => tab.title(),
             Self::Common => "Common",
             Self::Source => "Source",
@@ -232,6 +239,10 @@ pub fn advisory_page(props: &AdvisoryPageProps) -> Html {
         AdvisoryTab::Csaf(tab) => document.render(
             "Failed to load source document",
             |doc| html!(<CsafView document={doc.clone()} {tab} />),
+        ),
+        AdvisoryTab::Cve(tab) => document.render(
+            "Failed to load source document",
+            |doc| html!(<CveView document={doc.clone()} {tab} />),
         ),
         AdvisoryTab::Osv(tab) => document.render(
             "Failed to load source document",

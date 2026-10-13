@@ -94,4 +94,3 @@
 - [ ] CVE records ingested before the CVE loader read `packageURL`, `changes`, `defaultStatus`,
   wildcards, and `cpeApplicability`, and wrote CPE statements to `advisory_vulnerability_cpe`, need
   to be re-ingested.
-- [ ] UI: no CVE record view yet (like the OSV and CSAF ones).

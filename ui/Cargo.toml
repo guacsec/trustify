@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 browser-panic-hook = "0.2"
 csaf-rs = { workspace = true }
+cve = { workspace = true }
 cvss = { workspace = true }
 gloo-file = { version = "0.3", features = ["futures"] }
 gloo-net = { version = "0.7", features = ["http"] }
