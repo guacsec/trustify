@@ -48,6 +48,6 @@ The result is in `dist/`.
 * `src/api.rs`, `src/model.rs`: client side of the REST API
 * `src/sbom_list.rs`, `src/correlation.rs`: SBOMs and their correlation
 * `src/advisory_list.rs`, `src/advisory/`: the advisory explorer, format specific parts in
-  sub-modules (e.g. `csaf/`)
+  sub-modules (`csaf/`, `osv/`)
 * `assets/`: styles, and the [Monaco](https://microsoft.github.io/monaco-editor/) workers used by
   the source view (see `assets/monaco/README.md`)
