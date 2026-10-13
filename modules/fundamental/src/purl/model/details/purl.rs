@@ -89,9 +89,9 @@ impl PurlDetails {
 
         let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package.id);
 
-        let purl_statuses = purl_status::Entity::find()
+        let purl_statuses = purl_status::find_effective()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
-            .left_join(version_range::Entity)
+            .join(JoinType::LeftJoin, purl_status::effective_version_range())
             .left_join(base_purl::Entity)
             .filter(SimpleExpr::FunctionCall(
                 Func::cust(VersionMatches)

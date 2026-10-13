@@ -106,8 +106,10 @@ pub fn batch_severity_counts_sql() -> &'static str {
             pst.advisory_id,
             pst.vulnerability_id
         FROM sbom_purl_info sp
-        JOIN purl_status pst ON pst.base_purl_id = sp.base_purl_id
-        JOIN version_range vr ON pst.version_range_id = vr.id
+        -- including the statuses implied by correlation options (migration m0002560)
+        JOIN purl_status_effective pst ON pst.base_purl_id = sp.base_purl_id
+        JOIN version_range_effective vr
+            ON pst.version_range_id = vr.id AND pst.derived = vr.derived
         JOIN status ON pst.status_id = status.id
         WHERE status.slug = 'affected'
           AND version_matches(sp.version, vr.*)

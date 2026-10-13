@@ -8,6 +8,7 @@ mod products;
 mod status;
 mod vulnerabilities;
 
+use super::none;
 use ::csaf::schema::csaf2_0::schema::{CommonSecurityAdvisoryFramework as Csaf, Vulnerability};
 use index::ProductIndex;
 use notes::NotesTab;
@@ -168,11 +169,6 @@ fn vulnerability_name(n: usize, vuln: &Vulnerability) -> String {
                 .map(|id| format!("{}: {}", *id.system_name, *id.text))
         })
         .unwrap_or_else(|| format!("Vulnerability #{}", n + 1))
-}
-
-/// The placeholder for a missing value.
-fn none() -> Html {
-    html!(<i>{ "\u{2014}" }</i>)
 }
 
 #[cfg(test)]

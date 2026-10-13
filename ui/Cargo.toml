@@ -9,12 +9,14 @@ rust-version.workspace = true
 [dependencies]
 browser-panic-hook = "0.2"
 csaf-rs = { workspace = true }
+cvss = { workspace = true }
 gloo-file = { version = "0.3", features = ["futures"] }
 gloo-net = { version = "0.7", features = ["http"] }
 gloo-utils = "0.3"
 js-sys = "0.3"
 log = "0.4"
 monaco = { version = "0.7", default-features = false, features = ["yew-components"] }
+osv = { workspace = true, features = ["schema"] }
 patternfly-yew = { version = "0.8", features = ["tree"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

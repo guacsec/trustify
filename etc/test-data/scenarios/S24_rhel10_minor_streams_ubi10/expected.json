@@ -1,0 +1,30 @@
+{
+  "advisories": [
+    "vex/cve-2025-3576.json.xz",
+    "vex/cve-2025-6170.json.xz",
+    "vex/cve-2026-0915.json.xz",
+    "vex/cve-2026-19499.json.xz",
+    "vex/cve-2026-40356.json.xz",
+    "vex/cve-2026-5435.json.xz",
+    "vex/cve-2026-84782.json.xz"
+  ],
+  "sboms": {
+    "sbom/ubi10_syft.cdx.json": {
+      "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&package-id=7363ec55a4085ae1&upstream=glibc-2.39-128.el10_2.src.rpm": {
+        "CVE-2026-0915": "fixed",
+        "CVE-2026-19499": "affected",
+        "CVE-2026-5435": "fixed"
+      },
+      "pkg:rpm/redhat/krb5-libs@1.21.3-10.el10_2?arch=x86_64&distro=rhel-10.2&package-id=e8e4e4186e95c503&upstream=krb5-1.21.3-10.el10_2.src.rpm": {
+        "CVE-2025-3576": "fixed",
+        "CVE-2026-40356": "fixed"
+      },
+      "pkg:rpm/redhat/libxml2@2.12.5-10.el10_2.4?arch=x86_64&distro=rhel-10.2&package-id=ef3a16f545e37aec&upstream=libxml2-2.12.5-10.el10_2.4.src.rpm": {
+        "CVE-2025-6170": "fixed"
+      },
+      "pkg:rpm/redhat/openssl-libs@3.5.8-1.el10_2?arch=x86_64&distro=rhel-10.2&epoch=1&package-id=7fa59f45815a51f1&upstream=openssl-3.5.8-1.el10_2.src.rpm": {
+        "CVE-2026-84782": "affected"
+      }
+    }
+  }
+}

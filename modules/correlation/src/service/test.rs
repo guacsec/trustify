@@ -327,12 +327,15 @@ struct Scenario {
 #[case("S1_crossstream_bind-libs")]
 #[case("S2_wrongscheme_golang_oci")]
 #[case("S3_wrongproduct_hummingbird_curl")]
+#[case("S6_positive_baseline_osv_urllib3")]
+#[case("S13_aliasless_osv_drop")]
 #[case("S14_productstatus_versionfilter_netty")]
 #[case("S16_crossscheme_purlquery_golang")]
 #[case("S20_cpe_range_wago")]
 #[case("S21_cpe_extended_attributes_beckhoff")]
 #[case("S22_cpe_third_party_openssl_phoenix")]
 #[case("S23_suse_codestream_openssl")]
+#[case("S24_rhel10_minor_streams_ubi10")]
 #[test_log::test(actix_web::test)]
 async fn scenario(
     ctx: &TrustifyContext,

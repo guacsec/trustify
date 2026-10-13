@@ -27,23 +27,30 @@ pub fn parse(buffer: &[u8]) -> Result<Vulnerability, Error> {
     Ok(osv)
 }
 
-/// extract vulnerability IDs
-pub fn extract_vulnerability_ids(osv: &Vulnerability) -> impl Iterator<Item = &str> {
-    osv.aliases
+/// Extract the IDs of the vulnerabilities of a record: its CVE aliases, or the record's own ID if
+/// it has none.
+///
+/// The aliases are the IDs of the same vulnerability in other databases, so with a CVE alias, the
+/// record is about that CVE. Without one, the record's ID is the only ID of the vulnerability.
+pub fn extract_vulnerability_ids(osv: &Vulnerability) -> Vec<&str> {
+    let cves = osv
+        .aliases
         .iter()
-        .flat_map(|aliases| aliases.iter().filter(|e| e.starts_with("CVE-")))
-        .map(|s| s.as_str())
+        .flatten()
+        .filter(|alias| alias.starts_with("CVE-"))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+
+    match cves.is_empty() {
+        true => vec![osv.id.as_str()],
+        false => cves,
+    }
 }
 
 /// extract scores from OSV
 pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
     // Get all vulnerability IDs upfront
-    let ids: Vec<_> = extract_vulnerability_ids(osv).collect();
-
-    // If no vulnerability IDs, nothing to do
-    if ids.is_empty() {
-        return;
-    }
+    let ids = extract_vulnerability_ids(osv);
 
     // Process each severity entry
     for severity in osv.severity.iter().flatten() {
@@ -55,7 +62,7 @@ pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
                     }
                 }
                 Err(e) => {
-                    log::warn!(
+                    tracing::warn!(
                         "Failed to parse CVSSv2 vector '{}': {:?}",
                         severity.score,
                         e
@@ -70,7 +77,7 @@ pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
                     }
                 }
                 Err(e) => {
-                    log::warn!(
+                    tracing::warn!(
                         "Failed to parse CVSSv3 vector '{}': {:?}",
                         severity.score,
                         e
@@ -85,7 +92,7 @@ pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
                     }
                 }
                 Err(e) => {
-                    log::warn!(
+                    tracing::warn!(
                         "Failed to parse CVSSv4 vector '{}': {:?}",
                         severity.score,
                         e

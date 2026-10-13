@@ -777,7 +777,6 @@ async fn s7_cpeonly_opentofu_image(ctx: &TrustifyContext) -> Result<(), anyhow::
 #[test_context(TrustifyContext)]
 #[rstest]
 #[test_log::test(actix_web::test)]
-#[ignore = "Red Hat's implied affected statuses are no longer stored; derived by correlation instead (see TODO.md)"]
 async fn s8_epoch_mismatch_openjdk(
     ctx: &TrustifyContext,
     #[values("cdx", "spdx")] fmt: &str,
@@ -1045,14 +1044,12 @@ async fn s12_not_affected_ignored_thunderbird(
 // ===========================================================================
 // S13: Aliasless OSV afire (TC-5731)
 //
-// An OSV advisory whose vulnerability has no CVE alias is ingested but links
-// to zero vulnerabilities and creates no purl_status. The OSV loader gates
-// all correlation on CVE-prefixed aliases.
+// An OSV advisory whose vulnerability has no CVE alias is reported under the
+// record's own ID, the only ID of the vulnerability.
 // ===========================================================================
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[ignore = "TC-5731: OSV advisory with no CVE alias is dropped from correlation"]
 #[test_log::test(actix_web::test)]
 async fn s13_aliasless_osv_afire(
     ctx: &TrustifyContext,

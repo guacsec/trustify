@@ -414,10 +414,7 @@ async fn plain_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     },
                     MatchedRange {
                         scheme: "python".into(),
-                        low: Some(RangeBound {
-                            version: "0".into(),
-                            inclusive: true,
-                        }),
+                        low: None,
                         high: Some(RangeBound {
                             version: "1.26.18".into(),
                             inclusive: false,
@@ -428,6 +425,28 @@ async fn plain_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
             }),
         )]
     );
+
+    Ok(())
+}
+
+/// OSV only states the affected versions, with a versionless PURL identifying the package, not
+/// meaning all versions. A version outside of the affected set (here above the fix) gets no
+/// evidence: not from the fix, and not as any version.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn osv_outside_affected_set(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom = ctx
+        .ingest_document(
+            "scenarios/S6_positive_baseline_osv_urllib3/sbom_urllib3_abovefix.cdx.json",
+        )
+        .await?;
+    ctx.ingest_document("scenarios/S6_positive_baseline_osv_urllib3/osv/GHSA-g4mx-q9vg-27p4.json")
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+
+    extract_for_sbom(ctx, sbom_id).await?;
+
+    assert_eq!(load_evidence(ctx, sbom_id).await?, vec![]);
 
     Ok(())
 }

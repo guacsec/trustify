@@ -3,9 +3,11 @@
 
 mod common;
 mod csaf;
+mod osv;
 mod source;
 mod statements;
 
+use self::osv::{OsvTab, OsvView};
 use crate::{AppRoute, api};
 use common::CommonTab;
 use csaf::{CsafTab, CsafView};
@@ -60,6 +62,7 @@ impl AdvisoryFormat {
     fn tabs(&self) -> Vec<AdvisoryTab> {
         let mut tabs = match self {
             Self::Csaf => CsafTab::ALL.into_iter().map(AdvisoryTab::Csaf).collect(),
+            Self::Osv => OsvTab::ALL.into_iter().map(AdvisoryTab::Osv).collect(),
             _ => Vec::new(),
         };
         tabs.extend([AdvisoryTab::Common, AdvisoryTab::Source]);
@@ -70,6 +73,7 @@ impl AdvisoryFormat {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AdvisoryTab {
     Csaf(CsafTab),
+    Osv(OsvTab),
     Common,
     Source,
 }
@@ -78,6 +82,7 @@ impl AdvisoryTab {
     fn title(self) -> &'static str {
         match self {
             Self::Csaf(tab) => tab.title(),
+            Self::Osv(tab) => tab.title(),
             Self::Common => "Common",
             Self::Source => "Source",
         }
@@ -108,6 +113,11 @@ impl<T> Fetch<T> {
             Self::Ready(value) => f(value),
         }
     }
+}
+
+/// The placeholder for a missing value.
+fn none() -> Html {
+    html!(<i>{ "\u{2014}" }</i>)
 }
 
 /// A card of fields, each a [`DescriptionGroup`], with the term next to the value.
@@ -222,6 +232,10 @@ pub fn advisory_page(props: &AdvisoryPageProps) -> Html {
         AdvisoryTab::Csaf(tab) => document.render(
             "Failed to load source document",
             |doc| html!(<CsafView document={doc.clone()} {tab} />),
+        ),
+        AdvisoryTab::Osv(tab) => document.render(
+            "Failed to load source document",
+            |doc| html!(<OsvView document={doc.clone()} {tab} />),
         ),
     };
 

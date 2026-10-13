@@ -7,8 +7,8 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, LoaderTrait, ModelTrait, QueryFilter, QuerySelect,
-    RelationTrait, prelude::Uuid,
+    ColumnTrait, ConnectionTrait, LoaderTrait, ModelTrait, QueryFilter, QuerySelect, RelationTrait,
+    prelude::Uuid,
 };
 use sea_query::{Asterisk, Expr, Func, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -53,7 +53,7 @@ impl VersionedPurlDetails {
         let qualified_packages =
             PurlHead::from_entities(&package, package_version, &qualified_packages);
 
-        let statuses = purl_status::Entity::find()
+        let statuses = purl_status::find_effective()
             .columns([
                 version_range::Column::Id,
                 version_range::Column::LowVersion,
@@ -66,7 +66,7 @@ impl VersionedPurlDetails {
                 JoinType::LeftJoin,
                 base_purl::Relation::VersionedPurls.def(),
             )
-            .left_join(version_range::Entity)
+            .join(JoinType::LeftJoin, purl_status::effective_version_range())
             .filter(purl_status::Column::BasePurlId.eq(package.id))
             .filter(SimpleExpr::FunctionCall(
                 Func::cust(VersionMatches)

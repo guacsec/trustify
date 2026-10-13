@@ -680,7 +680,7 @@ impl PurlService {
 
         let base_chunks = chunked_with(1, winner_base_ids.into_iter());
         for base_chunk in base_chunks {
-            let all_statuses = purl_status::Entity::find()
+            let all_statuses = purl_status::find_effective()
                 .columns([
                     version_range::Column::Id,
                     version_range::Column::LowVersion,
@@ -693,7 +693,7 @@ impl PurlService {
                     JoinType::LeftJoin,
                     base_purl::Relation::VersionedPurls.def(),
                 )
-                .left_join(version_range::Entity)
+                .join(JoinType::LeftJoin, purl_status::effective_version_range())
                 .filter(purl_status::Column::BasePurlId.is_in(base_chunk))
                 .filter(versioned_purl::Column::Id.is_in(winner_vp_ids.iter().copied()))
                 .filter(SimpleExpr::FunctionCall(
