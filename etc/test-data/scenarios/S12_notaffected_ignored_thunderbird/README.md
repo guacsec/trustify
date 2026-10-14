@@ -8,7 +8,7 @@ The original CSAF states `known_not_affected` for versionless Thunderbird in mai
 establishes the mainline product even though the SBOM has no CPE.
 The advisory's versioned fixes are in separate extended-support products.
 
-## Blocked control
+## Product-scoping control
 
 `control/CVE-2024-6602_no-notaffected.json.xz` is synthetic: it removes all
 `known_not_affected` entries and otherwise retains the original document, including its tracking ID.
@@ -16,9 +16,12 @@ It must be ingested in a separate database. `expected-control.json` records the 
 no verdict, because neither the RHEL 6/7 affected statements nor the extended-support fixes assert
 anything applicable to this mainline RHEL 8 component.
 
-A migration trial returned `affected` in both ingestion orders. This exposes product-scoping
-behavior hidden by the original negative verdict. The control is not registered in the passing
-harness; its expectation is retained for the follow-up fix. Do not change it to match engine output.
+The control is registered in the scenario harness in a separate test database. The publisher
+rule deriving affected versions before a fix requires the same product-context check as the
+rule deriving fixed versions from that fix onward, with the existing exact RPM-stream
+exception. Consequently, extended-support fixes do not produce affected evidence for this
+mainline package. The original negative and control run in both ingestion orders and both
+SBOM formats; an additional test checks the control produces no PURL evidence.
 
 ## Review basis
 

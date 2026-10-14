@@ -136,6 +136,11 @@ impl RangeRule for FirstFixedBefore {
         up_to(self.0.condition(), "affected", false)
     }
 
+    /// A publisher's fix only implies affected versions within its product or RPM stream.
+    fn requires_context(&self) -> bool {
+        matches!(self.0, Source::Fixed(_))
+    }
+
     fn enabled_by(&self, publisher_namespace: Option<&str>) -> Option<EnabledBy> {
         self.0.enabled_by(publisher_namespace)
     }

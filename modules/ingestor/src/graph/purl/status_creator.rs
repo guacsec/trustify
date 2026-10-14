@@ -55,6 +55,13 @@ impl PurlStatusCreator {
             return Ok(());
         }
 
+        // Assertions reference their original PURL, not just its base identity.
+        let mut purls = super::creator::PurlCreator::new();
+        for entry in &self.entries {
+            purls.add(entry.purl.clone());
+        }
+        purls.create(connection).await?;
+
         // 1. Batch lookup all unique status slugs
         let unique_statuses: Vec<String> = self
             .entries
@@ -113,6 +120,7 @@ impl PurlStatusCreator {
                     vulnerability_id: Set(entry.vulnerability_id.clone()),
                     status_id: Set(status_id),
                     base_purl_id: Set(base_purl_id),
+                    qualified_purl_id: Set(Some(entry.purl.qualifier_uuid())),
                     version_range_id: Set(version_range_id),
                     context_cpe_id: Set(context_cpe_id),
                     assertion_context_id: Set(entry.context_id),

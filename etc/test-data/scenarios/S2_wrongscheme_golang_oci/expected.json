@@ -13,29 +13,23 @@
         "CVE-2023-44487": "affected"
       }
     },
-    "sbom_golang_rpm.cdx.json": {
-      "c1": {
-        "CVE-2023-44487": "fixed"
-      }
-    },
-    "sbom_golang_rpm.spdx.json": {
-      "SPDXRef-Package-rpm-golang-c1": {
-        "CVE-2023-44487": "fixed"
-      }
-    },
-    "sbom_golang_rpm_inrange.cdx.json": {
-      "c1": {
-        "CVE-2023-44487": "fixed"
-      }
-    },
-    "sbom_golang_rpm_inrange.spdx.json": {
-      "SPDXRef-Package-rpm-golang-c1": {
-        "CVE-2023-44487": "fixed"
-      }
-    },
+    "sbom_golang_rpm.cdx.json": {},
+    "sbom_golang_rpm.spdx.json": {},
+    "sbom_golang_rpm_inrange.cdx.json": {},
+    "sbom_golang_rpm_inrange.spdx.json": {},
     "sbom_golang_oci.cdx.json": {},
     "sbom_golang_oci.spdx.json": {},
     "sbom_golang_el8cpe_inrange.cdx.json": {},
-    "sbom_golang_el8cpe_inrange.spdx.json": {}
+    "sbom_golang_el8cpe_inrange.spdx.json": {},
+    "sbom_golang_rpm_module.cdx.json": {
+      "c1": {
+        "CVE-2023-44487": "fixed"
+      }
+    },
+    "sbom_golang_rpm_module.spdx.json": {
+      "SPDXRef-Package-rpm-golang-c1": {
+        "CVE-2023-44487": "fixed"
+      }
+    }
   }
 }

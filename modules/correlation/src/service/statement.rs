@@ -21,7 +21,7 @@ use trustify_common::{
 };
 use trustify_entity::{
     base_purl, cpe, cpe_status, product, product_status, product_version_range, purl_status,
-    status, version_range,
+    qualified_purl, status, version_range,
 };
 use uuid::Uuid;
 
@@ -101,26 +101,31 @@ impl StatementService {
             .load_one(base_purl::Entity, connection)
             .instrument(info_span!("loading base purls"))
             .await?;
+        let qualified = items.load_one(qualified_purl::Entity, connection).await?;
 
         let items = items
             .into_iter()
             .zip(statuses)
             .zip(ranges)
             .zip(purls)
-            .map(|(((row, status), range), purl)| {
+            .zip(qualified)
+            .map(|((((row, status), range), purl), qualified)| {
                 let purl = required(purl, "base PURL")?;
+                let subject = match row.qualified_purl_id {
+                    Some(_) => Purl::from(required(qualified, "qualified PURL")?.purl),
+                    None => Purl {
+                        ty: purl.r#type,
+                        namespace: purl.namespace,
+                        name: purl.name,
+                        version: None,
+                        qualifiers: Default::default(),
+                    },
+                };
                 Ok(AdvisoryStatement {
                     vulnerability_id: row.vulnerability_id,
                     status: required(status, "status")?.slug,
                     subject: StatementSubject::Purl {
-                        purl: Purl {
-                            ty: purl.r#type,
-                            namespace: purl.namespace,
-                            name: purl.name,
-                            version: None,
-                            qualifiers: Default::default(),
-                        }
-                        .to_string(),
+                        purl: subject.to_string(),
                     },
                     range: MatchedRange::from(required(range, "version range")?),
                     default: row.is_default,

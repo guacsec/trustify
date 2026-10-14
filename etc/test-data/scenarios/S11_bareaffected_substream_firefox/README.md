@@ -10,19 +10,18 @@ negative. With the Red Hat versionless-PURL option, its verdict should be `affec
 The second fixture explicitly describes RHEL 8.8 EUS and installs `128.2.0-1.el8_8`, the exact
 EUS fix. Its verdict should be `fixed`, correcting the legacy `not_affected` label.
 `expected-reviewed.json` records these per-component expectations for both SBOM formats.
-The original `expected.json` is retained as a historical artifact until this scenario is enabled.
+The original `expected.json` is retained as a historical artifact; the harness uses the reviewed manifest.
 
-## Migration blocker
+## Correlation coverage
 
-A migration trial returned `not_affected` for the mainline fixture in both ingestion orders,
-where the reviewed expectation is `affected`. The reviewed manifest is not registered in the
-passing harness; it is retained for the follow-up fix.
-
-The PURL extractor joins statements by base identity (type/namespace/name) and version. That loses
-the `rpmmod` distinction between the base RPM and Flatpak module. Before enabling this scenario,
-retain and compare advisory module qualifiers against the SBOM PURL, including tests for base,
-matching-module, and different-module packages. Do not change the affected expectation merely
-because the merged negative currently wins the verdict.
+The reviewed manifest is registered in the scenario harness for both SBOM formats and both
+ingestion orders. Assertions link to their original `qualified_purl`, preserving the version
+and qualifiers as stated by the advisory. Correlation compares the advisory's `rpmmod` with
+the installed PURL before stream fallback, default-status shadowing, and evidence grouping.
+A module-specific assertion cannot match a package without that module, or a different module.
+An assertion without `rpmmod` imposes no module restriction. Integration tests cover base,
+matching-module, and different-module packages, plus identifier queries and both extraction
+directions. Evidence retains each original qualified advisory identifier.
 
 An RPM's `el8_8` release alone does not prove that a box is on EUS. The EUS fixture's describing
 CPE is additional evidence; review mainline and EUS evidence separately so a final `fixed` verdict
@@ -31,3 +30,13 @@ cannot hide an unrelated mainline assertion.
 [CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status)
 distinguish fixed from known not affected. The Red Hat `fixed_is_first_fixed` and `versionless_purl`
 options are publisher policies, not universal CSAF rules. The advisory document is unmodified.
+
+## Existing data
+
+Migration `m0002600` adds the assertion's qualified PURL reference; older rows keep a null
+reference and their legacy matching behavior. It cannot reconstruct the original association
+from a base PURL alone. Remove affected advisories through the existing advisory deletion path
+and ingest their original documents afresh, then extract evidence again. Merely uploading an
+identical document takes the duplicate-ingestion path and does not rebuild its assertions.
+Previously stored evidence must also be cleared before re-extraction, since extraction inserts
+and deduplicates evidence rather than replacing the previous set.

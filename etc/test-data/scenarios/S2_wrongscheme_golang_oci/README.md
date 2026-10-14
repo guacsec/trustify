@@ -44,7 +44,13 @@ builds for other products (`1.19.13-1.el9_2`, `1.19.13-1.module+el8.8.0+…`).
 | SBOM | product context of `golang` | verdict | why |
 |---|---|---|---|
 | `storage3_inrange` | root component `cpe:/a:redhat:storage:3` | **affected** | `purl_any_version` in Storage 3, confidence 0.7 × 0.9 (root component, one hop) = 0.63 |
-| `rpm` (`1.20.6-1.el8`) | RHEL 8, by the PURL's `distro=rhel-8.8` | **fixed** | newer than the RHEL 8 fix `1.19.13-1.module+el8.8.0+…`, which Red Hat states as `fixed` and the option `fixed_is_first_fixed` reads as `first_fixed` (`purl_fixed_as_first_fixed`); the versionless Storage 3 statement requires its product |
-| `rpm_inrange` (`3.5.0`) | RHEL 8, by the PURL's `distro=rhel-8.8` | **fixed** | as `rpm`: newer than the RHEL 8 fix. Without a release, the stream isn't compared |
+| `rpm` (`1.20.6-1.el8`) | RHEL 8, by the PURL's `distro=rhel-8.8` | none | the RHEL 8 fix specifies `rpmmod=go-toolset:rhel8:8080020231013004859:6b4b45d8`, which the installed PURL lacks; the versionless Storage 3 statement requires its product |
+| `rpm_inrange` (`3.5.0`) | RHEL 8, by the PURL's `distro=rhel-8.8` | none | as `rpm`: the installed PURL lacks the module qualifier required by the RHEL 8 fix |
 | `oci` | none | none | `pkg:oci/golang` is another package than `pkg:rpm/redhat/golang` |
 | `el8cpe_inrange` | `cpe:/o:redhat:enterprise_linux:8::baseos` | none | RHEL is another product than Storage 3 (not comparable), so the versionless statement doesn't apply; the RHEL fixes are stated for AppStream (`cpe:/a:…`), which isn't comparable with the BaseOS CPE (`cpe:/o:…`) either, and reading a fix as `first_fixed` requires its product |
+
+The matching-module controls `sbom_golang_rpm_module.{cdx,spdx}.json` add the exact
+`rpmmod=go-toolset:rhel8:8080020231013004859:6b4b45d8` qualifier to the otherwise identical
+`1.20.6-1.el8` fixtures and expect **fixed**. The previous fixed expectations for the
+unqualified fixtures incorrectly applied a module-specific fix to an unspecified module.
+These controls exercise qualifier matching alongside the existing product context checks.

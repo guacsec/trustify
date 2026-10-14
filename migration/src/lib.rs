@@ -103,6 +103,7 @@ mod m0002560_purl_status_effective;
 mod m0002570_add_custom_version_scheme;
 mod m0002580_version_matches_wildcard;
 mod m0002590_default_status;
+mod m0002600_purl_status_qualified_purl;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -221,6 +222,7 @@ impl MigratorExt for Migrator {
             .normal(m0002570_add_custom_version_scheme::Migration)
             .normal(m0002580_version_matches_wildcard::Migration)
             .normal(m0002590_default_status::Migration)
+            .normal(m0002600_purl_status_qualified_purl::Migration)
     }
 }
 

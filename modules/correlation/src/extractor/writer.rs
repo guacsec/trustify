@@ -73,7 +73,7 @@ impl EvidenceWriter {
         Ok(())
     }
 
-    /// Deterministic ID per (evidence type, sbom, node, advisory, vulnerability, status).
+    /// Deterministic ID per (evidence type, sbom, node, advisory, vulnerability, status, identifier).
     ///
     /// The status is part of it, as one evidence type may find conflicting statements (e.g. of
     /// different products) for the same node.
@@ -83,7 +83,14 @@ impl EvidenceWriter {
         id = Uuid::new_v5(&id, node.node_id.as_bytes());
         id = Uuid::new_v5(&id, assertion.advisory_id.as_bytes());
         id = Uuid::new_v5(&id, assertion.vulnerability_id.as_bytes());
-        Uuid::new_v5(&id, assertion.status.to_value().as_bytes())
+        id = Uuid::new_v5(&id, assertion.status.to_value().as_bytes());
+        // PURL evidence preserves each original qualified identifier. Other extractors retain
+        // their existing grouping (e.g. several CPE patterns contributing to one assertion).
+        if assertion.extractor.starts_with("purl") && !assertion.matched_value.identifier.is_empty()
+        {
+            id = Uuid::new_v5(&id, assertion.matched_value.identifier.as_bytes());
+        }
+        id
     }
 
     /// Insert all collected evidence and its contexts, ignoring already existing rows.
@@ -185,6 +192,25 @@ mod test {
             EvidenceWriter::evidence_id(&node, &assertion),
             EvidenceWriter::evidence_id(&node, &not_affected)
         );
+
+        // Distinct source identifiers must not lose their provenance by being merged.
+        let mut writer = EvidenceWriter::new();
+        for identifier in [
+            "pkg:rpm/redhat/firefox",
+            "pkg:rpm/redhat/firefox?rpmmod=firefox:flatpak",
+        ] {
+            writer
+                .add(
+                    &node,
+                    Assertion {
+                        extractor: "purl",
+                        matched_value: MatchedValue::new(identifier),
+                        ..assertion.clone()
+                    },
+                )
+                .unwrap();
+        }
+        assert_eq!(writer.evidence.len(), 2);
     }
 
     /// The same assertion in several contexts (products) is one piece of evidence: with the best

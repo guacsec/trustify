@@ -346,6 +346,8 @@ struct Scenario {
 #[case::s10_osv("S10_combined_describing_cpe", "expected-osv.json")]
 #[case::s10_vex("S10_combined_describing_cpe", "expected-vex.json")]
 #[case::s12_combined("S12_notaffected_ignored_thunderbird", "expected.json")]
+#[case::s11_reviewed("S11_bareaffected_substream_firefox", "expected-reviewed.json")]
+#[case::s12_control("S12_notaffected_ignored_thunderbird", "expected-control.json")]
 #[case::s13_combined("S13_aliasless_osv_drop", "expected.json")]
 #[case::s14_combined("S14_productstatus_versionfilter_netty", "expected.json")]
 #[case::s15_combined("S15_versioncmp_rpm_openssh", "expected.json")]
