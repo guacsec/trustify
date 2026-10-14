@@ -1,7 +1,7 @@
 use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use trustify_entity::version_scheme::VersionScheme;
 use vers_like_specifier::{Comparator as VlsComparator, Vls, VlsError};
-use vers_rs::{Comparator, GenericVersionRange, VersError};
+use vers_rs::{Comparator, VersError, VersVersionRange};
 
 /// Prefix of a `vers:` URI.
 const VERS_PREFIX: &str = "vers:";
@@ -19,7 +19,7 @@ pub enum RangeError {
 
 /// Parse a `vers:` URI and convert to one or more [`VersionInfo`] values.
 pub fn parse_vers(input: &str) -> Result<Vec<VersionInfo>, VersError> {
-    let range: GenericVersionRange<String> = input.parse()?;
+    let range: VersVersionRange<String> = input.parse()?;
     let scheme = VersionScheme::from(range.versioning_scheme.as_str());
     let constraints = range
         .constraints

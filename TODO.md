@@ -54,8 +54,8 @@
 - [ ] `VersionScheme::from(&str)` (vers schemes) maps neither `pypi` nor `cargo`, `gem`, `golang`,
   `nuget`, … (only `python`, `npm`, `maven`, `rpm`, `semver`, `git`), so those fall back to
   `generic`, which only matches exact versions.
-- [ ] `vers-rs` doesn't build without its default `wasm` feature (unconditional `tsify` /
-  `wasm_bindgen` attributes), so the server pulls in `wasm-bindgen` and `tsify`.
+- [x] `vers-rs` 0.1.3 builds with `default-features = false`, removing its `wasm-bindgen`
+  and `tsify` dependencies. Updated the parser to the renamed `VersVersionRange` API.
 - [ ] Correlation options (`correlation_option`) only apply to documents extracted after a
   change. Changing an option should re-extract the advisories of its publisher.
 - [ ] Assertion contexts (`assertion_context`) are only stored for advisories ingested after
