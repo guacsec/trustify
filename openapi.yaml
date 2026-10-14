@@ -1161,6 +1161,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PolicyEvaluationResponse'
+  /api/v3/crypto/policy/summary:
+    get:
+      tags:
+      - crypto
+      operationId: getCryptoPolicySummary
+      responses:
+        '200':
+          description: Stored policy verdict summary (reads DB, does not call Conforma)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicySummaryResult'
   /api/v3/crypto/summary:
     get:
       tags:
@@ -5431,9 +5443,9 @@ components:
       - oid
       - primitive
       - properties
-      - policy_status
       - packages_count
       - sboms_count
+      - policy_status
       properties:
         asset_type:
           $ref: '#/components/schemas/CryptoAssetType'
@@ -5449,7 +5461,10 @@ components:
           type: integer
           format: int64
         policy_status:
-          $ref: '#/components/schemas/PolicyVerdict'
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PolicyVerdict'
+            description: Policy verdict stored after Conforma evaluation; None means not yet evaluated.
         primitive:
           type:
           - string
@@ -5477,19 +5492,7 @@ components:
       description: Aggregate KPI metrics for cryptographic assets across all SBOMs.
       required:
       - total_algorithms
-      - pqc_compliant
-      - classical_share_pct
-      - sboms_meeting_pqc
       properties:
-        classical_share_pct:
-          type: number
-          format: double
-        pqc_compliant:
-          type: integer
-          format: int64
-        sboms_meeting_pqc:
-          type: integer
-          format: int64
         total_algorithms:
           type: integer
           format: int64
@@ -6470,9 +6473,9 @@ components:
             - oid
             - primitive
             - properties
-            - policy_status
             - packages_count
             - sboms_count
+            - policy_status
             properties:
               asset_type:
                 $ref: '#/components/schemas/CryptoAssetType'
@@ -6488,7 +6491,10 @@ components:
                 type: integer
                 format: int64
               policy_status:
-                $ref: '#/components/schemas/PolicyVerdict'
+                oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/PolicyVerdict'
+                  description: Policy verdict stored after Conforma evaluation; None means not yet evaluated.
               primitive:
                 type:
                 - string

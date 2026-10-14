@@ -18,18 +18,17 @@ pub struct CryptoAlgorithmSummary {
     pub primitive: Option<String>,
     #[schema(value_type = Object)]
     pub properties: serde_json::Value,
-    pub policy_status: PolicyVerdict,
     pub packages_count: i64,
     pub sboms_count: i64,
+    /// Policy verdict stored after Conforma evaluation; None means not yet evaluated.
+    #[schema(required)]
+    pub policy_status: Option<PolicyVerdict>,
 }
 
 /// Aggregate KPI metrics for cryptographic assets across all SBOMs.
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct CryptoSummary {
     pub total_algorithms: i64,
-    pub pqc_compliant: i64,
-    pub classical_share_pct: f64,
-    pub sboms_meeting_pqc: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
