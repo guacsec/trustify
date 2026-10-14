@@ -56,8 +56,9 @@
   `generic`, which only matches exact versions.
 - [x] `vers-rs` 0.1.3 builds with `default-features = false`, removing its `wasm-bindgen`
   and `tsify` dependencies. Updated the parser to the renamed `VersVersionRange` API.
-- [ ] Correlation options (`correlation_option`) only apply to documents extracted after a
-  change. Changing an option should re-extract the advisories of its publisher.
+- [ ] Changing correlation options should trigger re-extraction of affected advisories and
+  re-evaluation of correlation results. Expose whether results are stale and whether processing
+  is pending or running.
 - [ ] Assertion contexts (`assertion_context`) are only stored for advisories ingested after
   `m0002510`. Existing advisories need to be re-ingested to get the product context of their
   statements.
