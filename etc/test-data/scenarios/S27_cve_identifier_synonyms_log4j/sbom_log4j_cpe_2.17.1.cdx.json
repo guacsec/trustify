@@ -1,0 +1,10 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:27270000-0000-4000-8000-000000000003", "version": 1,
+  "metadata": { "component": { "bom-ref": "root", "type": "application", "name": "sbom_log4j_cpe_2.17.1", "version": "1" } },
+  "components": [
+    { "bom-ref": "log4j", "type": "library", "name": "log4j", "version": "2.17.1", "cpe": "cpe:2.3:a:apache:log4j:2.17.1:*:*:*:*:*:*:*" }
+  ],
+  "dependencies": [ { "ref": "root", "dependsOn": ["log4j"] } ]
+}

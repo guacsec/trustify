@@ -28,6 +28,27 @@ pub struct AdvisoryService {
     cache: PaginationCache,
 }
 
+/// The assertion contexts referenced by an advisory's assertions.
+const ADVISORY_CONTEXTS_SQL: &str = r#"
+SELECT assertion_context_id FROM purl_status WHERE advisory_id = $1 AND assertion_context_id IS NOT NULL
+UNION
+SELECT assertion_context_id FROM advisory_vulnerability_cpe WHERE advisory_id = $1 AND assertion_context_id IS NOT NULL
+UNION
+SELECT assertion_context_id FROM advisory_vulnerability_hash WHERE advisory_id = $1 AND assertion_context_id IS NOT NULL
+UNION
+SELECT assertion_context_id FROM advisory_vulnerability_product_identifier WHERE advisory_id = $1 AND assertion_context_id IS NOT NULL
+"#;
+
+/// Delete those of the given assertion contexts which nothing references any more.
+const DELETE_UNREFERENCED_CONTEXTS_SQL: &str = r#"
+DELETE FROM assertion_context c
+WHERE c.id = ANY($1)
+  AND NOT EXISTS (SELECT 1 FROM purl_status WHERE assertion_context_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM advisory_vulnerability_cpe WHERE assertion_context_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM advisory_vulnerability_hash WHERE assertion_context_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM advisory_vulnerability_product_identifier WHERE assertion_context_id = c.id)
+"#;
+
 impl AdvisoryService {
     /// Creates a new advisory service.
     pub fn new(cache: PaginationCache) -> Self {
@@ -111,6 +132,18 @@ impl AdvisoryService {
         id: Uuid,
         connection: &C,
     ) -> Result<bool, Error> {
+        // the (shared) contexts of the advisory's assertions, which may become unreferenced
+        let contexts = connection
+            .query_all_raw(Statement::from_sql_and_values(
+                connection.get_database_backend(),
+                ADVISORY_CONTEXTS_SQL,
+                [id.into()],
+            ))
+            .await?
+            .into_iter()
+            .map(|row| row.try_get_by_index::<Uuid>(0))
+            .collect::<Result<Vec<_>, _>>()?;
+
         let stmt = Statement::from_sql_and_values(
             connection.get_database_backend(),
             r#"DELETE FROM advisory WHERE id=$1 RETURNING identifier, source_document_id"#,
@@ -131,6 +164,16 @@ impl AdvisoryService {
                     .exec(connection)
                     .await?;
             }
+        }
+
+        if !contexts.is_empty() {
+            connection
+                .execute_raw(Statement::from_sql_and_values(
+                    connection.get_database_backend(),
+                    DELETE_UNREFERENCED_CONTEXTS_SQL,
+                    [contexts.into()],
+                ))
+                .await?;
         }
 
         Ok(result.len() == 1)

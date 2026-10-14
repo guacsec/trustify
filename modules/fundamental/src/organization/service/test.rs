@@ -25,6 +25,7 @@ async fn all_organizations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )

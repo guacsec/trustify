@@ -1,5 +1,8 @@
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
 use regex::Regex;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -11,6 +14,7 @@ use trustify_common::{
     model::{Limit, Paginated},
     purl::Purl,
 };
+use trustify_entity::correlation_option::{self, CorrelationOptionKey};
 use trustify_test_context::{Dataset, TrustifyContext};
 
 async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -804,9 +808,15 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .purls(Query::default(), Paginated::default(), &ctx.db)
         .await?;
 
-    assert_eq!(1, results.items.len());
-
-    let uuid = results.items[0].head.uuid;
+    // The advisory's original versionless PURL is now stored alongside the installed PURL.
+    assert_eq!(2, results.items.len());
+    let uuid = results
+        .items
+        .iter()
+        .find(|item| item.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("installed hyper PURL must exist")
+        .head
+        .uuid;
 
     let results = service
         .purl_by_uuid(&uuid, Default::default(), &ctx.db)
@@ -1149,6 +1159,51 @@ async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), a
             "every product_status entry must carry a version_range"
         );
     }
+
+    Ok(())
+}
+
+/// Red Hat states only the fixing build: the "affected" statuses below it come from the
+/// correlation option `fixed_is_first_fixed` (enabled for Red Hat by default), at query time.
+/// Disabling the option removes them immediately.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn implied_affected_by_option(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    // gnutls below the fix 3.6.16-8.el8_9.3 of CVE-2024-28834
+    let purl = Purl::from_str("pkg:rpm/redhat/gnutls@3.6.16-6.el8_7?arch=x86_64")?;
+    let affected = async || -> anyhow::Result<Vec<(String, String)>> {
+        let details = service
+            .purl_by_purl(&purl, Default::default(), &ctx.db)
+            .await?
+            .expect("gnutls purl must exist after DS3 ingestion");
+        let mut affected = details
+            .advisories
+            .iter()
+            .flat_map(|a| &a.status)
+            .filter(|s| s.status == "affected")
+            .map(|s| (s.vulnerability.identifier.clone(), s.status.clone()))
+            .collect::<Vec<_>>();
+        affected.sort();
+        Ok(affected)
+    };
+
+    assert_eq!(
+        affected().await?,
+        vec![
+            ("CVE-2024-28834".to_string(), "affected".to_string()),
+            ("CVE-2024-28834".to_string(), "affected".to_string()),
+        ]
+    );
+
+    correlation_option::Entity::delete_many()
+        .filter(correlation_option::Column::Key.eq(CorrelationOptionKey::FixedIsFirstFixed))
+        .exec(&ctx.db)
+        .await?;
+
+    assert_eq!(affected().await?, vec![]);
 
     Ok(())
 }

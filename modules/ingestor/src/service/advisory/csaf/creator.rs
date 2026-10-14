@@ -3,9 +3,12 @@ use crate::{
     graph::{
         Graph,
         advisory::{
+            context::{AssertionContext, ContextCreator},
+            cpe_assertion::{CpeAssertion, CpeAssertionCreator},
             product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
-            version::{Version, VersionInfo, VersionSpec},
+            vers::parse_range,
+            version::{VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
         organization::creator::OrganizationCreator,
@@ -14,27 +17,38 @@ use crate::{
     },
     service::{
         Error,
-        advisory::csaf::{product_status::ProductStatus, util::ResolveProductIdCache},
+        advisory::csaf::{
+            product_status::ProductStatus,
+            util::{ResolveProductIdCache, branch_cpe},
+            value,
+        },
     },
 };
 use csaf::schema::csaf2_0::schema::{
-    CommonSecurityAdvisoryFramework as Csaf, ProductsT, Remediation,
+    CategoryOfTheBranch, CommonSecurityAdvisoryFramework as Csaf, ProductsT, RelationshipCategory,
+    Remediation,
 };
 use sbom_walker::report::ReportSink;
-use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
+use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
 use tracing::instrument;
-use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
+use trustify_common::{
+    cpe::{Component, Cpe},
+    db::chunk::EntityChunkedIter,
+    hashing::normalize_algorithm,
+    purl::Purl,
+};
 use trustify_entity::{
+    advisory_vulnerability_hash, advisory_vulnerability_product_identifier,
+    advisory_vulnerability_product_identifier::ProductIdentifierType,
+    assertion_context::AssertionContextCategory,
+    assertion_context_identifier::ContextIdentifierKind,
+    correlation_evidence::AssertionStatus,
     organization, product, product_status, product_version_range, purl_status,
     remediation::{self, RemediationCategory},
-    remediation_product_status, remediation_purl_status,
-    status::Status,
-    version_range,
+    remediation_product_status, remediation_purl_status, version_range,
     version_scheme::VersionScheme,
 };
-use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default)]
@@ -43,25 +57,39 @@ pub struct ProductIdStatusMapping {
     pub product_status_ids: Vec<Uuid>,
 }
 
-/// Check if the CSAF document is published by Red Hat.
-fn is_redhat(csaf: &Csaf) -> bool {
-    Url::parse(&csaf.document.publisher.namespace)
-        .ok()
-        .as_ref()
-        .and_then(Url::host_str)
-        == Some("www.redhat.com")
-}
+/// Namespace of the IDs of `advisory_vulnerability_hash` rows.
+const ADVISORY_HASH_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x91, 0x3a, 0x5d, 0x0e, 0x6b, 0x24, 0x4c, 0x7f, 0x8d, 0x12, 0xa9, 0x3e, 0x50, 0xc7, 0x1b, 0x64,
+]);
+
+/// Namespace of the IDs of `advisory_vulnerability_product_identifier` rows.
+const ADVISORY_PRODUCT_IDENTIFIER_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x46, 0xe2, 0x08, 0xb9, 0x3c, 0x71, 0x4a, 0xd5, 0x92, 0x6f, 0x1d, 0x84, 0xe0, 0x3b, 0xa7, 0x58,
+]);
+
+/// A CPE (pattern) an advisory makes an assertion about, optionally constrained by a version
+/// range, in a context.
+type CpeEntry = (Cpe, Option<VersionInfo>, AssertionStatus, Option<Uuid>);
+
+/// A file hash (algorithm, value) an advisory makes an assertion about, in a context.
+type HashEntry = (String, String, AssertionStatus, Option<Uuid>);
+
+/// A product identifier an advisory makes an assertion about, in a context.
+type ProductIdentifierEntry = (ProductIdentifierType, String, AssertionStatus, Option<Uuid>);
 
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
     cache: ResolveProductIdCache<'a>,
     advisory_id: Uuid,
     vulnerability_id: String,
-    is_redhat: bool,
     entries: HashSet<PurlStatus>,
     products: HashSet<ProductStatus>,
     product_id_to_product: HashMap<String, ProductStatus>,
     product_to_purl_statuses: HashMap<ProductStatus, Vec<PurlStatus>>,
+    hash_entries: HashSet<HashEntry>,
+    product_identifier_entries: HashSet<ProductIdentifierEntry>,
+    cpe_entries: HashSet<CpeEntry>,
+    contexts: ContextCreator,
 }
 
 impl<'a> StatusCreator<'a> {
@@ -71,11 +99,14 @@ impl<'a> StatusCreator<'a> {
             cache,
             advisory_id,
             vulnerability_id: vulnerability_identifier,
-            is_redhat: is_redhat(csaf),
             entries: HashSet::new(),
             products: HashSet::new(),
             product_id_to_product: HashMap::new(),
             product_to_purl_statuses: HashMap::new(),
+            hash_entries: HashSet::new(),
+            product_identifier_entries: HashSet::new(),
+            cpe_entries: HashSet::new(),
+            contexts: ContextCreator::new(),
         }
     }
 
@@ -86,38 +117,171 @@ impl<'a> StatusCreator<'a> {
         on_invalid: OnInvalidData,
         report: &dyn ReportSink,
     ) -> Result<(), Error> {
+        let assertion_status = match status {
+            "affected" => Some(AssertionStatus::Affected),
+            "fixed" => Some(AssertionStatus::Fixed),
+            "not_affected" => Some(AssertionStatus::NotAffected),
+            "under_investigation" => Some(AssertionStatus::UnderInvestigation),
+            // `first_*` / `last_*` are only stored for PURLs (see `TODO.md`)
+            _ => None,
+        };
+
         for r in ps.iter().flat_map(|ps| &ps.0) {
             let mut product = ProductStatus {
                 status,
                 ..Default::default()
             };
-            let mut product_ids = vec![];
-            match self.cache.get_relationship(r) {
-                Some(rel) => {
-                    // Find all products
-                    product_ids.push(rel.relates_to_product_reference.as_str());
-                    // Find all components/packages within
-                    product_ids.push(rel.product_reference.as_str());
+            // The products to resolve, and whether each is the subject of the status: for a
+            // relationship, the component is, the platform it relates to isn't.
+            let parts = self.cache.parts(r);
+            let context = self.context(r, &parts, on_invalid, report)?;
+            product.context = context;
+            for (product_id, subject) in &parts {
+                let trace = self.cache.trace_product(product_id);
+                if trace.is_empty() {
+                    if let Some(full_name) = self.cache.definition(product_id) {
+                        product.update_from_full_product_name(
+                            full_name, *subject, on_invalid, report,
+                        )?;
+                    }
+                    continue;
                 }
-                None => {
-                    // If there's no relationship, find only products
-                    product_ids.push(r.as_str());
+                for branch in trace {
+                    product.update_from_branch(branch, *subject, on_invalid, report)?;
                 }
-            };
-            for product_id in product_ids {
-                product = self.cache.trace_product(product_id).iter().try_fold(
-                    product,
-                    |mut product, branch| {
-                        product.update_from_branch(branch, on_invalid, report)?;
-                        Ok::<_, Error>(product)
-                    },
-                )?;
+            }
+
+            if let Some(assertion) = assertion_status {
+                for (product_id, _) in &parts {
+                    for pih in self.cache.helpers(product_id) {
+                        for hc in &pih.hashes {
+                            for fh in &hc.file_hashes {
+                                let algo = normalize_algorithm(&fh.algorithm);
+                                self.hash_entries.insert((
+                                    algo,
+                                    fh.value.to_string(),
+                                    assertion,
+                                    context,
+                                ));
+                            }
+                        }
+                        for mn in pih.model_numbers.iter().flatten() {
+                            self.product_identifier_entries.insert((
+                                ProductIdentifierType::ModelNumber,
+                                mn.to_string(),
+                                assertion,
+                                context,
+                            ));
+                        }
+                        for sn in pih.serial_numbers.iter().flatten() {
+                            self.product_identifier_entries.insert((
+                                ProductIdentifierType::SerialNumber,
+                                sn.to_string(),
+                                assertion,
+                                context,
+                            ));
+                        }
+                        for sku in &pih.skus {
+                            self.product_identifier_entries.insert((
+                                ProductIdentifierType::Sku,
+                                sku.to_string(),
+                                assertion,
+                                context,
+                            ));
+                        }
+                    }
+                }
+
+                // For a relationship, only the component carries the assertion. The platform it
+                // relates to (e.g. hardware a firmware is installed on) is typically listed with
+                // both affected and fixed combinations.
+                for (product_id, subject) in &parts {
+                    if *subject {
+                        self.add_cpe_entries(product_id, assertion, context, on_invalid, report)?;
+                    }
+                }
             }
 
             self.product_id_to_product
                 .insert(r.to_string(), product.clone());
             self.products.insert(product);
         }
+        Ok(())
+    }
+
+    /// Collect the CPE assertions of a product.
+    ///
+    /// The CPE is the nearest one on the path to the product, or the one of its definition outside
+    /// of branches. If its version is ANY, the version is constrained by the product's version
+    /// range or version branch, which for a relationship is the one of its component.
+    fn add_cpe_entries(
+        &mut self,
+        product_id: &str,
+        assertion: AssertionStatus,
+        context: Option<Uuid>,
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<(), Error> {
+        let trace = self.cache.trace_product(product_id);
+
+        let mut cpe = None;
+        for branch in trace.iter().rev() {
+            if let Some(found) = branch_cpe(branch, on_invalid, report)? {
+                cpe = Some(found);
+                break;
+            }
+        }
+        // a product defined outside of branches carries at most its own CPE
+        if trace.is_empty()
+            && let Some(value) = self
+                .cache
+                .definition(product_id)
+                .and_then(|name| name.product_identification_helper.as_ref())
+                .and_then(|helper| helper.cpe.as_deref())
+        {
+            cpe = on_invalid.validate(value::cpe(value), report)?;
+        }
+        let Some(cpe) = cpe else {
+            return Ok(());
+        };
+
+        // too broad, and can't be looked up
+        if matches!(cpe.vendor(), Component::Any) || matches!(cpe.product(), Component::Any) {
+            tracing::debug!(%cpe, "skipping CPE without vendor or product");
+            return Ok(());
+        }
+
+        let ranges = if !matches!(cpe.version(), Component::Any) {
+            // the CPE's own version is the constraint
+            vec![None]
+        } else {
+            // for a relationship, the component states the version (e.g. a firmware range,
+            // installed on a device which is identified by the relationship's CPE)
+            match self.cache.version_branch(product_id) {
+                None => vec![None],
+                Some(leaf) => match leaf.category {
+                    CategoryOfTheBranch::ProductVersionRange => match parse_range(&leaf.name) {
+                        Ok(infos) => infos.into_iter().map(Some).collect(),
+                        Err(err) => {
+                            // never widen an unparsable range to "all versions"
+                            tracing::debug!(%cpe, range = leaf.name.as_str(), "skipping CPE with invalid range: {err}");
+                            return Ok(());
+                        }
+                    },
+                    CategoryOfTheBranch::ProductVersion => vec![Some(VersionInfo {
+                        scheme: VersionScheme::Generic,
+                        spec: VersionSpec::Exact(leaf.name.to_string()),
+                    })],
+                    _ => vec![None],
+                },
+            }
+        };
+
+        for range in ranges {
+            self.cpe_entries
+                .insert((cpe.clone(), range, assertion, context));
+        }
+
         Ok(())
     }
 
@@ -265,7 +429,13 @@ impl<'a> StatusCreator<'a> {
                 }
             }
 
-            for purl in &product.purls {
+            // purls without the range they are bound to would claim all versions
+            let purls = if product.invalid_range {
+                &[][..]
+            } else {
+                &product.purls[..]
+            };
+            for purl in purls {
                 if !product.vers_specs.is_empty() {
                     for vers_info in &product.vers_specs {
                         self.create_purl_status(
@@ -285,31 +455,6 @@ impl<'a> StatusCreator<'a> {
                         None => (VersionScheme::Generic, VersionSpec::Exact(String::new())),
                     };
                     self.create_purl_status(&product, purl, scheme, spec, status_id);
-
-                    // For "fixed" status and Red Hat CSAF advisories,
-                    // insert "affected" status up until this version.
-                    if let Ok(Status::Fixed) = Status::from_str(product.status)
-                        && self.is_redhat
-                        && purl.version.is_some()
-                    {
-                        let scheme = VersionScheme::from(purl.ty.as_str());
-                        let spec = VersionSpec::Range(
-                            Version::Unbounded,
-                            Version::Exclusive(purl.effective_version()),
-                        );
-                        self.create_purl_status(
-                            &product,
-                            purl,
-                            scheme,
-                            spec,
-                            graph
-                                .db_context
-                                .lock()
-                                .await
-                                .get_status_id(&Status::Affected.to_string(), connection)
-                                .await?,
-                        );
-                    }
                 }
             }
         }
@@ -336,6 +481,10 @@ impl<'a> StatusCreator<'a> {
 
         purls.create(connection).await?;
         cpes.create(connection).await?;
+        // contexts are referenced by all assertions below
+        std::mem::take(&mut self.contexts)
+            .create(connection)
+            .await?;
 
         for ps in &self.entries {
             // Warn: into_active_model() sets id with Set(), required for sorting
@@ -391,6 +540,83 @@ impl<'a> StatusCreator<'a> {
                 .await?;
         }
 
+        if !self.hash_entries.is_empty() {
+            let mut hash_models: Vec<advisory_vulnerability_hash::ActiveModel> = self
+                .hash_entries
+                .iter()
+                .map(
+                    |(algo, value, status, context)| advisory_vulnerability_hash::ActiveModel {
+                        id: Set(self.entry_id(
+                            ADVISORY_HASH_NAMESPACE,
+                            &[algo, value],
+                            *status,
+                            *context,
+                        )),
+                        advisory_id: Set(self.advisory_id),
+                        vulnerability_id: Set(self.vulnerability_id.clone()),
+                        algorithm: Set(algo.clone()),
+                        value: Set(value.clone()),
+                        status: Set(*status),
+                        assertion_context_id: Set(*context),
+                    },
+                )
+                .collect();
+
+            hash_models.sort_by_key(|model| *model.id.as_ref());
+
+            for batch in &hash_models.chunked() {
+                advisory_vulnerability_hash::Entity::insert_many(batch)
+                    .on_conflict_do_nothing()
+                    .exec(connection)
+                    .await?;
+            }
+        }
+
+        if !self.product_identifier_entries.is_empty() {
+            let mut pid_models: Vec<advisory_vulnerability_product_identifier::ActiveModel> = self
+                .product_identifier_entries
+                .iter()
+                .map(|(id_type, value, status, context)| {
+                    advisory_vulnerability_product_identifier::ActiveModel {
+                        id: Set(self.entry_id(
+                            ADVISORY_PRODUCT_IDENTIFIER_NAMESPACE,
+                            &[&id_type.to_value(), value],
+                            *status,
+                            *context,
+                        )),
+                        advisory_id: Set(self.advisory_id),
+                        vulnerability_id: Set(self.vulnerability_id.clone()),
+                        identifier_type: Set(*id_type),
+                        value: Set(value.clone()),
+                        status: Set(*status),
+                        assertion_context_id: Set(*context),
+                    }
+                })
+                .collect();
+
+            pid_models.sort_by_key(|model| *model.id.as_ref());
+
+            for batch in &pid_models.chunked() {
+                advisory_vulnerability_product_identifier::Entity::insert_many(batch)
+                    .on_conflict_do_nothing()
+                    .exec(connection)
+                    .await?;
+            }
+        }
+
+        let mut cpe_assertions = CpeAssertionCreator::new(self.advisory_id);
+        for (cpe, range, status, context) in &self.cpe_entries {
+            cpe_assertions.add(CpeAssertion {
+                vulnerability_id: self.vulnerability_id.clone(),
+                cpe: cpe.clone(),
+                range: range.clone(),
+                status: *status,
+                context: *context,
+                default: false,
+            });
+        }
+        cpe_assertions.create(connection).await?;
+
         let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
         for (product_id, product) in &self.product_id_to_product {
             if let Some(mapping) = product_to_status_uuids.get(product) {
@@ -399,6 +625,111 @@ impl<'a> StatusCreator<'a> {
         }
 
         Ok(result)
+    }
+
+    /// Deterministic ID of an assertion row (hash, product identifier).
+    fn entry_id(
+        &self,
+        namespace: Uuid,
+        values: &[&str],
+        status: AssertionStatus,
+        context: Option<Uuid>,
+    ) -> Uuid {
+        let mut id = Uuid::new_v5(&namespace, self.advisory_id.as_bytes());
+        id = Uuid::new_v5(&id, self.vulnerability_id.as_bytes());
+        for value in values {
+            id = Uuid::new_v5(&id, value.as_bytes());
+        }
+        id = Uuid::new_v5(&id, status.to_value().as_bytes());
+        Uuid::new_v5(&id, context.unwrap_or_default().as_bytes())
+    }
+
+    /// The context a product is stated in: the platform parts of a relationship (not the
+    /// subject), with their identifiers and name. `None` for a product which isn't a
+    /// relationship.
+    fn context(
+        &mut self,
+        product_id: &str,
+        parts: &[(&str, bool)],
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<Option<Uuid>, Error> {
+        let Some(relationship) = self.cache.get_relationship(product_id) else {
+            return Ok(None);
+        };
+
+        let mut context = AssertionContext {
+            category: Some(match relationship.category {
+                RelationshipCategory::DefaultComponentOf => {
+                    AssertionContextCategory::DefaultComponentOf
+                }
+                RelationshipCategory::ExternalComponentOf => {
+                    AssertionContextCategory::ExternalComponentOf
+                }
+                RelationshipCategory::InstalledOn => AssertionContextCategory::InstalledOn,
+                RelationshipCategory::InstalledWith => AssertionContextCategory::InstalledWith,
+                RelationshipCategory::OptionalComponentOf => {
+                    AssertionContextCategory::OptionalComponentOf
+                }
+            }),
+            ..Default::default()
+        };
+
+        let mut names = Vec::new();
+        for (platform, _) in parts.iter().filter(|(_, subject)| !subject) {
+            let name = match self.cache.trace_product(platform).last() {
+                Some(leaf) => leaf.product.as_ref().map(|name| name.name.as_str()),
+                None => self
+                    .cache
+                    .definition(platform)
+                    .map(|name| name.name.as_str()),
+            };
+            names.extend(name);
+
+            for helper in self.cache.helpers(platform) {
+                if let Some(cpe) = helper.cpe.as_deref()
+                    && let Some(cpe) = on_invalid.validate(value::cpe(cpe), report)?
+                {
+                    context.add_cpe(cpe);
+                }
+                if let Some(purl) = helper.purl.as_deref()
+                    && let Some(purl) = on_invalid.validate(value::purl(purl), report)?
+                {
+                    context.add(ContextIdentifierKind::Purl, purl.to_string());
+                }
+                for hashes in &helper.hashes {
+                    for hash in &hashes.file_hashes {
+                        context.add(
+                            ContextIdentifierKind::Digest,
+                            format!("{}:{}", normalize_algorithm(&hash.algorithm), *hash.value),
+                        );
+                    }
+                }
+                let values =
+                    helper
+                        .model_numbers
+                        .iter()
+                        .flatten()
+                        .map(|value| (ContextIdentifierKind::ModelNumber, value.to_string()))
+                        .chain(
+                            helper.serial_numbers.iter().flatten().map(|value| {
+                                (ContextIdentifierKind::SerialNumber, value.to_string())
+                            }),
+                        )
+                        .chain(
+                            helper
+                                .skus
+                                .iter()
+                                .map(|value| (ContextIdentifierKind::Sku, value.to_string())),
+                        );
+                for (kind, value) in values {
+                    context.add(kind, value);
+                }
+            }
+        }
+        context.name = names.join(", ");
+
+        Ok(Some(self.contexts.add(context)))
     }
 
     fn create_purl_status(
@@ -414,6 +745,8 @@ impl<'a> StatusCreator<'a> {
             purl: purl.clone(),
             status,
             info: VersionInfo { scheme, spec },
+            context_id: product.context,
+            default: false,
         };
         self.product_to_purl_statuses
             .entry(product.clone())

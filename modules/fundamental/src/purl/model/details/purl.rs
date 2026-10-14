@@ -44,6 +44,10 @@ pub struct PurlDetails {
     pub head: PurlHead,
     pub version: VersionedPurlHead,
     pub base: BasePurlHead,
+    /// The advisories with a status of the PURL.
+    ///
+    /// Deprecated: use the correlation engine, `GET /v3/correlation/query`.
+    #[deprecated = "Use the correlation engine: GET /v3/correlation/query"]
     pub advisories: Vec<PurlAdvisory>,
     pub licenses: Vec<LicenseInfo>,
     #[deprecated]
@@ -89,9 +93,9 @@ impl PurlDetails {
 
         let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package.id);
 
-        let purl_statuses = purl_status::Entity::find()
+        let purl_statuses = purl_status::find_effective()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
-            .left_join(version_range::Entity)
+            .join(JoinType::LeftJoin, purl_status::effective_version_range())
             .left_join(base_purl::Entity)
             .filter(SimpleExpr::FunctionCall(
                 Func::cust(VersionMatches)
@@ -452,7 +456,11 @@ impl PurlAdvisory {
                     PurlStatus::from_entity(&vulnerability, advisory, status, fv, tx).await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
-                    entry.status.push(qualified_package_status)
+                    // This legacy response has no source-PURL field. Several qualified source
+                    // identifiers can therefore project to the same public status.
+                    if !entry.status.contains(&qualified_package_status) {
+                        entry.status.push(qualified_package_status)
+                    }
                 } else {
                     let organization = advisory.find_related(organization::Entity).one(tx).await?;
 

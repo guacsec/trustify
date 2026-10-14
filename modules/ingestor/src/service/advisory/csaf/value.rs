@@ -1,15 +1,22 @@
 //! Parsing of CSAF scalar values, and the policy applied when one is invalid.
 //!
-//! CSAF carries purls, CPEs, timestamps and URLs as plain strings, so trustify parses them
-//! itself. [`OnInvalidData`] decides what happens when such a value cannot be parsed.
+//! CSAF carries purls, CPEs, version ranges, timestamps and URLs as plain strings, so trustify
+//! parses them itself. [`OnInvalidData`] decides what happens when such a value cannot be parsed.
 
-use crate::service::Error;
+use crate::{
+    graph::advisory::{
+        vers::{RangeError, parse_range},
+        version::VersionInfo,
+    },
+    service::Error,
+};
 use anyhow::anyhow;
-use cpe::{error::CpeError, uri::OwnedUri};
+use cpe::error::CpeError;
 use packageurl::PackageUrl;
 use sbom_walker::report::ReportSink;
 use std::{fmt::Display, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+use trustify_common::cpe::Cpe;
 use url::{ParseError, Url};
 
 /// What to do when a CSAF document carries a value trustify cannot parse.
@@ -82,12 +89,21 @@ pub fn purl(value: &str) -> Operation<'_, PackageUrl<'static>, packageurl::Error
     }
 }
 
-/// Parse a CPE held in a CSAF document.
-pub fn cpe(value: &str) -> Operation<'_, OwnedUri, CpeError> {
+/// Parse a CPE held in a CSAF document, either as CPE 2.2 URI or CPE 2.3 formatted string.
+pub fn cpe(value: &str) -> Operation<'_, Cpe, CpeError> {
     Operation {
         kind: "cpe",
         value,
-        result: cpe::uri::Uri::parse(value).map(|cpe| cpe.to_owned()),
+        result: Cpe::from_str(value),
+    }
+}
+
+/// Parse the version range of a CSAF `product_version_range` branch, a `vers:` URI or a vls.
+pub fn range(value: &str) -> Operation<'_, Vec<VersionInfo>, RangeError> {
+    Operation {
+        kind: "version range",
+        value,
+        result: parse_range(value),
     }
 }
 
@@ -131,6 +147,14 @@ mod test {
         Ok(mode.validate(cpe(value), report)?.is_some())
     }
 
+    fn check_range(
+        mode: OnInvalidData,
+        value: &str,
+        report: &dyn ReportSink,
+    ) -> Result<bool, Error> {
+        Ok(mode.validate(range(value), report)?.is_some())
+    }
+
     fn check_date(
         mode: OnInvalidData,
         value: &str,
@@ -152,6 +176,7 @@ mod test {
     #[rstest]
     #[case::purl(check_purl as Check, "pkg:cargo/hyper@0.14.10", "not-a-purl", "invalid purl")]
     #[case::cpe(check_cpe as Check, "cpe:/a:redhat:openshift:4", "not-a-cpe", "invalid cpe")]
+    #[case::range(check_range as Check, "<V3.0.29", "prior to 4.2", "invalid version range")]
     #[case::date(check_date as Check, "2023-04-18T00:00:00Z", "not-a-date", "invalid date")]
     #[case::url(check_url as Check, "https://www.redhat.com", "not a url", "invalid url")]
     fn policy(

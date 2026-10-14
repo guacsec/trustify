@@ -1,0 +1,11 @@
+{
+  "advisories": [
+    "cve/CVE-2023-0286.json"
+  ],
+  "sboms": {
+    "sbom_openssl_el8.2_below-fix.cdx.json": {},
+    "sbom_openssl_el8.2_below-fix.spdx.json": {},
+    "sbom_openssl_el8.2_patched.cdx.json": {},
+    "sbom_openssl_el8.2_patched.spdx.json": {}
+  }
+}

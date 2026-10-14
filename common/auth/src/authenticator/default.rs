@@ -11,6 +11,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "create:document",
         &[
             "create.advisory",
+            "create.correlationOption",
             "create.exploit",
             "create.exploitIntelligence",
             "create.importer",
@@ -26,6 +27,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         &[
             "ai",
             "read.advisory",
+            "read.correlationOption",
             "read.exploit",
             "read.exploitIntelligence",
             "read.importer",
@@ -40,6 +42,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "update:document",
         &[
             "update.advisory",
+            "update.correlationOption",
             "update.exploit",
             "update.importer",
             "update.metadata",
@@ -52,6 +55,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "delete:document",
         &[
             "delete.advisory",
+            "delete.correlationOption",
             "delete.exploit",
             "delete.importer",
             "delete.metadata",

@@ -15,15 +15,20 @@ statement only; a `hummingbird`/`jboss_core_services` statement is a different p
 ## Expected (SBOM × CVE) — matches `expected.json`
 | SBOM (installed `curl`) | CVE-2024-2398 | CVE-2025-10148 | CVE-2025-10966 | CVE-2025-13034 |
 |---|---|---|---|---|
-| `sbom_curl_el8` (`7.61.1-34.el8_10.11`) | not_affected | not_affected | not_affected | affected |
+| `sbom_curl_el8` (`7.61.1-34.el8_10.11`) | fixed | not_affected | not_affected | affected |
 | `sbom_curl_el8_below-fix` (`7.61.1-34.el8_10.1`) | affected | not_affected | not_affected | affected |
-| `sbom_curl_el8_el8cpe` (`7.61.1-34.el8_10.11`) | not_affected | not_affected | not_affected | affected |
+| `sbom_curl_el8_el8cpe` (`7.61.1-34.el8_10.11`) | fixed | not_affected | not_affected | affected |
 
-- **CVE-2024-2398** — el8 fix `.2`: `.11` ≥ fix → not_affected; `.1` < fix → affected.
-- **CVE-2025-10148 / -10966** — el8 `known_not_affected` (§7); the `hummingbird` fix is a different product → not_affected.
+- **CVE-2024-2398** — el8 fix `.2`: `.11` ≥ fix → fixed; `.1` < fix → affected.
+- **CVE-2025-10148 / -10966** — el8 `known_not_affected` (§7); the `hummingbird` fix is a different product
+  (and stream, `hum1`), the versionless `jboss_core_services` / el10 `known_affected` are different products
+  → not_affected.
 - **CVE-2025-13034** — el8 `known_affected`, bare → affected for both builds (version-invariant, §8.1).
 - `sbom_curl_el8` and `_el8cpe` differ only in CPE placement → same verdict.
 
+The scenario was first written for the fundamental endpoints, which only tell whether a CVE is
+reported, so `not_affected` stood for "not reported" (including fixed builds).
+
 ## Files
 - SBOMs: `sbom_curl_el8.{cdx,spdx}.json`, `sbom_curl_el8_below-fix.{cdx,spdx}.json`, `sbom_curl_el8_el8cpe.{cdx,spdx}.json`.
-- Advisories: `vex/CVE-2024-2398.json`, `vex/CVE-2025-10148.json`, `vex/CVE-2025-10966.json`, `vex/CVE-2025-13034.json` (Red Hat CSAF); `cve/` MITRE records.
+- Advisories: `vex/CVE-2024-2398.json.xz`, `vex/CVE-2025-10148.json`, `vex/CVE-2025-10966.json`, `vex/CVE-2025-13034.json.xz` (Red Hat CSAF); `cve/` MITRE records.

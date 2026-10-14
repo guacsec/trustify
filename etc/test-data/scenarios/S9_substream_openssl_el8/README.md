@@ -1,25 +1,32 @@
-# S9 — Within-major sub-stream: compare on the box's own z-stream line (openssl)
+# S9 — OpenSSL: the RPM's own 8.2 build stream
 
-Isolates **z-stream/build-line matching within a major**. RHEL 8 minors carry different openssl lines
-(8.2 = `1.1.1c`, 8.10 GA = `1.1.1k`), each fixed on its own line. An `el8_2` box must be compared to the
-8.2 fix, never the GA/other-minor fix (standard §3, z-stream lines).
+## Reviewed expectations
 
-## Data — CVE-2023-0286 `openssl` fixes
-| stream | fix |
+The CSAF states `fixed` for `1:1.1.1c-21.el8_2` in RHEL 8.2 AUS/E4S/TUS and
+`1:1.1.1k-9.el8_7` in mainline RHEL 8. The installed RPMs have the `el8_2` stream.
+The enabled Red Hat rule uses their own stream's fix. This test exercises that policy;
+the RPM's release alone does not establish which extended-support subscription is installed.
+The CycloneDX OS node is a sibling of the RPM, not its ancestor; SPDX has no equivalent OS CPE.
+
+| Installed build | CVE-2023-0286 |
 |---|---|
-| RHEL 8.2 (`rhel_aus/e4s/tus:8.2`) | `1:1.1.1c-21.el8_2` |
-| RHEL 8.10 GA (`enterprise_linux:8`) | `1:1.1.1k-9.el8_7` |
+| `1:1.1.1c-15.el8_2` | affected |
+| `1:1.1.1c-21.el8_2` | fixed |
 
-## Expected (SBOM × CVE) — matches `expected.json`
-| SBOM (installed `openssl`, `el8_2` line) | CVE-2023-0286 |
-|---|---|
-| `sbom_openssl_el8.2_below-fix` (`1:1.1.1c-15.el8_2`) | affected |
-| `sbom_openssl_el8.2_patched` (`1:1.1.1c-21.el8_2`) | not_affected |
+The original patched-build expectation is corrected from `not_affected` to `fixed`.
+The upstream CVE names OpenSSL without a usable PURL/CPE for these RPMs and contributes no matches.
+`expected-cve.json`, `expected-vex.json`, and `expected.json` test the two sources separately and
+together. Existing focused extractor tests check the chosen stream and matched ranges.
+Advisory inputs are unmodified.
 
-Both boxes are on the `el8_2` line → compared to the 8.2 fix `1.1.1c-21.el8_2`: `-15` below → affected,
-`-21` at → not_affected. (Comparing the `el8_2` build to the GA `1.1.1k` line would be a different-line
-comparison and is not valid.)
+## Review basis
 
-## Files
-- SBOMs: `sbom_openssl_el8.2_below-fix.{cdx,spdx}.json`, `sbom_openssl_el8.2_patched.{cdx,spdx}.json`.
-- Advisory: `vex/CVE-2023-0286.json` (Red Hat CSAF); `cve/` MITRE record.
+Reviewed against the checked-in advisory documents and SBOM identifiers, rather than the legacy
+API output. [CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status) distinguish `fixed` from `known_not_affected`.
+The default Red Hat `fixed_is_first_fixed` option derives affected versions below the fix and
+fixed versions at/after it; this is a publisher policy, not a general meaning of CSAF `fixed`.
+[Red Hat scanning guidance](https://redhatproductsecurity.github.io/security-data-guidelines/scanning-vendors/) distinguishes mainline products from extended-support products.
+
+`expected.json` uses actual filenames and component node IDs for both CycloneDX and SPDX.
+Missing entries mean no applicable evidence, not an explicit `not_affected` assertion.
+The scenario harness runs both ingestion orders and checks exact verdicts and summary counts.

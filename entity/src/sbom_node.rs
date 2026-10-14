@@ -62,6 +62,12 @@ pub enum Relation {
     )]
     Checksum,
     #[sea_orm(
+        belongs_to = "super::sbom_node_product_identifier::Entity",
+        from = "(Column::SbomId, Column::NodeId)",
+        to = "(super::sbom_node_product_identifier::Column::SbomId, super::sbom_node_product_identifier::Column::NodeId)"
+    )]
+    ProductIdentifier,
+    #[sea_orm(
         belongs_to = "super::sbom::Entity",
         from = "Column::SbomId",
         to = "super::sbom::Column::SbomId"

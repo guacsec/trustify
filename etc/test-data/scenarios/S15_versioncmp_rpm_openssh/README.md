@@ -1,59 +1,33 @@
-# S15 — Same-type RPM version comparison (openssh on RHEL 8) — TC-5170 / TC-5640
+# S15 — OpenSSH mainline version boundaries and CPE placement
 
-The correct verdict for an `openssh` RPM is **version-decided against its own stream's fix**. This scenario
-holds the product (`enterprise_linux:8`) and package (`openssh`) constant and varies three things
-independently: **where the product CPE sits** (describing/root node vs a child OS node), **which
-sub-stream** the build is on (a stream the VEX covers vs one it does not), and **the version** relative to
-the fix. That isolates two distinct defects:
+## Reviewed expectations
 
-- **[TC-5170](https://redhat.atlassian.net/browse/TC-5170)** — when the CPE is on a *child* node (the escape
-  hatch), the SBOM `product_status` paths match `openssh` by **name only** with no `version_matches`, so a
-  build already at/past the fix is still reported `affected`.
-- **[TC-5640](https://redhat.atlassian.net/browse/TC-5640)** — `rpmvercmp` ignores the dist tag, so a build
-  on a sub-stream the VEX **does not cover** (`.el8_10`) is compared against a *different* sub-stream's fix
-  (`.el8_8`) and wrongly correlates.
+The CSAF states `fixed` for OpenSSH `8.0p1-19.el8_8` in mainline RHEL 8 BaseOS/AppStream.
+Its `el8_1`, `el8_2`, `el8_4`, and `el8_6` fixes are separate extended-support products.
+The installed fixtures declare mainline `enterprise_linux:8` and `distro=rhel-8.8` or `rhel-8.10`.
 
-## Data
-Real Red Hat CSAF `vex/CVE-2023-38408.json` (openssh, "RCE in ssh-agent PKCS#11"). It carries only `fixed`
-status; versions below a fixed build are implicitly affected. The **main el8** BaseOS fix is
-`openssh-0:8.0p1-19.el8_8` under `cpe:/o:redhat:enterprise_linux:8::baseos`. The VEX has entries for
-el8_1/8_2/8_4/8_6/8_8 (and el9), **but nothing for the `el8_10` sub-stream**.
+| Fixture group | release 4 | release 19 | release 29 |
+|---|---|---|---|
+| Root CPE, `el8_8` | affected | fixed | fixed |
+| Sibling OS CPE, `el8_8` | affected | fixed | fixed |
+| Root CPE, `el8_10` | affected | fixed | fixed |
 
-## VEX ↔ SBOM correlation
+The old `el8_10` expectations treated the lack of a minor-specific statement as proof of safety.
+That conflicts with the configured mainline-minor policy: absent an own-stream statement,
+another mainline minor's fix can apply within the same product. The below-fix `el8_10` expectation
+is therefore changed to `affected`; the at/above-fix expectations become `fixed`.
+This policy does not extend to EUS/AUS/E4S/TUS products.
+The child OS node is a sibling rather than an ancestor of the package. The PURL establishes the
+mainline product in both formats. The advisory is unmodified.
 
-All SBOMs carry the same product CPE `cpe:/o:redhat:enterprise_linux:8::baseos` and a single `openssh` RPM.
-The groups differ only in CPE placement (root vs child), sub-stream (dist tag), and version.
+## Review basis
 
-| Group | SBOM | CPE on | Installed `openssh` | Sub-stream in VEX? | Applicable fix | Expected | Engine today |
-|---|---|---|---|---|---|---|---|
-| **A** root / same stream | `sbom_openssh_rootcpe_el8_8_below-fix` | describing/root | `8.0p1-4.el8_8` | yes (`el8_8`) | `8.0p1-19.el8_8` | **affected** | affected ✓ |
-| **A** | `sbom_openssh_rootcpe_el8_8_at-fix` | describing/root | `8.0p1-19.el8_8` | yes | `8.0p1-19.el8_8` | **not_affected** | not_affected ✓ |
-| **A** | `sbom_openssh_rootcpe_el8_8_above-fix` | describing/root | `8.0p1-29.el8_8` | yes | `8.0p1-19.el8_8` | **not_affected** | not_affected ✓ |
-| **B** root / different stream | `sbom_openssh_rootcpe_el8_10_below-fix` | describing/root | `8.0p1-4.el8_10` | **no** (`el8_10` absent) | — | **not_affected** | **affected** ✗ TC-5640 |
-| **B** | `sbom_openssh_rootcpe_el8_10_at-fix` | describing/root | `8.0p1-19.el8_10` | no | — | **not_affected** | not_affected ✓ |
-| **B** | `sbom_openssh_rootcpe_el8_10_above-fix` | describing/root | `8.0p1-29.el8_10` | no | — | **not_affected** | not_affected ✓ |
-| **C** child / same stream | `sbom_openssh_el8_below-fix` | child OS node | `8.0p1-4.el8_8` | yes (`el8_8`) | `8.0p1-19.el8_8` | **affected** | affected ✓ |
-| **C** | `sbom_openssh_el8_at-fix` | child OS node | `8.0p1-19.el8_8` | yes | `8.0p1-19.el8_8` | **not_affected** | **affected** ✗ TC-5170 |
-| **C** | `sbom_openssh_el8_above-fix` | child OS node | `8.0p1-29.el8_8` | yes | `8.0p1-19.el8_8` | **not_affected** | **affected** ✗ TC-5170 |
+Reviewed against the checked-in advisory documents and SBOM identifiers, rather than the legacy
+API output. [CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status) distinguish `fixed` from `known_not_affected`.
+The default Red Hat `fixed_is_first_fixed` option derives affected versions below the fix and
+fixed versions at/after it; this is a publisher policy, not a general meaning of CSAF `fixed`.
+[Red Hat scanning guidance](https://redhatproductsecurity.github.io/security-data-guidelines/scanning-vendors/) distinguishes mainline products from extended-support products.
 
-### Reading the matrix
-- **A (root CPE, covered stream)** — all correct today: when the describing CPE is *captured* on the root
-  node, the path applies `version_matches`, so below→affected and at/above→not_affected. This is the
-  positive control proving version filtering works when the CPE context is in scope.
-- **B (root CPE, uncovered stream)** — the VEX says nothing about `el8_10`, so nothing should correlate. Yet
-  `below` (release `4`) is reported **affected**: `rpmvercmp` ignores the `_10` vs `_8` dist tag and compares
-  `4 < 19` against the `el8_8` fix (**TC-5640**). `at`/`above` (release `19`/`29`) happen to be ≥ `19`, so they
-  don't leak — the bug only surfaces below the borrowed fix.
-- **C (child CPE, covered stream)** — same builds and expectations as A, but with the CPE on a child OS node
-  (the real RHEL layout). The describing-CPE filter never engages (escape hatch), so `product_status`
-  matches by name with **no** `version_matches`: `at`/`above` both leak as **affected** (**TC-5170**).
-
-The A-vs-C contrast (same versions, only CPE placement differs) isolates the effect of CPE capture on version
-filtering; B isolates the dist-tag-blind cross-stream match.
-
-## Files
-- SBOMs (each: one `openssh` RPM under `cpe:/o:redhat:enterprise_linux:8::baseos`):
-  - Group A — `sbom_openssh_rootcpe_el8_8_{below,at,above}-fix.{cdx,spdx}.json` (CPE on describing/root node).
-  - Group B — `sbom_openssh_rootcpe_el8_10_{below,at,above}-fix.{cdx,spdx}.json` (root CPE; `el8_10`, absent from VEX).
-  - Group C — `sbom_openssh_el8_{below,at,above}-fix.{cdx,spdx}.json` (CPE on a child OS node).
-- Advisory: `vex/CVE-2023-38408.json` (real Red Hat CSAF; main el8 fix `8.0p1-19.el8_8`), stored xz-compressed.
+`expected.json` uses actual filenames and component node IDs for both CycloneDX and SPDX.
+Missing entries mean no applicable evidence, not an explicit `not_affected` assertion.
+The scenario harness runs both ingestion orders and checks exact verdicts and summary counts.

@@ -1,22 +1,21 @@
 {
   "advisories": [
-    "vex/CVE-2023-44487.json"
+    "vex/rh-cve-2023-44487.json.xz"
   ],
   "sboms": {
-    "sbom_golang_oci": {
-      "correct": {
-        "CVE-2023-44487": "not_affected"
-      }
-    },
-    "sbom_golang_maven": {
-      "correct": {
-        "CVE-2023-44487": "not_affected"
-      }
-    },
-    "sbom_golang_rpm_storage3": {
-      "correct": {
+    "sbom_golang_rpm_storage3.cdx.json": {
+      "pkg-golang": {
         "CVE-2023-44487": "affected"
       }
-    }
+    },
+    "sbom_golang_rpm_storage3.spdx.json": {
+      "SPDXRef-golang": {
+        "CVE-2023-44487": "affected"
+      }
+    },
+    "sbom_golang_oci.cdx.json": {},
+    "sbom_golang_oci.spdx.json": {},
+    "sbom_golang_maven.cdx.json": {},
+    "sbom_golang_maven.spdx.json": {}
   }
 }

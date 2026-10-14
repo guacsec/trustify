@@ -1,0 +1,32 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:00000000-0000-4000-8000-000000002102",
+  "metadata": {
+    "timestamp": "2026-10-01T12:00:00Z",
+    "component": {
+      "type": "device",
+      "name": "Beckhoff CX9020 (Windows Embedded Compact 7, arm32)",
+      "version": "1",
+      "bom-ref": "device"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "MDP.dll",
+      "version": "1.7.0.0",
+      "bom-ref": "mdp",
+      "cpe": "cpe:2.3:a:beckhoff:mdp.dll:1.7.0.0:*:*:*:*:*:arm32:*"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "device",
+      "dependsOn": [
+        "mdp"
+      ]
+    }
+  ]
+}

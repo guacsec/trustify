@@ -29,6 +29,7 @@ async fn all_organizations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -47,6 +48,7 @@ async fn all_organizations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -90,6 +92,7 @@ async fn one_organization(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )

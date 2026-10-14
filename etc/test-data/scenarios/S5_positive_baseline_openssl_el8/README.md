@@ -1,23 +1,30 @@
-# S5 — Positive baseline: version decides (openssl on RHEL 8)
+# S5 — OpenSSL on RHEL 8: below and at the fix
 
-Isolates the **version check** on a single product/stream. Same product (`enterprise_linux:8`), same
-package (`openssl`) — the only variable is the installed version vs the fix. Regression guard that a
-correct engine keeps reporting a genuinely-affected build and drops a patched one.
+## Reviewed expectations
 
-## Data
-`openssl` on RHEL 8, both CVEs `fixed` on the el8 stream at **`1:1.1.1k-9.el8_7`** (openssl is epoch 1,
-single `1.1.1k` line). Affected = same-stream openssl **below** that build (standard §3, `purl_status`).
+Both CSAF documents state `fixed` for OpenSSL `1:1.1.1k-9.el8_7` in
+`enterprise_linux:8::baseos`. Their `el8_6` fixes belong to RHEL 8.6 EUS.
+The SBOM packages target mainline RHEL 8, with epoch 1.
 
-## Expected (SBOM × CVE) — matches `expected.json`
-| SBOM (installed `openssl`) | CVE-2022-4304 | CVE-2023-0215 |
+| Installed build | CVE-2022-4304 | CVE-2023-0215 |
 |---|---|---|
-| `sbom_openssl_el8_below-fix` (`1:1.1.1k-7.el8`) | affected | affected |
-| `sbom_openssl_el8_at-fix` (`1:1.1.1k-9.el8_7`) | not_affected | not_affected |
+| `1:1.1.1k-7.el8` | affected | affected |
+| `1:1.1.1k-9.el8_7` | fixed | fixed |
 
-- **below-fix** — release `7.el8` < `9.el8_7` → below the el8 fix → **affected**.
-- **at-fix** — installed == fix → **not_affected**.
+The original patched-build expectation was `not_affected`; it is corrected to `fixed`.
+The upstream CVE records identify OpenSSL by vendor/product names only, with no usable PURL or
+CPE for these RPMs. They contribute no matches. `expected-cve.json` tests that independently;
+`expected-vex.json` tests CSAF independently, and `expected.json` combines both sources.
+Advisory inputs are unmodified; compressed paths are explicit.
 
-## Files
-- SBOMs: `sbom_openssl_el8_below-fix.{cdx,spdx}.json`, `sbom_openssl_el8_at-fix.{cdx,spdx}.json`
-- Advisories: `vex/CVE-2022-4304.json`, `vex/CVE-2023-0215.json` (Red Hat CSAF). `cve/` holds the MITRE
-  records (upstream coords only; not used for RPM correlation).
+## Review basis
+
+Reviewed against the checked-in advisory documents and SBOM identifiers, rather than the legacy
+API output. [CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status) distinguish `fixed` from `known_not_affected`.
+The default Red Hat `fixed_is_first_fixed` option derives affected versions below the fix and
+fixed versions at/after it; this is a publisher policy, not a general meaning of CSAF `fixed`.
+[Red Hat scanning guidance](https://redhatproductsecurity.github.io/security-data-guidelines/scanning-vendors/) distinguishes mainline products from extended-support products.
+
+`expected.json` uses actual filenames and component node IDs for both CycloneDX and SPDX.
+Missing entries mean no applicable evidence, not an explicit `not_affected` assertion.
+The scenario harness runs both ingestion orders and checks exact verdicts and summary counts.

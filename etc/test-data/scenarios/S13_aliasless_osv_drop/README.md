@@ -1,7 +1,8 @@
 # S13 — CVE-less advisory is still a real vulnerability (afire)
 
 Isolates a vulnerability advisory with **no CVE alias** (GHSA/PYSEC/GO/RUSTSEC/MAL). It is still a real
-vulnerability and must be reportable under its native id (standard §6).
+vulnerability and must be reportable under its native id (standard §6). Without a CVE alias, the
+record's own `id` is the only ID of the vulnerability.
 
 ## Data
 `osv/GHSA-3227-r97m-8j95_real-no-cve.json` — real GitHub advisory, **no `aliases`**, affects

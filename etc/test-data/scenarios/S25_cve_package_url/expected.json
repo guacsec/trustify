@@ -1,0 +1,29 @@
+{
+  "advisories": [
+    "cve/CVE-2026-2950.json",
+    "cve/CVE-2025-71176.json"
+  ],
+  "sboms": {
+    "sbom_lodash_4.17.23.cdx.json": {
+      "pkg-lodash": {
+        "CVE-2026-2950": "affected"
+      }
+    },
+    "sbom_lodash_4.18.0.cdx.json": {
+      "pkg-lodash": {
+        "CVE-2026-2950": "not_affected"
+      }
+    },
+    "sbom_lodash_4.17.21.cdx.json": {
+      "pkg-lodash": {
+        "CVE-2026-2950": "not_affected"
+      }
+    },
+    "sbom_pytest_8.3.4.cdx.json": {
+      "pkg-pytest": {
+        "CVE-2025-71176": "affected"
+      }
+    },
+    "sbom_pytest_9.0.3.cdx.json": {}
+  }
+}

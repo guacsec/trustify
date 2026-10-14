@@ -1,0 +1,13 @@
+{
+  "advisories": [
+    "cve/CVE-2026-41254.json",
+    "cve/CVE-2026-46968.json",
+    "cve/CVE-2026-47010.json"
+  ],
+  "sboms": {
+    "sbom_openjdk_no-epoch.cdx.json": {},
+    "sbom_openjdk_no-epoch.spdx.json": {},
+    "sbom_openjdk_with-epoch.cdx.json": {},
+    "sbom_openjdk_with-epoch.spdx.json": {}
+  }
+}

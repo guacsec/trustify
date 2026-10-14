@@ -1,0 +1,32 @@
+{
+  "advisories": [
+    "vex/CVE-2022-4304.json.xz",
+    "vex/CVE-2023-0215.json.xz"
+  ],
+  "sboms": {
+    "sbom_openssl_el8_below-fix.cdx.json": {
+      "pkg-openssl": {
+        "CVE-2022-4304": "affected",
+        "CVE-2023-0215": "affected"
+      }
+    },
+    "sbom_openssl_el8_below-fix.spdx.json": {
+      "SPDXRef-Package-rpm-openssl-pkg-openssl": {
+        "CVE-2022-4304": "affected",
+        "CVE-2023-0215": "affected"
+      }
+    },
+    "sbom_openssl_el8_at-fix.cdx.json": {
+      "pkg-openssl": {
+        "CVE-2022-4304": "fixed",
+        "CVE-2023-0215": "fixed"
+      }
+    },
+    "sbom_openssl_el8_at-fix.spdx.json": {
+      "SPDXRef-Package-rpm-openssl-pkg-openssl": {
+        "CVE-2022-4304": "fixed",
+        "CVE-2023-0215": "fixed"
+      }
+    }
+  }
+}

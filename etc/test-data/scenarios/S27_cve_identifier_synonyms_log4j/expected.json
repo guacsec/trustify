@@ -1,0 +1,22 @@
+{
+  "advisories": [
+    "cve/CVE-2025-68161.json"
+  ],
+  "sboms": {
+    "sbom_log4j-core_2.24.3.cdx.json": {
+      "pkg-log4j-core": {
+        "CVE-2025-68161": "affected"
+      }
+    },
+    "sbom_log4j-core_2.25.3.cdx.json": {
+      "pkg-log4j-core": {
+        "CVE-2025-68161": "not_affected"
+      }
+    },
+    "sbom_log4j_cpe_2.17.1.cdx.json": {
+      "log4j": {
+        "CVE-2025-68161": "affected"
+      }
+    }
+  }
+}

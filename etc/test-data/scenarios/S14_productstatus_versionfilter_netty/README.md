@@ -31,3 +31,19 @@ bare component → `product_status`, all versions affected (§8.1). The derived 
 ## Files
 - SBOM: `sbom_netty_rhsso7.{cdx,spdx}.json`.
 - Advisory: `vex/CVE-2021-37136.json` (Red Hat CSAF structure).
+
+## Correlation engine — official Red Hat VEX (`expected.json`)
+
+The correlation scenario uses Red Hat's official VEX for CVE-2021-37136
+(`vex/rh-cve-2021-37136.json.xz`, unmodified, downloaded 2026-10-09). The synthetic advisory and
+`sbom_netty_rhsso7` above stay for the fundamental API tests.
+
+The official VEX lists **`netty-codec`** (not `netty-codec-http`) as `known_affected` in Red Hat
+Single Sign-On 7, with a versionless PURL (`pkg:maven/io.netty/netty-codec?type=jar`), as a
+`default_component_of` RH-SSO 7 (`cpe:/a:redhat:red_hat_single_sign_on:7`). So the SBOM
+`sbom_netty-codec_rhsso7` is the same as `sbom_netty_rhsso7`, with that component.
+
+| SBOM | verdict | why |
+|---|---|---|
+| `sbom_netty-codec_rhsso7` | **affected** | `purl_any_version` in RH-SSO 7 (root component CPE, 0.63), no version comparison; also below the fix `4.1.72.Final-redhat-00001` Red Hat states for other products (`purl_fixed_as_first_fixed_before`, unscoped) |
+| `sbom_netty_rhsso7` | none | the official VEX makes no statement about `netty-codec-http` |

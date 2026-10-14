@@ -75,7 +75,7 @@ pub fn configure(
         .service(count_related)
         .service(all_models)
         .service(get)
-        .service(get_sbom_advisories)
+        .service(advisory::get_sbom_advisories)
         .service(delete)
         .service(delete_many)
         .service(packages)
@@ -381,54 +381,64 @@ pub async fn get(
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
-pub struct SbomAdvisoryParams {
-    /// When true, include resolved statuses (fixed, not_affected)
-    /// alongside affected.
-    #[serde(default)]
-    pub include_resolved: bool,
-}
+/// The advisories of an SBOM, deprecated in favor of the correlation engine.
+mod advisory {
+    // the handler is deprecated, its registration and implementation aren't
+    #![allow(deprecated)]
+    use super::*;
 
-/// Get advisories for an SBOM
-#[utoipa::path(
-    tag = "sbom",
-    operation_id = "getSbomAdvisories",
-    params(
-        ("id" = Id, Path),
-        SbomAdvisoryParams,
-    ),
-    responses(
-        (status = 200, description = "Matching SBOM", body = Vec<SbomAdvisory>),
-        (status = 404, description = "The SBOM could not be found"),
-    ),
-)]
-#[get("/v3/sbom/{id}/advisory")]
-pub async fn get_sbom_advisories(
-    fetcher: web::Data<SbomService>,
-    db: web::Data<db::ReadOnly>,
-    id: web::Path<String>,
-    web::Query(SbomAdvisoryParams { include_resolved }): web::Query<SbomAdvisoryParams>,
-    _: Require<GetSbomAdvisories>,
-) -> Result<impl Responder, Error> {
-    let id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let tx = db.begin().await?;
-
-    let statuses: Vec<String> = if include_resolved {
-        vec![
-            "affected".to_string(),
-            "fixed".to_string(),
-            "not_affected".to_string(),
-        ]
-    } else {
-        vec!["affected".to_string()]
-    };
-    match fetcher.fetch_sbom_details(id, statuses, &tx).await? {
-        Some(v) => Ok(HttpResponse::Ok().json(v.advisories)),
-        None => Ok(HttpResponse::NotFound().finish()),
+    #[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
+    pub struct SbomAdvisoryParams {
+        /// When true, include resolved statuses (fixed, not_affected)
+        /// alongside affected.
+        #[serde(default)]
+        pub include_resolved: bool,
     }
-}
 
-all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
+    /// Get advisories for an SBOM
+    ///
+    /// Deprecated: use the verdicts of the correlation engine, `GET /v3/correlation/sbom/{id}`.
+    #[utoipa::path(
+        tag = "sbom",
+        operation_id = "getSbomAdvisories",
+        params(
+            ("id" = Id, Path),
+            SbomAdvisoryParams,
+        ),
+        responses(
+            (status = 200, description = "Matching SBOM", body = Vec<SbomAdvisory>),
+            (status = 404, description = "The SBOM could not be found"),
+        ),
+    )]
+    #[get("/v3/sbom/{id}/advisory")]
+    #[deprecated = "Use the correlation engine: GET /v3/correlation/sbom/{id}"]
+    pub async fn get_sbom_advisories(
+        fetcher: web::Data<SbomService>,
+        db: web::Data<db::ReadOnly>,
+        id: web::Path<String>,
+        web::Query(SbomAdvisoryParams { include_resolved }): web::Query<SbomAdvisoryParams>,
+        _: Require<GetSbomAdvisories>,
+    ) -> Result<impl Responder, Error> {
+        let id = Id::from_str(&id).map_err(Error::IdKey)?;
+        let tx = db.begin().await?;
+
+        let statuses: Vec<String> = if include_resolved {
+            vec![
+                "affected".to_string(),
+                "fixed".to_string(),
+                "not_affected".to_string(),
+            ]
+        } else {
+            vec!["affected".to_string()]
+        };
+        match fetcher.fetch_sbom_details(id, statuses, &tx).await? {
+            Some(v) => Ok(HttpResponse::Ok().json(v.advisories)),
+            None => Ok(HttpResponse::NotFound().finish()),
+        }
+    }
+
+    all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
+}
 
 async fn delete_blobs<T: StorageBackend>(digests: &[String], storage: &T) {
     if let Err(e) = storage

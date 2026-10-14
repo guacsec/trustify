@@ -4,10 +4,11 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, LicenseCreator,
-            LicenseInfo, LicensingInfo, LicensingInfoCreator, MachineLearningModelCreator,
-            NodeInfoParam, PackageCreator, PackageLicensenInfo, PackageReference, References,
-            RelationshipCreator, SbomContext, SbomInformation, populate_expanded_license,
+            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, DeviceIdentifierCreator,
+            LicenseCreator, LicenseInfo, LicensingInfo, LicensingInfoCreator,
+            MachineLearningModelCreator, NodeInfoParam, PackageCreator, PackageLicensenInfo,
+            PackageReference, References, RelationshipCreator, SbomContext, SbomInformation,
+            populate_expanded_license,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -31,7 +32,9 @@ use std::{borrow::Cow, collections::HashMap, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
 use tracing::instrument;
 use trustify_common::{advisory::cyclonedx::extract_properties_json, cpe::Cpe, purl::Purl};
-use trustify_entity::relationship::Relationship;
+use trustify_entity::{
+    advisory_vulnerability_product_identifier::ProductIdentifierType, relationship::Relationship,
+};
 use uuid::Uuid;
 
 use super::FileCreator;
@@ -348,6 +351,7 @@ struct ComponentCreator {
     files: FileCreator,
     models: MachineLearningModelCreator,
     crypto: CryptographicAssetCreator,
+    devices: DeviceIdentifierCreator,
     relationships: RelationshipCreator<CycloneDxProcessor>,
     // Map each node to a collection of references
     refs: HashMap<String, Vec<PackageReference>>,
@@ -365,6 +369,7 @@ impl ComponentCreator {
             files: FileCreator::new(sbom_id),
             models: MachineLearningModelCreator::new(sbom_id),
             crypto: CryptographicAssetCreator::new(sbom_id),
+            devices: DeviceIdentifierCreator::new(sbom_id),
             relationships: RelationshipCreator::new(sbom_id, CycloneDxProcessor),
             refs: Default::default(),
         }
@@ -475,6 +480,15 @@ impl ComponentCreator {
                             comp.name.to_string(),
                             comp.hashes.clone().into_iter().flatten(),
                             comp.try_into()?,
+                        );
+                    }
+                    Device | DeviceDriver | Firmware => {
+                        let identifiers = extract_device_identifiers(comp);
+                        self.devices.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                            identifiers,
                         );
                     }
                     _ => log::error!("Unsupported component type: '{ty}'"),
@@ -618,7 +632,8 @@ impl ComponentCreator {
             .add_source(&self.packages)
             .add_source(&self.files)
             .add_source(&self.models)
-            .add_source(&self.crypto);
+            .add_source(&self.crypto)
+            .add_source(&self.devices);
         self.relationships
             .validate(sources)
             .map_err(Error::InvalidContent)
@@ -636,6 +651,7 @@ impl ComponentCreator {
         self.files.create(db).await?;
         self.models.create(db).await?;
         self.crypto.create(db).await?;
+        self.devices.create(db).await?;
         self.relationships.create(db).await?;
 
         // Populate expanded license tables
@@ -643,6 +659,29 @@ impl ComponentCreator {
 
         Ok(())
     }
+}
+
+/// Extract device identifiers from CycloneDX component properties.
+///
+/// Maps `cdx:device:*` property taxonomy names to `ProductIdentifierType` values.
+fn extract_device_identifiers(comp: &Component) -> Vec<(ProductIdentifierType, String)> {
+    comp.properties
+        .iter()
+        .flatten()
+        .filter_map(|p| {
+            let id_type = match p.name.as_str() {
+                "cdx:device:serialNumber" => Some(ProductIdentifierType::SerialNumber),
+                "cdx:device:sku" => Some(ProductIdentifierType::Sku),
+                "cdx:device:gs1:gmn" => Some(ProductIdentifierType::ModelNumber),
+                "cdx:device:gs1:gtin-8"
+                | "cdx:device:gs1:gtin-12"
+                | "cdx:device:gs1:gtin-13"
+                | "cdx:device:gs1:gtin-14" => Some(ProductIdentifierType::Sku),
+                _ => None,
+            };
+            id_type.zip(p.value.clone())
+        })
+        .collect()
 }
 
 /// Type of the components within an SBOM, mostly based on

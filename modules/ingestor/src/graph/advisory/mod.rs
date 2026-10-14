@@ -22,6 +22,8 @@ use trustify_entity::{self as entity, advisory, labels::Labels, source_document}
 use uuid::Uuid;
 
 pub mod advisory_vulnerability;
+pub mod context;
+pub mod cpe_assertion;
 pub mod cpe_status;
 pub mod product_status;
 pub mod purl_status;
@@ -37,6 +39,8 @@ pub struct AdvisoryInformation {
     pub modified: Option<OffsetDateTime>,
     pub withdrawn: Option<OffsetDateTime>,
     pub version: Option<Version>,
+    /// The namespace of the publisher, e.g. CSAF `document.publisher.namespace`.
+    pub publisher_namespace: Option<String>,
 }
 
 pub struct AdvisoryVulnerabilityInformation {
@@ -134,6 +138,7 @@ impl Graph {
             modified,
             withdrawn,
             version,
+            publisher_namespace,
         } = information.into();
 
         let new_id = match self
@@ -174,6 +179,7 @@ impl Graph {
             withdrawn: Set(withdrawn),
             labels: Set(labels.validate()?),
             source_document_id: Set(new_id),
+            publisher_namespace: Set(publisher_namespace),
         };
 
         let result = model.insert(connection).await?;
@@ -430,6 +436,7 @@ mod test {
                     published: None,
                     modified: Some(value.1),
                     withdrawn: None,
+                    publisher_namespace: None,
                     version: None,
                 }
             }

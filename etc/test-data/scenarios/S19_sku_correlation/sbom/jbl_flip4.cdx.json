@@ -1,0 +1,54 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:s19-jbl-flip4",
+  "metadata": {
+    "timestamp": "2025-06-01T12:00:00Z",
+    "component": {
+      "type": "device",
+      "name": "JBL Flip 4",
+      "version": "1.0.0",
+      "bom-ref": "jbl-flip4-root"
+    }
+  },
+  "components": [
+    {
+      "type": "device",
+      "name": "JBL Flip 4 Speaker",
+      "version": "1.0.0",
+      "bom-ref": "comp-flip4-device",
+      "properties": [
+        { "name": "cdx:device:sku", "value": "6925281924439" },
+        { "name": "cdx:device:sku", "value": "050036337366" },
+        { "name": "cdx:device:serialNumber", "value": "SN-JBL-FLIP4-001" }
+      ]
+    },
+    {
+      "type": "firmware",
+      "name": "JBL Flip 4 Firmware",
+      "version": "2.3.1",
+      "bom-ref": "comp-flip4-fw",
+      "properties": [
+        { "name": "cdx:device:gs1:gmn", "value": "Flip 4" }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bluetooth-stack",
+      "version": "3.0.0",
+      "bom-ref": "comp-bt-lib",
+      "purl": "pkg:generic/bluetooth-stack@3.0.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "jbl-flip4-root",
+      "dependsOn": [
+        "comp-flip4-device",
+        "comp-flip4-fw",
+        "comp-bt-lib"
+      ]
+    }
+  ]
+}
