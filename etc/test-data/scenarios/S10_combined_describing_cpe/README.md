@@ -1,28 +1,31 @@
-# S10 — Combined el8 box: product + language deps, correctly scoped
+# S10 — Mixed RHEL 8 RPMs and Python packages
 
-A full-fidelity el8 box mixing both paths: RPMs (`product_status`) and a language dep (`purl_status`),
-plus a thunderbird pair where the correct verdict is driven by `known_not_affected` + product scoping
-(standard §5/§7). CPE placement (root vs child) does not change ground truth.
+## Reviewed expectations
 
-## `sbom_combined_el8` (describing CPE `enterprise_linux:8`)
-| Component | CVE | standard | verdict |
-|---|---|---|---|
-| openssl `1:1.1.1k-7.el8` | CVE-2022-4304 | below el8 fix `1.1.1k-9.el8_7` (§3) | affected |
-| urllib3 `1.26.17` (pypi) | CVE-2023-45803 | in OSV range `[0,1.26.18)` (§6) | affected |
-| bind-libs `9.11.36-16.el8_10.8` | CVE-2024-4076 | el8 `known_not_affected`; el9 fix is another stream (§5) | not_affected |
+Each verdict belongs to its component, not to every package in the SBOM:
 
-## thunderbird pair (`115.10.1-1.el8`, CVE-2024-6602)
-el8 GA thunderbird is `known_not_affected`; every `fixed` row is a **sub-stream** product
-(`rhel_eus/aus/e4s/tus:8.x`, distinct products §5) → **not_affected**. Both SBOMs are the same el8 GA box;
-they differ only in where the CPE sits, so the correct verdict is identical.
+| Component | CVE | Verdict and basis |
+|---|---|---|
+| OpenSSL `1:1.1.1k-7.el8` | CVE-2022-4304 | affected, below mainline fix `1:1.1.1k-9.el8_7` |
+| urllib3 `1.26.17` | CVE-2023-45803 | affected, within OSV interval `[0,1.26.18)` |
+| bind-libs `9.11.36-16.el8_10.8` | CVE-2024-4076 | not_affected, explicit mainline RHEL 8 assertion |
+| Thunderbird `115.10.1-1.el8` | CVE-2024-6602 | not_affected, explicit mainline RHEL 8 assertion |
 
-## Expected (SBOM × CVE) — matches `expected.json`
-| SBOM | CVE-2022-4304 | CVE-2023-45803 | CVE-2024-4076 | CVE-2024-6602 |
-|---|---|---|---|---|
-| `sbom_combined_el8` | affected | affected | not_affected | — |
-| `sbom_thunderbird_el8_root-cpe` | — | — | — | not_affected |
-| `sbom_thunderbird_el8_child-cpe` | — | — | — | not_affected |
+Thunderbird is in separate SBOMs with root-CPE and sibling-OS layouts. The package's PURL
+establishes its mainline product in either layout. The mixed SBOM has the product CPE on the root.
+The upstream CVE records provide no usable package identifiers for these fixtures; `expected-cve.json`
+checks them alone; `expected-vex.json` and `expected-osv.json` isolate CSAF and OSV.
+The combined manifest retains all sources, unmodified.
+Both CycloneDX and SPDX node IDs are asserted explicitly.
 
-## Files
-- SBOMs: `sbom_combined_el8.{cdx,spdx}.json`, `sbom_thunderbird_el8_root-cpe.{cdx,spdx}.json`, `sbom_thunderbird_el8_child-cpe.{cdx,spdx}.json`.
-- Advisories: `vex/CVE-2022-4304.json`, `vex/CVE-2024-4076.json`, `vex/CVE-2024-6602.json` (Red Hat CSAF); `osv/GHSA-g4mx-q9vg-27p4.json` (urllib3); `cve/` MITRE records.
+## Review basis
+
+Reviewed against the checked-in advisory documents and SBOM identifiers, rather than the legacy
+API output. [CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status) distinguish `fixed` from `known_not_affected`.
+The default Red Hat `fixed_is_first_fixed` option derives affected versions below the fix and
+fixed versions at/after it; this is a publisher policy, not a general meaning of CSAF `fixed`.
+[Red Hat scanning guidance](https://redhatproductsecurity.github.io/security-data-guidelines/scanning-vendors/) distinguishes mainline products from extended-support products.
+
+`expected.json` uses actual filenames and component node IDs for both CycloneDX and SPDX.
+Missing entries mean no applicable evidence, not an explicit `not_affected` assertion.
+The scenario harness runs both ingestion orders and checks exact verdicts and summary counts.

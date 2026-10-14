@@ -1,0 +1,13 @@
+{
+  "advisories": [
+    "cve/CVE-2018-11751.json",
+    "cve/CVE-2018-3258.json",
+    "cve/CVE-2019-0231.json"
+  ],
+  "sboms": {
+    "sbom_python3-chardet_el8.cdx.json": {},
+    "sbom_python3-chardet_el8.spdx.json": {},
+    "sbom_python3-chardet_el8_el8cpe.cdx.json": {},
+    "sbom_python3-chardet_el8_el8cpe.spdx.json": {}
+  }
+}

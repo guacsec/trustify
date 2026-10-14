@@ -1,0 +1,15 @@
+{
+  "advisories": [
+    "cve/CVE-2022-4304.json",
+    "cve/CVE-2023-45803.json",
+    "cve/CVE-2024-4076.json"
+  ],
+  "sboms": {
+    "sbom_combined_el8.cdx.json": {},
+    "sbom_combined_el8.spdx.json": {},
+    "sbom_thunderbird_el8_root-cpe.cdx.json": {},
+    "sbom_thunderbird_el8_root-cpe.spdx.json": {},
+    "sbom_thunderbird_el8_child-cpe.cdx.json": {},
+    "sbom_thunderbird_el8_child-cpe.spdx.json": {}
+  }
+}

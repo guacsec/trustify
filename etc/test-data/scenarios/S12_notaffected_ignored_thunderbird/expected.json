@@ -1,10 +1,15 @@
 {
   "advisories": [
-    "vex/CVE-2024-6602.json"
+    "vex/CVE-2024-6602.json.xz"
   ],
   "sboms": {
-    "sbom_thunderbird_el8": {
-      "correct": {
+    "sbom_thunderbird_el8.cdx.json": {
+      "pkg-tb": {
+        "CVE-2024-6602": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8.spdx.json": {
+      "SPDXRef-Package-rpm-thunderbird-pkg-tb": {
         "CVE-2024-6602": "not_affected"
       }
     }

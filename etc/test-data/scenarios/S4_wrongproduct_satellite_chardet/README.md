@@ -1,25 +1,24 @@
-# S4 — Wrong product, clean whole-CVE-false (python3-chardet)
+# S4 — Satellite chardet statements do not apply to RHEL 8
 
-Isolates **product scoping** in its cleanest form: `python3-chardet` appears in these CVEs **only** under
-**Red Hat Satellite** (`cpe:/a:redhat:satellite:*`, built `el7ar`). RHEL 8 has **no** chardet statement at
-all, so an el8 box is not affected — the whole CVE is absent for it (standard §5/§7).
+## Reviewed expectations
 
-## Data — `python3-chardet` statements
-| CVE | RHEL 8 | Satellite |
-|---|---|---|
-| CVE-2018-11751 | (absent) | `fixed` under `satellite:6.8::el7` |
-| CVE-2018-3258 | (absent) | `fixed` under `satellite:6.8::el7` |
-| CVE-2019-0231 | (absent) | `fixed` under `satellite:6.7::el7` |
+All three CSAF documents state `fixed` for `python3-chardet@3.0.4-10.el7ar` only in
+Satellite 6.7/6.8. The installed package is `python3-chardet@3.0.4-7.el8`, mainline RHEL 8.
+Neither the product nor the RPM stream matches. All component/vulnerability maps are empty.
+The old `not_affected` expectations asserted a negative that the documents do not supply.
 
-## Expected (SBOM × CVE) — matches `expected.json`
-| SBOM (installed `python3-chardet`) | CVE-2018-11751 | CVE-2018-3258 | CVE-2019-0231 |
-|---|---|---|---|
-| `sbom_python3-chardet_el8` (`3.0.4-7.el8`) | not_affected | not_affected | not_affected |
-| `sbom_python3-chardet_el8_el8cpe` (`3.0.4-7.el8`) | not_affected | not_affected | not_affected |
+The upstream CVEs describe Puppet, MySQL Connectors, and Apache MINA without usable identifiers
+for this RPM. CVE-only, CSAF-only, and combined expectations independently require no evidence.
+Both root-CPE and sibling-OS layouts are tested in both SBOM formats. Advisory inputs are unmodified.
 
-Satellite ≠ RHEL 8 (different product **and** version line, `el7ar`), and el8 has no chardet entry → every
-cell is not_affected. The two SBOMs differ only in CPE placement → same verdict.
+## Review basis
 
-## Files
-- SBOMs: `sbom_python3-chardet_el8.{cdx,spdx}.json`, `sbom_python3-chardet_el8_el8cpe.{cdx,spdx}.json`.
-- Advisories: `vex/CVE-2018-11751.json`, `vex/CVE-2018-3258.json`, `vex/CVE-2019-0231.json` (Red Hat CSAF); `cve/` MITRE records.
+Reviewed against the checked-in advisory documents and SBOM identifiers, rather than the legacy
+API output. [CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status) distinguish `fixed` from `known_not_affected`.
+The default Red Hat `fixed_is_first_fixed` option derives affected versions below the fix and
+fixed versions at/after it; this is a publisher policy, not a general meaning of CSAF `fixed`.
+[Red Hat scanning guidance](https://redhatproductsecurity.github.io/security-data-guidelines/scanning-vendors/) distinguishes mainline products from extended-support products.
+
+`expected.json` uses actual filenames and component node IDs for both CycloneDX and SPDX.
+Missing entries mean no applicable evidence, not an explicit `not_affected` assertion.
+The scenario harness runs both ingestion orders and checks exact verdicts and summary counts.

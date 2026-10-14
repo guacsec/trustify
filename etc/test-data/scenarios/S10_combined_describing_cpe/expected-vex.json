@@ -1,0 +1,45 @@
+{
+  "advisories": [
+    "vex/CVE-2022-4304.json.xz",
+    "vex/CVE-2024-4076.json.xz",
+    "vex/CVE-2024-6602.json.xz"
+  ],
+  "sboms": {
+    "sbom_combined_el8.cdx.json": {
+      "pkg-openssl": {
+        "CVE-2022-4304": "affected"
+      },
+      "pkg-bind-libs": {
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_combined_el8.spdx.json": {
+      "SPDXRef-pkg-openssl": {
+        "CVE-2022-4304": "affected"
+      },
+      "SPDXRef-pkg-bind-libs": {
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8_root-cpe.cdx.json": {
+      "pkg-tb": {
+        "CVE-2024-6602": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8_root-cpe.spdx.json": {
+      "SPDXRef-pkg-tb": {
+        "CVE-2024-6602": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8_child-cpe.cdx.json": {
+      "pkg-tb": {
+        "CVE-2024-6602": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8_child-cpe.spdx.json": {
+      "SPDXRef-pkg-tb": {
+        "CVE-2024-6602": "not_affected"
+      }
+    }
+  }
+}

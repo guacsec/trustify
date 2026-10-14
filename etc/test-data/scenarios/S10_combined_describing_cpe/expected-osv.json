@@ -1,0 +1,21 @@
+{
+  "advisories": [
+    "osv/GHSA-g4mx-q9vg-27p4.json"
+  ],
+  "sboms": {
+    "sbom_combined_el8.cdx.json": {
+      "pkg-urllib3": {
+        "CVE-2023-45803": "affected"
+      }
+    },
+    "sbom_combined_el8.spdx.json": {
+      "SPDXRef-pkg-urllib3": {
+        "CVE-2023-45803": "affected"
+      }
+    },
+    "sbom_thunderbird_el8_root-cpe.cdx.json": {},
+    "sbom_thunderbird_el8_root-cpe.spdx.json": {},
+    "sbom_thunderbird_el8_child-cpe.cdx.json": {},
+    "sbom_thunderbird_el8_child-cpe.spdx.json": {}
+  }
+}
