@@ -115,7 +115,7 @@ impl CpeStatusCreator {
         }
 
         // 3. Batch insert version ranges
-        for batch in &version_ranges.into_values().chunked() {
+        for batch in version_ranges.into_values().chunked() {
             version_range::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()
@@ -124,7 +124,7 @@ impl CpeStatusCreator {
         }
 
         // 4. Batch insert cpe_statuses
-        for batch in &cpe_statuses.into_values().chunked() {
+        for batch in cpe_statuses.into_values().chunked() {
             cpe_status::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()

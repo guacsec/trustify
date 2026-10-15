@@ -73,7 +73,7 @@ impl ExternalNodeCreator {
     }
 
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        for batch in &self.nodes.into_iter().chunked() {
+        for batch in self.nodes.into_iter().chunked() {
             sbom_node::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([sbom_node::Column::SbomId, sbom_node::Column::NodeId])
@@ -85,7 +85,7 @@ impl ExternalNodeCreator {
                 .await?;
         }
 
-        for batch in &self.externals.into_iter().chunked() {
+        for batch in self.externals.into_iter().chunked() {
             sbom_external_node::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([

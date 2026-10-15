@@ -123,7 +123,7 @@ impl CweCatalogLoader {
                     }
                 }
 
-                for chunk in &batch.chunked() {
+                for chunk in batch.chunked() {
                     weakness::Entity::insert_many(chunk)
                         .on_conflict(
                             OnConflict::column(weakness::Column::Id)

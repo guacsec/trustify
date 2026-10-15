@@ -361,7 +361,7 @@ pub async fn batch_create_base_purls<C: ConnectionTrait>(
     }
 
     // Batch insert packages
-    for batch in &packages.into_values().chunked() {
+    for batch in packages.into_values().chunked() {
         entity::base_purl::Entity::insert_many(batch)
             .on_conflict(OnConflict::new().do_nothing().to_owned())
             .try_insert()

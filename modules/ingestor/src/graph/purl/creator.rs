@@ -64,7 +64,7 @@ impl PurlCreator {
 
         // insert all package versions
 
-        for batch in &versions.into_values().chunked() {
+        for batch in versions.into_values().chunked() {
             versioned_purl::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()
@@ -74,7 +74,7 @@ impl PurlCreator {
 
         // insert all qualified packages
 
-        for batch in &qualifieds.into_values().chunked() {
+        for batch in qualifieds.into_values().chunked() {
             qualified_purl::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()

@@ -113,7 +113,7 @@ impl PurlStatusCreator {
         }
 
         // 3. Batch insert version ranges
-        for batch in &version_ranges.into_values().chunked() {
+        for batch in version_ranges.into_values().chunked() {
             version_range::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()
@@ -122,7 +122,7 @@ impl PurlStatusCreator {
         }
 
         // 4. Batch insert purl_statuses
-        for batch in &purl_statuses.into_values().chunked() {
+        for batch in purl_statuses.into_values().chunked() {
             purl_status::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()

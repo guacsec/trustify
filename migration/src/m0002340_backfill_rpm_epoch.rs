@@ -84,14 +84,7 @@ async fn process_page(
         qp_updates.push((row.qp_id, new_vp_id));
     }
 
-    let batches: Vec<Vec<_>> = new_versioned
-        .into_values()
-        .chunked()
-        .into_iter()
-        .map(|chunk| chunk.collect())
-        .collect();
-
-    for batch in batches {
+    for batch in new_versioned.into_values().chunked() {
         versioned_purl::Entity::insert_many(batch)
             .on_conflict(
                 OnConflict::columns([versioned_purl::Column::Id])

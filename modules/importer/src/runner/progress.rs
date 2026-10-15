@@ -5,7 +5,7 @@ use std::{
 };
 use tokio::runtime::Handle;
 
-pub trait Progress {
+pub trait Progress: Send + Sync {
     type Instance: ProgressInstance;
 
     /// start a new work package
@@ -32,8 +32,8 @@ impl ProgressInstance for () {
     async fn finish(self) {}
 }
 
-pub trait ProgressInstance: Sized {
-    fn tick(&mut self) -> impl Future<Output = ()> {
+pub trait ProgressInstance: Sized + Send {
+    fn tick(&mut self) -> impl Future<Output = ()> + Send {
         self.increment(1)
     }
 
@@ -44,9 +44,9 @@ pub trait ProgressInstance: Sized {
         Handle::current().block_on(async { self.tick().await })
     }
 
-    fn increment(&mut self, work: usize) -> impl Future<Output = ()>;
+    fn increment(&mut self, work: usize) -> impl Future<Output = ()> + Send;
 
-    fn finish(self) -> impl Future<Output = ()>;
+    fn finish(self) -> impl Future<Output = ()> + Send;
 
     fn finish_sync(self) {
         Handle::current().block_on(async { self.finish().await })

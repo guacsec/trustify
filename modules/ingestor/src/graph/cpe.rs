@@ -99,7 +99,7 @@ impl CpeCreator {
 
     #[instrument(skip(self, db), fields(num=self.cpes.len()), err(level=tracing::Level::INFO))]
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        for batch in &self.cpes.into_values().map(|(_, cpe)| cpe).chunked() {
+        for batch in self.cpes.into_values().map(|(_, cpe)| cpe).chunked() {
             cpe::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([cpe::Column::Id])

@@ -1,10 +1,9 @@
-use itertools::{IntoChunks, Itertools};
 use sea_orm::{ActiveModelTrait, EntityTrait, Iterable};
 
 pub trait EntityChunkedIter: Sized {
     type Item: ActiveModelTrait;
 
-    fn chunked(self) -> IntoChunks<impl Iterator<Item = Self::Item>>;
+    fn chunked(self) -> impl Iterator<Item = Vec<Self::Item>>;
 }
 
 impl<T> EntityChunkedIter for T
@@ -14,12 +13,12 @@ where
 {
     type Item = T::Item;
 
-    fn chunked(self) -> IntoChunks<impl Iterator<Item = Self::Item>> {
+    fn chunked(self) -> impl Iterator<Item = Vec<Self::Item>> {
         chunked(self)
     }
 }
 
-pub fn chunked<M, I>(i: I) -> IntoChunks<impl Iterator<Item = I::Item>>
+pub fn chunked<M, I>(i: I) -> impl Iterator<Item = Vec<I::Item>>
 where
     M: ActiveModelTrait,
     I: IntoIterator<Item = M>,
@@ -40,10 +39,27 @@ where
 /// Also, if the number of values per entry exceeds the total maximum, we create batches of 1. This
 /// will lead to an error when executing the statement (too many parameters), but that's just the
 /// way it is anyway, chunking or not.
-pub fn chunked_with<I>(values: usize, i: I) -> IntoChunks<impl Iterator<Item = I::Item>>
+pub fn chunked_with<I>(values: usize, i: I) -> impl Iterator<Item = Vec<I::Item>>
 where
     I: IntoIterator,
 {
-    i.into_iter()
-        .chunks(((u16::MAX - 128) as usize / values).max(1))
+    let size = ((u16::MAX - 128) as usize / values).max(1);
+    let mut i = i.into_iter();
+    std::iter::from_fn(move || {
+        let batch: Vec<_> = i.by_ref().take(size).collect();
+        (!batch.is_empty()).then_some(batch)
+    })
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn chunks() {
+        let size = (u16::MAX - 128) as usize;
+        let batches: Vec<_> = chunked_with(1, 0..size * 2 + 1).map(|b| b.len()).collect();
+        assert_eq!(batches, vec![size, size, 1]);
+        assert_eq!(chunked_with(1, 0..0).count(), 0);
+    }
 }

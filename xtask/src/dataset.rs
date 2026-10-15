@@ -303,7 +303,7 @@ impl RunContext for Context {
         false
     }
 
-    fn progress(&self, message: String) -> impl Progress + Send + 'static {
+    fn progress(&self, message: String) -> impl Progress + 'static {
         TracingProgress {
             name: format!("{}: {message}", self.name),
             period: Duration::from_secs(15),

@@ -64,7 +64,7 @@ impl ReferenceCreator {
         err(level=tracing::Level::INFO)
     )]
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        for batch in &self.purl_refs.into_iter().chunked() {
+        for batch in self.purl_refs.into_iter().chunked() {
             sbom_node_purl_ref::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([
@@ -80,7 +80,7 @@ impl ReferenceCreator {
                 .await?;
         }
 
-        for batch in &self.cpe_refs.into_iter().chunked() {
+        for batch in self.cpe_refs.into_iter().chunked() {
             sbom_node_cpe_ref::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([

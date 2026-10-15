@@ -664,8 +664,7 @@ impl PurlService {
         let winner_vp_ids: Vec<_> = winner_vp_ids.into_iter().collect();
 
         let base_chunks = chunked_with(1, winner_base_ids.into_iter());
-        for base_chunk in &base_chunks {
-            let base_chunk: Vec<_> = base_chunk.collect();
+        for base_chunk in base_chunks {
             let all_statuses = purl_status::Entity::find()
                 .columns([
                     version_range::Column::Id,
@@ -820,8 +819,7 @@ impl PurlService {
 
         let mut results = Vec::new();
         let key_chunks = chunked_with(3, unique_keys.into_iter());
-        for chunk in &key_chunks {
-            let chunk: Vec<_> = chunk.collect();
+        for chunk in key_chunks {
             let condition = chunk
                 .iter()
                 .fold(Condition::any(), |cond, key| cond.add(key.as_condition()));
@@ -845,8 +843,7 @@ impl PurlService {
 
         let mut by_base: HashMap<_, Vec<_>> = HashMap::new();
         let id_chunks = chunked_with(1, base_purl_ids.into_iter());
-        for chunk in &id_chunks {
-            let chunk: Vec<_> = chunk.collect();
+        for chunk in id_chunks {
             let batch = versioned_purl::Entity::find()
                 .filter(versioned_purl::Column::BasePurlId.is_in(chunk))
                 .all(connection)
@@ -886,8 +883,7 @@ impl PurlService {
         }
 
         let id_chunks = chunked_with(1, base_purl_ids.into_iter());
-        for chunk in &id_chunks {
-            let chunk: Vec<_> = chunk.collect();
+        for chunk in id_chunks {
             let rows: Vec<AdvisoryVersion> = purl_status::Entity::find()
                 .select_only()
                 .column_as(purl_status::Column::BasePurlId, "base_purl_id")

@@ -54,7 +54,7 @@ impl NodeCreator {
 
     #[instrument(skip_all, fields(num=self.nodes.len()), err(level=tracing::Level::INFO))]
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        for batch in &self.nodes.into_iter().chunked() {
+        for batch in self.nodes.into_iter().chunked() {
             sbom_node::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([sbom_node::Column::SbomId, sbom_node::Column::NodeId])
@@ -66,7 +66,7 @@ impl NodeCreator {
                 .await?;
         }
 
-        for batch in &self.checksums.into_iter().chunked() {
+        for batch in self.checksums.into_iter().chunked() {
             sbom_node_checksum::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([

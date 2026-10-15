@@ -47,7 +47,7 @@ impl FileCreator {
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
         self.nodes.create(db).await?;
 
-        for batch in &self.files.into_iter().chunked() {
+        for batch in self.files.into_iter().chunked() {
             sbom_file::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([sbom_file::Column::SbomId, sbom_file::Column::NodeId])

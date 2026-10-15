@@ -68,7 +68,7 @@ impl LicensingInfoCreator {
     where
         C: ConnectionTrait,
     {
-        for batch in &self.license_refs.into_iter().chunked() {
+        for batch in self.license_refs.into_iter().chunked() {
             licensing_infos::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([

@@ -78,7 +78,7 @@ impl MachineLearningModelCreator {
         self.nodes.create(db).await?;
         self.refs.create(db).await?;
 
-        for batch in &self.models.into_iter().chunked() {
+        for batch in self.models.into_iter().chunked() {
             sbom_ai::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([sbom_ai::Column::SbomId, sbom_ai::Column::NodeId])

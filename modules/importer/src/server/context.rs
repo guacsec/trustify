@@ -47,7 +47,7 @@ impl RunContext for ServiceRunContext {
         self.state.lock().await.check().await
     }
 
-    fn progress(&self, _message: String) -> impl Progress + Send + 'static {
+    fn progress(&self, _message: String) -> impl Progress + 'static {
         ServiceProgress::new(self.name.clone(), self.service.clone())
     }
 }

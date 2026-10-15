@@ -86,7 +86,7 @@ impl LicenseCreator {
     where
         C: ConnectionTrait,
     {
-        for batch in &self.licenses.into_values().chunked() {
+        for batch in self.licenses.into_values().chunked() {
             license::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([license::Column::Id])

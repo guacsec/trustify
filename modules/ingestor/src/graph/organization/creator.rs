@@ -89,7 +89,7 @@ impl OrganizationCreator {
 
         // Batch insert with ON CONFLICT (name) DO NOTHING
         // The unique constraint on name prevents duplicates
-        for batch in &models.chunked() {
+        for batch in models.chunked() {
             organization::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()

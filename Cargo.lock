@@ -2293,9 +2293,8 @@ dependencies = [
 
 [[package]]
 name = "csaf-walker"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d1dab2d259f07f8dd0a0c1adcf867aa85090582b6a4d63d0984d00fb3409953"
+version = "0.20.0"
+source = "git+https://github.com/scm-rs/csaf-walker?branch=main#a71244ac12a56522e77419c9aa9198ca71ba035d"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6277,7 +6276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -7062,9 +7061,8 @@ dependencies = [
 
 [[package]]
 name = "sbom-walker"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a0be16effc22ed85e0f3dddac9d8abc472722dec24e3ba434537a6f4944f5a9"
+version = "0.20.0"
+source = "git+https://github.com/scm-rs/csaf-walker?branch=main#a71244ac12a56522e77419c9aa9198ca71ba035d"
 dependencies = [
  "anyhow",
  "bytes",
@@ -10094,9 +10092,8 @@ dependencies = [
 
 [[package]]
 name = "walker-common"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d2ffa904d2bd1b7a05c261ac65f3e504bc2649f7f9e1b0943acc233a3e6a080"
+version = "0.20.0"
+source = "git+https://github.com/scm-rs/csaf-walker?branch=main#a71244ac12a56522e77419c9aa9198ca71ba035d"
 dependencies = [
  "anyhow",
  "async-trait",

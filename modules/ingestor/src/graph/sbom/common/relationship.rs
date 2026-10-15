@@ -191,7 +191,7 @@ impl<ER: ExternalReferenceProcessor> RelationshipCreator<ER> {
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
         self.externals.create(db).await?;
 
-        for batch in &self.rels.into_iter().chunked() {
+        for batch in self.rels.into_iter().chunked() {
             package_relates_to_package::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([

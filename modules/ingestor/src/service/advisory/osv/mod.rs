@@ -28,7 +28,7 @@ pub fn parse(buffer: &[u8]) -> Result<Vulnerability, Error> {
 }
 
 /// extract vulnerability IDs
-pub fn extract_vulnerability_ids(osv: &Vulnerability) -> impl IntoIterator<Item = &str> {
+pub fn extract_vulnerability_ids(osv: &Vulnerability) -> impl Iterator<Item = &str> {
     osv.aliases
         .iter()
         .flat_map(|aliases| aliases.iter().filter(|e| e.starts_with("CVE-")))
@@ -38,7 +38,7 @@ pub fn extract_vulnerability_ids(osv: &Vulnerability) -> impl IntoIterator<Item 
 /// extract scores from OSV
 pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
     // Get all vulnerability IDs upfront
-    let ids: Vec<_> = extract_vulnerability_ids(osv).into_iter().collect();
+    let ids: Vec<_> = extract_vulnerability_ids(osv).collect();
 
     // If no vulnerability IDs, nothing to do
     if ids.is_empty() {

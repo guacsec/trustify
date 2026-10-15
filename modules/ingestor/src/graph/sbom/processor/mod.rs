@@ -10,7 +10,7 @@ mod rh_prod_comp;
 pub use rh_prod_comp::RedHatProductComponentRelationships;
 
 /// A processor for the ingestion process. Allowing to intervene with the ingestion.
-pub trait Processor: Debug {
+pub trait Processor: Debug + Send {
     /// Called exactly once, before all others
     fn init(&mut self, _ctx: InitContext) {}
 

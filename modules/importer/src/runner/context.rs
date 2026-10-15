@@ -2,14 +2,14 @@ use crate::runner::progress::Progress;
 use std::{fmt::Debug, future::Future};
 use tokio::runtime::Handle;
 
-pub trait RunContext: Debug + Send {
+pub trait RunContext: Debug + Send + Sync {
     /// Get the name of the import job
     fn name(&self) -> &str;
 
     /// Check if the run is canceled.
     ///
     /// This is a cooperative way to check if the job needs to be terminated.
-    fn is_canceled(&self) -> impl Future<Output = bool>;
+    fn is_canceled(&self) -> impl Future<Output = bool> + Send;
 
     /// A sync version of [`Self::is_canceled`].
     ///
@@ -28,9 +28,10 @@ pub trait RunContext: Debug + Send {
         }
     }
 
-    fn check_canceled<E, F>(&self, f: F) -> impl Future<Output = Result<(), E>>
+    fn check_canceled<E, F>(&self, f: F) -> impl Future<Output = Result<(), E>> + Send
     where
-        F: FnOnce() -> E,
+        F: FnOnce() -> E + Send,
+        E: Send,
     {
         async {
             match self.is_canceled().await {
@@ -40,7 +41,7 @@ pub trait RunContext: Debug + Send {
         }
     }
 
-    fn progress(&self, #[allow(unused)] message: String) -> impl Progress + Send + 'static {}
+    fn progress(&self, #[allow(unused)] message: String) -> impl Progress + 'static {}
 }
 
 // Handy for testing
@@ -51,5 +52,5 @@ impl RunContext for () {
     async fn is_canceled(&self) -> bool {
         false
     }
-    fn progress(&self, _message: String) -> impl Progress + Send + 'static {}
+    fn progress(&self, _message: String) -> impl Progress + 'static {}
 }

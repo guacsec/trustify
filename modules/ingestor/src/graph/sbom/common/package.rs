@@ -95,7 +95,7 @@ impl PackageCreator {
         self.nodes.create(db).await?;
         self.refs.create(db).await?;
 
-        for batch in &self.packages.into_iter().chunked() {
+        for batch in self.packages.into_iter().chunked() {
             sbom_package::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([
@@ -110,7 +110,7 @@ impl PackageCreator {
                 .await?;
         }
 
-        for batch in &self.sbom_package_licenses.into_iter().chunked() {
+        for batch in self.sbom_package_licenses.into_iter().chunked() {
             sbom_package_license::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([
