@@ -860,11 +860,11 @@ paths:
           type: string
       responses:
         '200':
-          description: Retrieved latest component(s) located by search
+          description: Generated SPDX document when `generate_sbom=true`
           content:
-            application/json:
+            application/spdx+json:
               schema:
-                $ref: '#/components/schemas/PaginatedResults_Node'
+                type: string
         '401':
           description: The user did not provide valid authentication credentials
         '403':
@@ -944,11 +944,11 @@ paths:
           type: string
       responses:
         '200':
-          description: Retrieved latest component(s) located by an exact match of name, pURL, or CPE
+          description: Generated SPDX document when `generate_sbom=true`
           content:
-            application/json:
+            application/spdx+json:
               schema:
-                $ref: '#/components/schemas/PaginatedResults_Node'
+                type: string
         '401':
           description: The user did not provide valid authentication credentials
         '403':
@@ -3181,11 +3181,11 @@ paths:
           type: boolean
       responses:
         '200':
-          description: Matching SBOMs
+          description: Generated SPDX document when `generate_sbom=true`
           content:
-            application/json:
+            application/spdx+json:
               schema:
-                $ref: '#/components/schemas/PaginatedResults_SbomSummary_SbomPackageSummary'
+                type: string
     post:
       tags:
       - sbom
