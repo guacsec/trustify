@@ -3,7 +3,7 @@ use crate::graph::sbom::{
 };
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait, Set};
 use sea_query::OnConflict;
-use serde_cyclonedx::cyclonedx::v_1_6::Component;
+use serde_cyclonedx::cyclonedx::v_1_7::Component;
 use serde_json::{Map, Value};
 use trustify_common::db::chunk::EntityChunkedIter;
 use trustify_entity::sbom_ai;

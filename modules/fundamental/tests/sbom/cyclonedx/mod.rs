@@ -6,7 +6,7 @@ mod purl;
 mod reingest;
 
 use super::*;
-use serde_cyclonedx::cyclonedx::v_1_6::CycloneDx;
+use serde_cyclonedx::cyclonedx::v_1_7::CycloneDx;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -142,8 +142,7 @@ async fn parse_cyclonedx_1dot6(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
 }
 
 /// Verifies that a CycloneDX 1.7 SBOM ingests and exposes its packages, authors,
-/// and suppliers the same way a 1.6 SBOM does (1.7-only fields are ignored by the
-/// current `v_1_6` deserialization path).
+/// and suppliers the same way a 1.6 SBOM does.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn parse_cyclonedx_1dot7(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
