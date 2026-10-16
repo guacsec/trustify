@@ -45,6 +45,7 @@ visible but does not vote. All multipliers must be finite and nonnegative.
 | Factor | Default |
 |---|---:|
 | Same provider as the SBOM component | 2 |
+| Same provider name as the SBOM component, unverified | 1.5 |
 | Providerless, with matching-provider evidence | 1 |
 | Providerless fallback, without matching-provider evidence | 2 |
 | Other or unidentified provider | 0.5 |
@@ -72,7 +73,9 @@ supplier. Distribution/build and package namespace mappings precede this fallbac
 upstream CPE mapping is only used afterward. Unresolved explicit suppliers remain unidentified.
 
 Names require exact configured aliases after case/whitespace normalization and removal of the
-SPDX `Organization:` prefix. Namespace identities trim trailing slashes. CVE organization IDs
+SPDX `Organization:` prefix to resolve to a provider. Without an alias, an assertion stating the
+same name as the component still counts as an unverified match, with its own weight, unless both
+sides resolve to different providers. Namespace identities trim trailing slashes. CVE organization IDs
 and CNA/ADP container identities are preserved per assertion. Explicit alias mappings can join
 names, namespaces, organization IDs, PURL namespaces, distributions, and CPE vendors. Conflicting
 identities are diagnosed rather than guessed. Red Hat and SUSE mappings are seeded.

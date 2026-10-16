@@ -245,6 +245,7 @@ impl CorrelationService {
                 .zip(&inputs)
                 .map(|(row, input)| {
                     let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
+                    let provider = policy.provider(&input.provider, "assertion source");
 
                     EvidenceDetail {
                         id: row.id,
@@ -262,7 +263,8 @@ impl CorrelationService {
                                 .ok()
                         }),
                         contexts: contexts.remove(&row.id).unwrap_or_default(),
-                        provider: policy.provider(&input.provider, "assertion source"),
+                        provider_match: weighting::provider_match(&component_provider, &provider),
+                        provider,
                         created_at: row.created_at,
                     }
                 })

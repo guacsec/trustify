@@ -46,6 +46,11 @@ fn weight_editor(props: &WeightEditorProps) -> Html {
     };
     let fields = [
         ("matching_provider", "Matching provider", "2"),
+        (
+            "matching_provider_name",
+            "Same provider name (unverified)",
+            "1.5",
+        ),
         ("providerless", "Generic alongside matching provider", "1"),
         ("providerless_fallback", "Generic fallback", "2"),
         ("other_provider", "Other or unidentified provider", "0.5"),
@@ -277,6 +282,7 @@ impl TableEntryRenderer<WeightColumn> for WeightEntry {
 fn factor_label(key: &str) -> String {
     match key {
         "matching_provider" => "Matching provider".into(),
+        "matching_provider_name" => "Same provider name (unverified)".into(),
         "providerless" => "Generic alongside matching provider".into(),
         "providerless_fallback" => "Generic fallback".into(),
         "other_provider" => "Other or unidentified provider".into(),

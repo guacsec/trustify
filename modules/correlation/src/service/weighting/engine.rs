@@ -1,5 +1,5 @@
 use crate::{error::Error, model::*};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
@@ -23,6 +23,7 @@ impl Default for EffectivePolicy {
     fn default() -> Self {
         let settings = [
             ("matching_provider", 2.0),
+            ("matching_provider_name", 1.5),
             ("providerless", 1.0),
             ("providerless_fallback", 2.0),
             ("other_provider", 0.5),
@@ -195,6 +196,7 @@ pub fn normalize_reference(value: &str) -> String {
 pub fn validate_weights(patch: &WeightOverrides) -> Result<(), Error> {
     for (key, value) in [
         ("matching_provider", patch.matching_provider),
+        ("matching_provider_name", patch.matching_provider_name),
         ("providerless", patch.providerless),
         ("providerless_fallback", patch.providerless_fallback),
         ("other_provider", patch.other_provider),
@@ -303,6 +305,37 @@ pub struct Decision {
     pub winning_advisory: Option<Uuid>,
 }
 
+/// Matches the provider of an assertion against the provider of the component.
+///
+/// Names match only when at most one side resolved to a provider: two different resolved
+/// providers outweigh an equal display name.
+pub fn provider_match(
+    component: &ProviderResolution,
+    assertion: &ProviderResolution,
+) -> Option<ProviderMatch> {
+    if component.provider.is_some() && assertion.provider == component.provider {
+        return Some(ProviderMatch::Provider);
+    }
+    if component.provider.is_some() && assertion.provider.is_some() {
+        return None;
+    }
+    let names = |p: &ProviderResolution| {
+        p.identifiers
+            .iter()
+            .filter(|id| id.starts_with("name:"))
+            .map(|id| normalize_reference(id))
+            .collect::<BTreeSet<_>>()
+    };
+    (!names(component).is_disjoint(&names(assertion))).then_some(ProviderMatch::Name)
+}
+
+fn matching_factor(provider_match: ProviderMatch) -> &'static str {
+    match provider_match {
+        ProviderMatch::Provider => "matching_provider",
+        ProviderMatch::Name => "matching_provider_name",
+    }
+}
+
 pub fn resolve(
     evidence: &[DecisionEvidence],
     component: ProviderResolution,
@@ -327,24 +360,33 @@ pub fn resolve(
             policy.factor(&format!("rules.{}", e.extractor)),
         ]
     };
-    let matching_available = component.provider.is_some()
-        && evidence.iter().zip(&providers).any(|(e, p)| {
-            status(e.status).is_some()
-                && p.provider == component.provider
-                && e.confidence > 0.0
-                && policy.factor("matching_provider").multiplier > 0.0
-                && (e.confidence
-                    * policy.factor("matching_provider").multiplier
-                    * factors(e, p).iter().map(|f| f.multiplier).product::<f64>()
-                    * 1_000_000.0)
-                    .round()
-                    > 0.0
+    let matches = providers
+        .iter()
+        .map(|p| provider_match(&component, p))
+        .collect::<Vec<_>>();
+    let matching_available = evidence
+        .iter()
+        .zip(&providers)
+        .zip(&matches)
+        .any(|((e, p), m)| {
+            m.is_some_and(|m| {
+                let matching = policy.factor(matching_factor(m)).multiplier;
+                status(e.status).is_some()
+                    && e.confidence > 0.0
+                    && matching > 0.0
+                    && (e.confidence
+                        * matching
+                        * factors(e, p).iter().map(|f| f.multiplier).product::<f64>()
+                        * 1_000_000.0)
+                        .round()
+                        > 0.0
+            })
         });
     let mut details = Vec::new();
     let mut best = BTreeMap::<u8, (VerdictStatus, usize)>::new();
-    for (e, provider) in evidence.iter().zip(providers) {
-        let relation = if component.provider.is_some() && provider.provider == component.provider {
-            "matching_provider"
+    for ((e, provider), provider_match) in evidence.iter().zip(providers).zip(matches) {
+        let relation = if let Some(provider_match) = provider_match {
+            matching_factor(provider_match)
         } else if e.provider.identifiers.is_empty() && !e.provider.unavailable {
             if matching_available {
                 "providerless"
@@ -683,6 +725,86 @@ mod tests {
                 .provider
                 .diagnostics
                 .is_empty()
+        );
+    }
+
+    fn stated(id: &str, status: ApiAssertionStatus, identifiers: &[&str]) -> DecisionEvidence {
+        DecisionEvidence {
+            provider: ProviderIdentity {
+                identifiers: identifiers.iter().map(|id| id.to_string()).collect(),
+                ..Default::default()
+            },
+            ..evidence(id, status, 1.0, AssertionOrigin::Stated, None)
+        }
+    }
+
+    fn resolution(provider: Option<&str>, identifiers: &[&str]) -> ProviderResolution {
+        ProviderResolution {
+            provider: provider.map(Into::into),
+            identifiers: identifiers.iter().map(|id| id.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn same_provider_name_is_a_weaker_match() {
+        let policy = EffectivePolicy::default();
+        // The SBOM states only a supplier name, which no alias maps.
+        let component = resolution(None, &["name:Provider A"]);
+        let input = [
+            stated(
+                "a",
+                ApiAssertionStatus::Fixed,
+                &["cve-org:aaa", "name:PROVIDER A "],
+            ),
+            stated(
+                "b",
+                ApiAssertionStatus::Affected,
+                &["cve-org:bbb", "name:Provider B"],
+            ),
+            stated("generic", ApiAssertionStatus::Affected, &[]),
+        ];
+        let decision = resolve(&input, component, &policy, true).unwrap();
+        let weights = decision
+            .summary
+            .explanation
+            .unwrap()
+            .evidence
+            .into_iter()
+            .map(|e| (e.evidence_ref, e.factors[0].factor.clone(), e.weight))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            weights,
+            vec![
+                ("a".into(), "matching_provider_name".into(), 1.875),
+                ("b".into(), "other_provider".into(), 0.625),
+                // A name match suppresses the generic fallback boost.
+                ("generic".into(), "providerless".into(), 1.25),
+            ]
+        );
+        assert_eq!(decision.status, VerdictStatus::Fixed);
+    }
+
+    #[test]
+    fn different_resolved_providers_do_not_match_by_name() {
+        let name = ["name:Provider A"];
+        assert_eq!(
+            [
+                provider_match(&resolution(Some("X"), &name), &resolution(Some("X"), &[])),
+                provider_match(&resolution(Some("X"), &name), &resolution(Some("Y"), &name)),
+                provider_match(&resolution(Some("X"), &name), &resolution(None, &name)),
+                provider_match(&resolution(None, &name), &resolution(Some("Y"), &name)),
+                provider_match(&resolution(None, &name), &resolution(None, &["name:B"])),
+                provider_match(&resolution(None, &[]), &resolution(None, &[])),
+            ],
+            [
+                Some(ProviderMatch::Provider),
+                None,
+                Some(ProviderMatch::Name),
+                Some(ProviderMatch::Name),
+                None,
+                None,
+            ]
         );
     }
 }

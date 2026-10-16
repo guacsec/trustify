@@ -4,7 +4,7 @@ use crate::{
     api,
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
-        IdentifierRef, MatchedValue, VerdictStatus, VerdictSummary,
+        IdentifierRef, MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
     },
     weighting::provider_view,
 };
@@ -186,10 +186,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </StackItem>
                 <StackItem>
                     <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
-                    <EvidenceTable
-                        evidence={evidence.clone()}
-                        component_provider={self.0.component_provider.provider.clone()}
-                    />
+                    <EvidenceTable evidence={evidence.clone()} />
                 </StackItem>
             </Stack>
         };
@@ -214,9 +211,8 @@ enum EvidenceColumn {
     Created,
 }
 
-/// An evidence row, with the resolved provider of the component it was matched against.
 #[derive(Clone, PartialEq)]
-struct EvidenceEntry(EvidenceDetail, Option<String>);
+struct EvidenceEntry(EvidenceDetail);
 
 impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
     fn render_cell(&self, context: CellContext<'_, EvidenceColumn>) -> Cell {
@@ -232,12 +228,16 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
             },
             EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
             EvidenceColumn::Provider => {
-                let same = self.1.is_some() && self.0.provider.provider == self.1;
+                let same = match self.0.provider_match {
+                    Some(ProviderMatch::Provider) => Some(("Same as component", Color::Green)),
+                    Some(ProviderMatch::Name) => Some(("Same name as component", Color::Blue)),
+                    None => None,
+                };
                 html! {
                     <>
                         { provider_view(&self.0.provider) }
-                        if same {
-                            <div><Label compact=true label="Same as component" color={Color::Green}/></div>
+                        if let Some((label, color)) = same {
+                            <div><Label compact=true {label} {color}/></div>
                         }
                     </>
                 }
@@ -257,20 +257,16 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct EvidenceTableProps {
     evidence: Vec<EvidenceDetail>,
-    component_provider: Option<String>,
 }
 
 #[function_component(EvidenceTable)]
 fn evidence_table(props: &EvidenceTableProps) -> Html {
-    let entries = use_memo(
-        (props.evidence.clone(), props.component_provider.clone()),
-        |(evidence, component_provider)| {
-            evidence
-                .iter()
-                .map(|e| EvidenceEntry(e.clone(), component_provider.clone()))
-                .collect::<Vec<_>>()
-        },
-    );
+    let entries = use_memo(props.evidence.clone(), |evidence| {
+        evidence
+            .iter()
+            .map(|e| EvidenceEntry(e.clone()))
+            .collect::<Vec<_>>()
+    });
 
     let (entries, _) = use_table_data(MemoizedTableModel::new(entries));
 

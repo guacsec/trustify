@@ -3,6 +3,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
+/// How the provider of an assertion matches the provider of the SBOM component.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderMatch {
+    /// Both resolve to the same provider.
+    Provider,
+    /// Both state the same provider name, and they do not resolve to different providers.
+    Name,
+}
+
 /// Identifiers claimed by a supplier or assertion source, before applying provider aliases.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -49,6 +60,8 @@ pub enum PolicyScope {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct WeightOverrides {
     pub matching_provider: Option<f64>,
+    /// Unverified match: both sides state the same provider name, but no alias maps it.
+    pub matching_provider_name: Option<f64>,
     pub providerless: Option<f64>,
     pub providerless_fallback: Option<f64>,
     pub other_provider: Option<f64>,

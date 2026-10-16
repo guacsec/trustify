@@ -6568,6 +6568,11 @@ components:
         provider:
           $ref: '#/components/schemas/ProviderResolution'
           description: The provider making the assertion, as resolved by the weighting policy.
+        provider_match:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ProviderMatch'
+            description: How the provider matches the provider of the component, if at all.
     EvidenceWeight:
       type: object
       required:
@@ -8775,6 +8780,12 @@ components:
         unavailable:
           type: boolean
           description: True when the source predates provider attribution and cannot be recovered safely.
+    ProviderMatch:
+      type: string
+      description: How the provider of an assertion matches the provider of the SBOM component.
+      enum:
+      - provider
+      - name
     ProviderResolution:
       type: object
       required:
@@ -10387,6 +10398,12 @@ components:
           - number
           - 'null'
           format: double
+        matching_provider_name:
+          type:
+          - number
+          - 'null'
+          format: double
+          description: 'Unverified match: both sides state the same provider name, but no alias maps it.'
         other_provider:
           type:
           - number

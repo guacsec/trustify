@@ -143,6 +143,9 @@ pub struct EvidenceDetail {
     /// The provider making the assertion, as resolved by the weighting policy.
     #[serde(default)]
     pub provider: ProviderResolution,
+    /// How the provider matches the provider of the component, if at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_match: Option<ProviderMatch>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
