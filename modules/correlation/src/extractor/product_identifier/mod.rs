@@ -282,10 +282,13 @@ async fn load_sbom_product_identifiers_by_values(
 mod test {
     use super::*;
     use crate::extractor::Extractors;
-    use sea_orm::TransactionTrait;
+    use sea_orm::{QueryOrder, TransactionTrait};
     use test_context::test_context;
     use test_log::test;
-    use trustify_entity::correlation_evidence;
+    use trustify_entity::{
+        correlation_evidence, correlation_evidence_context,
+        correlation_evidence_context::ContextSource,
+    };
     use trustify_test_context::TrustifyContext;
 
     const EXTRACTOR_ID: &str = "product_identifier";
@@ -346,9 +349,24 @@ mod test {
             !evidence.is_empty(),
             "SKU-based evidence should exist between SBOM and advisory"
         );
-        // stated for a product (a context), which the SBOM component can't be compared with
-        assert_eq!(evidence[0].confidence, 0.7);
+        // stated for a product (a context) with the same SKUs as the SBOM component
+        assert_eq!(evidence[0].confidence, 1.0);
         assert_eq!(evidence[0].vulnerability_id, "CVE-2025-41725");
+        let links = correlation_evidence_context::Entity::find()
+            .filter(correlation_evidence_context::Column::EvidenceId.eq(evidence[0].id))
+            .order_by_asc(correlation_evidence_context::Column::NodeIdentifier)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|link| (link.source, link.node_identifier, link.confidence))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            links,
+            vec![
+                (ContextSource::Node, "sku:050036337366".to_string(), 1.0),
+                (ContextSource::Node, "sku:6925281924439".to_string(), 1.0),
+            ]
+        );
 
         Ok(())
     }
@@ -484,6 +502,17 @@ mod test {
             "wildcard SKU-based evidence should exist"
         );
         assert_eq!(evidence[0].vulnerability_id, "CVE-2026-50001");
+        // the device's SKU confirms the wildcard SKU of the product; the firmware (a sibling of
+        // the device) has nothing confirming it
+        let mut confidences = evidence
+            .iter()
+            .map(|e| (e.node_id.as_str(), e.confidence))
+            .collect::<Vec<_>>();
+        confidences.sort_by(|a, b| a.0.cmp(b.0));
+        assert_eq!(
+            confidences,
+            vec![("comp-flip4-device", 1.0), ("comp-flip4-fw", 0.7)]
+        );
 
         Ok(())
     }

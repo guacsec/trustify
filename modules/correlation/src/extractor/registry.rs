@@ -200,6 +200,7 @@ impl Extractors {
                 match context::scope(
                     assertion.context_id.and_then(|id| contexts.get(&id)),
                     &node,
+                    &[],
                     assertion.requires_context,
                 ) {
                     Scope::Dropped => continue,

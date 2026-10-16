@@ -3,7 +3,8 @@
 //! An advisory states most assertions about a component *in a product* (its context, see
 //! `assertion_context`). A node of an SBOM is put into products by the CPEs around it: its own,
 //! the ones of its ancestors in the SBOM, the SBOM's describing CPEs, and the describing CPEs of
-//! ancestor SBOMs. Like the RPM stream scoping, an assertion is kept for a node whose contexts
+//! ancestor SBOMs. Exact product identifiers (SKUs, model and serial numbers, digests) of the node
+//! or its ancestors confirm a context stating the same identifier. Like the RPM stream scoping, an assertion is kept for a node whose contexts
 //! match, dropped for one whose contexts are comparable but don't match, and kept unscoped
 //! otherwise, unless it requires a context (e.g. a versionless statement, which identifies the
 //! package only through its product).
@@ -13,17 +14,19 @@
 
 use crate::{
     error::Error,
-    extractor::{Assertion, NodeRef},
+    extractor::{Assertion, NodeRef, product_identifier::wildcard::csaf_glob_matches},
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter, Statement,
+    ActiveEnum, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter,
+    Statement,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use tracing::{Instrument, info_span};
+use trustify_common::hashing::normalize_algorithm;
 use trustify_common::purl::Purl;
 use trustify_entity::{
-    assertion_context, assertion_context_identifier,
-    assertion_context_identifier::ContextIdentifierKind,
+    advisory_vulnerability_product_identifier::ProductIdentifierType, assertion_context,
+    assertion_context_identifier, assertion_context_identifier::ContextIdentifierKind,
     correlation_evidence_context::ContextSource, cpe, qualified_purl, sbom_node_purl_ref,
 };
 use uuid::Uuid;
@@ -65,28 +68,81 @@ pub struct NodeCpe {
 impl NodeCpe {
     /// The confidence of a context from this CPE.
     pub fn confidence(&self) -> f64 {
-        let decreasing = |(start, step, min): (f64, f64, f64)| {
-            (start - step * f64::from((self.distance - 1).max(0))).max(min)
-        };
-        match self.source {
-            ContextSource::Node => NODE,
-            ContextSource::AncestorNode => decreasing(ANCESTOR_NODE),
-            ContextSource::Describing => DESCRIBING,
-            ContextSource::AncestorSbom => decreasing(ANCESTOR_SBOM),
-            ContextSource::PurlQualifier => PURL_QUALIFIER,
-            ContextSource::PurlRelease => PURL_RELEASE,
-        }
+        source_confidence(self.source, self.distance)
     }
 }
 
-/// An assertion context, with its CPEs.
+/// An exact product identifier (SKU, model or serial number, digest) of a node or its ancestor.
+#[derive(Clone, Debug, PartialEq)]
+pub struct NodeIdentifier {
+    pub kind: ContextIdentifierKind,
+    /// The value, a digest as `<algorithm>:<value>` with a normalized algorithm, in lowercase.
+    pub value: String,
+    /// [`ContextSource::Node`] or [`ContextSource::AncestorNode`].
+    pub source: ContextSource,
+    /// Hops to the node, 0 for its own identifier.
+    pub distance: i32,
+}
+
+/// The confidence of a context from the given source, at the given distance.
+fn source_confidence(source: ContextSource, distance: i32) -> f64 {
+    let decreasing = |(start, step, min): (f64, f64, f64)| {
+        (start - step * f64::from((distance - 1).max(0))).max(min)
+    };
+    match source {
+        ContextSource::Node => NODE,
+        ContextSource::AncestorNode => decreasing(ANCESTOR_NODE),
+        ContextSource::Describing => DESCRIBING,
+        ContextSource::AncestorSbom => decreasing(ANCESTOR_SBOM),
+        ContextSource::PurlQualifier => PURL_QUALIFIER,
+        ContextSource::PurlRelease => PURL_RELEASE,
+    }
+}
+
+/// The kinds of context identifiers which identify a product exactly, compared for equality.
+fn is_exact(kind: ContextIdentifierKind) -> bool {
+    match kind {
+        ContextIdentifierKind::Sku
+        | ContextIdentifierKind::ModelNumber
+        | ContextIdentifierKind::SerialNumber
+        | ContextIdentifierKind::Digest => true,
+        ContextIdentifierKind::Cpe | ContextIdentifierKind::Purl => false,
+    }
+}
+
+/// Digests compare case insensitively, other identifiers exactly.
+fn normalize_identifier(kind: ContextIdentifierKind, value: &str) -> String {
+    match kind {
+        ContextIdentifierKind::Digest => value.to_lowercase(),
+        _ => value.to_string(),
+    }
+}
+
+/// Match a context identifier against a node identifier of the same kind. Like the product
+/// identifier rule, SKUs, model and serial numbers of a context may use CSAF wildcards (`*`, `?`);
+/// digests compare equal.
+fn identifier_matches(kind: ContextIdentifierKind, context: &str, node: &str) -> bool {
+    match kind {
+        ContextIdentifierKind::Digest => context == node,
+        _ => csaf_glob_matches(context, node),
+    }
+}
+
+/// An identifier as recorded on a context link, e.g. `sku:6925281924439`.
+fn format_identifier(kind: ContextIdentifierKind, value: &str) -> String {
+    format!("{}:{value}", kind.to_value())
+}
+
+/// An assertion context, with its CPEs and exact product identifiers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AssertionContext {
     pub context: assertion_context::Model,
     pub cpes: Vec<cpe::Model>,
+    /// The exact product identifiers (see [`is_exact`]), normalized for comparison.
+    pub identifiers: Vec<(ContextIdentifierKind, String)>,
 }
 
-/// A context of an assertion matched by a node CPE.
+/// A context of an assertion matched by a node CPE or exact product identifier.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ContextLink {
     pub context_id: Uuid,
@@ -112,10 +168,14 @@ pub enum Scope {
     Dropped,
 }
 
-/// Scope an assertion with the given context against the CPEs of a node.
+/// Scope an assertion with the given context against the CPEs and exact identifiers of a node.
+///
+/// A different identifier doesn't make a context comparable: a product has several (e.g. regional
+/// SKUs), so only an equal one tells something.
 pub fn scope(
     context: Option<&AssertionContext>,
     node: &[NodeCpe],
+    node_identifiers: &[NodeIdentifier],
     requires_context: bool,
 ) -> Scope {
     let unscoped = |confidence| match requires_context {
@@ -148,6 +208,25 @@ pub fn scope(
                 context_identifier: format_cpe(context_cpe),
                 confidence: round(node_cpe.confidence() * factor),
             });
+        }
+    }
+    for (kind, value) in &context.identifiers {
+        for node_identifier in node_identifiers {
+            if node_identifier.kind == *kind
+                && identifier_matches(*kind, value, &node_identifier.value)
+            {
+                links.push(ContextLink {
+                    context_id: context.context.id,
+                    source: node_identifier.source,
+                    distance: node_identifier.distance,
+                    node_identifier: format_identifier(*kind, &node_identifier.value),
+                    context_identifier: format_identifier(*kind, value),
+                    confidence: round(source_confidence(
+                        node_identifier.source,
+                        node_identifier.distance,
+                    )),
+                });
+            }
         }
     }
 
@@ -314,7 +393,7 @@ pub fn format_cpe(model: &cpe::Model) -> String {
     )
 }
 
-/// Load assertion contexts, with their CPEs.
+/// Load assertion contexts, with their CPEs and exact product identifiers.
 pub async fn load_contexts<C: ConnectionTrait>(
     ids: impl IntoIterator<Item = Uuid>,
     connection: &C,
@@ -363,7 +442,24 @@ pub async fn load_contexts<C: ConnectionTrait>(
                 .filter_map(|identifier| identifier.cpe_id)
                 .filter_map(|id| cpes.get(&id).cloned())
                 .collect();
-            (context.id, AssertionContext { context, cpes })
+            let identifiers = identifiers
+                .iter()
+                .filter(|identifier| is_exact(identifier.kind))
+                .map(|identifier| {
+                    (
+                        identifier.kind,
+                        normalize_identifier(identifier.kind, &identifier.value),
+                    )
+                })
+                .collect();
+            (
+                context.id,
+                AssertionContext {
+                    context,
+                    cpes,
+                    identifiers,
+                },
+            )
         })
         .collect())
 }
@@ -371,6 +467,27 @@ pub async fn load_contexts<C: ConnectionTrait>(
 /// Relationships from a parent (left) to a child (right) node, by their stored value: contains,
 /// the dependencies, ancestor of, variant, and describes.
 const PARENT_RELATIONSHIPS: &str = "0, 1, 2, 3, 4, 5, 6, 9, 10, 13";
+
+/// The nodes (bound as `$1` SBOM IDs and `$2` node IDs), and their ancestors `up` within the SBOM,
+/// with the distance (0 for the node itself).
+fn ancestors() -> String {
+    format!(
+        r#"
+WITH RECURSIVE
+node AS (
+    SELECT DISTINCT * FROM unnest($1::uuid[], $2::text[]) AS n(sbom_id, node_id)
+),
+up(sbom_id, node_id, ancestor_id, distance) AS (
+    SELECT sbom_id, node_id, node_id, 0 FROM node
+    UNION
+    SELECT up.sbom_id, up.node_id, r.left_node_id, up.distance + 1
+    FROM up
+    JOIN package_relates_to_package r
+      ON r.sbom_id = up.sbom_id AND r.right_node_id = up.ancestor_id
+    WHERE r.relationship IN ({PARENT_RELATIONSHIPS}) AND up.distance < {MAX_DEPTH}
+)"#
+    )
+}
 
 #[derive(FromQueryResult)]
 struct NodeCpeRow {
@@ -398,21 +515,10 @@ pub async fn load_node_cpes<C: ConnectionTrait>(
         .unzip();
 
     // SAFETY: only constants are interpolated, the values are bound.
+    let ancestors = ancestors();
     let sql = format!(
         r#"
-WITH RECURSIVE
-node AS (
-    SELECT DISTINCT * FROM unnest($1::uuid[], $2::text[]) AS n(sbom_id, node_id)
-),
-up(sbom_id, node_id, ancestor_id, distance) AS (
-    SELECT sbom_id, node_id, node_id, 0 FROM node
-    UNION
-    SELECT up.sbom_id, up.node_id, r.left_node_id, up.distance + 1
-    FROM up
-    JOIN package_relates_to_package r
-      ON r.sbom_id = up.sbom_id AND r.right_node_id = up.ancestor_id
-    WHERE r.relationship IN ({PARENT_RELATIONSHIPS}) AND up.distance < {MAX_DEPTH}
-),
+{ancestors},
 ancestor_sbom(sbom_id, ancestor_sbom_id, hops) AS (
     SELECT a.sbom_id, a.ancestor_sbom_id, 1
     FROM sbom_ancestor a JOIN (SELECT DISTINCT sbom_id FROM node) s ON s.sbom_id = a.sbom_id
@@ -527,12 +633,104 @@ async fn load_rpm_contexts<C: ConnectionTrait>(
     Ok(result)
 }
 
+#[derive(FromQueryResult)]
+struct NodeIdentifierRow {
+    sbom_id: Uuid,
+    node_id: String,
+    distance: i32,
+    /// The type of a product identifier, `None` for a digest.
+    identifier_type: Option<ProductIdentifierType>,
+    /// The algorithm of a digest.
+    algorithm: Option<String>,
+    value: String,
+}
+
+/// The exact product identifiers of the given nodes and their ancestors.
+pub async fn load_node_identifiers<C: ConnectionTrait>(
+    nodes: impl IntoIterator<Item = NodeRef>,
+    connection: &C,
+) -> Result<BTreeMap<NodeRef, Vec<NodeIdentifier>>, Error> {
+    let nodes = nodes.into_iter().collect::<BTreeSet<_>>();
+    if nodes.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let (sboms, node_ids): (Vec<_>, Vec<_>) = nodes
+        .iter()
+        .map(|node| (node.sbom_id, node.node_id.clone()))
+        .unzip();
+
+    // SAFETY: only constants are interpolated, the values are bound.
+    let ancestors = ancestors();
+    let sql = format!(
+        r#"
+{ancestors},
+identifier(sbom_id, node_id, identifier_type, algorithm, value) AS (
+    SELECT sbom_id, node_id, identifier_type, NULL, value FROM sbom_node_product_identifier
+    UNION ALL
+    SELECT sbom_id, node_id, NULL, type, value FROM sbom_node_checksum
+)
+SELECT up.sbom_id, up.node_id, min(up.distance)::int4 AS distance,
+       i.identifier_type::text AS identifier_type, i.algorithm, i.value
+FROM up
+JOIN identifier i ON i.sbom_id = up.sbom_id AND i.node_id = up.ancestor_id
+GROUP BY up.sbom_id, up.node_id, i.identifier_type, i.algorithm, i.value
+"#
+    );
+
+    let rows = NodeIdentifierRow::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [sboms.into(), node_ids.into()],
+    ))
+    .all(connection)
+    .instrument(info_span!("loading node identifiers"))
+    .await?;
+
+    let mut result = BTreeMap::<NodeRef, Vec<NodeIdentifier>>::new();
+    for row in rows {
+        let (kind, value) = match (row.identifier_type, row.algorithm) {
+            (Some(ProductIdentifierType::Sku), _) => (ContextIdentifierKind::Sku, row.value),
+            (Some(ProductIdentifierType::ModelNumber), _) => {
+                (ContextIdentifierKind::ModelNumber, row.value)
+            }
+            (Some(ProductIdentifierType::SerialNumber), _) => {
+                (ContextIdentifierKind::SerialNumber, row.value)
+            }
+            (None, algorithm) => (
+                ContextIdentifierKind::Digest,
+                format!(
+                    "{}:{}",
+                    normalize_algorithm(algorithm.as_deref().unwrap_or_default()),
+                    row.value
+                ),
+            ),
+        };
+        result
+            .entry(NodeRef {
+                sbom_id: row.sbom_id,
+                node_id: row.node_id,
+            })
+            .or_default()
+            .push(NodeIdentifier {
+                value: normalize_identifier(kind, &value),
+                kind,
+                source: match row.distance {
+                    0 => ContextSource::Node,
+                    _ => ContextSource::AncestorNode,
+                },
+                distance: row.distance,
+            });
+    }
+    Ok(result)
+}
+
 /// Scopes the assertions of an extraction by context, loading (and caching) the contexts of the
 /// assertions and the CPEs of the nodes as needed.
 #[derive(Default)]
 pub struct Scoper {
     contexts: HashMap<Uuid, AssertionContext>,
     node_cpes: BTreeMap<NodeRef, Vec<NodeCpe>>,
+    node_identifiers: BTreeMap<NodeRef, Vec<NodeIdentifier>>,
 }
 
 impl Scoper {
@@ -563,11 +761,14 @@ impl Scoper {
 
         self.contexts
             .extend(load_contexts(contexts, connection).await?);
-        // nodes without CPEs are cached too, as having none
-        let mut loaded = load_node_cpes(nodes.iter().cloned(), connection).await?;
+        // nodes without CPEs or identifiers are cached too, as having none
+        let mut cpes = load_node_cpes(nodes.iter().cloned(), connection).await?;
+        let mut identifiers = load_node_identifiers(nodes.iter().cloned(), connection).await?;
         for node in nodes {
-            let cpes = loaded.remove(&node).unwrap_or_default();
-            self.node_cpes.insert(node, cpes);
+            self.node_cpes
+                .insert(node.clone(), cpes.remove(&node).unwrap_or_default());
+            self.node_identifiers
+                .insert(node.clone(), identifiers.remove(&node).unwrap_or_default());
         }
         Ok(())
     }
@@ -582,7 +783,17 @@ impl Scoper {
             .get(node)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        scope(context, node_cpes, assertion.requires_context)
+        let node_identifiers = self
+            .node_identifiers
+            .get(node)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        scope(
+            context,
+            node_cpes,
+            node_identifiers,
+            assertion.requires_context,
+        )
     }
 }
 
@@ -619,6 +830,7 @@ mod test {
                 name: "product".into(),
             },
             cpes: cpes.iter().map(|value| cpe(value)).collect(),
+            identifiers: vec![],
         }
     }
 
@@ -710,6 +922,7 @@ mod test {
                     0,
                 ),
             ],
+            &[],
             false,
         );
         let Scope::Matched { confidence, links } = result else {
@@ -758,7 +971,7 @@ mod test {
             None => Scope::Dropped,
         };
         assert_eq!(
-            scope(assertion.as_ref(), &node_cpes, requires_context),
+            scope(assertion.as_ref(), &node_cpes, &[], requires_context),
             expected
         );
     }
@@ -772,6 +985,7 @@ mod test {
                 "cpe:/o:suse:sle-module-basesystem:15:sp6",
             ])),
             &[node("cpe:/o:suse::15:sp6", ContextSource::PurlQualifier, 0)],
+            &[],
             true,
         );
         let Scope::Matched { confidence, links } = result else {
@@ -780,6 +994,111 @@ mod test {
         // the qualifier (0.85), through ANY (0.9)
         assert_eq!(confidence, 0.77);
         assert_eq!(links.len(), 2);
+    }
+
+    /// A context with exact product identifiers, but no CPEs.
+    fn identified(identifiers: &[(ContextIdentifierKind, &str)]) -> AssertionContext {
+        AssertionContext {
+            identifiers: identifiers
+                .iter()
+                .map(|(kind, value)| (*kind, normalize_identifier(*kind, value)))
+                .collect(),
+            ..context(&[])
+        }
+    }
+
+    fn node_identifier(kind: ContextIdentifierKind, value: &str, distance: i32) -> NodeIdentifier {
+        NodeIdentifier {
+            kind,
+            value: normalize_identifier(kind, value),
+            source: match distance {
+                0 => ContextSource::Node,
+                _ => ContextSource::AncestorNode,
+            },
+            distance,
+        }
+    }
+
+    /// An equal exact identifier confirms the context, like a CPE of the same source would.
+    #[rstest]
+    #[case::own_sku(ContextIdentifierKind::Sku, "6925281924439", "6925281924439", 0, 1.0)]
+    #[case::parent_sku(ContextIdentifierKind::Sku, "6925281924439", "6925281924439", 1, 0.9)]
+    #[case::model_number(ContextIdentifierKind::ModelNumber, "Flip 4", "Flip 4", 0, 1.0)]
+    #[case::digest_case(ContextIdentifierKind::Digest, "sha256:ABCD", "sha256:abcd", 0, 1.0)]
+    fn matched_by_identifier(
+        #[case] kind: ContextIdentifierKind,
+        #[case] context_value: &str,
+        #[case] node_value: &str,
+        #[case] distance: i32,
+        #[case] expected: f64,
+    ) {
+        let node = node_identifier(kind, node_value, distance);
+        let identifier = format_identifier(kind, &node.value);
+        assert_eq!(
+            scope(
+                Some(&identified(&[(kind, context_value)])),
+                &[],
+                std::slice::from_ref(&node),
+                true,
+            ),
+            Scope::Matched {
+                confidence: expected,
+                links: vec![ContextLink {
+                    context_id: Uuid::nil(),
+                    source: node.source,
+                    distance,
+                    node_identifier: identifier.clone(),
+                    context_identifier: identifier,
+                    confidence: expected,
+                }],
+            }
+        );
+    }
+
+    /// A context SKU with CSAF wildcards matches, the link records both sides.
+    #[test]
+    fn matched_by_wildcard_identifier() {
+        let node = node_identifier(ContextIdentifierKind::Sku, "6925281924439", 0);
+        assert_eq!(
+            scope(
+                Some(&identified(&[(ContextIdentifierKind::Sku, "6925281*")])),
+                &[],
+                std::slice::from_ref(&node),
+                true,
+            ),
+            Scope::Matched {
+                confidence: 1.0,
+                links: vec![ContextLink {
+                    context_id: Uuid::nil(),
+                    source: ContextSource::Node,
+                    distance: 0,
+                    node_identifier: "sku:6925281924439".into(),
+                    context_identifier: "sku:6925281*".into(),
+                    confidence: 1.0,
+                }],
+            }
+        );
+    }
+
+    /// A different identifier, or one of another kind, tells nothing: a product has several SKUs.
+    #[rstest]
+    #[case::other_sku(ContextIdentifierKind::Sku, "050036337366")]
+    #[case::other_kind(ContextIdentifierKind::ModelNumber, "6925281924439")]
+    fn identifier_not_comparable(#[case] kind: ContextIdentifierKind, #[case] value: &str) {
+        let context = identified(&[(ContextIdentifierKind::Sku, "6925281924439")]);
+        let node = [node_identifier(kind, value, 0)];
+        assert_eq!(
+            [
+                scope(Some(&context), &[], &node, false),
+                scope(Some(&context), &[], &node, true),
+            ],
+            [
+                Scope::Unscoped {
+                    confidence: UNCHECKED
+                },
+                Scope::Dropped,
+            ]
+        );
     }
 
     /// The CPEs putting nodes into products: their own, their ancestors' (by distance, also

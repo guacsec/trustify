@@ -161,13 +161,13 @@ pub struct EvidenceContext {
     /// How the subject of the assertion relates to the product, if stated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<ContextCategory>,
-    /// Where the component got the matching CPE from.
+    /// Where the component got the matching identifier from.
     pub source: ContextSource,
     /// Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
     pub distance: i32,
-    /// The SBOM side CPE which matched.
+    /// The SBOM side identifier which matched: a CPE, or e.g. `sku:6925281924439`.
     pub node_identifier: String,
-    /// The product's CPE which matched.
+    /// The product's identifier which matched.
     pub context_identifier: String,
     /// The confidence of this context, applied to the evidence.
     pub confidence: f64,
