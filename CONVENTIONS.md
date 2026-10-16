@@ -37,34 +37,28 @@ use sea_orm::{ConnectionTrait, TransactionTrait};
 This is a manual convention — `rustfmt`'s `imports_granularity = "Crate"` option is not
 available on the stable channel. Reviewers should flag un-nested imports during code review.
 
-### Import Style — Absolute Paths
+### Import Style
 
-Fully-qualified paths with 4+ segments are enforced by the `clippy::absolute_paths` lint
-(configured in `.clippy.toml` with `absolute-paths-max-segments = 3`). Paths exceeding the
-threshold must be replaced with `use` imports:
+Always bring items into scope with a `use` import — types, functions, and traits alike.
 
 ```rust
-// Good — imported
+// Good
 use crate::graph::db_context::parse_status;
+use std::iter::once;
 parse_status(value)?;
+let ids = once(winner.base.id);
 
-// Lint error — 4+ segment absolute path
+// Avoid — inline qualified paths
 crate::graph::db_context::parse_status(value)?;
+let ids = std::iter::once(winner.base.id);
 ```
 
-3-segment paths (e.g. `std::fmt::Result`, `entity::advisory_vulnerability::Model`) are not
-flagged by the lint. They are still subject to the
-[Prefer `use` Over Inline Qualified Paths](#import-style--prefer-use-over-inline-qualified-paths)
-convention — the lint threshold is not a style allowance.
-
-### Import Style — Qualified Names for Common Types
-
-Common or ambiguous names should stay qualified with a 2-segment path, even when there is
-no conflict in the current file. This keeps the code self-documenting and avoids confusion
-when reviewing:
+**Exception — ambiguous names:** Common names that appear in many modules should stay
+qualified with a short (1–2 segment) path, even when there is no conflict in the current
+file. This keeps the code self-documenting:
 
 ```rust
-// Good — qualified with module prefix
+// Good — qualified to avoid ambiguity
 let model: advisory_vulnerability::Model = ...;
 let result: std::fmt::Result = ...;
 let value = serde_json::from_value(...);
@@ -74,26 +68,11 @@ let model: Model = ...;
 ```
 
 Names that benefit from qualification include `Model`, `Entity`, `Column`, `ActiveModel`,
-`Relation`, `from_value`, `info`, and similar names that appear in many modules. This is a
-reviewer convention, not lint-enforced.
+`Relation`, `from_value`, `info`, and similar names that appear in many modules.
 
-### Import Style — Prefer `use` Over Inline Qualified Paths
-
-Always bring items into scope with a `use` import. Only keep inline qualification when the
-bare name would conflict with or be confused for another name already in scope (see
-[Qualified Names for Common Types](#import-style--qualified-names-for-common-types)).
-
-```rust
-// Good — imported
-use std::env::VarError;
-fn foo() -> Result<(), VarError> { ... }
-
-// Avoid — inline qualification when there is no conflict
-fn foo() -> Result<(), std::env::VarError> { ... }
-```
-
-This is a reviewer convention; the clippy `absolute_paths` lint only enforces 4+ segment
-paths (see [Absolute Paths](#import-style--absolute-paths)).
+**Enforcement:** The `clippy::absolute_paths` lint (configured in `.clippy.toml` with
+`absolute-paths-max-segments = 3`) catches paths with 4+ segments automatically. Shorter
+paths are caught during code review.
 
 ## Naming Conventions
 
@@ -312,7 +291,18 @@ where the collection type is already known.
 
 Prefer plain constructors (`HashMap::new()`, `Vec::new()`) over turbofish-annotated ones
 (`HashMap::<K, V>::new()`) when the compiler can infer the type from context — for example,
-from the function's return type or from a subsequent assignment.
+from the function's return type or from a subsequent assignment. This also means avoiding
+redundant `let` type annotations on constructors:
+
+```rust
+// Good — compiler infers HashMap<Uuid, Vec<StatusInfo>> from .insert() calls
+let mut statuses = HashMap::new();
+statuses.insert(id, infos);
+
+// Avoid — redundant annotation when subsequent usage constrains the type
+let mut statuses: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
+statuses.insert(id, infos);
+```
 
 The turbofish is acceptable when the compiler cannot infer the type. Common cases:
 
