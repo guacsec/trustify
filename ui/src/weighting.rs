@@ -211,14 +211,28 @@ pub fn provider_view(provider: &ProviderResolution) -> Html {
         (None, _) if provider.identifiers.is_empty() && provider.diagnostics.is_empty() => {
             html!(<span class="pf-v6-u-text-color-subtle">{ "None stated" }</span>)
         }
+        // Nothing was stated that an alias could map, so only the diagnostics can help.
+        (None, _) if provider.identifiers.is_empty() => html! {
+            <Tooltip text={provider.diagnostics.join(" ")}>
+                <span class="pf-v6-u-text-color-subtle">{ "Unknown" }</span>
+            </Tooltip>
+        },
         (None, name) => {
             let stated = name
-                .or_else(|| provider.identifiers.first().map(String::as_str))
-                .unwrap_or("Unknown");
+                .map(str::to_owned)
+                .or_else(|| provider.identifiers.first().cloned())
+                .unwrap_or_default();
+            let more = provider.identifiers.len().saturating_sub(1);
             html! {
-                <Tooltip text={format!("{} Configure provider aliases to resolve it.", provider.diagnostics.join(" "))}>
+                <Tooltip text={format!(
+                    "{} Stated: {}. Add one of them to a provider alias to resolve it.",
+                    provider.diagnostics.join(" "),
+                    provider.identifiers.join(", "),
+                )}>
                     <span>
-                        { stated }{ " " }
+                        <code style="overflow-wrap: anywhere;">{ stated }</code>
+                        if more > 0 { { format!(" (+{more})") } }
+                        { " " }
                         <Link<AppRoute> to={AppRoute::ProviderAliases}>
                             <Label compact=true label="unresolved" color={Color::Orange}/>
                         </Link<AppRoute>>

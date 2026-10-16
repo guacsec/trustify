@@ -323,6 +323,15 @@ impl PolicySnapshot {
                 }
             }
         }
+        // Every identifier tried, so an unresolved component shows what an alias could map.
+        let mut tried = distribution
+            .iter()
+            .chain(&package_ids)
+            .chain(&upstream_ids)
+            .cloned()
+            .collect::<Vec<_>>();
+        tried.sort();
+        tried.dedup();
         for (ids, source) in [
             (distribution, "distribution/build mapping"),
             (package_ids, "package identifier mapping"),
@@ -358,7 +367,17 @@ impl PolicySnapshot {
                 return resolved;
             }
         }
-        ProviderResolution { source:"unknown".into(), diagnostics:vec!["No component provider could be established; providerless evidence receives the fallback boost.".into()], ..Default::default() }
+        let diagnostic = if tried.is_empty() {
+            "The SBOM states no supplier or other provider identifier for this component; providerless evidence receives the fallback boost."
+        } else {
+            "Provider identifiers have no configured alias; providerless evidence receives the fallback boost."
+        };
+        ProviderResolution {
+            source: "unknown".into(),
+            identifiers: tried,
+            diagnostics: vec![diagnostic.into()],
+            ..Default::default()
+        }
     }
 }
 
