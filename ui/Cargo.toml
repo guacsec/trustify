@@ -13,6 +13,7 @@ cve = { workspace = true }
 cvss = { workspace = true }
 gloo-file = { version = "0.3", features = ["futures"] }
 gloo-net = { version = "0.7", features = ["http"] }
+gloo-timers = "0.4"
 gloo-utils = "0.3"
 js-sys = "0.3"
 log = "0.4"

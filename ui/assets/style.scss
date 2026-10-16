@@ -18,3 +18,65 @@
 .trustify-break-all {
   word-break: break-all;
 }
+
+// Global ingestion stays compact enough for the navigation sidebar.
+.pf-v6-c-page__sidebar-body {
+  --pf-v6-c-page__sidebar-body--PaddingInlineEnd: var(--pf-v6-c-page__sidebar-body--PaddingInlineStart);
+  display: flex;
+  flex-direction: column;
+}
+
+.trustify-sidebar-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--pf-t--global--spacer--md);
+}
+
+.trustify-ingest-drop {
+  margin: var(--pf-t--global--spacer--md);
+  margin-top: auto;
+  padding: var(--pf-t--global--spacer--md);
+  text-align: center;
+  border: 2px dashed var(--pf-t--global--border--color--default);
+  border-radius: var(--pf-t--global--border--radius--small);
+
+  &__hint {
+    color: var(--pf-t--global--text--color--subtle);
+    font-size: var(--pf-t--global--font--size--sm);
+    margin-bottom: var(--pf-t--global--spacer--sm);
+  }
+
+  &--drag-over {
+    border-color: var(--pf-t--global--color--brand--default);
+    background-color: var(--pf-t--global--background--color--primary--hover);
+  }
+
+  &__browse.pf-v6-c-button {
+    --pf-v6-c-button--Color: var(--pf-t--global--text--color--subtle);
+    --pf-v6-c-button--FontSize: var(--pf-t--global--font--size--sm);
+    --pf-v6-c-button--PaddingBlockStart: 0;
+    --pf-v6-c-button--PaddingBlockEnd: 0;
+    --pf-v6-c-button--PaddingInlineStart: 0;
+    --pf-v6-c-button--PaddingInlineEnd: 0;
+  }
+
+  &__current {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--pf-t--global--spacer--sm);
+    margin: var(--pf-t--global--spacer--md) 0;
+
+    .pf-v6-c-spinner {
+      flex-shrink: 0;
+    }
+
+    span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
