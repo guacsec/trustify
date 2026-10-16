@@ -41,7 +41,9 @@ use self::{
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{EnabledBy, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue},
+    model::{
+        AssertionOrigin, EnabledBy, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue,
+    },
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, JoinType,
@@ -175,6 +177,7 @@ impl Candidates {
             .column_as(self.high_version.clone(), "range_high_version")
             .column_as(self.high_inclusive.clone(), "range_high_inclusive")
             .column_as(purl_status::Column::IsDefault, "is_default")
+            .column_as(purl_status::Column::SourceProvider, "source_provider")
             .column_as(versioned_purl::Column::Version, "sbom_version")
             .filter(self.condition.clone())
             .filter(self.version_matches())
@@ -213,6 +216,7 @@ struct PurlStatusRow {
     base_purl_namespace: Option<String>,
     base_purl_name: String,
     source_purl: Option<qualified_purl::CanonicalPurl>,
+    source_provider: Option<serde_json::Value>,
     sbom_rpmmod: Option<String>,
     publisher_namespace: Option<String>,
     assertion_context_id: Option<Uuid>,
@@ -331,14 +335,27 @@ fn group<'a, K: Ord + Clone>(
     /// The merged rows of one assertion.
     struct Group {
         status: AssertionStatus,
+        source_provider: Option<crate::model::ProviderIdentity>,
+        origin: AssertionOrigin,
         confidence: f64,
         ranges: BTreeSet<MatchedRange>,
         enabled_by: Option<EnabledBy>,
         requires_context: bool,
     }
 
-    let mut groups =
-        BTreeMap::<(K, &'static str, Uuid, String, String, String, Option<Uuid>), Group>::new();
+    let mut groups = BTreeMap::<
+        (
+            K,
+            &'static str,
+            Uuid,
+            String,
+            String,
+            String,
+            Option<Uuid>,
+            String,
+        ),
+        Group,
+    >::new();
     let rows = rows
         .into_iter()
         .filter_map(|(target, source, row)| {
@@ -359,6 +376,10 @@ fn group<'a, K: Ord + Clone>(
                 target.clone(),
                 row.advisory_id,
                 row.vulnerability_id.clone(),
+                row.source_provider
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
             )
         })
         .collect::<BTreeSet<_>>();
@@ -366,13 +387,32 @@ fn group<'a, K: Ord + Clone>(
     // the packages of a target with a listed status, shadowing their defaults
     let listed = rows
         .iter()
-        .filter(|(_, _, row, ..)| !row.is_default)
-        .map(|(target, _, row, ..)| (target.clone(), row.package()))
+        .filter(|(_, source, row, ..)| {
+            !row.is_default && source.is_none_or(|rule| rule.origin() == AssertionOrigin::Stated)
+        })
+        .map(|(target, _, row, ..)| {
+            (
+                target.clone(),
+                row.package(),
+                row.source_provider
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+            )
+        })
         .collect::<BTreeSet<_>>();
     let shadowed = rows
         .iter()
         .map(|(target, _, row, ..)| {
-            row.is_default && listed.contains(&(target.clone(), row.package()))
+            row.is_default
+                && listed.contains(&(
+                    target.clone(),
+                    row.package(),
+                    row.source_provider
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default(),
+                ))
         })
         .collect::<Vec<_>>();
 
@@ -385,6 +425,10 @@ fn group<'a, K: Ord + Clone>(
                 target.clone(),
                 row.advisory_id,
                 row.vulnerability_id.clone(),
+                row.source_provider
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
             ))
         {
             continue;
@@ -397,6 +441,11 @@ fn group<'a, K: Ord + Clone>(
                 rule.id(),
                 (stream.confidence() * rule.confidence() * 100.0).round() / 100.0,
             ),
+        };
+        let origin = match source {
+            Some(rule) => rule.origin(),
+            None if row.is_default => AssertionOrigin::Default,
+            None => AssertionOrigin::Stated,
         };
         let enabled_by =
             source.and_then(|rule| rule.enabled_by(row.publisher_namespace.as_deref()));
@@ -415,6 +464,17 @@ fn group<'a, K: Ord + Clone>(
             row.slug.clone(),
             row.assertion_context_id,
         );
+        let row_provider_key = row
+            .source_provider
+            .as_ref()
+            .map(serde_json::Value::to_string)
+            .unwrap_or_default();
+        let source_provider = row.source_provider.clone().map(|p| {
+            serde_json::from_value(p).unwrap_or(crate::model::ProviderIdentity {
+                unavailable: true,
+                ..Default::default()
+            })
+        });
         let (identifier, range) = row.into_match();
         let entry = groups
             .entry((
@@ -425,9 +485,12 @@ fn group<'a, K: Ord + Clone>(
                 slug,
                 identifier,
                 context_id,
+                row_provider_key,
             ))
             .or_insert_with(|| Group {
                 status,
+                source_provider,
+                origin,
                 confidence,
                 ranges: BTreeSet::new(),
                 enabled_by,
@@ -438,7 +501,10 @@ fn group<'a, K: Ord + Clone>(
     }
 
     groups.into_iter().map(
-        |((target, extractor, advisory_id, vulnerability_id, _, identifier, context_id), group)| {
+        |(
+            (target, extractor, advisory_id, vulnerability_id, _, identifier, context_id, _),
+            group,
+        )| {
             (
                 target,
                 Assertion {
@@ -448,6 +514,8 @@ fn group<'a, K: Ord + Clone>(
                     status: group.status,
                     confidence: group.confidence,
                     matched_value: MatchedValue {
+                        source_provider: group.source_provider,
+                        origin: group.origin,
                         identifier,
                         ranges: group.ranges.into_iter().collect(),
                         enabled_by: group.enabled_by,

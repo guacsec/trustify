@@ -9739,6 +9739,7 @@ version = "0.7.0-rc.1"
 dependencies = [
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "time",
  "trustify-entity",
  "utoipa",

@@ -154,6 +154,14 @@ affected | fixed | not_affected | under_investigation | none
 
 `none` = no applicable evidence. Not the same as `not_affected`.
 
+Resolution uses soft multiplicative preferences for the SBOM component's supplier (a weaker,
+unverified preference when only the provider names match), assertion provider, direct/inferred origin, match method, and rule. The maximum weight per status wins;
+affected breaks equal-weight ties. Opposing evidence reduces verdict confidence without changing
+stored match confidence. Policies inherit through instance, hierarchical groups, SBOM, component,
+and request scopes. Opt-in API explanations and UI previews expose the factors and their origins.
+See the [module documentation](../../modules/correlation/README.md#weighted-resolution) for the
+defaults, confidence calculation, scope conflict rules, provider aliases, and migration behavior.
+
 ### Assertion status
 
 ```

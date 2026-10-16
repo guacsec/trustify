@@ -23,6 +23,7 @@ pub struct PurlStatusEntry {
     pub context_id: Option<Uuid>,
     /// Whether it is the default status: of all versions no other statement lists.
     pub default: bool,
+    pub source_provider: Option<trustify_api::correlation::ProviderIdentity>,
 }
 
 /// Creator for batch insertion of PURL statuses
@@ -99,6 +100,7 @@ impl PurlStatusCreator {
                 info: entry.version_info.clone(),
                 context_id: entry.context_id,
                 default: entry.default,
+                source_provider: entry.source_provider.clone(),
             };
 
             let uuid = purl_status.uuid(entry.advisory_id, entry.vulnerability_id.clone());
@@ -125,6 +127,10 @@ impl PurlStatusCreator {
                     context_cpe_id: Set(context_cpe_id),
                     assertion_context_id: Set(entry.context_id),
                     is_default: Set(entry.default),
+                    source_provider: Set(entry
+                        .source_provider
+                        .clone()
+                        .map(|p| serde_json::json!(p))),
                 });
         }
 

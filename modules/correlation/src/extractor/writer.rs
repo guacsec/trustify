@@ -90,6 +90,9 @@ impl EvidenceWriter {
         {
             id = Uuid::new_v5(&id, assertion.matched_value.identifier.as_bytes());
         }
+        if let Some(provider) = &assertion.matched_value.source_provider {
+            id = Uuid::new_v5(&id, serde_json::json!(provider).to_string().as_bytes());
+        }
         id
     }
 
@@ -242,6 +245,8 @@ mod test {
             status: AssertionStatus::Affected,
             confidence,
             matched_value: MatchedValue {
+                source_provider: None,
+                origin: crate::model::AssertionOrigin::Stated,
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: vec![range(version)],
                 enabled_by: None,

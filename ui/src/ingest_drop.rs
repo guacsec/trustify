@@ -4,7 +4,7 @@ use gloo_timers::callback::Timeout;
 use patternfly_yew::prelude::*;
 use std::{collections::VecDeque, rc::Rc, time::Duration};
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{DragEvent, HtmlInputElement};
+use web_sys::DragEvent;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
 
@@ -68,6 +68,26 @@ impl<T> IngestionQueue<T> {
 struct IngestionContext {
     progress: IngestionProgress,
     enqueue: Callback<Vec<File>>,
+}
+
+/// The number of documents newly ingested through the drop zone.
+///
+/// Views showing ingested documents depend on it to reload after a successful drop.
+#[derive(Clone, Copy, Default, PartialEq)]
+struct IngestedDocuments(usize);
+
+impl Reducible for IngestedDocuments {
+    type Action = ();
+
+    fn reduce(self: Rc<Self>, (): Self::Action) -> Rc<Self> {
+        Rc::new(Self(self.0 + 1))
+    }
+}
+
+/// A counter changing whenever the drop zone ingests a new document.
+#[hook]
+pub fn use_ingested_documents() -> usize {
+    use_context::<IngestedDocuments>().unwrap_or_default().0
 }
 
 #[derive(Default)]
@@ -137,6 +157,7 @@ pub fn ingestion_provider(props: &IngestionProviderProps) -> Html {
     let progress = use_state(IngestionProgress::default);
     let latest_token = use_latest_access_token();
     let notifications = use_reducer(Notifications::default);
+    let ingested = use_reducer(IngestedDocuments::default);
     let onclose = {
         let notifications = notifications.dispatcher();
         Callback::from(move |id| notifications.dispatch(NotificationAction::Close(id)))
@@ -146,6 +167,7 @@ pub fn ingestion_provider(props: &IngestionProviderProps) -> Html {
         let queue = queue.clone();
         let progress = progress.clone();
         let notifications = notifications.dispatcher();
+        let ingested = ingested.dispatcher();
         Callback::from(move |files: Vec<File>| {
             let start_worker = queue
                 .borrow_mut()
@@ -159,6 +181,7 @@ pub fn ingestion_provider(props: &IngestionProviderProps) -> Html {
             let progress = progress.clone();
             let latest_token = latest_token.clone();
             let notifications = notifications.clone();
+            let ingested = ingested.clone();
             spawn_local(async move {
                 loop {
                     let next = queue.borrow_mut().next();
@@ -168,6 +191,9 @@ pub fn ingestion_provider(props: &IngestionProviderProps) -> Html {
                     };
                     let token = latest_token.as_ref().and_then(|t| t.access_token());
                     let result = ingest_file(&file, token.as_deref()).await;
+                    if result.as_ref().is_ok_and(|result| !result.duplicate) {
+                        ingested.dispatch(());
+                    }
                     notifications
                         .dispatch(NotificationAction::Show(outcome_toasts(&name, &result)));
                     queue.borrow_mut().complete();
@@ -178,7 +204,9 @@ pub fn ingestion_provider(props: &IngestionProviderProps) -> Html {
 
     html! {
         <ContextProvider<IngestionContext> context={IngestionContext { progress: (*progress).clone(), enqueue }}>
-            { for props.children.iter() }
+            <ContextProvider<IngestedDocuments> context={*ingested}>
+                { for props.children.iter() }
+            </ContextProvider<IngestedDocuments>>
             <AlertGroup toast=true>
                 { for notifications.entries.iter().map(|(id, toast)| {
                     let close = onclose.clone();
@@ -255,12 +283,12 @@ fn is_file_drag(event: &DragEvent) -> bool {
 
 #[function_component(IngestDropZone)]
 pub fn ingest_drop_zone() -> Html {
+    #[allow(clippy::expect_used)]
     let context =
         use_context::<IngestionContext>().expect("IngestDropZone requires IngestionProvider");
     let drag_over = use_state_eq(|| false);
     // Nested elements also emit enter/leave events; track depth to avoid flickering.
     let drag_depth = use_mut_ref(|| 0usize);
-    let input_ref = use_node_ref();
 
     let ondragenter = {
         let drag_depth = drag_depth.clone();
@@ -308,25 +336,6 @@ pub fn ingest_drop_zone() -> Html {
             }
         })
     };
-    let onchange = {
-        let enqueue = context.enqueue.clone();
-        Callback::from(move |event: Event| {
-            let input: HtmlInputElement = event.target_unchecked_into();
-            if let Some(files) = input.files() {
-                enqueue.emit(FileList::from(files).iter().cloned().collect());
-            }
-            input.set_value("");
-        })
-    };
-    let onclick = {
-        let input_ref = input_ref.clone();
-        Callback::from(move |_: MouseEvent| {
-            if let Some(input) = input_ref.cast::<HtmlInputElement>() {
-                input.click();
-            }
-        })
-    };
-
     let progress = &context.progress;
     html! {
         <section
@@ -335,9 +344,8 @@ pub fn ingest_drop_zone() -> Html {
             aria-busy={progress.busy.to_string()}
             {ondragenter} {ondragover} {ondragleave} {ondrop}
         >
+            <div class="trustify-ingest-drop__icon" aria-hidden="true">{ Icon::Upload }</div>
             <p class="trustify-ingest-drop__hint">{ if progress.busy { "Drop to queue" } else { "Drop to ingest" } }</p>
-            <input ref={input_ref} type="file" multiple=true {onchange} hidden=true />
-            <Button variant={ButtonVariant::Plain} class="trustify-ingest-drop__browse" label="Browse files" {onclick} />
             <div aria-live="polite" aria-atomic="true">
                 if progress.busy {
                     <div class="trustify-ingest-drop__current">

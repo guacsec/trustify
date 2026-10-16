@@ -45,6 +45,7 @@ pub struct StatementCreator<'w> {
     advisory_id: Uuid,
     vulnerability_id: String,
     warnings: &'w Warnings,
+    provider: trustify_api::correlation::ProviderIdentity,
     base_purls: HashSet<trustify_common::purl::Purl>,
     purl_statuses: PurlStatusCreator,
     cpes: HashSet<Cpe>,
@@ -58,12 +59,20 @@ impl<'w> StatementCreator<'w> {
             advisory_id,
             vulnerability_id,
             warnings,
+            provider: trustify_api::correlation::ProviderIdentity {
+                unavailable: true,
+                ..Default::default()
+            },
             base_purls: HashSet::new(),
             purl_statuses: PurlStatusCreator::new(),
             cpes: HashSet::new(),
             cpe_statuses: CpeStatusCreator::new(),
             cpe_assertions: CpeAssertionCreator::new(advisory_id),
         }
+    }
+
+    pub fn set_provider(&mut self, provider: trustify_api::correlation::ProviderIdentity) {
+        self.provider = provider;
     }
 
     /// Add the statements of an `affected` entry.
@@ -94,6 +103,7 @@ impl<'w> StatementCreator<'w> {
         self.base_purls.insert(purl.clone());
         for statement in listed.iter().chain(default) {
             self.purl_statuses.add(PurlStatusEntry {
+                source_provider: Some(self.provider.clone()),
                 advisory_id: self.advisory_id,
                 vulnerability_id: self.vulnerability_id.clone(),
                 purl: purl.clone(),
@@ -149,6 +159,7 @@ impl<'w> StatementCreator<'w> {
             _ => AssertionStatus::NotAffected,
         };
         self.cpe_assertions.add(CpeAssertion {
+            source_provider: Some(self.provider.clone()),
             vulnerability_id: self.vulnerability_id.clone(),
             cpe: cpe.clone(),
             range: Some(statement.version_info.clone()),
@@ -211,6 +222,7 @@ impl<'w> StatementCreator<'w> {
                 ),
                 // no version: all versions
                 None => self.cpe_assertions.add(CpeAssertion {
+                    source_provider: Some(self.provider.clone()),
                     vulnerability_id: self.vulnerability_id.clone(),
                     cpe: identity,
                     range: None,

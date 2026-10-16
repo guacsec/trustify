@@ -3,6 +3,9 @@ use std::fmt;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+mod weighting;
+pub use weighting::*;
+
 /// Top-level correlation result for an SBOM.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -23,6 +26,11 @@ pub struct VerdictSummary {
     pub component: ComponentRef,
     pub vulnerability: VulnerabilityRef,
     pub status: VerdictStatus,
+    #[serde(flatten, default)]
+    pub resolution: ResolutionSummary,
+    /// The provider who supplied the component, as resolved by the weighting policy.
+    #[serde(default)]
+    pub component_provider: ProviderResolution,
     pub evidence: Vec<EvidenceDetail>,
 }
 
@@ -108,6 +116,9 @@ pub struct VulnerabilityRef {
     pub title: Option<String>,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_type: Option<String>,
 }
 
 /// One piece of evidence from the correlation engine.
@@ -120,12 +131,21 @@ pub struct EvidenceDetail {
     pub extractor: String,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matched_value: Option<MatchedValue>,
     /// The products (assertion contexts) the evidence was matched in. Empty when the assertion
     /// has no context, or the SBOM nothing to compare it with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contexts: Vec<EvidenceContext>,
+    /// The provider making the assertion, as resolved by the weighting policy.
+    #[serde(default)]
+    pub provider: ProviderResolution,
+    /// How the provider matches the provider of the component, if at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_match: Option<ProviderMatch>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
@@ -197,10 +217,41 @@ impl ContextSource {
     }
 }
 
+/// How the matching status was obtained from an advisory.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AssertionOrigin {
+    /// Older evidence whose origin has not been recorded.
+    #[default]
+    Unknown,
+    /// A status stated for the matched identifier or version range.
+    Stated,
+    /// A default applying to versions without a listed status.
+    Default,
+    /// A status derived from a boundary or recommendation.
+    Inferred,
+    /// A status interpreted according to a publisher's correlation option.
+    PublisherPolicy,
+}
+
+impl AssertionOrigin {
+    pub fn is_unknown(&self) -> bool {
+        *self == Self::Unknown
+    }
+}
+
 /// The advisory side of a match: what an SBOM identifier was matched against.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct MatchedValue {
+    /// The source of this assertion, when it differs from the document-level publisher.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_provider: Option<ProviderIdentity>,
+    /// The origin of the matching status, independent of the extractor's ID and confidence.
+    #[serde(default, skip_serializing_if = "AssertionOrigin::is_unknown")]
+    pub origin: AssertionOrigin,
     /// The advisory identifier which matched, e.g. a PURL without a version, a CPE pattern, or a
     /// digest.
     pub identifier: String,
@@ -218,6 +269,8 @@ impl MatchedValue {
     /// A matched value without version ranges.
     pub fn new(identifier: impl Into<String>) -> Self {
         Self {
+            source_provider: None,
+            origin: AssertionOrigin::Stated,
             identifier: identifier.into(),
             ranges: Vec::new(),
             enabled_by: None,
@@ -428,6 +481,8 @@ pub struct QueryVerdict {
     pub vulnerability_id: String,
     pub vulnerability_title: Option<String>,
     pub status: VerdictStatus,
+    #[serde(flatten, default)]
+    pub resolution: ResolutionSummary,
     pub matches: Vec<QueryMatch>,
 }
 
@@ -439,6 +494,9 @@ pub struct QueryMatch {
     pub value: MatchedValue,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_type: Option<String>,
     pub status: AssertionStatus,
     /// The type of evidence, i.e. how the match was established (e.g. `purl` or `purl_stream`).
     pub extractor: String,
@@ -652,6 +710,27 @@ pub struct SbomVerdictCounts {
 mod test {
     use super::*;
 
+    #[test]
+    fn assertion_origin_serialization() {
+        for origin in [
+            AssertionOrigin::Unknown,
+            AssertionOrigin::Stated,
+            AssertionOrigin::Default,
+            AssertionOrigin::Inferred,
+            AssertionOrigin::PublisherPolicy,
+        ] {
+            assert_eq!(serde_json::to_value(origin).unwrap(), origin.to_string());
+        }
+        let legacy: MatchedValue =
+            serde_json::from_value(serde_json::json!({"identifier": "demo"})).unwrap();
+        assert_eq!(legacy.origin, AssertionOrigin::Unknown);
+        assert_eq!(
+            serde_json::to_value(legacy).unwrap(),
+            serde_json::json!({"identifier": "demo"})
+        );
+        assert_eq!(MatchedValue::new("demo").origin, AssertionOrigin::Stated);
+    }
+
     fn bound(version: &str, inclusive: bool) -> Option<RangeBound> {
         Some(RangeBound {
             version: version.into(),
@@ -667,6 +746,8 @@ mod test {
             high,
         };
         let value = MatchedValue {
+            source_provider: None,
+            origin: AssertionOrigin::Stated,
             identifier: "pkg:rpm/redhat/bind".into(),
             ranges: vec![
                 range(None, bound("1:2-3", false)),

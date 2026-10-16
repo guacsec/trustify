@@ -22,11 +22,17 @@ struct SbomCorrelationParams {
     /// When true, include components that have no correlation evidence.
     #[serde(default)]
     include_unmatched: bool,
+    #[serde(default)]
+    include_explanation: bool,
+    node_id: Option<String>,
+    vulnerability_id: Option<String>,
+    group_id: Option<Uuid>,
 }
 
 mod option;
 #[cfg(test)]
 mod test;
+mod weighting;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
@@ -45,7 +51,8 @@ pub fn configure(
         .service(list_advisory_statements)
         .service(count_verdicts)
         .service(query_correlation)
-        .configure(option::configure);
+        .configure(option::configure)
+        .configure(weighting::configure);
 }
 
 /// Get correlation verdicts for an SBOM.
@@ -69,7 +76,18 @@ async fn get_sbom_correlation(
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let result = service
-        .correlate_sbom(*sbom_id, params.include_unmatched, &tx)
+        .correlate_sbom_with(
+            *sbom_id,
+            params.include_unmatched,
+            &crate::model::ResolutionRequest {
+                include_explanation: params.include_explanation,
+                node_id: params.node_id.clone(),
+                vulnerability_id: params.vulnerability_id.clone(),
+                group_id: params.group_id,
+                ..Default::default()
+            },
+            &tx,
+        )
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }
@@ -113,6 +131,10 @@ struct IdentifierQuery {
     kind: IdentifierKind,
     /// The identifier value to search for. Digests use the format `[<algorithm>:]<value>`.
     q: String,
+    #[serde(default)]
+    include_explanation: bool,
+    provider: Option<String>,
+    vulnerability_id: Option<String>,
 }
 
 /// Query for advisory/vulnerability matches by identifier.
@@ -134,9 +156,27 @@ async fn query_correlation(
     db: web::Data<db::ReadOnly>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
-    let IdentifierQuery { kind, q: value } = params.into_inner();
+    let IdentifierQuery {
+        kind,
+        q: value,
+        include_explanation,
+        provider,
+        vulnerability_id,
+    } = params.into_inner();
     let result = service
-        .query_identifier(IdentifierRef { kind, value }, &tx)
+        .query_identifier_with(
+            IdentifierRef { kind, value },
+            &crate::model::ResolutionRequest {
+                include_explanation,
+                vulnerability_id,
+                overrides: crate::model::WeightOverrides {
+                    component_provider: provider,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            &tx,
+        )
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }

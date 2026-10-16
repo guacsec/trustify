@@ -1,0 +1,41 @@
+{
+  "advisories": [
+    "vex/regression.json"
+  ],
+  "sboms": {
+    "sbom/regression.cdx.json": {
+      "before-fix": {
+        "CVE-2026-99991": "affected"
+      },
+      "initial-fix": {
+        "CVE-2026-99991": "fixed"
+      },
+      "regression": {
+        "CVE-2026-99991": "affected"
+      },
+      "subsequent-fix": {
+        "CVE-2026-99991": "fixed"
+      },
+      "inferred-fixed": {
+        "CVE-2026-99991": "fixed"
+      }
+    },
+    "sbom/regression.spdx.json": {
+      "SPDXRef-before-fix": {
+        "CVE-2026-99991": "affected"
+      },
+      "SPDXRef-initial-fix": {
+        "CVE-2026-99991": "fixed"
+      },
+      "SPDXRef-regression": {
+        "CVE-2026-99991": "affected"
+      },
+      "SPDXRef-subsequent-fix": {
+        "CVE-2026-99991": "fixed"
+      },
+      "SPDXRef-inferred-fixed": {
+        "CVE-2026-99991": "fixed"
+      }
+    }
+  }
+}

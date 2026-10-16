@@ -130,21 +130,87 @@ impl Extractors {
         identifier: &IdentifierRef,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<Assertion>, Error> {
-        let mut result = Vec::<Assertion>::new();
+        self.query_with_context(identifier, &[], tx).await
+    }
+
+    pub async fn query_with_context(
+        &self,
+        identifier: &IdentifierRef,
+        context_identifiers: &[IdentifierRef],
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<Assertion>, Error> {
+        use super::context::{self, NodeCpe};
+        use sea_orm::TryIntoModel;
+        use trustify_entity::correlation_evidence_context::ContextSource;
+        let mut node = Vec::new();
+        for item in context_identifiers {
+            match item.kind {
+                crate::model::IdentifierKind::Cpe => {
+                    let cpe = item
+                        .value
+                        .parse::<trustify_common::cpe::Cpe>()
+                        .map_err(|e| Error::BadRequest(format!("Invalid context CPE: {e}")))?;
+                    node.push(NodeCpe {
+                        cpe: trustify_entity::cpe::ActiveModel::from(cpe).try_into_model()?,
+                        source: ContextSource::Node,
+                        distance: 0,
+                    });
+                }
+                crate::model::IdentifierKind::Purl => {
+                    let purl = item
+                        .value
+                        .parse::<trustify_common::purl::Purl>()
+                        .map_err(|e| Error::BadRequest(format!("Invalid context PURL: {e}")))?;
+                    if let Some((cpe, source)) = context::rpm::rpm_context(&purl) {
+                        node.push(NodeCpe {
+                            cpe,
+                            source,
+                            distance: 0,
+                        });
+                    }
+                }
+                _ => {
+                    return Err(Error::BadRequest(
+                        "Product context accepts CPEs and PURLs".into(),
+                    ));
+                }
+            }
+        }
+        let mut assertions = Vec::new();
         for extractor in &self.0 {
-            let matches = extractor
-                .match_identifiers(slice::from_ref(identifier), tx)
-                .await?;
-            for IdentifierMatch { mut assertion, .. } in matches {
-                // there is no node, and so no context: an assertion requiring one doesn't apply,
-                // and the same statement in several products is the same match
+            assertions.extend(
+                extractor
+                    .match_identifiers(slice::from_ref(identifier), tx)
+                    .await?
+                    .into_iter()
+                    .map(|m| m.assertion),
+            );
+        }
+        // Preserve the existing context-free query semantics. With supplied context, apply
+        // the same compatibility and confidence calculation used during SBOM extraction.
+        let contexts =
+            context::load_contexts(assertions.iter().filter_map(|a| a.context_id), tx).await?;
+        let mut result = Vec::<Assertion>::new();
+        for mut assertion in assertions {
+            if context_identifiers.is_empty() {
                 if assertion.requires_context {
                     continue;
                 }
-                assertion.context_id = None;
-                if !result.contains(&assertion) {
-                    result.push(assertion);
+            } else {
+                match context::scope(
+                    assertion.context_id.and_then(|id| contexts.get(&id)),
+                    &node,
+                    assertion.requires_context,
+                ) {
+                    Scope::Dropped => continue,
+                    Scope::Matched { confidence, .. } | Scope::Unscoped { confidence } => {
+                        assertion.confidence = round(assertion.confidence * confidence)
+                    }
                 }
+            }
+            assertion.context_id = None;
+            if !result.contains(&assertion) {
+                result.push(assertion);
             }
         }
         Ok(result)

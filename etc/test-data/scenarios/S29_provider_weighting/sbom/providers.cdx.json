@@ -1,0 +1,60 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:5a336772-e4fe-5711-b2fc-559e0021c801",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "root",
+      "name": "Provider A bundle",
+      "version": "1",
+      "supplier": {
+        "name": "Provider A"
+      }
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "a-build",
+      "name": "demo-weighting",
+      "version": "1.0.0",
+      "purl": "pkg:generic/demo-weighting@1.0.0",
+      "cpe": "cpe:2.3:a:provider_b:demo_weighting:1.0.0:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Provider A"
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "b-build",
+      "name": "demo-weighting",
+      "version": "1.0.0",
+      "purl": "pkg:generic/demo-weighting@1.0.0",
+      "cpe": "cpe:2.3:a:provider_b:demo_weighting:1.0.0:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Provider B"
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "inherited-build",
+      "name": "demo-weighting",
+      "version": "1.0.0",
+      "purl": "pkg:generic/demo-weighting@1.0.0",
+      "cpe": "cpe:2.3:a:provider_b:demo_weighting:1.0.0:*:*:*:*:*:*:*"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": [
+        "a-build",
+        "b-build",
+        "inherited-build"
+      ]
+    }
+  ]
+}

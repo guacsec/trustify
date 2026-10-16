@@ -1,0 +1,101 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Synthetic S29",
+  "documentNamespace": "https://example.org/spdx/s29",
+  "creationInfo": {
+    "creators": [
+      "Tool: Trustify synthetic scenario"
+    ],
+    "created": "2026-10-14T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "Provider A bundle",
+      "SPDXID": "SPDXRef-root",
+      "versionInfo": "1.0-1.el9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "supplier": "Organization: Provider A"
+    },
+    {
+      "SPDXID": "SPDXRef-a-build",
+      "name": "demo-weighting",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/demo-weighting@1.0.0"
+        }
+      ],
+      "supplier": "Organization: Provider A"
+    },
+    {
+      "SPDXID": "SPDXRef-b-build",
+      "name": "demo-weighting",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/demo-weighting@1.0.0"
+        }
+      ],
+      "supplier": "Organization: Provider B"
+    },
+    {
+      "SPDXID": "SPDXRef-inherited-build",
+      "name": "demo-weighting",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/demo-weighting@1.0.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-a-build"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-b-build"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-inherited-build"
+    }
+  ]
+}

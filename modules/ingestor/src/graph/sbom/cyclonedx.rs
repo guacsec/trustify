@@ -446,6 +446,18 @@ impl ComponentCreator {
                     Application | Framework | Library | Container | OperatingSystem => {
                         self.packages.add(
                             NodeInfoParam {
+                                supplier: comp.supplier.as_ref().map(|supplier| {
+                                    let mut ids = Vec::new();
+                                    if let Some(name) = &supplier.name {
+                                        ids.push(format!("name:{name}"));
+                                    }
+                                    if let Some(urls) = &supplier.url {
+                                        ids.extend(
+                                            urls.iter().map(|url| format!("namespace:{url}")),
+                                        );
+                                    }
+                                    serde_json::json!({"identifiers":ids,"name":supplier.name})
+                                }),
                                 node_id: node_id.clone(),
                                 name: comp.name.to_string(),
                                 group: comp.group.as_ref().map(|v| v.to_string()),

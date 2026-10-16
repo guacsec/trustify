@@ -19,6 +19,7 @@ pub struct PurlStatus {
     pub context_id: Option<Uuid>,
     /// Whether it is the default status: of all versions no other statement lists.
     pub default: bool,
+    pub source_provider: Option<trustify_api::correlation::ProviderIdentity>,
 }
 
 impl PurlStatus {
@@ -30,6 +31,7 @@ impl PurlStatus {
             info,
             context_id: None,
             default: false,
+            source_provider: None,
         }
     }
 
@@ -54,6 +56,7 @@ impl PurlStatus {
             assertion_context_id: Set(self.context_id),
             version_range_id: version_range.clone().id,
             is_default: Set(self.default),
+            source_provider: Set(self.source_provider.clone().map(|p| serde_json::json!(p))),
         };
 
         (version_range, package_status)
@@ -79,6 +82,9 @@ impl PurlStatus {
             result = Uuid::new_v5(&result, b"default")
         }
 
+        if let Some(provider) = &self.source_provider {
+            result = Uuid::new_v5(&result, serde_json::json!(provider).to_string().as_bytes());
+        }
         result
     }
 }

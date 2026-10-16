@@ -71,7 +71,7 @@ CycloneDX and SPDX variant of each SBOM.
 |---|---|---|---|---|
 | `15.6.47.11.1` | `openssl-3` family `…150600.5.7.1` | **affected** — before the SP6 fix `5.15.1` | **affected** — before the SP6 fix `5.39.1` | **not_affected** — versionless, in SP6 |
 | `15.6.47.26.19` | `openssl-3` family `…150600.5.39.1` | **fixed** — from `5.15.1` on | **fixed** — exactly the SP6 fix | **not_affected** — versionless, in SP6 |
-| both | `openssl` `3.1.4-150600.2.1` | not_affected | not_affected | not_affected |
+| both | `openssl` `3.1.4-150600.2.1` | not_affected | affected (conflict) | not_affected |
 
 ### Why
 
@@ -82,10 +82,13 @@ CycloneDX and SPDX variant of each SBOM.
   `suse_recommended_codestream` asserts that only the SP6 range matches.
 - **CVE-2024-9143.** SP6 is `known_not_affected` (versionless). The SP7/16.0/Tumbleweed fixes are
   other codestreams, so no "before the fix → affected" applies.
-- **`openssl` × all three CVEs.** The meta package only has versionless statements, e.g. for
-  CVE-2025-9230 `known_affected` for SLE 12 SP2 and `known_not_affected` for the rest (including
-  SP6). Its PURL's `distro=sles-15.6` puts it in SP6, so only SP6's `not_affected` applies. The
-  SLE 12 SP2 `affected` is dropped (another service pack), it isn't just outvoted.
+- **`openssl` × CVE-2025-9230.** The meta package has versionless `known_not_affected`
+  statements for SP6, and `known_affected` statements including SLE 15 GA. The RPM's broad
+  product context matches GA's unspecified service pack as well as SP6. Both statuses remain
+  applicable with equal maximum weight. Weighted resolution chooses affected on a tie and
+  lowers confidence. SLE 12 SP2 evidence is still dropped by product compatibility. Selecting
+  a narrower product context is an applicability concern; a status priority must not hide
+  that ambiguity.
 
 ## Files
 

@@ -3,14 +3,11 @@ use crate::{
     extractor::Extractors,
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierRef,
-        QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts, VerdictStatus, VerdictSummary,
-        VulnerabilityRef,
+        MatchedValue, QueryMatch, QueryResult, QueryVerdict, ResolutionRequest, SbomVerdictCounts,
+        VerdictStatus, VerdictSummary, VulnerabilityRef,
     },
 };
-use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
-    QueryFilter, Statement,
-};
+use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
@@ -21,6 +18,7 @@ use uuid::Uuid;
 
 pub mod option;
 pub mod statement;
+pub mod weighting;
 
 #[cfg(test)]
 mod test;
@@ -37,7 +35,7 @@ impl CorrelationService {
         Self { extractors }
     }
 
-    /// Count the verdicts of SBOMs by status, without loading the evidence.
+    /// Count verdicts using the same weighted resolver, with compact batched provider inputs.
     ///
     /// Returns one entry per requested SBOM, in the requested order, with zero counts for SBOMs
     /// without evidence (or unknown SBOMs).
@@ -47,59 +45,66 @@ impl CorrelationService {
         sbom_ids: &[Uuid],
         connection: &DatabaseTransaction,
     ) -> Result<Vec<SbomVerdictCounts>, Error> {
-        #[derive(FromQueryResult)]
-        struct Row {
-            sbom_id: Uuid,
-            status: String,
-            count: i64,
+        if sbom_ids.is_empty() {
+            return Ok(Vec::new());
         }
-
-        // Resolves the verdict per (component, vulnerability) the same way as
-        // `resolve_verdict_status`, then counts per status.
-        let rows = Row::find_by_statement(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            r#"
-SELECT sbom_id, status, count(*) AS count
-FROM (
-    SELECT
-        sbom_id,
-        CASE
-            WHEN bool_or(status = 'fixed') THEN 'fixed'
-            WHEN bool_or(status = 'not_affected') THEN 'not_affected'
-            WHEN bool_or(status = 'affected') THEN 'affected'
-            WHEN bool_or(status = 'under_investigation') THEN 'under_investigation'
-            ELSE 'none'
-        END AS status
-    FROM correlation_evidence
-    WHERE sbom_id = ANY($1)
-    GROUP BY sbom_id, node_id, vulnerability_id
-) verdict
-GROUP BY sbom_id, status
-"#,
-            [sbom_ids.to_vec().into()],
-        ))
-        .all(connection)
-        .instrument(info_span!("counting verdicts"))
-        .await?;
-
+        let mut evidence = Vec::new();
+        for chunk in sbom_ids.chunks(1000) {
+            evidence.extend(
+                correlation_evidence::Entity::find()
+                    .filter(correlation_evidence::Column::SbomId.is_in(chunk.iter().copied()))
+                    .all(connection)
+                    .await?,
+            );
+        }
+        let advisory_ids = evidence
+            .iter()
+            .map(|e| e.advisory_id)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let snapshot = weighting::PolicySnapshot::load(connection, sbom_ids, &advisory_ids).await?;
+        let identifiers = weighting::store::provider_identifiers(connection, sbom_ids).await?;
+        let mut groups = BTreeMap::<(Uuid, &str, &str), Vec<&correlation_evidence::Model>>::new();
+        for row in &evidence {
+            groups
+                .entry((row.sbom_id, &row.node_id, &row.vulnerability_id))
+                .or_default()
+                .push(row);
+        }
         let mut counts = HashMap::<Uuid, SbomVerdictCounts>::new();
-        for row in rows {
-            let entry = counts.entry(row.sbom_id).or_default();
-            let count = u64::try_from(row.count).unwrap_or_default();
-            match row.status.as_str() {
-                "fixed" => entry.fixed = count,
-                "not_affected" => entry.not_affected = count,
-                "affected" => entry.affected = count,
-                "under_investigation" => entry.under_investigation = count,
-                _ => entry.none = count,
+        for ((sbom_id, node_id, _), rows) in groups {
+            let request = ResolutionRequest::default();
+            let policy = snapshot.effective(Some(sbom_id), Some(node_id), &request)?;
+            let node_identifiers = identifiers
+                .get(&(sbom_id, node_id.to_string()))
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let provider = snapshot.component_provider(
+                Some(sbom_id),
+                Some(node_id),
+                node_identifiers,
+                &policy,
+            );
+            let inputs = rows
+                .iter()
+                .map(|row| decision_evidence(row, &snapshot))
+                .collect::<Result<Vec<_>, _>>()?;
+            let decision = weighting::resolve(&inputs, provider, &policy, false)?;
+            let count = counts.entry(sbom_id).or_default();
+            match decision.status {
+                VerdictStatus::Affected => count.affected += 1,
+                VerdictStatus::Fixed => count.fixed += 1,
+                VerdictStatus::NotAffected => count.not_affected += 1,
+                VerdictStatus::UnderInvestigation => count.under_investigation += 1,
+                VerdictStatus::None => count.none += 1,
             }
         }
-
         Ok(sbom_ids
             .iter()
-            .map(|sbom_id| SbomVerdictCounts {
-                sbom_id: *sbom_id,
-                ..counts.remove(sbom_id).unwrap_or_default()
+            .map(|id| SbomVerdictCounts {
+                sbom_id: *id,
+                ..counts.get(id).cloned().unwrap_or_default()
             })
             .collect())
     }
@@ -112,10 +117,37 @@ GROUP BY sbom_id, status
         include_unmatched: bool,
         connection: &DatabaseTransaction,
     ) -> Result<CorrelationResult, Error> {
-        let evidence_rows = correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-            .all(connection)
-            .await?;
+        self.correlate_sbom_with(
+            sbom_id,
+            include_unmatched,
+            &ResolutionRequest::default(),
+            connection,
+        )
+        .await
+    }
+
+    pub async fn correlate_sbom_with(
+        &self,
+        sbom_id: Uuid,
+        include_unmatched: bool,
+        request: &ResolutionRequest,
+        connection: &DatabaseTransaction,
+    ) -> Result<CorrelationResult, Error> {
+        if !request.product_context.is_empty() {
+            return Err(Error::BadRequest(
+                "Product context is only supported for identifier queries".into(),
+            ));
+        }
+        weighting::engine::validate_weights(&request.overrides)?;
+        let mut query = correlation_evidence::Entity::find()
+            .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
+        if let Some(node) = &request.node_id {
+            query = query.filter(correlation_evidence::Column::NodeId.eq(node));
+        }
+        if let Some(vulnerability) = &request.vulnerability_id {
+            query = query.filter(correlation_evidence::Column::VulnerabilityId.eq(vulnerability));
+        }
+        let evidence_rows = query.all(connection).await?;
 
         let node_identifiers = self
             .extractors
@@ -177,6 +209,8 @@ GROUP BY sbom_id, status
             .collect();
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
+        let snapshot =
+            weighting::PolicySnapshot::load(connection, &[sbom_id], &advisory_ids).await?;
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
         let mut contexts =
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
@@ -194,14 +228,24 @@ GROUP BY sbom_id, status
 
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
+            let policy = snapshot.effective(Some(sbom_id), Some(node_id), request)?;
+            let identifiers = node_identifiers
+                .get(*node_id)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let component_provider =
+                snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &policy);
+            let inputs = rows
+                .iter()
+                .map(|row| decision_evidence(row, &snapshot))
+                .collect::<Result<Vec<_>, _>>()?;
+
             let evidence: Vec<_> = rows
                 .iter()
-                .map(|row| {
-                    let advisory_identifier = advisory_map
-                        .get(&row.advisory_id)
-                        .map(String::as_str)
-                        .unwrap_or("unknown")
-                        .to_string();
+                .zip(&inputs)
+                .map(|(row, input)| {
+                    let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
+                    let provider = policy.provider(&input.provider, "assertion source");
 
                     EvidenceDetail {
                         id: row.id,
@@ -209,7 +253,8 @@ GROUP BY sbom_id, status
                         confidence: row.confidence,
                         extractor: row.extractor.clone(),
                         advisory_id: row.advisory_id,
-                        advisory_identifier,
+                        advisory_identifier: advisory.identifier,
+                        advisory_type: advisory.r#type,
                         matched_value: row.matched_value.clone().and_then(|value| {
                             serde_json::from_value(value)
                                 .inspect_err(|err| {
@@ -218,19 +263,28 @@ GROUP BY sbom_id, status
                                 .ok()
                         }),
                         contexts: contexts.remove(&row.id).unwrap_or_default(),
+                        provider_match: weighting::provider_match(&component_provider, &provider),
+                        provider,
                         created_at: row.created_at,
                     }
                 })
                 .collect();
 
-            let status = resolve_verdict_status(rows.iter().map(|r| r.status));
+            let decision = weighting::resolve(
+                &inputs,
+                component_provider.clone(),
+                &policy,
+                request.include_explanation,
+            )?;
+            let status = decision.status;
+            let resolution = decision.summary;
 
-            let first = rows[0];
-            let advisory_identifier = advisory_map
-                .get(&first.advisory_id)
-                .map(String::as_str)
-                .unwrap_or("unknown")
-                .to_string();
+            let first = rows
+                .iter()
+                .find(|row| Some(row.advisory_id) == decision.winning_advisory)
+                .copied()
+                .unwrap_or(rows[0]);
+            let advisory = AdvisoryName::of(&advisory_map, first.advisory_id);
 
             let vuln_title = vuln_titles.get(*vuln_id).cloned().flatten();
 
@@ -244,9 +298,12 @@ GROUP BY sbom_id, status
                     id: vuln_id.to_string(),
                     title: vuln_title,
                     advisory_id: first.advisory_id,
-                    advisory_identifier,
+                    advisory_identifier: advisory.identifier,
+                    advisory_type: advisory.r#type,
                 },
                 status,
+                resolution,
+                component_provider,
                 evidence,
             });
         }
@@ -283,7 +340,29 @@ GROUP BY sbom_id, status
         identifier: IdentifierRef,
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
-        let matches = self.extractors.query(&identifier, connection).await?;
+        self.query_identifier_with(identifier, &ResolutionRequest::default(), connection)
+            .await
+    }
+
+    pub async fn query_identifier_with(
+        &self,
+        identifier: IdentifierRef,
+        request: &ResolutionRequest,
+        connection: &DatabaseTransaction,
+    ) -> Result<QueryResult, Error> {
+        if request.node_id.is_some() || request.group_id.is_some() {
+            return Err(Error::BadRequest(
+                "Node and group selection require an SBOM target".into(),
+            ));
+        }
+        weighting::engine::validate_weights(&request.overrides)?;
+        let mut matches = self
+            .extractors
+            .query_with_context(&identifier, &request.product_context, connection)
+            .await?;
+        if let Some(vulnerability) = &request.vulnerability_id {
+            matches.retain(|a| &a.vulnerability_id == vulnerability);
+        }
 
         let advisory_ids = matches
             .iter()
@@ -300,16 +379,18 @@ GROUP BY sbom_id, status
             .collect::<Vec<_>>();
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
+        let snapshot = weighting::PolicySnapshot::load(connection, &[], &advisory_ids).await?;
+        let policy = snapshot.effective(None, None, request)?;
+        let mut provider_identifiers = vec![identifier.clone()];
+        provider_identifiers.extend(request.product_context.clone());
+        let component_provider =
+            snapshot.component_provider(None, None, &provider_identifiers, &policy);
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
 
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
         let mut groups = BTreeMap::<&str, Vec<(AssertionStatus, QueryMatch)>>::new();
         for assertion in &matches {
-            let advisory_identifier = advisory_map
-                .get(&assertion.advisory_id)
-                .map(String::as_str)
-                .unwrap_or("unknown")
-                .to_string();
+            let advisory = AdvisoryName::of(&advisory_map, assertion.advisory_id);
 
             groups
                 .entry(assertion.vulnerability_id.as_str())
@@ -320,7 +401,8 @@ GROUP BY sbom_id, status
                         kind: identifier.kind,
                         value: assertion.matched_value.clone(),
                         advisory_id: assertion.advisory_id,
-                        advisory_identifier,
+                        advisory_identifier: advisory.identifier,
+                        advisory_type: advisory.r#type,
                         status: assertion.status.into(),
                         extractor: assertion.extractor.to_string(),
                         confidence: assertion.confidence,
@@ -328,21 +410,45 @@ GROUP BY sbom_id, status
                 ));
         }
 
-        let verdicts = groups
-            .into_iter()
-            .map(|(vuln_id, items)| {
-                let status = resolve_verdict_status(items.iter().map(|(s, _)| *s));
-                let matches = items.into_iter().map(|(_, m)| m).collect();
-                let vulnerability_title = vuln_titles.get(vuln_id).cloned().flatten();
-
-                QueryVerdict {
-                    vulnerability_id: vuln_id.to_string(),
-                    vulnerability_title,
-                    status,
-                    matches,
-                }
-            })
-            .collect();
+        let mut verdicts = Vec::new();
+        for (vuln_id, items) in groups {
+            let inputs = items
+                .iter()
+                .map(|(status, m)| weighting::DecisionEvidence {
+                    reference: Uuid::new_v5(
+                        &m.advisory_id,
+                        serde_json::json!([m.extractor, m.value, m.status])
+                            .to_string()
+                            .as_bytes(),
+                    )
+                    .to_string(),
+                    advisory_id: m.advisory_id,
+                    status: (*status).into(),
+                    confidence: m.confidence,
+                    extractor: m.extractor.clone(),
+                    value: Some(m.value.clone()),
+                    provider: m
+                        .value
+                        .source_provider
+                        .clone()
+                        .or_else(|| snapshot.advisory_providers.get(&m.advisory_id).cloned())
+                        .unwrap_or_default(),
+                })
+                .collect::<Vec<_>>();
+            let decision = weighting::resolve(
+                &inputs,
+                component_provider.clone(),
+                &policy,
+                request.include_explanation,
+            )?;
+            verdicts.push(QueryVerdict {
+                vulnerability_id: vuln_id.into(),
+                vulnerability_title: vuln_titles.get(vuln_id).cloned().flatten(),
+                status: decision.status,
+                resolution: decision.summary,
+                matches: items.into_iter().map(|(_, m)| m).collect(),
+            });
+        }
 
         Ok(QueryResult {
             query: identifier,
@@ -351,43 +457,55 @@ GROUP BY sbom_id, status
     }
 }
 
-/// Resolve a verdict status from a set of assertion statuses.
-///
-/// Priority: Fixed > NotAffected > Affected > UnderInvestigation > None.
-fn resolve_verdict_status(statuses: impl IntoIterator<Item = AssertionStatus>) -> VerdictStatus {
-    let mut has_affected = false;
-    let mut has_fixed = false;
-    let mut has_not_affected = false;
-    let mut has_under_investigation = false;
+fn decision_evidence(
+    row: &correlation_evidence::Model,
+    snapshot: &weighting::PolicySnapshot,
+) -> Result<weighting::DecisionEvidence, Error> {
+    let value = row
+        .matched_value
+        .clone()
+        .map(serde_json::from_value::<MatchedValue>)
+        .transpose()
+        .map_err(Error::MatchedValue)?;
+    let provider = value
+        .as_ref()
+        .and_then(|v| v.source_provider.clone())
+        .or_else(|| snapshot.advisory_providers.get(&row.advisory_id).cloned())
+        .unwrap_or_default();
+    Ok(weighting::DecisionEvidence {
+        reference: row.id.to_string(),
+        advisory_id: row.advisory_id,
+        status: row.status.into(),
+        confidence: row.confidence,
+        extractor: row.extractor.clone(),
+        value,
+        provider,
+    })
+}
 
-    for status in statuses {
-        match status {
-            AssertionStatus::Affected => has_affected = true,
-            AssertionStatus::Fixed => has_fixed = true,
-            AssertionStatus::NotAffected => has_not_affected = true,
-            AssertionStatus::UnderInvestigation => has_under_investigation = true,
-            AssertionStatus::Recommended => {}
-        }
-    }
+/// The identifier and format of an advisory, for references to it.
+#[derive(Clone)]
+struct AdvisoryName {
+    identifier: String,
+    /// The format, from the `type` label the ingestor sets.
+    r#type: Option<String>,
+}
 
-    if has_fixed {
-        VerdictStatus::Fixed
-    } else if has_not_affected {
-        VerdictStatus::NotAffected
-    } else if has_affected {
-        VerdictStatus::Affected
-    } else if has_under_investigation {
-        VerdictStatus::UnderInvestigation
-    } else {
-        VerdictStatus::None
+impl AdvisoryName {
+    /// The name of an advisory, `unknown` if it isn't loaded.
+    fn of(names: &HashMap<Uuid, AdvisoryName>, id: Uuid) -> Self {
+        names.get(&id).cloned().unwrap_or_else(|| Self {
+            identifier: "unknown".to_string(),
+            r#type: None,
+        })
     }
 }
 
-/// Load advisory identifiers by ID.
+/// Load advisory identifiers and formats by ID.
 async fn load_advisory_names(
     advisory_ids: &[Uuid],
     connection: &DatabaseTransaction,
-) -> Result<HashMap<Uuid, String>, Error> {
+) -> Result<HashMap<Uuid, AdvisoryName>, Error> {
     let advisories = advisory::Entity::find()
         .filter(advisory::Column::Id.is_in(advisory_ids.iter().copied()))
         .all(connection)
@@ -396,7 +514,16 @@ async fn load_advisory_names(
 
     Ok(advisories
         .into_iter()
-        .map(|a| (a.id, a.identifier))
+        .map(|a| {
+            let r#type = a.labels.0.get("type").cloned();
+            (
+                a.id,
+                AdvisoryName {
+                    identifier: a.identifier,
+                    r#type,
+                },
+            )
+        })
         .collect())
 }
 

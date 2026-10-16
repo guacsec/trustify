@@ -297,3 +297,75 @@ pub async fn delete_option(id: uuid::Uuid, token: Option<&str>) -> Result<(), Ap
 pub async fn fetch_well_known() -> Result<WellKnownInfo, ApiError> {
     fetch_json("/.well-known/trustify", None).await
 }
+
+pub async fn preview(
+    body: &trustify_api::correlation::PreviewRequest,
+    token: Option<&str>,
+) -> Result<trustify_api::correlation::PreviewResult, ApiError> {
+    post_json("/api/v3/correlation/preview", body, token).await
+}
+pub async fn weight_policies(
+    token: Option<&str>,
+) -> Result<Vec<trustify_api::correlation::WeightPolicy>, ApiError> {
+    fetch_json("/api/v3/correlation/weight-policy", token).await
+}
+pub async fn provider_aliases(
+    token: Option<&str>,
+) -> Result<Vec<trustify_api::correlation::ProviderAlias>, ApiError> {
+    fetch_json("/api/v3/correlation/provider-alias", token).await
+}
+pub async fn save_weight_policy(
+    id: Option<uuid::Uuid>,
+    data: &trustify_api::correlation::WeightPolicyData,
+    token: Option<&str>,
+) -> Result<(), ApiError> {
+    match id {
+        Some(id) => {
+            send(
+                Request::put(&format!("/api/v3/correlation/weight-policy/{id}")),
+                Some(json_body(data)?),
+                token,
+            )
+            .await?;
+        }
+        None => {
+            let _: trustify_api::correlation::WeightPolicy =
+                post_json("/api/v3/correlation/weight-policy", data, token).await?;
+        }
+    }
+    Ok(())
+}
+pub async fn save_provider_alias(
+    id: Option<uuid::Uuid>,
+    data: &trustify_api::correlation::ProviderAliasData,
+    token: Option<&str>,
+) -> Result<(), ApiError> {
+    match id {
+        Some(id) => {
+            send(
+                Request::put(&format!("/api/v3/correlation/provider-alias/{id}")),
+                Some(json_body(data)?),
+                token,
+            )
+            .await?;
+        }
+        None => {
+            let _: trustify_api::correlation::ProviderAlias =
+                post_json("/api/v3/correlation/provider-alias", data, token).await?;
+        }
+    }
+    Ok(())
+}
+pub async fn delete_weight_setting(
+    resource: &str,
+    id: uuid::Uuid,
+    token: Option<&str>,
+) -> Result<(), ApiError> {
+    send(
+        Request::delete(&format!("/api/v3/correlation/{resource}/{id}")),
+        None,
+        token,
+    )
+    .await?;
+    Ok(())
+}

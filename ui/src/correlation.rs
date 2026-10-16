@@ -1,15 +1,17 @@
 use crate::{
-    AppRoute, api,
+    AppRoute,
+    advisory::advisory_link,
+    api,
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
-        IdentifierRef, MatchedValue, VerdictStatus, VerdictSummary,
+        IdentifierRef, MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
     },
+    weighting::provider_view,
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 #[derive(Clone, Debug, PartialEq, Properties)]
@@ -69,6 +71,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                 </Alert>
             } else if let Some(data) = &*result {
                 <CorrelationContent
+                    sbom_id={data.sbom_id}
                     verdicts={data.verdicts.clone()}
                     unmatched_components={data.unmatched_components.clone().unwrap_or_default()}
                 />
@@ -87,6 +90,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
 
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct CorrelationContentProps {
+    sbom_id: uuid::Uuid,
     verdicts: Vec<VerdictSummary>,
     unmatched_components: Vec<ComponentRef>,
 }
@@ -101,12 +105,19 @@ enum VerdictColumn {
 }
 
 #[derive(Clone, PartialEq)]
-struct VerdictEntry(VerdictSummary);
+struct VerdictEntry(VerdictSummary, uuid::Uuid);
 
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
         match context.column {
-            VerdictColumn::Component => html!(&self.0.component.name).into(),
+            VerdictColumn::Component => html! {
+                <div>
+                    { &self.0.component.name }
+                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                        <code style="color: inherit; overflow-wrap: anywhere;">{ &self.0.component.node_id }</code>
+                    </div>
+                </div>
+            }.into(),
             VerdictColumn::Vulnerability => html! {
                 <>
                     <strong>{ &self.0.vulnerability.id }</strong>
@@ -117,17 +128,36 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
-            VerdictColumn::Advisory => html! {
-                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.vulnerability.advisory_id.to_string() }}>
-                    { &self.0.vulnerability.advisory_identifier }
-                </Link<AppRoute>>
-            }
+            VerdictColumn::Advisory => advisory_link(
+                self.0.vulnerability.advisory_id,
+                &self.0.vulnerability.advisory_identifier,
+                self.0.vulnerability.advisory_type.as_deref(),
+            )
             .into(),
-            VerdictColumn::Status => html!(status_label(self.0.status)).into(),
+            VerdictColumn::Status => html! {
+                <div>
+                    {status_label(self.0.status)}
+                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                </div>
+            }.into(),
             VerdictColumn::Evidence => {
                 html!(<Badge>{ self.0.evidence.len().to_string() }</Badge>).into()
             }
         }
+    }
+
+    fn actions(&self) -> Vec<MenuChildVariant> {
+        vec![
+            html_nested! {
+                <Raw>
+                    <crate::weighting::ResolutionAction
+                        target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
+                        node_id={Some(self.0.component.node_id.clone())}
+                        vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
+                </Raw>
+            }
+            .into(),
+        ]
     }
 
     fn render_details(&self) -> Vec<Span> {
@@ -139,8 +169,20 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         let content = html! {
             <Stack gutter=true>
                 <StackItem>
-                    <Title level={Level::H4}>{ "Component in the SBOM" }</Title>
+                    <Flex>
+                        <FlexItem><Title level={Level::H4}>{ "Component in the SBOM" }</Title></FlexItem>
+                        <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
+                            <crate::weighting::ResolutionButton
+                                target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
+                                node_id={Some(self.0.component.node_id.clone())}
+                                vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
+                        </FlexItem>
+                    </Flex>
                     { identifiers(&self.0.component.identifiers) }
+                    <div>
+                        <strong>{ "Provider" }</strong>
+                        <div>{ provider_view(&self.0.component_provider) }</div>
+                    </div>
                 </StackItem>
                 <StackItem>
                     <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
@@ -164,6 +206,7 @@ enum EvidenceColumn {
     Extractor,
     MatchedValue,
     Product,
+    Provider,
     Advisory,
     Created,
 }
@@ -184,11 +227,27 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 None => html!("\u{2014}").into(),
             },
             EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
-            EvidenceColumn::Advisory => html! {
-                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
-                    { &self.0.advisory_identifier }
-                </Link<AppRoute>>
+            EvidenceColumn::Provider => {
+                let same = match self.0.provider_match {
+                    Some(ProviderMatch::Provider) => Some(("Same as component", Color::Green)),
+                    Some(ProviderMatch::Name) => Some(("Same name as component", Color::Blue)),
+                    None => None,
+                };
+                html! {
+                    <>
+                        { provider_view(&self.0.provider) }
+                        if let Some((label, color)) = same {
+                            <div><Label compact=true {label} {color}/></div>
+                        }
+                    </>
+                }
+                .into()
             }
+            EvidenceColumn::Advisory => advisory_link(
+                self.0.advisory_id,
+                &self.0.advisory_identifier,
+                self.0.advisory_type.as_deref(),
+            )
             .into(),
             EvidenceColumn::Created => html!(&self.0.created_at).into(),
         }
@@ -218,6 +277,7 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
             <TableColumn<EvidenceColumn> label="Extractor" index={EvidenceColumn::Extractor} />
             <TableColumn<EvidenceColumn> label="Matched Value" index={EvidenceColumn::MatchedValue} />
             <TableColumn<EvidenceColumn> label="Product" index={EvidenceColumn::Product} />
+            <TableColumn<EvidenceColumn> label="Provider" index={EvidenceColumn::Provider} />
             <TableColumn<EvidenceColumn> label="Advisory" index={EvidenceColumn::Advisory} />
             <TableColumn<EvidenceColumn> label="Created" index={EvidenceColumn::Created} />
         </TableHeader<EvidenceColumn>>
@@ -269,12 +329,15 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
 
     let summary = verdict_summary_counts(&props.verdicts);
 
-    let verdict_entries = use_memo(props.verdicts.clone(), |verdicts| {
-        verdicts
-            .iter()
-            .map(|v| VerdictEntry(v.clone()))
-            .collect::<Vec<_>>()
-    });
+    let verdict_entries = use_memo(
+        (props.verdicts.clone(), props.sbom_id),
+        |(verdicts, sbom_id)| {
+            verdicts
+                .iter()
+                .map(|v| VerdictEntry(v.clone(), *sbom_id))
+                .collect::<Vec<_>>()
+        },
+    );
 
     let (verdict_entries, onexpand) = use_table_data(MemoizedTableModel::new(verdict_entries));
 

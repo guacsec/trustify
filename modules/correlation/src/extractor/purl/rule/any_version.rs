@@ -18,7 +18,7 @@ use super::{Enabled, RangeRule, low, published_by};
 use crate::{
     error::Error,
     extractor::purl::{Candidates, stated_scheme},
-    model::EnabledBy,
+    model::{AssertionOrigin, EnabledBy},
 };
 use sea_orm::{
     ConnectionTrait,
@@ -39,6 +39,10 @@ impl AnyVersion {
 }
 
 impl RangeRule for AnyVersion {
+    fn origin(&self) -> AssertionOrigin {
+        AssertionOrigin::PublisherPolicy
+    }
+
     fn id(&self) -> &'static str {
         "purl_any_version"
     }

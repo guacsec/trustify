@@ -246,6 +246,7 @@ fn affected_status(
     spec: VersionSpec,
 ) -> PurlStatusEntry {
     PurlStatusEntry {
+        source_provider: None,
         advisory_id: advisory_vuln.advisory.advisory.id,
         vulnerability_id: advisory_vuln
             .advisory_vulnerability

@@ -13,7 +13,10 @@
 //! `custom`), whose versioning scheme is unspecified.
 
 use super::RangeRule;
-use crate::extractor::purl::{Candidates, stated_scheme};
+use crate::{
+    extractor::purl::{Candidates, stated_scheme},
+    model::AssertionOrigin,
+};
 use sea_orm::sea_query::{CaseStatement, Expr, ExprTrait, SimpleExpr};
 use trustify_entity::{base_purl, status, version_range, version_scheme::VersionScheme};
 
@@ -53,6 +56,11 @@ impl SchemelessRange {
 }
 
 impl RangeRule for SchemelessRange {
+    fn origin(&self) -> AssertionOrigin {
+        // Only the comparison scheme is inferred; the status and range are stated.
+        AssertionOrigin::Stated
+    }
+
     fn id(&self) -> &'static str {
         match self {
             Self::Vls => "purl_vls_range",

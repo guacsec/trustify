@@ -14,7 +14,7 @@
 use super::{Enabled, RangeRule, exact_of, exact_status, low};
 use crate::{
     extractor::purl::{Candidates, stated_scheme},
-    model::EnabledBy,
+    model::{AssertionOrigin, EnabledBy},
 };
 use sea_orm::sea_query::{Expr, ExprTrait, SimpleExpr};
 use trustify_entity::status;
@@ -28,6 +28,13 @@ pub enum Source {
 }
 
 impl Source {
+    fn origin(&self) -> AssertionOrigin {
+        match self {
+            Self::Stated => AssertionOrigin::Stated,
+            Self::Fixed(_) => AssertionOrigin::PublisherPolicy,
+        }
+    }
+
     /// The stated rows, with an exact version.
     fn condition(&self) -> SimpleExpr {
         match self {
@@ -89,6 +96,10 @@ fn up_to(condition: SimpleExpr, status: &str, inclusive: bool) -> Candidates {
 pub struct FirstFixed(pub Source);
 
 impl RangeRule for FirstFixed {
+    fn origin(&self) -> AssertionOrigin {
+        self.0.origin()
+    }
+
     fn id(&self) -> &'static str {
         self.0.id("purl_first_fixed", "purl_fixed_as_first_fixed")
     }
@@ -121,6 +132,13 @@ impl RangeRule for FirstFixed {
 pub struct FirstFixedBefore(pub Source);
 
 impl RangeRule for FirstFixedBefore {
+    fn origin(&self) -> AssertionOrigin {
+        match self.0 {
+            Source::Stated => AssertionOrigin::Inferred,
+            Source::Fixed(_) => AssertionOrigin::PublisherPolicy,
+        }
+    }
+
     fn id(&self) -> &'static str {
         self.0.id(
             "purl_first_fixed_before",
@@ -150,6 +168,9 @@ impl RangeRule for FirstFixedBefore {
 pub struct FirstAffected;
 
 impl RangeRule for FirstAffected {
+    fn origin(&self) -> AssertionOrigin {
+        AssertionOrigin::Stated
+    }
     fn id(&self) -> &'static str {
         "purl_first_affected"
     }
@@ -167,6 +188,9 @@ impl RangeRule for FirstAffected {
 pub struct LastAffected;
 
 impl RangeRule for LastAffected {
+    fn origin(&self) -> AssertionOrigin {
+        AssertionOrigin::Stated
+    }
     fn id(&self) -> &'static str {
         "purl_last_affected"
     }

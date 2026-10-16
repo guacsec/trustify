@@ -1,11 +1,10 @@
-use crate::{AppRoute, api, correlation::matched_value};
+use crate::{advisory::advisory_link, api, correlation::matched_value};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
     AssertionStatus, IdentifierKind, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 #[function_component(QueryPage)]
@@ -137,7 +136,7 @@ enum VerdictColumn {
 }
 
 #[derive(Clone, PartialEq)]
-struct VerdictEntry(QueryVerdict);
+struct VerdictEntry(QueryVerdict, crate::model::IdentifierRef);
 
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
@@ -152,11 +151,26 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
-            VerdictColumn::Status => html!(status_label(self.0.status)).into(),
+            VerdictColumn::Status => html! {
+                <div>
+                    {status_label(self.0.status)}
+                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                </div>
+            }.into(),
             VerdictColumn::Evidence => {
                 html!(<Badge>{ self.0.matches.len().to_string() }</Badge>).into()
             }
         }
+    }
+
+    fn actions(&self) -> Vec<MenuChildVariant> {
+        vec![html_nested! {
+            <Raw>
+                <crate::weighting::ResolutionAction
+                    target={trustify_api::correlation::PreviewTarget::Identifier{identifier:self.1.clone()}}
+                    vulnerability_id={Some(self.0.vulnerability_id.clone())}/>
+            </Raw>
+        }.into()]
     }
 
     fn render_details(&self) -> Vec<Span> {
@@ -165,7 +179,20 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         }
 
         let content = html! {
-            <MatchTable matches={self.0.matches.clone()} />
+            <Stack gutter=true>
+                <StackItem>
+                    <Flex>
+                        <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
+                            <crate::weighting::ResolutionButton
+                                target={trustify_api::correlation::PreviewTarget::Identifier{identifier:self.1.clone()}}
+                                vulnerability_id={Some(self.0.vulnerability_id.clone())}/>
+                        </FlexItem>
+                    </Flex>
+                </StackItem>
+                <StackItem>
+                    <MatchTable matches={self.0.matches.clone()} />
+                </StackItem>
+            </Stack>
         };
 
         vec![Span::max(content)]
@@ -194,11 +221,11 @@ impl TableEntryRenderer<MatchColumn> for MatchEntry {
         match context.column {
             MatchColumn::MatchType => html!(<Label label={self.0.kind.label()} />).into(),
             MatchColumn::Value => matched_value(&self.0.value).into(),
-            MatchColumn::Advisory => html! {
-                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
-                    { &self.0.advisory_identifier }
-                </Link<AppRoute>>
-            }
+            MatchColumn::Advisory => advisory_link(
+                self.0.advisory_id,
+                &self.0.advisory_identifier,
+                self.0.advisory_type.as_deref(),
+            )
             .into(),
             MatchColumn::Status => html!(assertion_label(self.0.status)).into(),
             MatchColumn::Confidence => html!(format!("{:.0}%", self.0.confidence * 100.0)).into(),
@@ -262,12 +289,15 @@ fn query_results(props: &QueryResultsProps) -> Html {
 
     let summary = verdict_summary_counts(&props.data.verdicts);
 
-    let entries = use_memo(props.data.verdicts.clone(), |verdicts| {
-        verdicts
-            .iter()
-            .map(|v| VerdictEntry(v.clone()))
-            .collect::<Vec<_>>()
-    });
+    let entries = use_memo(
+        (props.data.verdicts.clone(), props.data.query.clone()),
+        |(verdicts, query)| {
+            verdicts
+                .iter()
+                .map(|v| VerdictEntry(v.clone(), query.clone()))
+                .collect::<Vec<_>>()
+        },
+    );
 
     let (entries, onexpand) = use_table_data(MemoizedTableModel::new(entries));
 

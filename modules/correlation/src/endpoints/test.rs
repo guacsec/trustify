@@ -121,6 +121,110 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn weighting_configuration_and_read_only_preview(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use serde_json::{Value, json};
+    use trustify_test_context::call::{CallService, caller};
+    let app = caller(|svc| configure(svc, ctx)).await?;
+    let base = "/api/v3/correlation";
+    let body = json!({"scope":{"kind":"instance"},"weights":{"matching_provider":3.0}});
+    let response = app
+        .call_service(
+            TestRequest::post()
+                .uri(&format!("{base}/weight-policy"))
+                .set_json(&body)
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 201);
+    let created: Value = actix_web::test::read_body_json(response).await;
+    let id = created["id"].as_str().unwrap();
+    let response = app
+        .call_service(
+            TestRequest::post()
+                .uri(&format!("{base}/weight-policy"))
+                .set_json(&body)
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 409);
+    let response = app
+        .call_service(
+            TestRequest::put()
+                .uri(&format!("{base}/weight-policy/{id}"))
+                .set_json(json!({"scope":{"kind":"instance"},"weights":{"direct":-1}}))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 400);
+    let response = app
+        .call_service(
+            TestRequest::put()
+                .uri(&format!("{base}/weight-policy/{id}"))
+                .set_json(json!({"scope":{"kind":"instance"},"weights":{"matching_provider":4}}))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 200);
+    let updated: Value = actix_web::test::read_body_json(response).await;
+    assert_ne!(updated["revision"], created["revision"]);
+    let preview = json!({"target":{"kind":"identifier","identifier":{"kind":"purl","value":"pkg:generic/absent@1"}},"resolution":{"include_explanation":true,"overrides":{"direct":0}}});
+    let response = app
+        .call_service(
+            TestRequest::post()
+                .uri(&format!("{base}/preview"))
+                .set_json(&preview)
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 200);
+    let read: Vec<Value> = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("{base}/weight-policy"))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(read, vec![updated]);
+    let response = app
+        .call_service(
+            TestRequest::post()
+                .uri(&format!("{base}/provider-alias"))
+                .set_json(json!({"provider":"A/","aliases":["name:Acme"]}))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 201);
+    let alias: Value = actix_web::test::read_body_json(response).await;
+    assert_eq!(alias["provider"], "A");
+    let response = app
+        .call_service(
+            TestRequest::post()
+                .uri(&format!("{base}/provider-alias"))
+                .set_json(json!({"provider":"B","aliases":["name:ACME"]}))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 409);
+    for (resource, id) in [
+        ("weight-policy", id),
+        ("provider-alias", alias["id"].as_str().unwrap()),
+    ] {
+        let response = app
+            .call_service(
+                TestRequest::delete()
+                    .uri(&format!("{base}/{resource}/{id}"))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(response.status(), 204);
+    }
+    Ok(())
+}
+
 mod option {
     use super::configure;
     use crate::model::{CorrelationOption, CorrelationOptionData, CorrelationOptionKey};

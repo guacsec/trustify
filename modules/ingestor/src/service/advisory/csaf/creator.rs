@@ -607,6 +607,7 @@ impl<'a> StatusCreator<'a> {
         let mut cpe_assertions = CpeAssertionCreator::new(self.advisory_id);
         for (cpe, range, status, context) in &self.cpe_entries {
             cpe_assertions.add(CpeAssertion {
+                source_provider: None,
                 vulnerability_id: self.vulnerability_id.clone(),
                 cpe: cpe.clone(),
                 range: range.clone(),
@@ -741,6 +742,7 @@ impl<'a> StatusCreator<'a> {
         status: Uuid,
     ) {
         let purl_status = PurlStatus {
+            source_provider: None,
             cpe: product.cpe.clone(),
             purl: purl.clone(),
             status,

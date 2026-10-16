@@ -1,0 +1,30 @@
+{
+  "advisories": [
+    "cve/providers.json",
+    "osv/generic.json"
+  ],
+  "sboms": {
+    "sbom/providers.cdx.json": {
+      "a-build": {
+        "CVE-2026-99992": "affected"
+      },
+      "b-build": {
+        "CVE-2026-99992": "not_affected"
+      },
+      "inherited-build": {
+        "CVE-2026-99992": "affected"
+      }
+    },
+    "sbom/providers.spdx.json": {
+      "SPDXRef-a-build": {
+        "CVE-2026-99992": "affected"
+      },
+      "SPDXRef-b-build": {
+        "CVE-2026-99992": "not_affected"
+      },
+      "SPDXRef-inherited-build": {
+        "CVE-2026-99992": "affected"
+      }
+    }
+  }
+}

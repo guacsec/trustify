@@ -19,6 +19,39 @@
   word-break: break-all;
 }
 
+// Keep explanation content within the modal, including long policy and provider identifiers.
+.pf-v6-c-modal-box:has(.trustify-verdict-explanation) {
+  width: min(68rem, calc(100vw - 4rem));
+  max-width: calc(100vw - 4rem);
+  max-height: calc(100dvh - 2rem);
+  min-width: 0;
+}
+
+.trustify-verdict-explanation {
+  min-width: 0;
+  overflow-wrap: anywhere;
+
+  details > summary {
+    cursor: pointer;
+    padding-block: var(--pf-t--global--spacer--sm);
+    font-weight: var(--pf-t--global--font--weight--body--bold);
+  }
+
+  details[open] > summary {
+    margin-bottom: var(--pf-t--global--spacer--sm);
+  }
+}
+
+.trustify-verdict-table {
+  max-width: 100%;
+  overflow-x: auto;
+
+  table {
+    width: 100%;
+    table-layout: fixed;
+  }
+}
+
 // Global ingestion stays compact enough for the navigation sidebar.
 .pf-v6-c-page__sidebar-body {
   --pf-v6-c-page__sidebar-body--PaddingInlineEnd: var(--pf-v6-c-page__sidebar-body--PaddingInlineStart);
@@ -41,24 +74,24 @@
   border: 2px dashed var(--pf-t--global--border--color--default);
   border-radius: var(--pf-t--global--border--radius--small);
 
+  &__icon {
+    color: var(--pf-t--global--icon--color--subtle);
+    font-size: var(--pf-t--global--icon--size--xl);
+    margin-bottom: var(--pf-t--global--spacer--sm);
+  }
+
   &__hint {
     color: var(--pf-t--global--text--color--subtle);
     font-size: var(--pf-t--global--font--size--sm);
-    margin-bottom: var(--pf-t--global--spacer--sm);
+  }
+
+  &--drag-over &__icon {
+    color: var(--pf-t--global--color--brand--default);
   }
 
   &--drag-over {
     border-color: var(--pf-t--global--color--brand--default);
     background-color: var(--pf-t--global--background--color--primary--hover);
-  }
-
-  &__browse.pf-v6-c-button {
-    --pf-v6-c-button--Color: var(--pf-t--global--text--color--subtle);
-    --pf-v6-c-button--FontSize: var(--pf-t--global--font--size--sm);
-    --pf-v6-c-button--PaddingBlockStart: 0;
-    --pf-v6-c-button--PaddingBlockEnd: 0;
-    --pf-v6-c-button--PaddingInlineStart: 0;
-    --pf-v6-c-button--PaddingInlineEnd: 0;
   }
 
   &__current {

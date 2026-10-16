@@ -676,6 +676,7 @@ impl SbomContext {
             .collect();
         creator.add(
             NodeInfoParam {
+                supplier: None,
                 node_id,
                 name,
                 group: None,
