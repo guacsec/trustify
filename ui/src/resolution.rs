@@ -104,12 +104,21 @@ pub fn provider_view(provider: &ProviderResolution) -> Html {
 }
 
 /// The products a statement was matched in, each once. The tooltip names what confirmed them.
-fn product_names(contexts: &[EvidenceContext]) -> Html {
-    let mut products = Vec::<(&str, Vec<&str>)>::new();
+pub(crate) fn product_names(contexts: &[EvidenceContext]) -> Html {
+    // per product: the identifiers confirming it, or the unconfirmed link
+    let mut products = Vec::<(&str, Vec<&str>, Option<&EvidenceContext>)>::new();
     for context in contexts {
-        match products.iter_mut().find(|(name, _)| *name == context.name) {
-            Some((_, identifiers)) => identifiers.push(&context.node_identifier),
-            None => products.push((&context.name, vec![&context.node_identifier])),
+        let index = match products.iter().position(|(name, ..)| *name == context.name) {
+            Some(index) => index,
+            None => {
+                products.push((&context.name, Vec::new(), None));
+                products.len() - 1
+            }
+        };
+        let (_, confirmed, unconfirmed) = &mut products[index];
+        match context.source {
+            ContextSource::Unconfirmed => *unconfirmed = Some(context),
+            _ => confirmed.push(&context.node_identifier),
         }
     }
     if products.is_empty() {
@@ -117,15 +126,39 @@ fn product_names(contexts: &[EvidenceContext]) -> Html {
     }
     html! {
         <ul style="margin:0;padding-left:1em">
-            {for products.into_iter().map(|(name, identifiers)| html! {
-                <li>
-                    <Tooltip text={format!("Confirmed by {}", identifiers.join(", "))}>
-                        <span>{ name }</span>
-                    </Tooltip>
-                </li>
+            {for products.into_iter().map(|(name, confirmed, unconfirmed)| {
+                let text = match unconfirmed {
+                    Some(context) if confirmed.is_empty() => unconfirmed_text(context),
+                    _ => format!("Confirmed by {}", confirmed.join(", ")),
+                };
+                html! {
+                    <li>
+                        <Tooltip {text}>
+                            <span>
+                                { name }
+                                if confirmed.is_empty() {
+                                    { " " }<Label compact=true label="not confirmed" color={Color::Orange}/>
+                                }
+                            </span>
+                        </Tooltip>
+                    </li>
+                }
             })}
         </ul>
     }
+}
+
+/// Why a product a statement is stated in doesn't count as confirmed.
+fn unconfirmed_text(context: &EvidenceContext) -> String {
+    format!(
+        "Not confirmed: the statement is about {}, but neither the component nor anything above it in the SBOM has {}. Its match confidence is reduced ×{:.2}.",
+        context.name,
+        match context.context_identifier.is_empty() {
+            true => "an identifier of it".to_string(),
+            false => context.context_identifier.clone(),
+        },
+        context.confidence,
+    )
 }
 
 /// The products a statement was matched in, and the component identifier confirming each.
@@ -137,17 +170,26 @@ fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
         <>
             <p>{"Matched in product:"}</p>
             <ul class="pf-v6-c-list">
-                {for contexts.iter().map(|context| html! {
-                    <li>
-                        { &context.name }{ ", confirmed by the " }{ context.source.label() }
-                        if context.distance > 1 {
-                            { format!(" ({} hops away)", context.distance) }
-                        }
-                        { " " }<code style="overflow-wrap: anywhere;">{ &context.node_identifier }</code>
-                        <span class="pf-v6-u-text-color-subtle">
-                            { format!(" (match confidence ×{:.2})", context.confidence) }
-                        </span>
-                    </li>
+                {for contexts.iter().map(|context| match context.source {
+                    ContextSource::Unconfirmed => html! {
+                        <li>
+                            <strong>{ &context.name }</strong>{ " " }
+                            <Label compact=true label="not confirmed" color={Color::Orange}/>
+                            <p class="pf-v6-u-text-color-subtle">{ unconfirmed_text(context) }</p>
+                        </li>
+                    },
+                    _ => html! {
+                        <li>
+                            { &context.name }{ ", confirmed by the " }{ context.source.label() }
+                            if context.distance > 1 {
+                                { format!(" ({} hops away)", context.distance) }
+                            }
+                            { " " }<code style="overflow-wrap: anywhere;">{ &context.node_identifier }</code>
+                            <span class="pf-v6-u-text-color-subtle">
+                                { format!(" (match confidence ×{:.2})", context.confidence) }
+                            </span>
+                        </li>
+                    },
                 })}
             </ul>
         </>

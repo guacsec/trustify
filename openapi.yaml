@@ -6085,6 +6085,7 @@ components:
       - ancestor_sbom
       - purl_qualifier
       - purl_release
+      - unconfirmed
     CorrelationOption:
       allOf:
       - $ref: '#/components/schemas/CorrelationOptionData'

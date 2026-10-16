@@ -204,7 +204,9 @@ impl Extractors {
                     assertion.requires_context,
                 ) {
                     Scope::Dropped => continue,
-                    Scope::Matched { confidence, .. } | Scope::Unscoped { confidence } => {
+                    Scope::Matched { confidence, .. }
+                    | Scope::Unscoped { confidence }
+                    | Scope::Unconfirmed { confidence, .. } => {
                         assertion.confidence = round(assertion.confidence * confidence)
                     }
                 }
@@ -244,6 +246,10 @@ async fn write_scoped(
             Scope::Matched { confidence, links } => {
                 assertion.confidence = round(assertion.confidence * confidence);
                 writer.add_in_context(&node, assertion, links)?;
+            }
+            Scope::Unconfirmed { confidence, link } => {
+                assertion.confidence = round(assertion.confidence * confidence);
+                writer.add_in_context(&node, assertion, vec![link])?;
             }
         }
     }

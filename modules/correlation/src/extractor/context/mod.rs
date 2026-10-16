@@ -4,10 +4,13 @@
 //! `assertion_context`). A node of an SBOM is put into products by the CPEs around it: its own,
 //! the ones of its ancestors in the SBOM, the SBOM's describing CPEs, and the describing CPEs of
 //! ancestor SBOMs. Exact product identifiers (SKUs, model and serial numbers, digests) of the node
-//! or its ancestors confirm a context stating the same identifier. Like the RPM stream scoping, an assertion is kept for a node whose contexts
-//! match, dropped for one whose contexts are comparable but don't match, and kept unscoped
-//! otherwise, unless it requires a context (e.g. a versionless statement, which identifies the
-//! package only through its product).
+//! or its ancestors confirm a context stating the same identifier.
+//!
+//! Like the RPM stream scoping, an assertion is kept for a node whose contexts match, and dropped
+//! for one whose contexts are comparable but don't match. Otherwise, it is kept with a lower
+//! confidence, recording the context as unconfirmed with the identifiers which would have confirmed
+//! it, unless it requires a context (e.g. a versionless statement, which identifies the package only
+//! through its product).
 //!
 //! The confidence of a context match depends on how close the context is to the node: its own
 //! CPE is most specific, the describing CPE of an ancestor SBOM the least.
@@ -96,6 +99,7 @@ fn source_confidence(source: ContextSource, distance: i32) -> f64 {
         ContextSource::AncestorSbom => decreasing(ANCESTOR_SBOM),
         ContextSource::PurlQualifier => PURL_QUALIFIER,
         ContextSource::PurlRelease => PURL_RELEASE,
+        ContextSource::Unconfirmed => UNCHECKED,
     }
 }
 
@@ -161,9 +165,11 @@ pub enum Scope {
         confidence: f64,
         links: Vec<ContextLink>,
     },
-    /// Nothing to compare: no context on either side, or nothing comparable. The confidence is
-    /// lower for an assertion stated in a product which couldn't be checked.
+    /// The assertion isn't about a product (it has no context).
     Unscoped { confidence: f64 },
+    /// The assertion is stated in a product, but nothing in the SBOM confirms it, nor contradicts
+    /// it. The link records the context, and the identifiers which would have confirmed it.
+    Unconfirmed { confidence: f64, link: ContextLink },
     /// The contexts are comparable, but don't match, or a required context is missing.
     Dropped,
 }
@@ -231,9 +237,12 @@ pub fn scope(
     }
 
     if links.is_empty() {
-        return match comparable {
-            true => Scope::Dropped,
-            false => unscoped(UNCHECKED),
+        return match (comparable, requires_context) {
+            (false, false) => Scope::Unconfirmed {
+                confidence: UNCHECKED,
+                link: unconfirmed(context),
+            },
+            _ => Scope::Dropped,
         };
     }
 
@@ -248,6 +257,31 @@ pub fn scope(
     });
     let confidence = links.iter().map(|link| link.confidence).fold(0.0, f64::max);
     Scope::Matched { confidence, links }
+}
+
+/// The link of a context nothing in the SBOM confirms: its identifiers would have.
+fn unconfirmed(context: &AssertionContext) -> ContextLink {
+    let mut expected = context
+        .cpes
+        .iter()
+        .map(format_cpe)
+        .chain(
+            context
+                .identifiers
+                .iter()
+                .map(|(kind, value)| format_identifier(*kind, value)),
+        )
+        .collect::<Vec<_>>();
+    expected.sort();
+    expected.dedup();
+    ContextLink {
+        context_id: context.context.id,
+        source: ContextSource::Unconfirmed,
+        distance: 0,
+        node_identifier: String::new(),
+        context_identifier: expected.join(", "),
+        confidence: UNCHECKED,
+    }
 }
 
 /// Round a confidence to two digits, like the rule confidences.
@@ -939,7 +973,8 @@ mod test {
         );
     }
 
-    /// Not matched: dropped (`None`), or kept unscoped with a confidence factor.
+    /// Not matched: dropped (`None`), or kept with a confidence factor: unconfirmed when stated in
+    /// a product, unscoped otherwise.
     #[rstest]
     // comparable, but different
     #[case::mismatch(Some(&["cpe:/o:redhat:enterprise_linux:8"][..]), &["cpe:/o:redhat:enterprise_linux:9"][..], false, None)]
@@ -966,9 +1001,13 @@ mod test {
             .iter()
             .map(|value| node(value, ContextSource::Describing, 0))
             .collect::<Vec<_>>();
-        let expected = match kept {
-            Some(confidence) => Scope::Unscoped { confidence },
-            None => Scope::Dropped,
+        let expected = match (kept, &assertion) {
+            (Some(confidence), Some(context)) => Scope::Unconfirmed {
+                confidence,
+                link: unconfirmed(context),
+            },
+            (Some(confidence), None) => Scope::Unscoped { confidence },
+            (None, _) => Scope::Dropped,
         };
         assert_eq!(
             scope(assertion.as_ref(), &node_cpes, &[], requires_context),
@@ -1093,8 +1132,16 @@ mod test {
                 scope(Some(&context), &[], &node, true),
             ],
             [
-                Scope::Unscoped {
-                    confidence: UNCHECKED
+                Scope::Unconfirmed {
+                    confidence: UNCHECKED,
+                    link: ContextLink {
+                        context_id: Uuid::nil(),
+                        source: ContextSource::Unconfirmed,
+                        distance: 0,
+                        node_identifier: String::new(),
+                        context_identifier: "sku:6925281924439".into(),
+                        confidence: UNCHECKED,
+                    },
                 },
                 Scope::Dropped,
             ]

@@ -202,6 +202,9 @@ pub enum ContextSource {
     PurlQualifier,
     /// The product of an RPM, by the release of its version.
     PurlRelease,
+    /// Nothing in the SBOM confirms the product, nor contradicts it. The context identifier lists
+    /// the identifiers which would have confirmed it.
+    Unconfirmed,
 }
 
 impl ContextSource {
@@ -213,6 +216,7 @@ impl ContextSource {
             Self::AncestorSbom => "ancestor SBOM",
             Self::PurlQualifier => "distro qualifier",
             Self::PurlRelease => "release",
+            Self::Unconfirmed => "nothing in the SBOM",
         }
     }
 }
@@ -600,6 +604,7 @@ mod entity_conversions {
                 EntityContextSource::AncestorSbom => Self::AncestorSbom,
                 EntityContextSource::PurlQualifier => Self::PurlQualifier,
                 EntityContextSource::PurlRelease => Self::PurlRelease,
+                EntityContextSource::Unconfirmed => Self::Unconfirmed,
             }
         }
     }

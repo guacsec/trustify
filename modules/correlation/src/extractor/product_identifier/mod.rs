@@ -513,6 +513,22 @@ mod test {
             confidences,
             vec![("comp-flip4-device", 1.0), ("comp-flip4-fw", 0.7)]
         );
+        // the firmware records the product it wasn't confirmed in, and what would have confirmed it
+        let firmware = evidence
+            .iter()
+            .find(|e| e.node_id == "comp-flip4-fw")
+            .map(|e| e.id);
+        let links = correlation_evidence_context::Entity::find()
+            .filter(correlation_evidence_context::Column::EvidenceId.eq(firmware))
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|link| (link.source, link.context_identifier, link.confidence))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            links,
+            vec![(ContextSource::Unconfirmed, "sku:6925281*".to_string(), 0.7)]
+        );
 
         Ok(())
     }

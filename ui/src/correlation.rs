@@ -3,10 +3,10 @@ use crate::{
     advisory::advisory_link,
     api,
     model::{
-        ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
-        IdentifierRef, MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
+        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef,
+        MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
     },
-    resolution::provider_view,
+    resolution::{product_names, provider_view},
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
@@ -227,7 +227,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 Some(value) => matched_value(value).into(),
                 None => html!("\u{2014}").into(),
             },
-            EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
+            EvidenceColumn::Product => product_names(&self.0.contexts).into(),
             EvidenceColumn::Provider => {
                 let same = match self.0.provider_match {
                     Some(ProviderMatch::Provider) => Some(("Same as component", Color::Green)),
@@ -468,26 +468,6 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
 
 /// Render the advisory side of a match: the identifier, and each matched version range on a line
 /// of its own.
-/// The products (contexts) evidence was matched in. How the component got into them is part of
-/// the verdict explanation.
-fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
-    // the same product can be confirmed by several identifiers
-    let mut names = Vec::<&str>::new();
-    for context in contexts {
-        if !names.contains(&context.name.as_str()) {
-            names.push(&context.name);
-        }
-    }
-    if names.is_empty() {
-        return html!("\u{2014}");
-    }
-    html! {
-        <ul style="margin:0;padding-left:1em">
-            { for names.into_iter().map(|name| html!(<li>{ name }</li>)) }
-        </ul>
-    }
-}
-
 pub(crate) fn matched_value(value: &MatchedValue) -> Html {
     html! {
         <>

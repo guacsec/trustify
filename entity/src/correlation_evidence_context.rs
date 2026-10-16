@@ -80,4 +80,8 @@ pub enum ContextSource {
     /// The product of an RPM, by the release (stream, codestream) of its version.
     #[sea_orm(string_value = "purl_release")]
     PurlRelease,
+    /// Nothing in the SBOM confirms the context, nor contradicts it. The context identifier lists
+    /// the identifiers which would have confirmed it.
+    #[sea_orm(string_value = "unconfirmed")]
+    Unconfirmed,
 }
