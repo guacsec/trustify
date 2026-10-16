@@ -1,10 +1,13 @@
 use crate::crypto::{
     model::{
         CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse,
+        PolicySummaryResult,
     },
     service::CryptoService,
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
+use sea_orm::TransactionTrait;
+use trustify_common::db::DbError;
 use trustify_auth::{ReadSbom, authorizer::Require};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache, query::Query},
@@ -15,15 +18,19 @@ use uuid::Uuid;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: db::ReadOnly,
+    db_ro: db::ReadOnly,
+    db_rw: db::ReadWrite,
     cache: PaginationCache,
+    conforma_url: Option<String>,
 ) {
-    let service = CryptoService::new(cache);
+    let service = CryptoService::new(cache, conforma_url);
     config
-        .app_data(web::Data::new(db))
+        .app_data(web::Data::new(db_ro))
+        .app_data(web::Data::new(db_rw))
         .app_data(web::Data::new(service))
         .service(list_algorithms)
         .service(get_summary)
+        .service(get_policy_summary)
         .service(list_sbom_crypto)
         .service(evaluate_policy);
 }
@@ -83,6 +90,23 @@ pub async fn get_summary(
 
 #[utoipa::path(
     tag = "crypto",
+    operation_id = "getCryptoPolicySummary",
+    responses(
+        (status = 200, description = "Aggregated policy verdict counts from stored evaluations", body = PolicySummaryResult),
+    ),
+)]
+#[get("/v3/crypto/policy/summary")]
+pub async fn get_policy_summary(
+    state: web::Data<CryptoService>,
+    db: web::Data<db::ReadOnly>,
+    _: Require<ReadSbom>,
+) -> actix_web::Result<impl Responder> {
+    let tx = db.begin().await?;
+    Ok(HttpResponse::Ok().json(state.fetch_policy_summary(&tx).await?))
+}
+
+#[utoipa::path(
+    tag = "crypto",
     operation_id = "listSbomCrypto",
     params(
         ("id", Path, description = "ID of the SBOM to get crypto assets for"),
@@ -129,12 +153,14 @@ pub async fn list_sbom_crypto(
 #[post("/v3/crypto/policy/evaluate")]
 pub async fn evaluate_policy(
     state: web::Data<CryptoService>,
-    db: web::Data<db::ReadOnly>,
+    db: web::Data<db::ReadWrite>,
     body: web::Json<PolicyEvaluationRequest>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin().await?;
-    Ok(HttpResponse::Ok().json(state.evaluate_policy(body.sbom_id, &tx).await?))
+    let tx = db.begin().await.map_err(DbError::from)?;
+    let result = state.evaluate_policy(body.sbom_id, &tx).await?;
+    tx.commit().await.map_err(DbError::from)?;
+    Ok(HttpResponse::Ok().json(result))
 }
 
 #[cfg(test)]

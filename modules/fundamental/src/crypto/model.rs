@@ -18,7 +18,8 @@ pub struct CryptoAlgorithmSummary {
     pub primitive: Option<String>,
     #[schema(value_type = Object)]
     pub properties: serde_json::Value,
-    pub policy_status: PolicyVerdict,
+    #[schema(required)]
+    pub policy_status: Option<PolicyVerdict>,
     pub packages_count: i64,
     pub sboms_count: i64,
 }
@@ -27,9 +28,6 @@ pub struct CryptoAlgorithmSummary {
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct CryptoSummary {
     pub total_algorithms: i64,
-    pub pqc_compliant: i64,
-    pub classical_share_pct: f64,
-    pub sboms_meeting_pqc: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
