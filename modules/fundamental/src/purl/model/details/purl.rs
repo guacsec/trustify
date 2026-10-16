@@ -456,7 +456,11 @@ impl PurlAdvisory {
                     PurlStatus::from_entity(&vulnerability, advisory, status, fv, tx).await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
-                    entry.status.push(qualified_package_status)
+                    // This legacy response has no source-PURL field. Several qualified source
+                    // identifiers can therefore project to the same public status.
+                    if !entry.status.contains(&qualified_package_status) {
+                        entry.status.push(qualified_package_status)
+                    }
                 } else {
                     let organization = advisory.find_related(organization::Entity).one(tx).await?;
 

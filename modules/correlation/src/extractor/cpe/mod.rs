@@ -562,7 +562,7 @@ mod test {
             "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:* semver: >= 1.0.0, < 4.10.0";
         const WAGO_FIXED: &str = "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*";
         const WAGO_HARDENED_RANGE: &str =
-            "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:* semver: >= 1.0.0, < 4.10.0(70)";
+            "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:* semver: >= 1.0.0, < 4.10.0 (70)";
         const MDP_ARM32: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:arm32:*";
         const MDP_X86: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:x86:*";
 

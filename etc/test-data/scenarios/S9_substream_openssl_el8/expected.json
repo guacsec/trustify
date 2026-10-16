@@ -1,17 +1,27 @@
 {
   "advisories": [
     "cve/CVE-2023-0286.json",
-    "vex/CVE-2023-0286.json"
+    "vex/CVE-2023-0286.json.xz"
   ],
   "sboms": {
-    "sbom_openssl_el8.2_below-fix": {
-      "correct": {
+    "sbom_openssl_el8.2_below-fix.cdx.json": {
+      "pkg-openssl": {
         "CVE-2023-0286": "affected"
       }
     },
-    "sbom_openssl_el8.2_patched": {
-      "correct": {
-        "CVE-2023-0286": "not_affected"
+    "sbom_openssl_el8.2_below-fix.spdx.json": {
+      "SPDXRef-Package-rpm-openssl-pkg-openssl": {
+        "CVE-2023-0286": "affected"
+      }
+    },
+    "sbom_openssl_el8.2_patched.cdx.json": {
+      "pkg-openssl": {
+        "CVE-2023-0286": "fixed"
+      }
+    },
+    "sbom_openssl_el8.2_patched.spdx.json": {
+      "SPDXRef-Package-rpm-openssl-pkg-openssl": {
+        "CVE-2023-0286": "fixed"
       }
     }
   }

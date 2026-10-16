@@ -74,8 +74,46 @@ async fn load_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<V
             ))
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
-    evidence.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
+    evidence.sort_by(|a, b| {
+        (&a.0, &a.1, &a.2, a.5.as_ref().map(|v| &v.identifier)).cmp(&(
+            &b.0,
+            &b.1,
+            &b.2,
+            b.5.as_ref().map(|v| &v.identifier),
+        ))
+    });
     Ok(evidence)
+}
+
+/// Compare the range-rule behavior independently of source PURL presentation. The module and
+/// provenance tests below use raw evidence; these existing policy tests aggregate its ranges by
+/// base identity, as they did before assertions retained their original qualified PURLs.
+async fn range_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
+    let mut result: Vec<Evidence> = Vec::new();
+    for mut evidence in load_evidence(ctx, sbom_id).await? {
+        if let Some(value) = &mut evidence.5 {
+            let purl = value.identifier.parse::<Purl>()?;
+            value.identifier = purl.to_base().to_string();
+        }
+        if let Some(existing) = result.iter_mut().find(|e| {
+            e.0 == evidence.0
+                && e.1 == evidence.1
+                && e.2 == evidence.2
+                && e.3 == evidence.3
+                && e.5.as_ref().map(|v| (&v.identifier, &v.enabled_by))
+                    == evidence.5.as_ref().map(|v| (&v.identifier, &v.enabled_by))
+        }) {
+            existing.4 = existing.4.max(evidence.4);
+            if let (Some(value), Some(additional)) = (&mut existing.5, evidence.5) {
+                value.ranges.extend(additional.ranges);
+                value.ranges.sort();
+                value.ranges.dedup();
+            }
+        } else {
+            result.push(evidence);
+        }
+    }
+    Ok(result)
 }
 
 /// Ranges of the given scheme, fixed in the given versions (exclusive upper bounds).
@@ -145,7 +183,7 @@ async fn evidence_of(
     ctx.ingest_document(vex).await?;
     let sbom_id = Uuid::parse_str(&sbom.id)?;
     extract_for_sbom(ctx, sbom_id).await?;
-    load_evidence(ctx, sbom_id).await
+    range_evidence(ctx, sbom_id).await
 }
 
 /// Red Hat only states fixed versions. An `el8` package is affected by the `el8_*` fixes it is
@@ -164,7 +202,8 @@ async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
             0.55,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
-                ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
+                // The el8_6 fix belongs to EUS, not this mainline package.
+                ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_7"]),
                 enabled_by: Some(redhat_first_fixed()),
             }),
         ),]
@@ -998,5 +1037,150 @@ async fn versionless_other_publisher(ctx: &TrustifyContext) -> anyhow::Result<()
 
     assert_eq!(load_evidence(ctx, sbom_id).await?, vec![]);
 
+    Ok(())
+}
+
+/// Preserve module-specific assertions and compare qualifiers before grouping in either direction.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rpm_module_identity(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use trustify_entity::purl_status;
+    use trustify_test_context::document_bytes;
+    const SCENARIO: &str = "scenarios/S11_bareaffected_substream_firefox";
+    let advisory_path = format!("{SCENARIO}/vex/CVE-2023-6135.json.xz");
+    let advisory = ctx.ingest_document(&advisory_path).await?;
+    let advisory_id = Uuid::parse_str(&advisory.id)?;
+    let original_rows = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .all(&ctx.db)
+        .await?;
+    let purls = original_rows
+        .load_one(qualified_purl::Entity, &ctx.db)
+        .await?;
+    assert!(purls.iter().all(Option::is_some));
+    let source_identifiers = purls
+        .iter()
+        .flatten()
+        .map(|p| Purl::from(p.purl.clone()).to_string())
+        .collect::<BTreeSet<_>>();
+    let firefox_modules = purls
+        .iter()
+        .flatten()
+        .filter(|p| p.purl.name == "firefox")
+        .map(|p| p.purl.qualifiers.get("rpmmod").cloned())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        firefox_modules,
+        BTreeSet::from([None, Some("firefox:flatpak".into())])
+    );
+    assert!(ctx.ingest_document(&advisory_path).await?.duplicate);
+    let mut repeated = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .all(&ctx.db)
+        .await?;
+    let mut original_rows = original_rows;
+    original_rows.sort_by_key(|r| r.id);
+    repeated.sort_by_key(|r| r.id);
+    assert_eq!(original_rows, repeated);
+
+    let mut sbom: serde_json::Value = serde_json::from_slice(
+        &document_bytes(format!("{SCENARIO}/sbom_firefox_main_el8.cdx.json")).await?,
+    )?;
+    let original = sbom["components"][0].clone();
+    let inputs = [
+        (
+            "base",
+            "pkg:rpm/redhat/firefox@115.15.0-1.el8?arch=x86_64&distro=rhel-8.10",
+        ),
+        (
+            "flatpak",
+            "pkg:rpm/redhat/firefox@115.15.0-1.el8?arch=x86_64&distro=rhel-8.10&rpmmod=firefox:flatpak",
+        ),
+        (
+            "other",
+            "pkg:rpm/redhat/firefox@115.15.0-1.el8?arch=x86_64&distro=rhel-8.10&rpmmod=firefox:other",
+        ),
+    ];
+    sbom["components"] = inputs
+        .iter()
+        .map(|(node, purl)| {
+            let mut component = original.clone();
+            component["bom-ref"] = (*node).into();
+            component["purl"] = (*purl).into();
+            component
+        })
+        .collect::<Vec<_>>()
+        .into();
+    sbom["dependencies"][0]["dependsOn"] = json!(["base", "flatpak", "other"]);
+    let sbom_id = Uuid::parse_str(&ctx.ingest_json(sbom).await?.id)?;
+
+    extract_for_sbom(ctx, sbom_id).await?;
+    let from_sbom = load_evidence(ctx, sbom_id).await?;
+    assert!(from_sbom.iter().all(|e| {
+        e.5.as_ref()
+            .is_some_and(|value| source_identifiers.contains(&value.identifier))
+    }));
+    let negatives = from_sbom
+        .iter()
+        .filter(|e| e.3 == AssertionStatus::NotAffected)
+        .collect::<Vec<_>>();
+    assert!(!negatives.is_empty());
+    assert!(negatives.iter().all(|e| e.0 == "flatpak"));
+    assert!(negatives.iter().all(|e| e.5.as_ref().is_some_and(|v| {
+        v.identifier.parse::<Purl>().is_ok_and(|p| {
+            p.qualifiers.get("rpmmod").map(String::as_str) == Some("firefox:flatpak")
+        })
+    })));
+    for node in ["base", "flatpak", "other"] {
+        // The unqualified positive remains applicable to each module variant.
+        assert!(
+            from_sbom
+                .iter()
+                .any(|e| e.0 == node && e.3 == AssertionStatus::Affected)
+        );
+    }
+
+    correlation_evidence::Entity::delete_many()
+        .exec(&ctx.db)
+        .await?;
+    extract_for_advisory(ctx, advisory_id).await?;
+    assert_eq!(load_evidence(ctx, sbom_id).await?, from_sbom);
+
+    let identifiers = inputs
+        .iter()
+        .map(|(_, value)| IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: (*value).into(),
+        })
+        .collect::<Vec<_>>();
+    let tx = ctx.db.begin().await?;
+    let matches = PurlExtractor.match_identifiers(&identifiers, &tx).await?;
+    let negatives = matches
+        .iter()
+        .filter(|m| m.assertion.status == AssertionStatus::NotAffected)
+        .collect::<Vec<_>>();
+    assert!(!negatives.is_empty());
+    assert!(negatives.iter().all(|m| m.index == 1));
+    Ok(())
+}
+
+/// The explicit S12 negative must not hide any cross-product below-fix evidence.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn thunderbird_control_has_no_evidence(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    const BASE: &str = "scenarios/S12_notaffected_ignored_thunderbird";
+    let sbom = ctx
+        .ingest_document(&format!("{BASE}/sbom_thunderbird_el8.cdx.json"))
+        .await?;
+    let advisory = ctx
+        .ingest_document(&format!(
+            "{BASE}/control/CVE-2024-6602_no-notaffected.json.xz"
+        ))
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    extract_for_sbom(ctx, sbom_id).await?;
+    assert!(load_evidence(ctx, sbom_id).await?.is_empty());
+    extract_for_advisory(ctx, Uuid::parse_str(&advisory.id)?).await?;
+    assert!(load_evidence(ctx, sbom_id).await?.is_empty());
     Ok(())
 }

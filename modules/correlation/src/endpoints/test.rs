@@ -356,7 +356,7 @@ async fn advisory_statements(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 PaginatedResults {
                     items: vec![statement(
                         StatementSubject::Purl {
-                            purl: "pkg:rpm/redhat/mediawiki".into(),
+                            purl: "pkg:rpm/redhat/mediawiki?arch=src".into(),
                         },
                         // a versionless PURL is stored with an empty version
                         MatchedRange {

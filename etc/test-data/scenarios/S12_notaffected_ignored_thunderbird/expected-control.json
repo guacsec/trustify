@@ -1,0 +1,9 @@
+{
+  "advisories": [
+    "control/CVE-2024-6602_no-notaffected.json.xz"
+  ],
+  "sboms": {
+    "sbom_thunderbird_el8.cdx.json": {},
+    "sbom_thunderbird_el8.spdx.json": {}
+  }
+}

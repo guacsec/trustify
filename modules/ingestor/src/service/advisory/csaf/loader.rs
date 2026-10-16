@@ -610,13 +610,13 @@ mod test {
             .all(&ctx.db)
             .await?;
 
-        // There are 9 purls in rhsa-2024_3666, but 2 purls share a base, resulting in 8 fixed
-        // purl statuses. The implied "affected" ranges are no longer stored, but derived by
-        // correlation.
+        // All 9 original qualified PURLs retain separate fixed statements and remediation
+        // links, including the two which share a base identity. Implied affected ranges
+        // are still derived by correlation rather than stored.
         assert_eq!(
-            8,
+            9,
             purl_status_links.len(),
-            "Expected vendor_fix remediation to be linked to 8 purl statuses"
+            "Expected vendor_fix remediation to be linked to all 9 qualified PURL statements"
         );
 
         Ok(())

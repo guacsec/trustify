@@ -1,31 +1,56 @@
 {
   "advisories": [
-    "vex/CVE-2022-32207.json"
+    "vex/CVE-2022-32207.json.xz"
   ],
   "sboms": {
-    "sbom_curl_rhel8_notaffected": {
-      "correct": {
+    "sbom_curl_rhel8_notaffected.cdx.json": {
+      "pkg": {
         "CVE-2022-32207": "not_affected"
       }
     },
-    "sbom_curl_rhel8_rootcpe": {
-      "correct": {
+    "sbom_curl_rhel8_notaffected.spdx.json": {
+      "SPDXRef-pkg": {
         "CVE-2022-32207": "not_affected"
       }
     },
-    "sbom_curl_rhel9_belowfix": {
-      "correct": {
+    "sbom_curl_rhel8_rootcpe.cdx.json": {
+      "pkg": {
+        "CVE-2022-32207": "not_affected"
+      }
+    },
+    "sbom_curl_rhel8_rootcpe.spdx.json": {
+      "SPDXRef-pkg": {
+        "CVE-2022-32207": "not_affected"
+      }
+    },
+    "sbom_curl_rhel9_belowfix.cdx.json": {
+      "pkg": {
         "CVE-2022-32207": "affected"
       }
     },
-    "sbom_curl_rhel9_atfix": {
-      "correct": {
-        "CVE-2022-32207": "not_affected"
+    "sbom_curl_rhel9_belowfix.spdx.json": {
+      "SPDXRef-pkg": {
+        "CVE-2022-32207": "affected"
       }
     },
-    "sbom_curl_rhel9_abovefix": {
-      "correct": {
-        "CVE-2022-32207": "not_affected"
+    "sbom_curl_rhel9_atfix.cdx.json": {
+      "pkg": {
+        "CVE-2022-32207": "fixed"
+      }
+    },
+    "sbom_curl_rhel9_atfix.spdx.json": {
+      "SPDXRef-pkg": {
+        "CVE-2022-32207": "fixed"
+      }
+    },
+    "sbom_curl_rhel9_abovefix.cdx.json": {
+      "pkg": {
+        "CVE-2022-32207": "fixed"
+      }
+    },
+    "sbom_curl_rhel9_abovefix.spdx.json": {
+      "SPDXRef-pkg": {
+        "CVE-2022-32207": "fixed"
       }
     }
   }

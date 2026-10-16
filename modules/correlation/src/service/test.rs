@@ -311,7 +311,7 @@ async fn components_list_identifiers(ctx: &TrustifyContext) -> anyhow::Result<()
     Ok(())
 }
 
-/// Expected verdicts of a correlation scenario (`expected.json`).
+/// Expected verdicts of a correlation scenario (`expected*.json`).
 #[derive(serde::Deserialize)]
 struct Scenario {
     advisories: Vec<String>,
@@ -320,34 +320,58 @@ struct Scenario {
 }
 
 /// Run a scenario: ingest its documents, extracting evidence after each one as the extraction
-/// worker does, and compare the verdicts with `expected.json`. Components without a verdict must
-/// not appear. The verdicts must not depend on whether the SBOMs or the advisories come first.
+/// worker does, and compare the verdicts with the selected manifest. Components without a verdict
+/// must not appear. Separate manifests isolate advisory formats. The verdicts must not depend on
+/// whether the SBOMs or the advisories come first.
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case("S1_crossstream_bind-libs")]
-#[case("S2_wrongscheme_golang_oci")]
-#[case("S3_wrongproduct_hummingbird_curl")]
-#[case("S6_positive_baseline_osv_urllib3")]
-#[case("S13_aliasless_osv_drop")]
-#[case("S14_productstatus_versionfilter_netty")]
-#[case("S16_crossscheme_purlquery_golang")]
-#[case("S20_cpe_range_wago")]
-#[case("S21_cpe_extended_attributes_beckhoff")]
-#[case("S22_cpe_third_party_openssl_phoenix")]
-#[case("S23_suse_codestream_openssl")]
-#[case("S24_rhel10_minor_streams_ubi10")]
-#[case("S25_cve_package_url")]
-#[case("S26_cve_cpe_applicability_kernel")]
-#[case("S27_cve_identifier_synonyms_log4j")]
+#[case::s1_combined("S1_crossstream_bind-libs", "expected.json")]
+#[case::s2_combined("S2_wrongscheme_golang_oci", "expected.json")]
+#[case::s3_combined("S3_wrongproduct_hummingbird_curl", "expected.json")]
+#[case::s4_combined("S4_wrongproduct_satellite_chardet", "expected.json")]
+#[case::s4_cve("S4_wrongproduct_satellite_chardet", "expected-cve.json")]
+#[case::s4_vex("S4_wrongproduct_satellite_chardet", "expected-vex.json")]
+#[case::s5_combined("S5_positive_baseline_openssl_el8", "expected.json")]
+#[case::s5_cve("S5_positive_baseline_openssl_el8", "expected-cve.json")]
+#[case::s5_vex("S5_positive_baseline_openssl_el8", "expected-vex.json")]
+#[case::s6_combined("S6_positive_baseline_osv_urllib3", "expected.json")]
+#[case::s8_combined("S8_epoch_mismatch_openjdk", "expected.json")]
+#[case::s8_cve("S8_epoch_mismatch_openjdk", "expected-cve.json")]
+#[case::s8_vex("S8_epoch_mismatch_openjdk", "expected-vex.json")]
+#[case::s9_combined("S9_substream_openssl_el8", "expected.json")]
+#[case::s9_cve("S9_substream_openssl_el8", "expected-cve.json")]
+#[case::s9_vex("S9_substream_openssl_el8", "expected-vex.json")]
+#[case::s10_combined("S10_combined_describing_cpe", "expected.json")]
+#[case::s10_cve("S10_combined_describing_cpe", "expected-cve.json")]
+#[case::s10_osv("S10_combined_describing_cpe", "expected-osv.json")]
+#[case::s10_vex("S10_combined_describing_cpe", "expected-vex.json")]
+#[case::s12_combined("S12_notaffected_ignored_thunderbird", "expected.json")]
+#[case::s11_reviewed("S11_bareaffected_substream_firefox", "expected-reviewed.json")]
+#[case::s12_control("S12_notaffected_ignored_thunderbird", "expected-control.json")]
+#[case::s13_combined("S13_aliasless_osv_drop", "expected.json")]
+#[case::s14_combined("S14_productstatus_versionfilter_netty", "expected.json")]
+#[case::s15_combined("S15_versioncmp_rpm_openssh", "expected.json")]
+#[case::s16_combined("S16_crossscheme_purlquery_golang", "expected.json")]
+#[case::s17_combined("S17_crossproduct_ocp_kernel_go", "expected.json")]
+#[case::s18_combined("S18_crossproduct_curl_notaffected", "expected.json")]
+#[case::s20_combined("S20_cpe_range_wago", "expected.json")]
+#[case::s21_combined("S21_cpe_extended_attributes_beckhoff", "expected.json")]
+#[case::s22_combined("S22_cpe_third_party_openssl_phoenix", "expected.json")]
+#[case::s23_combined("S23_suse_codestream_openssl", "expected.json")]
+#[case::s24_combined("S24_rhel10_minor_streams_ubi10", "expected.json")]
+#[case::s25_combined("S25_cve_package_url", "expected.json")]
+#[case::s26_combined("S26_cve_cpe_applicability_kernel", "expected.json")]
+#[case::s27_combined("S27_cve_identifier_synonyms_log4j", "expected.json")]
 #[test_log::test(actix_web::test)]
 async fn scenario(
     ctx: &TrustifyContext,
     #[case] name: &str,
+    #[case] expectations: &str,
     #[values(false, true)] sboms_first: bool,
 ) -> anyhow::Result<()> {
     let base = format!("scenarios/{name}");
     let expected: Scenario =
-        serde_json::from_slice(&document_bytes(format!("{base}/expected.json")).await?)?;
+        serde_json::from_slice(&document_bytes(format!("{base}/{expectations}")).await?)?;
 
     let extractors = Extractors::default();
     let ingest_advisories = async || -> anyhow::Result<()> {
@@ -390,7 +414,7 @@ async fn scenario(
 
         assert_eq!(
             &actual, expected,
-            "{name}: {sbom}, SBOMs first: {sboms_first}"
+            "{name} ({expectations}): {sbom}, SBOMs first: {sboms_first}"
         );
 
         // the counts must agree with the verdicts

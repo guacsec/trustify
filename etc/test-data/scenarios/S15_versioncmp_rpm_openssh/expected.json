@@ -1,51 +1,96 @@
 {
   "advisories": [
-    "vex/CVE-2023-38408.json"
+    "vex/CVE-2023-38408.json.xz"
   ],
   "sboms": {
-    "sbom_openssh_rootcpe_el8_8_below-fix": {
-      "correct": {
+    "sbom_openssh_rootcpe_el8_8_below-fix.cdx.json": {
+      "pkg-openssh": {
         "CVE-2023-38408": "affected"
       }
     },
-    "sbom_openssh_rootcpe_el8_8_at-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
-      }
-    },
-    "sbom_openssh_rootcpe_el8_8_above-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
-      }
-    },
-    "sbom_openssh_rootcpe_el8_10_below-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
-      }
-    },
-    "sbom_openssh_rootcpe_el8_10_at-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
-      }
-    },
-    "sbom_openssh_rootcpe_el8_10_above-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
-      }
-    },
-    "sbom_openssh_el8_below-fix": {
-      "correct": {
+    "sbom_openssh_rootcpe_el8_8_below-fix.spdx.json": {
+      "SPDXRef-openssh": {
         "CVE-2023-38408": "affected"
       }
     },
-    "sbom_openssh_el8_at-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
+    "sbom_openssh_rootcpe_el8_8_at-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "fixed"
       }
     },
-    "sbom_openssh_el8_above-fix": {
-      "correct": {
-        "CVE-2023-38408": "not_affected"
+    "sbom_openssh_rootcpe_el8_8_at-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_8_above-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_8_above-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_below-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_below-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_at-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_at-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_above-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_above-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_el8_below-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "affected"
+      }
+    },
+    "sbom_openssh_el8_below-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "affected"
+      }
+    },
+    "sbom_openssh_el8_at-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_el8_at-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_el8_above-fix.cdx.json": {
+      "pkg-openssh": {
+        "CVE-2023-38408": "fixed"
+      }
+    },
+    "sbom_openssh_el8_above-fix.spdx.json": {
+      "SPDXRef-openssh": {
+        "CVE-2023-38408": "fixed"
       }
     }
   }

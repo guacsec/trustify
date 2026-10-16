@@ -1,0 +1,12 @@
+{
+  "advisories": [
+    "cve/CVE-2022-4304.json",
+    "cve/CVE-2023-0215.json"
+  ],
+  "sboms": {
+    "sbom_openssl_el8_below-fix.cdx.json": {},
+    "sbom_openssl_el8_below-fix.spdx.json": {},
+    "sbom_openssl_el8_at-fix.cdx.json": {},
+    "sbom_openssl_el8_at-fix.spdx.json": {}
+  }
+}

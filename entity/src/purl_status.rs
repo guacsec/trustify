@@ -13,6 +13,9 @@ pub struct Model {
     pub vulnerability_id: String,
     pub status_id: Uuid,
     pub base_purl_id: Uuid,
+    /// The original PURL stated by the advisory, including its version and qualifiers.
+    /// Missing for assertions ingested before this relationship was stored.
+    pub qualified_purl_id: Option<Uuid>,
     pub version_range_id: Uuid,
     pub context_cpe_id: Option<Uuid>,
     /// The product the assertion is stated in, if any.
@@ -35,6 +38,13 @@ pub enum Relation {
         to = "super::base_purl::Column::Id"
     )]
     BasePurl,
+
+    #[sea_orm(
+        belongs_to = "super::qualified_purl::Entity",
+        from = "Column::QualifiedPurlId",
+        to = "super::qualified_purl::Column::Id"
+    )]
+    QualifiedPurl,
 
     #[sea_orm(has_many = "super::versioned_purl::Entity")]
     VersionedPurl,
@@ -93,6 +103,12 @@ impl Related<super::version_range::Entity> for Entity {
 impl Related<super::base_purl::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::BasePurl.def()
+    }
+}
+
+impl Related<super::qualified_purl::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::QualifiedPurl.def()
     }
 }
 

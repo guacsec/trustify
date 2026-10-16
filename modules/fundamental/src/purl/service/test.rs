@@ -808,9 +808,15 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .purls(Query::default(), Paginated::default(), &ctx.db)
         .await?;
 
-    assert_eq!(1, results.items.len());
-
-    let uuid = results.items[0].head.uuid;
+    // The advisory's original versionless PURL is now stored alongside the installed PURL.
+    assert_eq!(2, results.items.len());
+    let uuid = results
+        .items
+        .iter()
+        .find(|item| item.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("installed hyper PURL must exist")
+        .head
+        .uuid;
 
     let results = service
         .purl_by_uuid(&uuid, Default::default(), &ctx.db)

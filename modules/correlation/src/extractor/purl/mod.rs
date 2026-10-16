@@ -46,7 +46,7 @@ use crate::{
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, JoinType,
     LoaderTrait, QueryFilter, QuerySelect, RelationTrait,
-    sea_query::{Expr, Func, SimpleExpr},
+    sea_query::{Alias, Expr, Func, SimpleExpr},
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -159,6 +159,10 @@ impl Candidates {
             .column_as(base_purl::Column::Type, "base_purl_type")
             .column_as(base_purl::Column::Namespace, "base_purl_namespace")
             .column_as(base_purl::Column::Name, "base_purl_name")
+            .column_as(
+                Expr::col((Alias::new("assertion_purl"), qualified_purl::Column::Purl)),
+                "source_purl",
+            )
             .column_as(advisory::Column::PublisherNamespace, "publisher_namespace")
             .column_as(
                 purl_status::Column::AssertionContextId,
@@ -208,6 +212,8 @@ struct PurlStatusRow {
     base_purl_type: String,
     base_purl_namespace: Option<String>,
     base_purl_name: String,
+    source_purl: Option<qualified_purl::CanonicalPurl>,
+    sbom_rpmmod: Option<String>,
     publisher_namespace: Option<String>,
     assertion_context_id: Option<Uuid>,
     range_id: Uuid,
@@ -221,6 +227,18 @@ struct PurlStatusRow {
 }
 
 impl PurlStatusRow {
+    /// A module named by an RPM assertion must be present on the input package.
+    /// An omitted module is unspecified; other qualifiers keep their existing policies.
+    fn qualifiers_match(&self) -> bool {
+        if self.base_purl_type != "rpm" {
+            return true;
+        }
+        self.source_purl
+            .as_ref()
+            .and_then(|purl| purl.qualifiers.get("rpmmod"))
+            .is_none_or(|module| self.sbom_rpmmod.as_ref() == Some(module))
+    }
+
     /// The package a listed status shadows the default of.
     fn package(&self) -> (Uuid, &str, &str, Option<&str>, &str) {
         (
@@ -260,15 +278,15 @@ impl PurlStatusRow {
         stream::stream_match(sbom.stream(), range.and_then(|range| range.stream()))
     }
 
-    /// The base PURL, e.g. `pkg:rpm/redhat/bind`, and the matched version range.
+    /// The original advisory PURL (or legacy base identity), and the matched version range.
     fn into_match(self) -> (String, MatchedRange) {
-        let purl = Purl {
+        let purl = self.source_purl.map(Purl::from).unwrap_or_else(|| Purl {
             ty: self.base_purl_type,
             namespace: self.base_purl_namespace,
             name: self.base_purl_name,
             version: None,
             qualifiers: Default::default(),
-        };
+        });
         let range = version_range::Model {
             id: self.range_id,
             version_scheme_id: self.range_scheme,
@@ -324,6 +342,9 @@ fn group<'a, K: Ord + Clone>(
     let rows = rows
         .into_iter()
         .filter_map(|(target, source, row)| {
+            if !row.qualifiers_match() {
+                return None;
+            }
             let status = map_status(&row.slug)?;
             let stream = row.stream_match()?;
             Some((target, source, row, status, stream))
@@ -486,8 +507,8 @@ impl Extractor for PurlExtractor {
         identifiers: &[IdentifierRef],
         tx: &DatabaseTransaction,
     ) -> Result<Vec<IdentifierMatch>, Error> {
-        // versioned_purl_id -> [input indices]
-        let mut vp_map = HashMap::<Uuid, Vec<usize>>::new();
+        // Versions share candidate lookups, but each input retains its own module qualifier.
+        let mut vp_map = HashMap::<Uuid, Vec<(usize, Option<String>)>>::new();
         for (idx, identifier) in identifiers.iter().enumerate() {
             if identifier.kind != IdentifierKind::Purl {
                 continue;
@@ -498,7 +519,10 @@ impl Extractor for PurlExtractor {
             if purl.version.is_none() {
                 continue;
             }
-            vp_map.entry(purl.version_uuid()).or_default().push(idx);
+            vp_map
+                .entry(purl.version_uuid())
+                .or_default()
+                .push((idx, purl.qualifiers.get("rpmmod").cloned()));
         }
 
         if vp_map.is_empty() {
@@ -524,9 +548,11 @@ impl Extractor for PurlExtractor {
                 .get(&row.versioned_purl_id)
                 .map(Vec::as_slice)
                 .unwrap_or_default();
-            indices
-                .iter()
-                .map(move |&idx| (idx, source, row.status.clone()))
+            indices.iter().map(move |(idx, module)| {
+                let mut status = row.status.clone();
+                status.sbom_rpmmod = module.clone();
+                (*idx, source, status)
+            })
         });
 
         Ok(group(targets)
@@ -566,7 +592,6 @@ impl Extractor for PurlExtractor {
     }
 }
 
-// ponytail: context_cpe_id ignored — all purl_status matches included; add CPE context filtering when needed
 // ponytail: ad-hoc PURLs not in DB won't match; add fallback with literal version_matches when needed
 
 /// Load the candidates matching any of the given versioned_purl IDs via version-range evaluation.
@@ -581,6 +606,7 @@ async fn load_purl_status_matches(
     Ok(candidates
         .select(versioned_purl::Entity::find().select_only())
         .column_as(versioned_purl::Column::Id, "versioned_purl_id")
+        .column_as(Expr::val(None::<String>), "sbom_rpmmod")
         .join(
             JoinType::InnerJoin,
             versioned_purl::Relation::BasePurl.def(),
@@ -592,6 +618,11 @@ async fn load_purl_status_matches(
         )
         .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
         .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
+        .join_as(
+            JoinType::LeftJoin,
+            purl_status::Relation::QualifiedPurl.def(),
+            Alias::new("assertion_purl"),
+        )
         .filter(versioned_purl::Column::Id.is_in(versioned_purl_ids.iter().copied()))
         .into_model::<PurlStatusMatch>()
         .all(connection)
@@ -613,12 +644,21 @@ async fn load_advisory_purl_matches(
         .select(purl_status::Entity::find().select_only())
         .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
         .column_as(sbom_node_purl_ref::Column::NodeId, "node_id")
+        .column_as(
+            Expr::cust("qualified_purl.qualifiers ->> 'rpmmod'"),
+            "sbom_rpmmod",
+        )
         .join(
             JoinType::InnerJoin,
             purl_status::Relation::VersionRange.def(),
         )
         .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
         .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
+        .join_as(
+            JoinType::LeftJoin,
+            purl_status::Relation::QualifiedPurl.def(),
+            Alias::new("assertion_purl"),
+        )
         .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
         .join(
             JoinType::InnerJoin,

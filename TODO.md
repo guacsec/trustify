@@ -54,10 +54,15 @@
 - [ ] `VersionScheme::from(&str)` (vers schemes) maps neither `pypi` nor `cargo`, `gem`, `golang`,
   `nuget`, … (only `python`, `npm`, `maven`, `rpm`, `semver`, `git`), so those fall back to
   `generic`, which only matches exact versions.
-- [ ] `vers-rs` doesn't build without its default `wasm` feature (unconditional `tsify` /
-  `wasm_bindgen` attributes), so the server pulls in `wasm-bindgen` and `tsify`.
-- [ ] Correlation options (`correlation_option`) only apply to documents extracted after a
-  change. Changing an option should re-extract the advisories of its publisher.
+- [x] `vers-rs` 0.1.3 builds with `default-features = false`, removing its `wasm-bindgen`
+  and `tsify` dependencies. Updated the parser to the renamed `VersVersionRange` API.
+- [ ] Changing correlation options should trigger re-extraction of affected advisories and
+  re-evaluation of correlation results. Expose whether results are stale and whether processing
+  is pending or running.
+- [ ] Original qualified PURLs of assertions (`purl_status.qualified_purl_id`) are only linked
+  for advisories ingested after `m0002600`. Existing advisories need removal and fresh ingestion
+  (duplicate uploads are skipped), followed by evidence extraction. Clear previous evidence
+  before re-extraction; the extractor inserts and deduplicates rather than replacing it.
 - [ ] Assertion contexts (`assertion_context`) are only stored for advisories ingested after
   `m0002510`. Existing advisories need to be re-ingested to get the product context of their
   statements.
@@ -94,3 +99,21 @@
 - [ ] CVE records ingested before the CVE loader read `packageURL`, `changes`, `defaultStatus`,
   wildcards, and `cpeApplicability`, and wrote CPE statements to `advisory_vulnerability_cpe`, need
   to be re-ingested.
+
+## Correlation scenarios needing work
+
+- [ ] **S7 — Deferred:** Resolve Red Hat's package-name/product-CPE interpretation and verify
+  package mappings before migrating the scenario. Preserve CNA/ADP provenance; do not assume
+  every package-browser entry identifies an RPM. See the
+  [S7 review](etc/test-data/scenarios/S7_cpeonly_node_hummingbird/README.md).
+- [x] **S11:** Assertions reference their original qualified PURLs; correlation compares `rpmmod`
+  before grouping. Base/matching/different-module controls pass, and `expected-reviewed.json`
+  is enabled for both SBOM formats and ingestion orders.
+  See the [S11 review](etc/test-data/scenarios/S11_bareaffected_substream_firefox/README.md).
+- [x] **S12 control:** Publisher-derived affected-before-fix evidence requires product context
+  or an exact RPM stream. `expected-control.json` is enabled in a separate database from the
+  original advisory and produces no applicable evidence in either ingestion order. See the
+  [S12 review](etc/test-data/scenarios/S12_notaffected_ignored_thunderbird/README.md).
+- [ ] **S8 — Follow-up; existing cases pass:** Define missing-epoch behavior and add at/above-fix
+  and conflicting-epoch controls; the current below-fix samples do not establish general epoch
+  invariance. See the [S8 review](etc/test-data/scenarios/S8_epoch_mismatch_openjdk/README.md).

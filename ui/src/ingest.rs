@@ -7,6 +7,16 @@ use web_sys::{DragEvent, HtmlInputElement};
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
 
+/// Read and ingest one file, using the server's format and compression detection.
+pub(crate) async fn ingest_file(file: &File, token: Option<&str>) -> Result<IngestResult, String> {
+    let bytes = read_as_bytes(file)
+        .await
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    api::upload_document(&bytes, token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum IngestTab {
     File,
@@ -221,12 +231,7 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
             spawn_local(async move {
                 let mut failed = Vec::new();
                 for file in files {
-                    let result = match read_as_bytes(&file).await {
-                        Ok(bytes) => api::upload_document(&bytes, token.as_deref())
-                            .await
-                            .map_err(|e| e.to_string()),
-                        Err(e) => Err(format!("Failed to read file: {e}")),
-                    };
+                    let result = ingest_file(&file, token.as_deref()).await;
                     let name = file.name();
                     if result.is_err() {
                         failed.push(file);

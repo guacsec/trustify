@@ -3,6 +3,7 @@ mod advisory_list;
 mod api;
 mod correlation;
 mod ingest;
+mod ingest_drop;
 mod model;
 mod monaco;
 mod options;
@@ -15,6 +16,7 @@ use advisory_list::AdvisoryList;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
 use ingest::IngestPage;
+use ingest_drop::{IngestDropZone, IngestionProvider};
 use options::OptionsPage;
 use patternfly_yew::prelude::*;
 use query::QueryPage;
@@ -184,9 +186,9 @@ fn auth_error() -> Html {
 fn app_shell() -> Html {
     html! {
         <BackdropViewer>
-            <ToastViewer>
+            <IngestionProvider>
                 <RouterSwitch<AppRoute> render={switch_route} />
-            </ToastViewer>
+            </IngestionProvider>
         </BackdropViewer>
     }
 }
@@ -240,25 +242,28 @@ struct PageProps {
 fn page(props: &PageProps) -> Html {
     let sidebar = html_nested! {
         <PageSidebar>
-            <Nav>
-                <NavList>
-                    <NavRouterItem<AppRoute> to={AppRoute::SbomList}>
-                        { "SBOMs" }
-                    </NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::AdvisoryList}>
-                        { "Advisories" }
-                    </NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::Query}>
-                        { "Query" }
-                    </NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
-                        { "Ingest" }
-                    </NavRouterItem<AppRoute>>
-                    <NavRouterItem<AppRoute> to={AppRoute::Options}>
-                        { "Options" }
-                    </NavRouterItem<AppRoute>>
-                </NavList>
-            </Nav>
+            <div class="trustify-sidebar-content">
+                <Nav>
+                    <NavList>
+                        <NavRouterItem<AppRoute> to={AppRoute::SbomList}>
+                            { "SBOMs" }
+                        </NavRouterItem<AppRoute>>
+                        <NavRouterItem<AppRoute> to={AppRoute::AdvisoryList}>
+                            { "Advisories" }
+                        </NavRouterItem<AppRoute>>
+                        <NavRouterItem<AppRoute> to={AppRoute::Query}>
+                            { "Query" }
+                        </NavRouterItem<AppRoute>>
+                        <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
+                            { "Ingest" }
+                        </NavRouterItem<AppRoute>>
+                        <NavRouterItem<AppRoute> to={AppRoute::Options}>
+                            { "Options" }
+                        </NavRouterItem<AppRoute>>
+                    </NavList>
+                </Nav>
+                <IngestDropZone />
+            </div>
         </PageSidebar>
     };
 

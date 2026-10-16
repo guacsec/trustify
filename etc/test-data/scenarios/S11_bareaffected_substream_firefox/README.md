@@ -1,28 +1,42 @@
-# S11 — Bare `known_affected` on the main stream (firefox)
+# S11 — Base Firefox, Flatpak module, and extended-support fix
 
-Isolates a **version-less `known_affected`** on the GA stream while only sub-streams carry versioned
-fixes. A bare `known_affected` means "affected, all versions" (standard §4.3.3/§8.1) → the main box is
-affected; a patched sub-stream box is not.
+## Reviewed expectations
 
-## Data (CVE-2023-6135)
-| stream | `firefox` statement |
-|---|---|
-| `enterprise_linux:8` (GA) | base `firefox` **`known_affected`** (bare, no version) |
-| `enterprise_linux:8` (GA) | `firefox:flatpak` **module** `known_not_affected` (distinct component, §1.1/§8) |
-| `rhel_eus:8.8` | `fixed 128.2.0-1.el8_8` |
+The CSAF states `known_affected` for base `pkg:rpm/redhat/firefox` in mainline RHEL 8.
+Its `known_not_affected` entry uses `pkg:rpm/redhat/firefox?rpmmod=firefox:flatpak`, a distinct
+module identity. The installed mainline fixture lacks `rpmmod` and must not inherit the Flatpak
+negative. With the Red Hat versionless-PURL option, its verdict should be `affected`.
 
-## Expected (SBOM × CVE) — matches `expected.json`
-| SBOM (installed `firefox`) | stream | CVE-2023-6135 |
-|---|---|---|
-| `sbom_firefox_main_el8` (`115.15.0-1.el8`, base RPM) | el8 GA (`enterprise_linux:8`) | affected |
-| `sbom_firefox_eus8.8_patched` (`128.2.0-1.el8_8`) | EUS 8.8 (`rhel_eus:8.8`) | not_affected |
+The second fixture explicitly describes RHEL 8.8 EUS and installs `128.2.0-1.el8_8`, the exact
+EUS fix. Its verdict should be `fixed`, correcting the legacy `not_affected` label.
+`expected-reviewed.json` records these per-component expectations for both SBOM formats.
+The original `expected.json` is retained as a historical artifact; the harness uses the reviewed manifest.
 
-- **main_el8** — the SBOM's firefox is the **base RPM** (no module qualifier), which matches the base
-  `known_affected` → **affected**. The `firefox:flatpak` `known_not_affected` is a *different component*
-  (module) and does not suppress it (§1.1/§8).
-- **eus8.8_patched** — EUS 8.8 box at the EUS fix `128.2.0-1.el8_8` → **not_affected** (§3/§5). Its
-  describing CPE (`rhel_eus:8.8`) matches its build — a model of §1.2 consistency.
+## Correlation coverage
 
-## Files
-- SBOMs: `sbom_firefox_main_el8.{cdx,spdx}.json`, `sbom_firefox_eus8.8_patched.{cdx,spdx}.json`.
-- Advisory: `vex/CVE-2023-6135.json` (Red Hat CSAF).
+The reviewed manifest is registered in the scenario harness for both SBOM formats and both
+ingestion orders. Assertions link to their original `qualified_purl`, preserving the version
+and qualifiers as stated by the advisory. Correlation compares the advisory's `rpmmod` with
+the installed PURL before stream fallback, default-status shadowing, and evidence grouping.
+A module-specific assertion cannot match a package without that module, or a different module.
+An assertion without `rpmmod` imposes no module restriction. Integration tests cover base,
+matching-module, and different-module packages, plus identifier queries and both extraction
+directions. Evidence retains each original qualified advisory identifier.
+
+An RPM's `el8_8` release alone does not prove that a box is on EUS. The EUS fixture's describing
+CPE is additional evidence; review mainline and EUS evidence separately so a final `fixed` verdict
+cannot hide an unrelated mainline assertion.
+
+[CSAF product statuses](https://docs.oasis-open.org/csaf/csaf/v2.0/csaf-v2.0.html#3239-vulnerabilities-property---product-status)
+distinguish fixed from known not affected. The Red Hat `fixed_is_first_fixed` and `versionless_purl`
+options are publisher policies, not universal CSAF rules. The advisory document is unmodified.
+
+## Existing data
+
+Migration `m0002600` adds the assertion's qualified PURL reference; older rows keep a null
+reference and their legacy matching behavior. It cannot reconstruct the original association
+from a base PURL alone. Remove affected advisories through the existing advisory deletion path
+and ingest their original documents afresh, then extract evidence again. Merely uploading an
+identical document takes the duplicate-ingestion path and does not rebuild its assertions.
+Previously stored evidence must also be cleared before re-extraction, since extraction inserts
+and deduplicates evidence rather than replacing the previous set.

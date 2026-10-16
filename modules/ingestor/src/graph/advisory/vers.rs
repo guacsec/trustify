@@ -1,7 +1,7 @@
 use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use trustify_entity::version_scheme::VersionScheme;
 use vers_like_specifier::{Comparator as VlsComparator, Vls, VlsError};
-use vers_rs::{Comparator, VersVersionRange, VersError};
+use vers_rs::{Comparator, VersError, VersVersionRange};
 
 /// Prefix of a `vers:` URI.
 const VERS_PREFIX: &str = "vers:";

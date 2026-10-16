@@ -8147,7 +8147,7 @@ dependencies = [
  "regex",
  "regex-syntax",
  "sha1collisiondetection",
- "thiserror 2.0.21",
+ "thiserror 1.0.69",
  "xxhash-rust",
 ]
 
@@ -9889,6 +9889,7 @@ dependencies = [
  "cvss-rs 0.5.0",
  "gloo-file",
  "gloo-net 0.7.0",
+ "gloo-timers 0.4.0",
  "gloo-utils 0.3.0",
  "js-sys",
  "log",
