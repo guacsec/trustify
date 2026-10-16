@@ -107,15 +107,100 @@ fn provider_alias_table(props: &ProviderAliasTableProps) -> Html {
     }
 }
 
+#[derive(Clone, PartialEq, Properties)]
+struct AliasDialogProps {
+    /// The alias to edit, or `None` to create one.
+    alias: Option<ProviderAlias>,
+    on_saved: Callback<()>,
+}
+
+/// Modal creating or editing one provider alias.
+#[function_component(AliasDialog)]
+fn alias_dialog(props: &AliasDialogProps) -> Html {
+    let provider = use_state(|| {
+        props
+            .alias
+            .as_ref()
+            .map(|a| a.data.provider.clone())
+            .unwrap_or_default()
+    });
+    let alias_text = use_state(|| {
+        props
+            .alias
+            .as_ref()
+            .map(|a| a.data.aliases.join("\n"))
+            .unwrap_or_default()
+    });
+    let error = use_state(|| None::<String>);
+    let backdrop = use_backdrop().expect("AliasDialog requires BackdropViewer");
+    let latest = use_latest_access_token();
+    let token = latest.as_ref().and_then(|t| t.access_token());
+    let close = {
+        let backdrop = backdrop.clone();
+        Callback::from(move |_: MouseEvent| backdrop.close())
+    };
+    let save = {
+        let provider = provider.clone();
+        let alias_text = alias_text.clone();
+        let error = error.clone();
+        let id = props.alias.as_ref().map(|a| a.id);
+        let on_saved = props.on_saved.clone();
+        Callback::from(move |_: MouseEvent| {
+            let data = ProviderAliasData {
+                provider: (*provider).clone(),
+                aliases: alias_text
+                    .lines()
+                    .filter(|v| !v.trim().is_empty())
+                    .map(str::to_string)
+                    .collect(),
+            };
+            let token = token.clone();
+            let error = error.clone();
+            let backdrop = backdrop.clone();
+            let on_saved = on_saved.clone();
+            spawn_local(async move {
+                match api::save_provider_alias(id, &data, token.as_deref()).await {
+                    Ok(()) => {
+                        backdrop.close();
+                        on_saved.emit(());
+                    }
+                    Err(e) => error.set(Some(e.to_string())),
+                }
+            })
+        })
+    };
+    let title = if props.alias.is_some() {
+        "Edit provider alias"
+    } else {
+        "Add provider alias"
+    };
+    let footer = html! {
+        <>
+            <Button variant={ButtonVariant::Primary} onclick={save}>{"Save"}</Button>
+            <Button variant={ButtonVariant::Link} onclick={close}>{"Cancel"}</Button>
+        </>
+    };
+    html! {
+        <Modal {title} variant={ModalVariant::Medium} {footer}>
+            <Form onsubmit={Callback::from(|event: SubmitEvent| event.prevent_default())}>
+                if let Some(e)=&*error {<Alert title="Unable to save" r#type={AlertType::Danger} inline=true><p>{e}</p></Alert>}
+                {text_field("Canonical provider",provider)}
+                <FormGroup label="Aliases (one per line)">
+                    <TextArea value={(*alias_text).clone()} rows={6} resize={ResizeOrientation::Vertical}
+                        onchange={{let value=alias_text.clone();Callback::from(move|text:String|value.set(text))}}/>
+                </FormGroup>
+            </Form>
+        </Modal>
+    }
+}
+
 /// Page managing the aliases which map stated identifiers to a canonical provider.
 #[function_component(ProviderAliasPage)]
 pub fn provider_alias_page() -> Html {
     let aliases = use_state(Vec::<ProviderAlias>::new);
     let error = use_state(|| None::<String>);
     let generation = use_state(|| 0u32);
-    let alias_id = use_state(|| None::<Uuid>);
-    let provider = use_state(String::new);
-    let alias_text = use_state(String::new);
+    let backdrop = use_backdrop().expect("ProviderAliasPage requires BackdropViewer");
     let latest = use_latest_access_token();
     let token = latest.as_ref().and_then(|t| t.access_token());
     {
@@ -131,37 +216,19 @@ pub fn provider_alias_page() -> Html {
             })
         });
     }
-    let save = {
-        let provider = provider.clone();
-        let alias_text = alias_text.clone();
-        let alias_id = alias_id.clone();
-        let token = token.clone();
+    let open = {
         let generation = generation.clone();
         let error = error.clone();
-        Callback::from(move |_: MouseEvent| {
-            let data = ProviderAliasData {
-                provider: (*provider).clone(),
-                aliases: alias_text
-                    .lines()
-                    .filter(|v| !v.trim().is_empty())
-                    .map(str::to_string)
-                    .collect(),
-            };
-            let id = *alias_id;
-            let token = token.clone();
+        Callback::from(move |alias: Option<ProviderAlias>| {
             let generation = generation.clone();
             let error = error.clone();
-            let alias_id = alias_id.clone();
-            spawn_local(async move {
-                match api::save_provider_alias(id, &data, token.as_deref()).await {
-                    Ok(()) => {
-                        error.set(None);
-                        alias_id.set(None);
-                        generation.set(generation.wrapping_add(1))
-                    }
-                    Err(e) => error.set(Some(e.to_string())),
-                }
-            })
+            let on_saved = Callback::from(move |()| {
+                error.set(None);
+                generation.set(generation.wrapping_add(1));
+            });
+            backdrop.open(Backdrop::new(html! {
+                <Bullseye><AliasDialog {alias} {on_saved}/></Bullseye>
+            }));
         })
     };
     let delete = {
@@ -184,41 +251,17 @@ pub fn provider_alias_page() -> Html {
         })
     };
     let edit = {
-        let alias_id = alias_id.clone();
-        let provider = provider.clone();
-        let alias_text = alias_text.clone();
-        Callback::from(move |a: ProviderAlias| {
-            alias_id.set(Some(a.id));
-            provider.set(a.data.provider);
-            alias_text.set(a.data.aliases.join("\n"));
-        })
+        let open = open.clone();
+        Callback::from(move |alias: ProviderAlias| open.emit(Some(alias)))
     };
-    let new_alias = {
-        let alias_id = alias_id.clone();
-        let provider = provider.clone();
-        let alias_text = alias_text.clone();
-        Callback::from(move |_: MouseEvent| {
-            alias_id.set(None);
-            provider.set(String::new());
-            alias_text.set(String::new());
-        })
-    };
+    let add = Callback::from(move |_: MouseEvent| open.emit(None));
     html! {
         <PageSection><Stack gutter=true>
             <Title level={Level::H2}>{"Provider aliases"}</Title>
             <p>{"Map the identifiers stated in SBOMs and advisories to a canonical provider. Verdict weighting prefers assertions from the same provider as the SBOM component. Exact identifiers only: name:Acme, namespace:https://acme.example, cve-org:UUID, purl:rpm/acme, distro:acme, cpe-vendor:acme."}</p>
             if let Some(e)=&*error {<Alert title="Settings error" r#type={AlertType::Danger} inline=true><p>{e}</p></Alert>}
+            <div><Button variant={ButtonVariant::Primary} onclick={add}>{"Add provider alias"}</Button></div>
             <ProviderAliasTable aliases={(*aliases).clone()} on_edit={edit} on_delete={delete}/>
-            <Card><CardBody><Form limit_width=true onsubmit={Callback::from(|event: SubmitEvent| event.prevent_default())}>
-                <Title level={Level::H3}>{if alias_id.is_some(){"Edit provider aliases"}else{"Create provider aliases"}}</Title>
-                <Button variant={ButtonVariant::Link} onclick={new_alias}>{"New provider aliases"}</Button>
-                {text_field("Canonical provider",provider)}
-                <FormGroup label="Aliases (one per line)">
-                    <TextArea value={(*alias_text).clone()} rows={4} resize={ResizeOrientation::Vertical}
-                        onchange={{let value=alias_text.clone();Callback::from(move|text:String|value.set(text))}}/>
-                </FormGroup>
-                <ActionGroup><Button onclick={save}>{"Save provider aliases"}</Button></ActionGroup>
-            </Form></CardBody></Card>
         </Stack></PageSection>
     }
 }
