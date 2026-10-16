@@ -208,10 +208,11 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The query re-uses the extractor matching, including CSAF wildcards.
+/// The query re-uses the extractor matching, including CSAF wildcards. Only the firmware is
+/// affected, not the device series it is installed on.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
+async fn query_wildcard_model_number(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let advisory = ctx
         .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
         .await?;
@@ -220,14 +221,14 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let service = CorrelationService::default();
     let tx = ctx.db.begin().await?;
 
-    let sku = IdentifierRef {
-        kind: IdentifierKind::Sku,
-        value: "6925281924439".into(),
+    let model_number = IdentifierRef {
+        kind: IdentifierKind::ModelNumber,
+        value: "Flip 5".into(),
     };
     assert_eq!(
-        service.query_identifier(sku.clone(), &tx).await?,
+        service.query_identifier(model_number.clone(), &tx).await?,
         QueryResult {
-            query: sku,
+            query: model_number,
             verdicts: vec![QueryVerdict {
                 resolution: crate::model::ResolutionSummary {
                     confidence: 1.0,
@@ -238,8 +239,8 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 vulnerability_title: None,
                 status: VerdictStatus::Affected,
                 matches: vec![QueryMatch {
-                    kind: IdentifierKind::Sku,
-                    value: MatchedValue::new("6925281*"),
+                    kind: IdentifierKind::ModelNumber,
+                    value: MatchedValue::new("Flip ?"),
                     advisory_id,
                     advisory_identifier: "https://www.harman.com/#HBSA-2025-0004".into(),
                     advisory_type: Some("csaf".into()),
@@ -251,15 +252,15 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
         }
     );
 
-    // the same value as a different kind doesn't match
-    let model_number = IdentifierRef {
-        kind: IdentifierKind::ModelNumber,
+    // the device series' SKU only names the product the firmware is installed on
+    let sku = IdentifierRef {
+        kind: IdentifierKind::Sku,
         value: "6925281924439".into(),
     };
     assert_eq!(
-        service.query_identifier(model_number.clone(), &tx).await?,
+        service.query_identifier(sku.clone(), &tx).await?,
         QueryResult {
-            query: model_number,
+            query: sku,
             verdicts: vec![],
         }
     );
@@ -840,7 +841,7 @@ async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<(
     use crate::model::{ContextSource, ResolutionRequest};
 
     let sbom = ctx
-        .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
+        .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json")
         .await?;
     ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
         .await?;
@@ -852,7 +853,7 @@ async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<(
     let tx = ctx.db.begin().await?;
     let request = ResolutionRequest {
         include_explanation: true,
-        node_id: Some("comp-flip4-device".into()),
+        node_id: Some("comp-flip4-fw".into()),
         ..Default::default()
     };
     let read = CorrelationService::default()
@@ -882,15 +883,15 @@ async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<(
         vec![
             (
                 "JBL Flip 4".to_string(),
-                ContextSource::Node,
+                ContextSource::AncestorNode,
                 "sku:050036337366".to_string(),
-                1.0
+                0.9
             ),
             (
                 "JBL Flip 4".to_string(),
-                ContextSource::Node,
+                ContextSource::AncestorNode,
                 "sku:6925281924439".to_string(),
-                1.0
+                0.9
             ),
         ]
     );

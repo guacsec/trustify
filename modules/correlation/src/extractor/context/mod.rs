@@ -1246,4 +1246,56 @@ mod test {
 
         Ok(())
     }
+
+    /// The files of an SPDX package (`hasFiles`) are contained in it, so the package's CPE is the
+    /// one of an ancestor, next to the file's own digest.
+    #[test_context::test_context(trustify_test_context::TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn spdx_package_files(
+        ctx: &trustify_test_context::TrustifyContext,
+    ) -> anyhow::Result<()> {
+        let sbom_id = Uuid::parse_str(
+            &ctx.ingest_document("correlation/context/assembly.spdx.json")
+                .await?
+                .id,
+        )?;
+        let firmware = NodeRef {
+            sbom_id,
+            node_id: "SPDXRef-firmware".into(),
+        };
+
+        let mut cpes = load_node_cpes([firmware.clone()], &ctx.db)
+            .await?
+            .remove(&firmware)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|cpe| (cpe.source, cpe.distance, format_cpe(&cpe.cpe)))
+            .collect::<Vec<_>>();
+        cpes.sort();
+        let speaker = "cpe:2.3:h:example:speaker:1:*:*:*:*:*:*:*".to_string();
+        assert_eq!(
+            cpes,
+            [
+                (ContextSource::AncestorNode, 1, speaker.clone()),
+                (ContextSource::Describing, 0, speaker),
+            ]
+        );
+
+        let identifiers = load_node_identifiers([firmware.clone()], &ctx.db)
+            .await?
+            .remove(&firmware)
+            .unwrap_or_default();
+        assert_eq!(
+            identifiers,
+            [NodeIdentifier {
+                kind: ContextIdentifierKind::Digest,
+                value: "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+                    .into(),
+                source: ContextSource::Node,
+                distance: 0,
+            }]
+        );
+
+        Ok(())
+    }
 }
