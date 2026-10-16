@@ -358,7 +358,7 @@ impl PolicySnapshot {
                 return resolved;
             }
         }
-        ProviderResolution { source:"unknown".into(), diagnostics:vec!["No installed-build provider could be established; providerless evidence receives the fallback boost.".into()], ..Default::default() }
+        ProviderResolution { source:"unknown".into(), diagnostics:vec!["No component provider could be established; providerless evidence receives the fallback boost.".into()], ..Default::default() }
     }
 }
 

@@ -7,6 +7,7 @@ mod ingest_drop;
 mod model;
 mod monaco;
 mod options;
+mod provider_alias;
 mod query;
 mod sbom_list;
 mod sort;
@@ -49,6 +50,7 @@ pub enum AppRoute {
     Ingest,
     Options,
     Weighting,
+    ProviderAliases,
 }
 
 pub fn main() -> Result<(), JsValue> {
@@ -228,6 +230,11 @@ fn switch_route(target: AppRoute) -> Html {
             </AppPage>
         },
         AppRoute::Weighting => html! { <AppPage><weighting::WeightingPage /></AppPage> },
+        AppRoute::ProviderAliases => html! {
+            <AppPage>
+                <provider_alias::ProviderAliasPage />
+            </AppPage>
+        },
         AppRoute::Options => html! {
             <AppPage>
                 <OptionsPage />
@@ -261,6 +268,9 @@ fn page(props: &PageProps) -> Html {
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
                         <NavRouterItem<AppRoute> to={AppRoute::Weighting}>{ "Verdict weighting" }</NavRouterItem<AppRoute>>
+                        <NavRouterItem<AppRoute> to={AppRoute::ProviderAliases}>
+                            { "Provider aliases" }
+                        </NavRouterItem<AppRoute>>
                         <NavRouterItem<AppRoute> to={AppRoute::Options}>
                             { "Options" }
                         </NavRouterItem<AppRoute>>

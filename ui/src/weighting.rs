@@ -56,11 +56,7 @@ fn weight_editor(props: &WeightEditorProps) -> Html {
             "Conflict sensitivity (0 to below 1)",
             "0.5",
         ),
-        (
-            "component_provider",
-            "Installed build provider",
-            "Inherited",
-        ),
+        ("component_provider", "Component provider", "Inherited"),
     ];
     html! {
         <FormSection title={Some("Weights".to_string())}>
@@ -194,6 +190,45 @@ fn provider_name(provider: &ProviderResolution) -> String {
         })
 }
 
+/// Renders a resolved provider, flagging stated identifiers that did not resolve to one.
+pub fn provider_view(provider: &ProviderResolution) -> Html {
+    let name = provider
+        .identifiers
+        .iter()
+        .find_map(|id| id.strip_prefix("name:"));
+    match (&provider.provider, name) {
+        (Some(resolved), Some(name)) => html! {
+            <>
+                { name }
+                <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                    <code style="color: inherit; overflow-wrap: anywhere;">{ resolved }</code>
+                </div>
+            </>
+        },
+        (Some(resolved), None) => {
+            html!(<code style="overflow-wrap: anywhere;">{ resolved }</code>)
+        }
+        (None, _) if provider.identifiers.is_empty() && provider.diagnostics.is_empty() => {
+            html!(<span class="pf-v6-u-text-color-subtle">{ "None stated" }</span>)
+        }
+        (None, name) => {
+            let stated = name
+                .or_else(|| provider.identifiers.first().map(String::as_str))
+                .unwrap_or("Unknown");
+            html! {
+                <Tooltip text={format!("{} Configure provider aliases to resolve it.", provider.diagnostics.join(" "))}>
+                    <span>
+                        { stated }{ " " }
+                        <Link<AppRoute> to={AppRoute::ProviderAliases}>
+                            <Label compact=true label="unresolved" color={Color::Orange}/>
+                        </Link<AppRoute>>
+                    </span>
+                </Tooltip>
+            }
+        }
+    }
+}
+
 fn verdict_color(status: VerdictStatus) -> Color {
     match status {
         VerdictStatus::Affected => Color::Red,
@@ -234,7 +269,7 @@ fn factor_label(key: &str) -> String {
         "direct" => "Direct statement".into(),
         "inferred" => "Inferred statement".into(),
         "conflict_sensitivity" => "Conflict sensitivity".into(),
-        "component_provider" => "Installed build provider".into(),
+        "component_provider" => "Component provider".into(),
         _ => {
             if let Some(provider) = key.strip_prefix("providers.") {
                 format!("Provider preference: {provider}")
@@ -310,7 +345,7 @@ fn explanation(props: &ExplanationProps) -> Html {
                 </Stack>
             </CardBody></Card></StackItem>
             <StackItem>
-                <Title level={Level::H3}>{"Installed build provider"}</Title>
+                <Title level={Level::H3}>{"Component provider"}</Title>
                 <p>{provider_name(&trace.component_provider)}<span class="pf-v6-u-text-color-subtle">{format!(" · {}",trace.component_provider.source)}</span></p>
                 {for trace.component_provider.diagnostics.iter().map(|d|html!{<p class="pf-v6-u-text-color-subtle">{d}</p>})}
             </StackItem>
@@ -363,107 +398,6 @@ fn setting_source(origin: &SettingOrigin) -> String {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum AliasColumn {
-    Provider,
-    Identifiers,
-    Actions,
-}
-
-#[derive(Clone, PartialEq)]
-struct AliasEntry {
-    alias: ProviderAlias,
-    on_edit: Callback<ProviderAlias>,
-    on_delete: Callback<Uuid>,
-}
-
-impl TableEntryRenderer<AliasColumn> for AliasEntry {
-    fn render_cell(&self, context: CellContext<'_, AliasColumn>) -> Cell {
-        match context.column {
-            AliasColumn::Provider => html! {
-                <strong style="overflow-wrap: anywhere;">{&self.alias.data.provider}</strong>
-            }.into(),
-            AliasColumn::Identifiers => html! {
-                <Stack gutter=true>
-                    {for self.alias.data.aliases.iter().map(|alias| {
-                        let (kind,value)=alias.split_once(':').unwrap_or(("",alias));
-                        let label=match kind {
-                            "name"=>"Name",
-                            "namespace"=>"Namespace",
-                            "cve-org"=>"CVE organization",
-                            "purl"=>"Package namespace",
-                            "distro"=>"Distribution",
-                            "cpe-vendor"=>"CPE vendor",
-                            _=>"Identifier",
-                        };
-                        let value=if label=="Identifier" {alias.as_str()} else {value};
-                        html!{
-                            <StackItem>
-                                <Flex space_items={[SpaceItems::Small]}>
-                                    <FlexItem><Label label={label}/></FlexItem>
-                                    <FlexItem><code style="overflow-wrap: anywhere;">{value}</code></FlexItem>
-                                </Flex>
-                            </StackItem>
-                        }
-                    })}
-                </Stack>
-            }.into(),
-            AliasColumn::Actions => {
-                let edit=self.on_edit.clone();let alias=self.alias.clone();
-                let delete=self.on_delete.clone();let id=self.alias.id;
-                html!{
-                    <Flex space_items={[SpaceItems::Small]}>
-                        <FlexItem><Button variant={ButtonVariant::Link}
-                            aria_label={format!("Edit aliases for {}",self.alias.data.provider)}
-                            onclick={Callback::from(move|_:MouseEvent|edit.emit(alias.clone()))}>{"Edit"}</Button></FlexItem>
-                        <FlexItem><Button variant={ButtonVariant::Link}
-                            aria_label={format!("Delete aliases for {}",self.alias.data.provider)}
-                            onclick={Callback::from(move|_:MouseEvent|delete.emit(id))}>{"Delete"}</Button></FlexItem>
-                    </Flex>
-                }.into()
-            }
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Properties)]
-struct ProviderAliasTableProps {
-    aliases: Vec<ProviderAlias>,
-    on_edit: Callback<ProviderAlias>,
-    on_delete: Callback<Uuid>,
-}
-
-#[function_component(ProviderAliasTable)]
-fn provider_alias_table(props: &ProviderAliasTableProps) -> Html {
-    let entries = use_memo(props.clone(), |props| {
-        let mut aliases = props.aliases.clone();
-        aliases.sort_by(|a, b| a.data.provider.cmp(&b.data.provider));
-        aliases
-            .into_iter()
-            .map(|alias| AliasEntry {
-                alias,
-                on_edit: props.on_edit.clone(),
-                on_delete: props.on_delete.clone(),
-            })
-            .collect::<Vec<_>>()
-    });
-    let (entries, _) = use_table_data(MemoizedTableModel::new(entries));
-    if props.aliases.is_empty() {
-        return html! {<p>{"No provider aliases configured."}</p>};
-    }
-    let header = html_nested! {
-        <TableHeader<AliasColumn>>
-            <TableColumn<AliasColumn> label="Provider" index={AliasColumn::Provider}/>
-            <TableColumn<AliasColumn> label="Matching identifiers" index={AliasColumn::Identifiers}/>
-            <TableColumn<AliasColumn> label="Actions" index={AliasColumn::Actions}/>
-        </TableHeader<AliasColumn>>
-    };
-    html! {
-        <Table<AliasColumn, UseTableData<AliasColumn, MemoizedTableModel<AliasEntry>>>
-            {header} {entries} mode={TableMode::Compact}/>
-    }
-}
-
 #[derive(Clone, Properties, PartialEq)]
 pub struct ResolutionPanelProps {
     pub target: PreviewTarget,
@@ -472,16 +406,39 @@ pub struct ResolutionPanelProps {
     #[prop_or_default]
     pub vulnerability_id: Option<String>,
 }
-#[function_component(ResolutionAction)]
-pub fn resolution_action(props: &ResolutionPanelProps) -> Html {
-    let backdrop = use_backdrop().expect("ResolutionAction requires BackdropViewer");
+#[hook]
+fn use_open_resolution(props: &ResolutionPanelProps) -> Callback<()> {
+    let backdrop = use_backdrop().expect("Explaining a verdict requires BackdropViewer");
     let props = props.clone();
-    let onclick = Callback::from(move |()| {
+    Callback::from(move |()| {
         backdrop.open(Backdrop::new(html! {
             <Bullseye><ResolutionDialog ..props.clone()/></Bullseye>
         }));
-    });
+    })
+}
+
+/// Menu action opening the "Why this verdict?" dialog.
+#[function_component(ResolutionAction)]
+pub fn resolution_action(props: &ResolutionPanelProps) -> Html {
+    let onclick = use_open_resolution(props);
     html! {<MenuAction {onclick}>{"Explain verdict"}</MenuAction>}
+}
+
+/// Icon button opening the "Why this verdict?" dialog.
+#[function_component(ResolutionButton)]
+pub fn resolution_button(props: &ResolutionPanelProps) -> Html {
+    let open = use_open_resolution(props);
+    let onclick = Callback::from(move |_: MouseEvent| open.emit(()));
+    html! {
+        <Tooltip text="Why this verdict?">
+            <Button
+                variant={ButtonVariant::Plain}
+                icon={html!(<i class="fas fa-lightbulb" aria-hidden="true"/>)}
+                aria_label="Why this verdict?"
+                {onclick}
+            />
+        </Tooltip>
+    }
 }
 
 #[function_component(ResolutionDialog)]
@@ -671,7 +628,6 @@ fn resolution_dialog(props: &ResolutionPanelProps) -> Html {
 #[function_component(WeightingPage)]
 pub fn weighting_page() -> Html {
     let policies = use_state(Vec::<WeightPolicy>::new);
-    let aliases = use_state(Vec::<ProviderAlias>::new);
     let error = use_state(|| None::<String>);
     let generation = use_state(|| 0u32);
     let policy_id = use_state(|| None::<Uuid>);
@@ -682,24 +638,16 @@ pub fn weighting_page() -> Html {
     let priority = use_state(|| "0".to_string());
     let weights = use_state(WeightOverrides::default);
     let valid = use_state(|| true);
-    let alias_id = use_state(|| None::<Uuid>);
-    let provider = use_state(String::new);
-    let alias_text = use_state(String::new);
     let latest = use_latest_access_token();
     let token = latest.as_ref().and_then(|t| t.access_token());
     {
         let policies = policies.clone();
-        let aliases = aliases.clone();
         let error = error.clone();
         let token = token.clone();
         use_effect_with(*generation, move |_| {
             spawn_local(async move {
                 match api::weight_policies(token.as_deref()).await {
                     Ok(v) => policies.set(v),
-                    Err(e) => error.set(Some(e.to_string())),
-                }
-                match api::provider_aliases(token.as_deref()).await {
-                    Ok(v) => aliases.set(v),
                     Err(e) => error.set(Some(e.to_string())),
                 }
             })
@@ -776,39 +724,6 @@ pub fn weighting_page() -> Html {
             }
         })
     };
-    let save_alias = {
-        let provider = provider.clone();
-        let alias_text = alias_text.clone();
-        let alias_id = alias_id.clone();
-        let token = token.clone();
-        let generation = generation.clone();
-        let error = error.clone();
-        Callback::from(move |_: MouseEvent| {
-            let data = ProviderAliasData {
-                provider: (*provider).clone(),
-                aliases: alias_text
-                    .lines()
-                    .filter(|v| !v.trim().is_empty())
-                    .map(str::to_string)
-                    .collect(),
-            };
-            let id = *alias_id;
-            let token = token.clone();
-            let generation = generation.clone();
-            let error = error.clone();
-            let alias_id = alias_id.clone();
-            spawn_local(async move {
-                match api::save_provider_alias(id, &data, token.as_deref()).await {
-                    Ok(()) => {
-                        error.set(None);
-                        alias_id.set(None);
-                        generation.set(generation.wrapping_add(1))
-                    }
-                    Err(e) => error.set(Some(e.to_string())),
-                }
-            })
-        })
-    };
     let delete = {
         let token = token.clone();
         let generation = generation.clone();
@@ -879,27 +794,7 @@ pub fn weighting_page() -> Html {
             error.set(None);
         })
     };
-    let edit_alias = {
-        let alias_id = alias_id.clone();
-        let provider = provider.clone();
-        let alias_text = alias_text.clone();
-        Callback::from(move |a: ProviderAlias| {
-            alias_id.set(Some(a.id));
-            provider.set(a.data.provider);
-            alias_text.set(a.data.aliases.join("\n"));
-        })
-    };
-    let new_alias = {
-        let alias_id = alias_id.clone();
-        let provider = provider.clone();
-        let alias_text = alias_text.clone();
-        Callback::from(move |_: MouseEvent| {
-            alias_id.set(None);
-            provider.set(String::new());
-            alias_text.set(String::new());
-        })
-    };
-    html! {<PageSection><Stack gutter=true><Title level={Level::H2}>{"Verdict weighting"}</Title><p>{"Configure instance, group, SBOM, or component preferences. Changes apply to current evidence immediately. Group policies inherit from parent groups; higher priority wins at equal depth. Conflicting equal-priority groups require selecting a group in the verdict preview."}</p>
+    html! {<PageSection><Stack gutter=true><Title level={Level::H2}>{"Verdict weighting"}</Title><p>{"Configure instance, group, SBOM, or component preferences. Changes apply to current evidence immediately. Group policies inherit from parent groups; higher priority wins at equal depth. Conflicting equal-priority groups require selecting a group in the verdict preview. Providers are identified through "}<Link<AppRoute> to={AppRoute::ProviderAliases}>{"provider aliases"}</Link<AppRoute>>{"."}</p>
         if let Some(e)=&*error{<Alert title="Settings error" r#type={AlertType::Danger} inline=true><p>{e}</p></Alert>}
         <Title level={Level::H3}>{"Saved policies"}</Title>
         <ul>{for policies.iter().map(|p| {
@@ -925,21 +820,9 @@ pub fn weighting_page() -> Html {
         <WeightEditor key={format!("{}-{}-{}",policy_id.map(|id|id.to_string()).unwrap_or_default(),*editor_generation,*generation)} value={(*weights).clone()} onchange={change}/>
         <ActionGroup><Button onclick={save} disabled={!*valid}>{"Save policy"}</Button></ActionGroup>
         </Form></CardBody></Card>
-        <Title level={Level::H3}>{"Provider aliases"}</Title><p>{"Exact identifiers only: name:Acme, namespace:https://acme.example, cve-org:UUID, purl:rpm/acme, distro:acme, cpe-vendor:acme. The provider identifies the installed build supplier."}</p>
-        <ProviderAliasTable aliases={(*aliases).clone()} on_edit={edit_alias}
-            on_delete={{let delete=delete.clone();Callback::from(move|id:Uuid|delete.emit(("provider-alias",id)))}}/>
-        <Card><CardBody><Form limit_width=true onsubmit={Callback::from(|event: SubmitEvent| event.prevent_default())}>
-            <Button variant={ButtonVariant::Link} onclick={new_alias}>{"New provider aliases"}</Button>
-            {text_field("Canonical provider",provider)}
-            <FormGroup label="Aliases (one per line)">
-                <TextArea value={(*alias_text).clone()} rows={4} resize={ResizeOrientation::Vertical}
-                    onchange={{let value=alias_text.clone();Callback::from(move|text:String|value.set(text))}}/>
-            </FormGroup>
-            <ActionGroup><Button onclick={save_alias}>{"Save provider aliases"}</Button></ActionGroup>
-        </Form></CardBody></Card>
     </Stack></PageSection>}
 }
-fn text_field(label: &'static str, value: UseStateHandle<String>) -> Html {
+pub(crate) fn text_field(label: &'static str, value: UseStateHandle<String>) -> Html {
     let onchange = {
         let value = value.clone();
         Callback::from(move |text: String| value.set(text))

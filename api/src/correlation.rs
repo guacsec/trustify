@@ -28,6 +28,9 @@ pub struct VerdictSummary {
     pub status: VerdictStatus,
     #[serde(flatten, default)]
     pub resolution: ResolutionSummary,
+    /// The provider who supplied the component, as resolved by the weighting policy.
+    #[serde(default)]
+    pub component_provider: ProviderResolution,
     pub evidence: Vec<EvidenceDetail>,
 }
 
@@ -137,6 +140,9 @@ pub struct EvidenceDetail {
     /// has no context, or the SBOM nothing to compare it with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contexts: Vec<EvidenceContext>,
+    /// The provider making the assertion, as resolved by the weighting policy.
+    #[serde(default)]
+    pub provider: ProviderResolution,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }

@@ -179,7 +179,20 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         }
 
         let content = html! {
-            <MatchTable matches={self.0.matches.clone()} />
+            <Stack gutter=true>
+                <StackItem>
+                    <Flex>
+                        <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
+                            <crate::weighting::ResolutionButton
+                                target={trustify_api::correlation::PreviewTarget::Identifier{identifier:self.1.clone()}}
+                                vulnerability_id={Some(self.0.vulnerability_id.clone())}/>
+                        </FlexItem>
+                    </Flex>
+                </StackItem>
+                <StackItem>
+                    <MatchTable matches={self.0.matches.clone()} />
+                </StackItem>
+            </Stack>
         };
 
         vec![Span::max(content)]

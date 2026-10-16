@@ -6,6 +6,7 @@ use crate::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
         IdentifierRef, MatchedValue, VerdictStatus, VerdictSummary,
     },
+    weighting::provider_view,
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
@@ -168,12 +169,27 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         let content = html! {
             <Stack gutter=true>
                 <StackItem>
-                    <Title level={Level::H4}>{ "Component in the SBOM" }</Title>
+                    <Flex>
+                        <FlexItem><Title level={Level::H4}>{ "Component in the SBOM" }</Title></FlexItem>
+                        <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
+                            <crate::weighting::ResolutionButton
+                                target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
+                                node_id={Some(self.0.component.node_id.clone())}
+                                vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
+                        </FlexItem>
+                    </Flex>
                     { identifiers(&self.0.component.identifiers) }
+                    <div>
+                        <strong>{ "Provider" }</strong>
+                        <div>{ provider_view(&self.0.component_provider) }</div>
+                    </div>
                 </StackItem>
                 <StackItem>
                     <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
-                    <EvidenceTable evidence={evidence.clone()} />
+                    <EvidenceTable
+                        evidence={evidence.clone()}
+                        component_provider={self.0.component_provider.provider.clone()}
+                    />
                 </StackItem>
             </Stack>
         };
@@ -193,12 +209,14 @@ enum EvidenceColumn {
     Extractor,
     MatchedValue,
     Product,
+    Provider,
     Advisory,
     Created,
 }
 
+/// An evidence row, with the resolved provider of the component it was matched against.
 #[derive(Clone, PartialEq)]
-struct EvidenceEntry(EvidenceDetail);
+struct EvidenceEntry(EvidenceDetail, Option<String>);
 
 impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
     fn render_cell(&self, context: CellContext<'_, EvidenceColumn>) -> Cell {
@@ -213,6 +231,18 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 None => html!("\u{2014}").into(),
             },
             EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
+            EvidenceColumn::Provider => {
+                let same = self.1.is_some() && self.0.provider.provider == self.1;
+                html! {
+                    <>
+                        { provider_view(&self.0.provider) }
+                        if same {
+                            <div><Label compact=true label="Same as component" color={Color::Green}/></div>
+                        }
+                    </>
+                }
+                .into()
+            }
             EvidenceColumn::Advisory => advisory_link(
                 self.0.advisory_id,
                 &self.0.advisory_identifier,
@@ -227,16 +257,20 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct EvidenceTableProps {
     evidence: Vec<EvidenceDetail>,
+    component_provider: Option<String>,
 }
 
 #[function_component(EvidenceTable)]
 fn evidence_table(props: &EvidenceTableProps) -> Html {
-    let entries = use_memo(props.evidence.clone(), |evidence| {
-        evidence
-            .iter()
-            .map(|e| EvidenceEntry(e.clone()))
-            .collect::<Vec<_>>()
-    });
+    let entries = use_memo(
+        (props.evidence.clone(), props.component_provider.clone()),
+        |(evidence, component_provider)| {
+            evidence
+                .iter()
+                .map(|e| EvidenceEntry(e.clone(), component_provider.clone()))
+                .collect::<Vec<_>>()
+        },
+    );
 
     let (entries, _) = use_table_data(MemoizedTableModel::new(entries));
 
@@ -247,6 +281,7 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
             <TableColumn<EvidenceColumn> label="Extractor" index={EvidenceColumn::Extractor} />
             <TableColumn<EvidenceColumn> label="Matched Value" index={EvidenceColumn::MatchedValue} />
             <TableColumn<EvidenceColumn> label="Product" index={EvidenceColumn::Product} />
+            <TableColumn<EvidenceColumn> label="Provider" index={EvidenceColumn::Provider} />
             <TableColumn<EvidenceColumn> label="Advisory" index={EvidenceColumn::Advisory} />
             <TableColumn<EvidenceColumn> label="Created" index={EvidenceColumn::Created} />
         </TableHeader<EvidenceColumn>>

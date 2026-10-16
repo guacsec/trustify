@@ -228,9 +228,22 @@ impl CorrelationService {
 
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
+            let policy = snapshot.effective(Some(sbom_id), Some(node_id), request)?;
+            let identifiers = node_identifiers
+                .get(*node_id)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let component_provider =
+                snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &policy);
+            let inputs = rows
+                .iter()
+                .map(|row| decision_evidence(row, &snapshot))
+                .collect::<Result<Vec<_>, _>>()?;
+
             let evidence: Vec<_> = rows
                 .iter()
-                .map(|row| {
+                .zip(&inputs)
+                .map(|(row, input)| {
                     let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
 
                     EvidenceDetail {
@@ -249,24 +262,18 @@ impl CorrelationService {
                                 .ok()
                         }),
                         contexts: contexts.remove(&row.id).unwrap_or_default(),
+                        provider: policy.provider(&input.provider, "assertion source"),
                         created_at: row.created_at,
                     }
                 })
                 .collect();
 
-            let policy = snapshot.effective(Some(sbom_id), Some(node_id), request)?;
-            let identifiers = node_identifiers
-                .get(*node_id)
-                .map(Vec::as_slice)
-                .unwrap_or_default();
-            let provider =
-                snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &policy);
-            let inputs = rows
-                .iter()
-                .map(|row| decision_evidence(row, &snapshot))
-                .collect::<Result<Vec<_>, _>>()?;
-            let decision =
-                weighting::resolve(&inputs, provider, &policy, request.include_explanation)?;
+            let decision = weighting::resolve(
+                &inputs,
+                component_provider.clone(),
+                &policy,
+                request.include_explanation,
+            )?;
             let status = decision.status;
             let resolution = decision.summary;
 
@@ -294,6 +301,7 @@ impl CorrelationService {
                 },
                 status,
                 resolution,
+                component_provider,
                 evidence,
             });
         }

@@ -44,7 +44,7 @@ visible but does not vote. All multipliers must be finite and nonnegative.
 
 | Factor | Default |
 |---|---:|
-| Same installed-build provider | 2 |
+| Same provider as the SBOM component | 2 |
 | Providerless, with matching-provider evidence | 1 |
 | Providerless fallback, without matching-provider evidence | 2 |
 | Other or unidentified provider | 0.5 |
@@ -65,7 +65,7 @@ Sensitivity ranges from zero to below one, so a tie retains positive confidence.
 
 ### Provider identity
 
-The provider supplies the installed build; document authors are not providers. An explicit
+The provider is who supplied the SBOM component; document authors are not providers. An explicit
 component supplier wins over upstream identity, so a distribution's patched build of another
 vendor's software favors that distribution. Missing component suppliers can inherit the product
 supplier. Distribution/build and package namespace mappings precede this fallback; a configured
