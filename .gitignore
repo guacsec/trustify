@@ -8,6 +8,7 @@
 .env
 
 CLAUDE.md
+AGENTS.md
 
 *.folded
 *-secret.*
