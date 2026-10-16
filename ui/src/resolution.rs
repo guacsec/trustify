@@ -15,6 +15,7 @@ pub struct ExplanationProps {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum EvidenceColumn {
     Statement,
+    Product,
     Confidence,
     Relationship,
     Origin,
@@ -102,6 +103,57 @@ pub fn provider_view(provider: &ProviderResolution) -> Html {
     }
 }
 
+/// The products a statement was matched in, each once. The tooltip names what confirmed them.
+fn product_names(contexts: &[EvidenceContext]) -> Html {
+    let mut products = Vec::<(&str, Vec<&str>)>::new();
+    for context in contexts {
+        match products.iter_mut().find(|(name, _)| *name == context.name) {
+            Some((_, identifiers)) => identifiers.push(&context.node_identifier),
+            None => products.push((&context.name, vec![&context.node_identifier])),
+        }
+    }
+    if products.is_empty() {
+        return html!("\u{2014}");
+    }
+    html! {
+        <ul style="margin:0;padding-left:1em">
+            {for products.into_iter().map(|(name, identifiers)| html! {
+                <li>
+                    <Tooltip text={format!("Confirmed by {}", identifiers.join(", "))}>
+                        <span>{ name }</span>
+                    </Tooltip>
+                </li>
+            })}
+        </ul>
+    }
+}
+
+/// The products a statement was matched in, and the component identifier confirming each.
+fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
+    if contexts.is_empty() {
+        return Html::default();
+    }
+    html! {
+        <>
+            <p>{"Matched in product:"}</p>
+            <ul class="pf-v6-c-list">
+                {for contexts.iter().map(|context| html! {
+                    <li>
+                        { &context.name }{ ", confirmed by the " }{ context.source.label() }
+                        if context.distance > 1 {
+                            { format!(" ({} hops away)", context.distance) }
+                        }
+                        { " " }<code style="overflow-wrap: anywhere;">{ &context.node_identifier }</code>
+                        <span class="pf-v6-u-text-color-subtle">
+                            { format!(" (match confidence ×{:.2})", context.confidence) }
+                        </span>
+                    </li>
+                })}
+            </ul>
+        </>
+    }
+}
+
 fn verdict_color(status: VerdictStatus) -> Color {
     match status {
         VerdictStatus::Affected => Color::Red,
@@ -122,6 +174,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                     <StackItem><span class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">{e.status.label()}</span></StackItem>
                 </Stack>
             }.into(),
+            EvidenceColumn::Product => product_names(&e.contexts).into(),
             EvidenceColumn::Confidence=>html!{format!("{:.0}%",e.match_confidence*100.0)}.into(),
             EvidenceColumn::Relationship => html!{e.provider_relationship.label()}.into(),
             EvidenceColumn::Origin => html!{e.assertion_origin.to_string()}.into(),
@@ -136,6 +189,30 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 </Tooltip>
             }.into(),
         }
+    }
+
+    fn render_details(&self) -> Vec<Span> {
+        let e = &self.evidence;
+        let content = html! {
+            <Stack gutter=true>
+                <StackItem><p>{e.selection_reason.label()}</p></StackItem>
+                if !e.contexts.is_empty() {
+                    <StackItem>{evidence_contexts(&e.contexts)}</StackItem>
+                }
+                if !e.provider.diagnostics.is_empty() || !e.provider.identifiers.is_empty() {
+                    <StackItem>
+                        <p>{"Provider identifiers:"}</p>
+                        {for e.provider.diagnostics.iter().map(|d|html!{<p class="pf-v6-u-text-color-subtle">{d}</p>})}
+                        <ul class="pf-v6-c-list">{for e.provider.identifiers.iter().map(|id|html!{<li><code>{id}</code></li>})}</ul>
+                    </StackItem>
+                }
+            </Stack>
+        };
+        vec![Span::max(content)]
+    }
+
+    fn is_full_width_details(&self) -> Option<bool> {
+        Some(true)
     }
 }
 
@@ -156,13 +233,14 @@ fn explanation(props: &ExplanationProps) -> Html {
             })
             .unwrap_or_default()
     });
-    let (entries, _) = use_table_data(MemoizedTableModel::new(rows));
+    let (entries, onexpand) = use_table_data(MemoizedTableModel::new(rows));
     let Some(trace) = &props.summary.explanation else {
         return Html::default();
     };
     let header = html_nested! {
         <TableHeader<EvidenceColumn>>
             <TableColumn<EvidenceColumn> label="Statement" index={EvidenceColumn::Statement}/>
+            <TableColumn<EvidenceColumn> label="Product" index={EvidenceColumn::Product}/>
             <TableColumn<EvidenceColumn> label="Provider relationship" index={EvidenceColumn::Relationship}/>
             <TableColumn<EvidenceColumn> label="Origin" index={EvidenceColumn::Origin}/>
             <TableColumn<EvidenceColumn> label="Match confidence" index={EvidenceColumn::Confidence}/>
@@ -188,19 +266,9 @@ fn explanation(props: &ExplanationProps) -> Html {
                 {for trace.component_provider.diagnostics.iter().map(|d|html!{<p>{d}</p>})}
             </StackItem>
             <StackItem>
-                <p>{"Statements are ordered by provider relationship, then directness, match confidence, and status. Hover over a role for the deciding rule."}</p>
-                <Table<EvidenceColumn,UseTableData<EvidenceColumn,MemoizedTableModel<EvidenceEntry>>> {header} {entries} mode={TableMode::Compact}/>
+                <p>{"Statements are ordered by provider relationship, then directness, match confidence, and status. Expand a statement for the deciding rule, its products and provider identifiers."}</p>
+                <Table<EvidenceColumn,UseTableData<EvidenceColumn,MemoizedTableModel<EvidenceEntry>>> {header} {entries} {onexpand} mode={TableMode::CompactExpandable}/>
             </StackItem>
-            <StackItem><details><summary>{"Statement details"}</summary>
-                {for trace.evidence.iter().map(|e|html!{
-                    <div class="pf-v6-u-mt-md">
-                        <Link<AppRoute> to={AppRoute::Advisory{id:e.advisory_id.to_string()}}>{provider_name(&e.provider)}</Link<AppRoute>>
-                        <p>{e.selection_reason.label()}</p>
-                        {for e.provider.diagnostics.iter().map(|d|html!{<p>{d}</p>})}
-                        <ul class="pf-v6-c-list">{for e.provider.identifiers.iter().map(|id|html!{<li><code>{id}</code></li>})}</ul>
-                    </div>
-                })}
-            </details></StackItem>
             <StackItem><small class="pf-v6-u-text-color-subtle">{"Calculated from current evidence and provider aliases. Resolution revision: "}{trace.resolution_revision.to_string()}</small></StackItem>
         </Stack>
     }

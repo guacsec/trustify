@@ -22,6 +22,7 @@ fn evidence(
                 .unwrap_or_default(),
             ..Default::default()
         },
+        contexts: vec![],
     }
 }
 fn component() -> ProviderResolution {

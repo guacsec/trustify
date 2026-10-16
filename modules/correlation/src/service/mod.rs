@@ -238,8 +238,13 @@ impl CorrelationService {
                 snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &context);
             let inputs = rows
                 .iter()
-                .map(|row| decision_evidence(row, &snapshot))
-                .collect::<Result<Vec<_>, _>>()?;
+                .map(|row| {
+                    Ok(resolution::DecisionEvidence {
+                        contexts: contexts.remove(&row.id).unwrap_or_default(),
+                        ..decision_evidence(row, &snapshot)?
+                    })
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
 
             let evidence: Vec<_> = rows
                 .iter()
@@ -263,7 +268,7 @@ impl CorrelationService {
                                 })
                                 .ok()
                         }),
-                        contexts: contexts.remove(&row.id).unwrap_or_default(),
+                        contexts: input.contexts.clone(),
                         provider_match: resolution::provider_match(&component_provider, &provider),
                         provider,
                         created_at: row.created_at,
@@ -433,6 +438,7 @@ impl CorrelationService {
                         .clone()
                         .or_else(|| snapshot.advisory_providers.get(&m.advisory_id).cloned())
                         .unwrap_or_default(),
+                    contexts: Vec::new(),
                 })
                 .collect::<Vec<_>>();
             let decision = resolution::resolve(
@@ -479,6 +485,7 @@ fn decision_evidence(
         confidence: row.confidence,
         value,
         provider,
+        contexts: Vec::new(),
     })
 }
 

@@ -1,4 +1,4 @@
-use super::{AssertionOrigin, AssertionStatus, IdentifierRef, VerdictStatus};
+use super::{AssertionOrigin, AssertionStatus, EvidenceContext, IdentifierRef, VerdictStatus};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -146,6 +146,10 @@ pub struct ResolutionEvidence {
     pub provider_relationship: ProviderRelationship,
     pub outcome: EvidenceOutcome,
     pub selection_reason: SelectionReason,
+    /// The products (assertion contexts) the statement was matched in, and how the component got
+    /// into them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contexts: Vec<EvidenceContext>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

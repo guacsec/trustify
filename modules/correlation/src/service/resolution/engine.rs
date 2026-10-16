@@ -11,6 +11,8 @@ pub struct DecisionEvidence {
     pub confidence: f64,
     pub value: Option<MatchedValue>,
     pub provider: ProviderIdentity,
+    /// The products the evidence was matched in, only reported in the explanation.
+    pub contexts: Vec<EvidenceContext>,
 }
 
 fn status(status: ApiAssertionStatus) -> Option<VerdictStatus> {
@@ -108,6 +110,7 @@ pub fn resolve(
             provider_relationship: relationship,
             outcome: EvidenceOutcome::NonVoting,
             selection_reason: SelectionReason::NonVoting,
+            contexts: e.contexts.clone(),
         });
     }
     details.sort_by(compare);

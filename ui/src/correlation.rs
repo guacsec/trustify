@@ -10,6 +10,7 @@ use crate::{
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
+use time::OffsetDateTime;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -249,7 +250,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 self.0.advisory_type.as_deref(),
             )
             .into(),
-            EvidenceColumn::Created => html!(&self.0.created_at).into(),
+            EvidenceColumn::Created => timestamp(&self.0.created_at).into(),
         }
     }
 }
@@ -467,26 +468,22 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
 
 /// Render the advisory side of a match: the identifier, and each matched version range on a line
 /// of its own.
-/// The products (contexts) evidence was matched in, and how the component got into them.
+/// The products (contexts) evidence was matched in. How the component got into them is part of
+/// the verdict explanation.
 fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
-    if contexts.is_empty() {
+    // the same product can be confirmed by several identifiers
+    let mut names = Vec::<&str>::new();
+    for context in contexts {
+        if !names.contains(&context.name.as_str()) {
+            names.push(&context.name);
+        }
+    }
+    if names.is_empty() {
         return html!("\u{2014}");
     }
     html! {
         <ul style="margin:0;padding-left:1em">
-            { for contexts.iter().map(|context| html! {
-                <li>
-                    { &context.name }
-                    <small>
-                        { " via " }{ context.source.label() }
-                        if context.distance > 1 {
-                            { format!(" ({} hops)", context.distance) }
-                        }
-                        { " " }<code>{ &context.node_identifier }</code>
-                        { format!(", ×{:.2}", context.confidence) }
-                    </small>
-                </li>
-            }) }
+            { for names.into_iter().map(|name| html!(<li>{ name }</li>)) }
         </ul>
     }
 }
@@ -518,6 +515,31 @@ pub(crate) fn matched_value(value: &MatchedValue) -> Html {
 }
 
 /// The label color of a verdict status.
+/// A timestamp to the second, without the offset when in UTC. The tooltip has the full value.
+pub(crate) fn timestamp(value: &OffsetDateTime) -> Html {
+    let offset = value.offset();
+    let mut short = format!(
+        "{} {:02}:{:02}:{:02}",
+        value.date(),
+        value.hour(),
+        value.minute(),
+        value.second()
+    );
+    if !offset.is_utc() {
+        let sign = if offset.is_negative() { '-' } else { '+' };
+        short.push_str(&format!(
+            " {sign}{:02}:{:02}",
+            offset.whole_hours().unsigned_abs(),
+            offset.minutes_past_hour().unsigned_abs()
+        ));
+    }
+    html! {
+        <Tooltip text={value.to_string()}>
+            <span>{ short }</span>
+        </Tooltip>
+    }
+}
+
 pub(crate) fn status_color(status: VerdictStatus) -> Color {
     match status {
         VerdictStatus::Affected => Color::Red,

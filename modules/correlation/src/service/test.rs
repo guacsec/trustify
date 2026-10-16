@@ -831,3 +831,68 @@ async fn evidence_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+/// The explanation reports the products a statement was matched in, and the component
+/// identifiers confirming them.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{ContextSource, ResolutionRequest};
+
+    let sbom = ctx
+        .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
+        .await?;
+    ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+
+    let tx = ctx.db.begin().await?;
+    let request = ResolutionRequest {
+        include_explanation: true,
+        node_id: Some("comp-flip4-device".into()),
+        ..Default::default()
+    };
+    let read = CorrelationService::default()
+        .correlate_sbom_with(sbom_id, false, &request, &tx)
+        .await?;
+
+    let mut contexts = read.verdicts[0]
+        .resolution
+        .explanation
+        .as_ref()
+        .unwrap()
+        .evidence
+        .iter()
+        .flat_map(|e| &e.contexts)
+        .map(|c| {
+            (
+                c.name.clone(),
+                c.source,
+                c.node_identifier.clone(),
+                c.confidence,
+            )
+        })
+        .collect::<Vec<_>>();
+    contexts.sort_by(|a, b| a.2.cmp(&b.2));
+    assert_eq!(
+        contexts,
+        vec![
+            (
+                "JBL Flip 4".to_string(),
+                ContextSource::Node,
+                "sku:050036337366".to_string(),
+                1.0
+            ),
+            (
+                "JBL Flip 4".to_string(),
+                ContextSource::Node,
+                "sku:6925281924439".to_string(),
+                1.0
+            ),
+        ]
+    );
+    Ok(())
+}
