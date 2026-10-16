@@ -1,6 +1,7 @@
 use crate::{
     AppRoute, api,
     correlation::status_color,
+    ingest_drop::use_ingested_documents,
     model::{SbomSummary, SbomVerdictCounts, VerdictStatus},
 };
 use patternfly_yew::prelude::*;
@@ -94,6 +95,7 @@ pub fn sbom_list() -> Html {
     let total = use_state_eq(|| Option::<usize>::None);
     let pagination = use_pagination(*total, Default::default);
     let router = use_router::<AppRoute>();
+    let ingested = use_ingested_documents();
 
     let latest_token = use_latest_access_token();
     let token: Option<String> = latest_token.as_ref().and_then(|t| t.access_token());
@@ -106,8 +108,8 @@ pub fn sbom_list() -> Html {
         let total = total.clone();
         let token = token.clone();
         use_effect_with(
-            ((*search).clone(), pagination.control),
-            move |(query, control)| {
+            ((*search).clone(), pagination.control, ingested),
+            move |(query, control, _)| {
                 let query = query.clone();
                 let (offset, limit) = (control.page * control.per_page, control.per_page);
                 spawn_local(async move {

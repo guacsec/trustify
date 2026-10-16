@@ -1,6 +1,8 @@
 //! The list of advisories, searchable.
 
-use crate::{AppRoute, advisory::AdvisoryFormat, api, sort::use_sort};
+use crate::{
+    AppRoute, advisory::AdvisoryFormat, api, ingest_drop::use_ingested_documents, sort::use_sort,
+};
 use patternfly_yew::prelude::*;
 use trustify_client::api::types::AdvisorySummary;
 use wasm_bindgen_futures::spawn_local;
@@ -106,6 +108,7 @@ pub fn advisory_list() -> Html {
     let pagination = use_pagination(total, Default::default);
     let sort = use_sort::<Column>(None);
     let router = use_router::<AppRoute>();
+    let ingested = use_ingested_documents();
 
     let latest_token = use_latest_access_token();
     let token: Option<String> = latest_token.as_ref().and_then(|t| t.access_token());
@@ -113,8 +116,8 @@ pub fn advisory_list() -> Html {
     {
         let page = page.clone();
         use_effect_with(
-            ((*search).clone(), sort.sortby, pagination.control),
-            move |(query, sortby, control)| {
+            ((*search).clone(), sort.sortby, pagination.control, ingested),
+            move |(query, sortby, control, _)| {
                 let query = query.clone();
                 let sort = sortby.and_then(sort_param);
                 let (offset, limit) = (control.page * control.per_page, control.per_page);
