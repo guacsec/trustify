@@ -19,7 +19,7 @@
       "pkg:openssl-0907d1fb499114c5df61bf90f42de3cc": {
         "CVE-2024-6119": "not_affected",
         "CVE-2024-9143": "not_affected",
-        "CVE-2025-9230": "not_affected"
+        "CVE-2025-9230": "affected"
       },
       "pkg:openssl-3-74fdf8be9af579e40f0343324a1a4d33": {
         "CVE-2024-6119": "affected",
@@ -41,7 +41,7 @@
       "SPDXRef-Package-openssl-0907d1fb499114c5df61bf90f42de3cc": {
         "CVE-2024-6119": "not_affected",
         "CVE-2024-9143": "not_affected",
-        "CVE-2025-9230": "not_affected"
+        "CVE-2025-9230": "affected"
       },
       "SPDXRef-Package-openssl-3-74fdf8be9af579e40f0343324a1a4d33": {
         "CVE-2024-6119": "affected",
@@ -63,7 +63,7 @@
       "pkg:rpm/openssl-0907d1fb499114c5df61bf90f42de3cc": {
         "CVE-2024-6119": "not_affected",
         "CVE-2024-9143": "not_affected",
-        "CVE-2025-9230": "not_affected"
+        "CVE-2025-9230": "affected"
       },
       "pkg:rpm/openssl-3-d4d5f859ac5fb640bc297892e9d9120a": {
         "CVE-2024-6119": "fixed",
@@ -85,7 +85,7 @@
       "SPDXRef-Package-rpm-openssl-0907d1fb499114c5df61bf90f42de3cc": {
         "CVE-2024-6119": "not_affected",
         "CVE-2024-9143": "not_affected",
-        "CVE-2025-9230": "not_affected"
+        "CVE-2025-9230": "affected"
       },
       "SPDXRef-Package-rpm-openssl-3-d4d5f859ac5fb640bc297892e9d9120a": {
         "CVE-2024-6119": "fixed",

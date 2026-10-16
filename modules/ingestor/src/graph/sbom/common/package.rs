@@ -24,6 +24,7 @@ pub struct NodeInfoParam {
     pub name: String,
     pub group: Option<String>,
     pub version: Option<String>,
+    pub supplier: Option<serde_json::Value>,
     pub package_license_info: Vec<PackageLicensenInfo>,
 }
 
@@ -71,6 +72,7 @@ impl PackageCreator {
             group: Set(node_info.group),
             node_id: Set(node_info.node_id.clone()),
             version: Set(node_info.version),
+            supplier: Set(node_info.supplier),
         });
 
         for package_license in node_info.package_license_info {

@@ -1,0 +1,149 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Synthetic S28 regression controls",
+  "documentNamespace": "https://example.org/trustify/s28/regression",
+  "creationInfo": {
+    "creators": [
+      "Tool: Trustify synthetic scenario"
+    ],
+    "created": "2026-10-14T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "demo-regression",
+      "SPDXID": "SPDXRef-before-fix",
+      "versionInfo": "1.0-1.el9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/demo-regression@1.0-1.el9?arch=x86_64&distro=rhel-9"
+        }
+      ]
+    },
+    {
+      "name": "demo-regression",
+      "SPDXID": "SPDXRef-initial-fix",
+      "versionInfo": "1.0-2.el9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/demo-regression@1.0-2.el9?arch=x86_64&distro=rhel-9"
+        }
+      ]
+    },
+    {
+      "name": "demo-regression",
+      "SPDXID": "SPDXRef-regression",
+      "versionInfo": "1.0-3.el9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/demo-regression@1.0-3.el9?arch=x86_64&distro=rhel-9"
+        }
+      ]
+    },
+    {
+      "name": "demo-regression",
+      "SPDXID": "SPDXRef-subsequent-fix",
+      "versionInfo": "1.0-4.el9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/demo-regression@1.0-4.el9?arch=x86_64&distro=rhel-9"
+        }
+      ]
+    },
+    {
+      "name": "demo-regression",
+      "SPDXID": "SPDXRef-inferred-fixed",
+      "versionInfo": "1.0-5.el9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/demo-regression@1.0-5.el9?arch=x86_64&distro=rhel-9"
+        }
+      ]
+    },
+    {
+      "name": "demo-regression",
+      "SPDXID": "SPDXRef-other-stream",
+      "versionInfo": "1.0-3.el8",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/demo-regression@1.0-3.el8?arch=x86_64&distro=rhel-8"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-before-fix",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-initial-fix",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-regression",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-subsequent-fix",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-inferred-fixed",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-other-stream",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

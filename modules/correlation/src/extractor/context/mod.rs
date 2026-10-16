@@ -28,7 +28,7 @@ use trustify_entity::{
 };
 use uuid::Uuid;
 
-mod rpm;
+pub(super) mod rpm;
 
 /// Confidence of a context of the node's own CPE.
 const NODE: f64 = 1.0;

@@ -146,10 +146,12 @@ impl<'g> CveLoader<'g> {
                 .clone(),
             &warnings,
         );
-        for product in affected {
+        for (product, provider) in affected {
+            statements.set_provider(provider);
             statements.add_product(product, tx).await?;
         }
-        for configuration in &applicability {
+        for (configuration, provider) in &applicability {
+            statements.set_provider(provider.clone());
             statements.add_applicability(configuration);
         }
         statements.create(tx).await?;
@@ -198,78 +200,88 @@ impl<'g> CveLoader<'g> {
             .date_updated
             .map(Timestamp::assume_utc);
 
-        let (title, assigned, withdrawn, descriptions, cwe, org_name, affected) = match &cve {
-            Cve::Rejected(rejected) => (
-                None,
-                None,
-                rejected.metadata.date_rejected.map(Timestamp::assume_utc),
-                &rejected.containers.cna.rejected_reasons,
-                None,
-                rejected
-                    .containers
-                    .cna
-                    .common
-                    .provider_metadata
-                    .short_name
-                    .as_deref(),
-                Vec::new(),
-            ),
-            Cve::Published(published) => (
-                published
-                    .containers
-                    .cna
-                    .title
-                    .as_deref()
-                    .or_else(|| {
-                        Self::find_best_description_for_title(
-                            &published.containers.cna.descriptions,
-                        )
-                    })
-                    .map(ToString::to_string),
-                published
-                    .containers
-                    .cna
-                    .date_assigned
-                    .map(Timestamp::assume_utc),
-                None,
-                &published.containers.cna.descriptions,
-                {
-                    let cwes = published
+        let (title, assigned, withdrawn, descriptions, cwe, org_name, affected) =
+            match &cve {
+                Cve::Rejected(rejected) => (
+                    None,
+                    None,
+                    rejected.metadata.date_rejected.map(Timestamp::assume_utc),
+                    &rejected.containers.cna.rejected_reasons,
+                    None,
+                    rejected
                         .containers
                         .cna
-                        .problem_types
-                        .iter()
-                        .flat_map(|pt| pt.descriptions.iter())
-                        .flat_map(|desc| desc.cwe_id.clone())
-                        .collect::<Vec<_>>();
-                    if cwes.is_empty() { None } else { Some(cwes) }
-                },
-                published
-                    .containers
-                    .cna
-                    .common
-                    .provider_metadata
-                    .short_name
-                    .as_deref(),
-                // CNA-reported affected entries are the primary source; ADP
-                // containers (e.g. CISA vulnrichment) supplement them with
-                // additional CPE/version data, particularly for older CVEs
-                // the CNA never annotated with CPEs.
-                published
-                    .containers
-                    .cna
-                    .affected
-                    .iter()
-                    .chain(
-                        published
+                        .common
+                        .provider_metadata
+                        .short_name
+                        .as_deref(),
+                    Vec::new(),
+                ),
+                Cve::Published(published) => (
+                    published
+                        .containers
+                        .cna
+                        .title
+                        .as_deref()
+                        .or_else(|| {
+                            Self::find_best_description_for_title(
+                                &published.containers.cna.descriptions,
+                            )
+                        })
+                        .map(ToString::to_string),
+                    published
+                        .containers
+                        .cna
+                        .date_assigned
+                        .map(Timestamp::assume_utc),
+                    None,
+                    &published.containers.cna.descriptions,
+                    {
+                        let cwes = published
                             .containers
-                            .adp
+                            .cna
+                            .problem_types
                             .iter()
-                            .flat_map(|adp| adp.affected.iter()),
-                    )
-                    .collect(),
-            ),
-        };
+                            .flat_map(|pt| pt.descriptions.iter())
+                            .flat_map(|desc| desc.cwe_id.clone())
+                            .collect::<Vec<_>>();
+                        if cwes.is_empty() { None } else { Some(cwes) }
+                    },
+                    published
+                        .containers
+                        .cna
+                        .common
+                        .provider_metadata
+                        .short_name
+                        .as_deref(),
+                    published
+                        .containers
+                        .cna
+                        .affected
+                        .iter()
+                        .map(|product| {
+                            (
+                                product,
+                                source_provider(
+                                    &published.containers.cna.common.provider_metadata,
+                                    "cna",
+                                ),
+                            )
+                        })
+                        .chain(published.containers.adp.iter().enumerate().flat_map(
+                            |(index, adp)| {
+                                let provider = source_provider(
+                                    &adp.provider_metadata,
+                                    &format!("adp:{index}"),
+                                );
+                                adp.affected
+                                    .iter()
+                                    .map(move |product| (product, provider.clone()))
+                            },
+                        ))
+                        .collect(),
+                ),
+            };
 
         VulnerabilityDetails {
             org_name,
@@ -293,8 +305,31 @@ struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
     pub descriptions: &'a Vec<Description>,
     pub assigned: Option<OffsetDateTime>,
-    pub affected: Vec<&'a Product>,
+    pub affected: Vec<(&'a Product, trustify_api::correlation::ProviderIdentity)>,
     pub information: VulnerabilityInformation,
+}
+
+pub(super) fn source_provider(
+    metadata: &impl serde::Serialize,
+    container: &str,
+) -> trustify_api::correlation::ProviderIdentity {
+    let value = serde_json::json!(metadata);
+    let mut identifiers = vec![format!("container:{container}")];
+    if let Some(org) = value.get("orgId").and_then(serde_json::Value::as_str) {
+        identifiers.push(format!("cve-org:{org}"));
+    }
+    let name = value
+        .get("shortName")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    if let Some(name) = &name {
+        identifiers.push(format!("name:{name}"));
+    }
+    trustify_api::correlation::ProviderIdentity {
+        identifiers,
+        name,
+        unavailable: false,
+    }
 }
 
 #[cfg(test)]

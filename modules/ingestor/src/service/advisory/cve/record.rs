@@ -11,7 +11,7 @@ pub struct CveRecord {
     pub cve: Cve,
     /// The `cpeApplicability` of the CNA and ADP containers. It uses the CPE Applicability Language,
     /// as NVD configurations do.
-    pub applicability: Vec<Configuration>,
+    pub applicability: Vec<(Configuration, trustify_api::correlation::ProviderIdentity)>,
 }
 
 impl From<Cve> for CveRecord {
@@ -33,7 +33,9 @@ impl<'de> Deserialize<'de> for CveRecord {
 }
 
 /// The `cpeApplicability` of the containers of a record.
-fn applicability(record: &Value) -> Result<Vec<Configuration>, serde_json::Error> {
+fn applicability(
+    record: &Value,
+) -> Result<Vec<(Configuration, trustify_api::correlation::ProviderIdentity)>, serde_json::Error> {
     let containers = record.get("containers");
     let cna = containers.and_then(|c| c.get("cna"));
     let adp = containers
@@ -43,9 +45,23 @@ fn applicability(record: &Value) -> Result<Vec<Configuration>, serde_json::Error
         .flatten();
 
     let mut result = Vec::new();
-    for container in cna.into_iter().chain(adp) {
+    for (role, container) in cna.into_iter().map(|c| ("cna".to_string(), c)).chain(
+        adp.enumerate()
+            .map(|(index, c)| (format!("adp:{index}"), c)),
+    ) {
         if let Some(applicability) = container.get("cpeApplicability") {
-            result.extend(Vec::<Configuration>::deserialize(applicability)?);
+            let provider = super::loader::source_provider(
+                &container
+                    .get("providerMetadata")
+                    .cloned()
+                    .unwrap_or_default(),
+                &role,
+            );
+            result.extend(
+                Vec::<Configuration>::deserialize(applicability)?
+                    .into_iter()
+                    .map(|configuration| (configuration, provider.clone())),
+            );
         }
     }
     Ok(result)

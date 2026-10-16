@@ -9,6 +9,8 @@ pub struct Model {
     pub node_id: String,
     pub group: Option<String>,
     pub version: Option<String>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub supplier: Option<serde_json::Value>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -69,6 +69,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                 </Alert>
             } else if let Some(data) = &*result {
                 <CorrelationContent
+                    sbom_id={data.sbom_id}
                     verdicts={data.verdicts.clone()}
                     unmatched_components={data.unmatched_components.clone().unwrap_or_default()}
                 />
@@ -87,6 +88,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
 
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct CorrelationContentProps {
+    sbom_id: uuid::Uuid,
     verdicts: Vec<VerdictSummary>,
     unmatched_components: Vec<ComponentRef>,
 }
@@ -101,12 +103,19 @@ enum VerdictColumn {
 }
 
 #[derive(Clone, PartialEq)]
-struct VerdictEntry(VerdictSummary);
+struct VerdictEntry(VerdictSummary, uuid::Uuid);
 
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
         match context.column {
-            VerdictColumn::Component => html!(&self.0.component.name).into(),
+            VerdictColumn::Component => html! {
+                <div>
+                    { &self.0.component.name }
+                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                        <code style="color: inherit; overflow-wrap: anywhere;">{ &self.0.component.node_id }</code>
+                    </div>
+                </div>
+            }.into(),
             VerdictColumn::Vulnerability => html! {
                 <>
                     <strong>{ &self.0.vulnerability.id }</strong>
@@ -123,11 +132,30 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </Link<AppRoute>>
             }
             .into(),
-            VerdictColumn::Status => html!(status_label(self.0.status)).into(),
+            VerdictColumn::Status => html! {
+                <div>
+                    {status_label(self.0.status)}
+                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                </div>
+            }.into(),
             VerdictColumn::Evidence => {
                 html!(<Badge>{ self.0.evidence.len().to_string() }</Badge>).into()
             }
         }
+    }
+
+    fn actions(&self) -> Vec<MenuChildVariant> {
+        vec![
+            html_nested! {
+                <Raw>
+                    <crate::weighting::ResolutionAction
+                        target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
+                        node_id={Some(self.0.component.node_id.clone())}
+                        vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
+                </Raw>
+            }
+            .into(),
+        ]
     }
 
     fn render_details(&self) -> Vec<Span> {
@@ -269,12 +297,15 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
 
     let summary = verdict_summary_counts(&props.verdicts);
 
-    let verdict_entries = use_memo(props.verdicts.clone(), |verdicts| {
-        verdicts
-            .iter()
-            .map(|v| VerdictEntry(v.clone()))
-            .collect::<Vec<_>>()
-    });
+    let verdict_entries = use_memo(
+        (props.verdicts.clone(), props.sbom_id),
+        |(verdicts, sbom_id)| {
+            verdicts
+                .iter()
+                .map(|v| VerdictEntry(v.clone(), *sbom_id))
+                .collect::<Vec<_>>()
+        },
+    );
 
     let (verdict_entries, onexpand) = use_table_data(MemoizedTableModel::new(verdict_entries));
 

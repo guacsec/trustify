@@ -1,0 +1,82 @@
+{
+  "dataType": "CVE_RECORD",
+  "dataVersion": "5.1",
+  "cveMetadata": {
+    "cveId": "CVE-2026-99992",
+    "assignerOrgId": "b6f33b61-7530-4f93-950c-780499765af1",
+    "assignerShortName": "Provider A",
+    "state": "PUBLISHED",
+    "datePublished": "2026-01-01T00:00:00Z",
+    "dateUpdated": "2026-01-01T00:00:00Z"
+  },
+  "containers": {
+    "cna": {
+      "providerMetadata": {
+        "orgId": "b6f33b61-7530-4f93-950c-780499765af1",
+        "shortName": "Provider A",
+        "dateUpdated": "2026-01-01T00:00:00Z"
+      },
+      "descriptions": [
+        {
+          "lang": "en",
+          "value": "Synthetic provider weighting control."
+        }
+      ],
+      "affected": [
+        {
+          "vendor": "Provider B",
+          "product": "demo-weighting",
+          "packageURL": "pkg:generic/demo-weighting",
+          "defaultStatus": "unknown",
+          "versions": [
+            {
+              "version": "1.0.0",
+              "status": "affected",
+              "versionType": "semver"
+            }
+          ]
+        }
+      ],
+      "references": [
+        {
+          "url": "https://example.org/synthetic-s29"
+        }
+      ]
+    },
+    "adp": [
+      {
+        "providerMetadata": {
+          "orgId": "b6f33b61-7530-4f93-950c-780499765af2",
+          "shortName": "Provider B",
+          "dateUpdated": "2026-01-01T00:00:00Z"
+        },
+        "descriptions": [
+          {
+            "lang": "en",
+            "value": "Synthetic provider weighting control."
+          }
+        ],
+        "affected": [
+          {
+            "vendor": "Provider B",
+            "product": "demo-weighting",
+            "packageURL": "pkg:generic/demo-weighting",
+            "defaultStatus": "unknown",
+            "versions": [
+              {
+                "version": "1.0.0",
+                "status": "unaffected",
+                "versionType": "semver"
+              }
+            ]
+          }
+        ],
+        "references": [
+          {
+            "url": "https://example.org/synthetic-s29"
+          }
+        ]
+      }
+    ]
+  }
+}

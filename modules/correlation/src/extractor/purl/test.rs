@@ -201,6 +201,8 @@ async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
             // 0.72, in RHEL 8 by the PURL's `distro=rhel-8.10` (0.85 × 0.9)
             0.55,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 // The el8_6 fix belongs to EUS, not this mainline package.
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_7"]),
@@ -229,6 +231,8 @@ async fn rh_fixed_later_build(ctx: &TrustifyContext) -> anyhow::Result<()> {
             // the package isn't in.
             0.55,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: vec![MatchedRange {
                     scheme: "rpm".into(),
@@ -262,6 +266,8 @@ async fn rh_fixed_later_minor(ctx: &TrustifyContext) -> anyhow::Result<()> {
             // 0.8 (another minor) × 0.9, in RHEL 8 by the PURL's `distro=rhel-8.8` (0.85 × 0.9)
             0.55,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: vec![MatchedRange {
                     scheme: "rpm".into(),
@@ -317,6 +323,8 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
             // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
             0.63,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
                 enabled_by: Some(redhat_first_fixed()),
@@ -349,6 +357,8 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
                 0.63,
                 Some(MatchedValue {
+                    source_provider: None,
+                    origin: AssertionOrigin::PublisherPolicy,
                     identifier: "pkg:rpm/redhat/openssl".into(),
                     ranges: vec![MatchedRange {
                         scheme: "rpm".into(),
@@ -369,6 +379,8 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 // stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
                 0.7,
                 Some(MatchedValue {
+                    source_provider: None,
+                    origin: AssertionOrigin::Stated,
                     identifier: "pkg:rpm/redhat/openssl".into(),
                     ranges: vec![MatchedRange {
                         scheme: "rpm".into(),
@@ -404,6 +416,8 @@ async fn stated_stream_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
             AssertionStatus::Affected,
             0.8,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::Stated,
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6"]),
                 enabled_by: None,
@@ -434,6 +448,15 @@ async fn default_status(ctx: &TrustifyContext) -> anyhow::Result<()> {
         low: None,
         high: None,
     };
+    let provider = crate::model::ProviderIdentity {
+        identifiers: vec![
+            "container:cna".into(),
+            "cve-org:ce714d77-add3-4f53-aff5-83d477b104bb".into(),
+            "name:openjs".into(),
+        ],
+        name: Some("openjs".into()),
+        unavailable: false,
+    };
 
     // not listed: the default
     assert_eq!(
@@ -445,6 +468,8 @@ async fn default_status(ctx: &TrustifyContext) -> anyhow::Result<()> {
             AssertionStatus::NotAffected,
             0.9,
             Some(MatchedValue {
+                source_provider: Some(provider.clone()),
+                origin: AssertionOrigin::Default,
                 identifier: "pkg:npm/lodash".into(),
                 ranges: vec![unbounded],
                 enabled_by: None,
@@ -462,6 +487,8 @@ async fn default_status(ctx: &TrustifyContext) -> anyhow::Result<()> {
             AssertionStatus::Affected,
             1.0,
             Some(MatchedValue {
+                source_provider: Some(provider),
+                origin: AssertionOrigin::Stated,
                 identifier: "pkg:npm/lodash".into(),
                 ranges: vec![MatchedRange {
                     scheme: "semver".into(),
@@ -506,6 +533,8 @@ async fn plain_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
             AssertionStatus::Affected,
             1.0,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::Stated,
                 identifier: "pkg:pypi/urllib3".into(),
                 ranges: vec![
                     MatchedRange {
@@ -650,6 +679,8 @@ fn suse_openssl_not_affected(node: &str) -> Evidence {
         AssertionStatus::NotAffected,
         0.54,
         Some(MatchedValue {
+            source_provider: None,
+            origin: AssertionOrigin::PublisherPolicy,
             identifier: "pkg:rpm/suse/openssl".into(),
             ranges: vec![MatchedRange {
                 scheme: "rpm".into(),
@@ -678,6 +709,8 @@ async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()
                 // 0.9, in SLE 15 SP6 by the PURL's `distro=sles-15.6` (0.85 × 0.9)
                 0.69,
                 Some(MatchedValue {
+                    source_provider: None,
+                    origin: AssertionOrigin::Inferred,
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: fixed_in("rpm", &[SUSE_SP6_FIX]),
                     enabled_by: None,
@@ -710,6 +743,8 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
                 // 0.9, in SLE 15 SP6 by the PURL's `distro=sles-15.6` (0.85 × 0.9)
                 0.69,
                 Some(MatchedValue {
+                    source_provider: None,
+                    origin: AssertionOrigin::Inferred,
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: vec![MatchedRange {
                         scheme: "rpm".into(),
@@ -765,6 +800,8 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 // stated as installed on a platform, which the SBOM doesn't name (×0.7)
                 0.7,
                 Some(MatchedValue {
+                    source_provider: None,
+                    origin: AssertionOrigin::Stated,
                     identifier: "pkg:npm/example-app".into(),
                     ranges: below("semver", "2.0.0"),
                     enabled_by: None,
@@ -777,6 +814,8 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 AssertionStatus::Affected,
                 0.6,
                 Some(MatchedValue {
+                    source_provider: None,
+                    origin: AssertionOrigin::Stated,
                     identifier: "pkg:npm/example-lib".into(),
                     ranges: below("npm", "4.2"),
                     enabled_by: None,
@@ -834,6 +873,12 @@ async fn csaf_single_version_statuses(ctx: &TrustifyContext) -> anyhow::Result<(
             status,
             confidence,
             Some(MatchedValue {
+                source_provider: None,
+                origin: if extractor != "purl_first_fixed_before" {
+                    AssertionOrigin::Stated
+                } else {
+                    AssertionOrigin::Inferred
+                },
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: vec![range.clone()],
                 enabled_by: None,
@@ -939,6 +984,8 @@ async fn versionless_redhat(ctx: &TrustifyContext) -> anyhow::Result<()> {
             // 0.7 × 0.9: the context is the CPE of the root component, depending on the package
             0.63,
             Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
                 identifier: "pkg:rpm/redhat/golang".into(),
                 ranges: vec![MatchedRange {
                     scheme: "generic".into(),

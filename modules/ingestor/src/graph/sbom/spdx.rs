@@ -296,6 +296,7 @@ impl SbomContext {
             );
             packages.add(
                 NodeInfoParam {
+                    supplier: package.package_supplier.clone().filter(|s| !matches!(s.as_str(), "NOASSERTION" | "NONE")).map(|name| serde_json::json!({"identifiers":[format!("name:{name}")], "name":name})),
                     node_id: package.package_spdx_identifier,
                     name: package.package_name,
                     group: None,

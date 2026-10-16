@@ -1,0 +1,21 @@
+{
+  "id": "SYNTHETIC-S29",
+  "aliases": [
+    "CVE-2026-99992"
+  ],
+  "modified": "2026-01-01T00:00:00Z",
+  "published": "2026-01-01T00:00:00Z",
+  "summary": "Synthetic providerless affected statement",
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "npm",
+        "name": "demo-weighting",
+        "purl": "pkg:generic/demo-weighting"
+      },
+      "versions": [
+        "1.0.0"
+      ]
+    }
+  ]
+}

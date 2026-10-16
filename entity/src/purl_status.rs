@@ -23,6 +23,8 @@ pub struct Model {
     /// Whether this is the default status (CVE `defaultStatus`): the status of all versions no
     /// other statement of the same subject lists.
     pub is_default: bool,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub source_provider: Option<serde_json::Value>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

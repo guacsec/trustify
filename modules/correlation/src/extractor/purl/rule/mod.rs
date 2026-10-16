@@ -19,7 +19,10 @@ mod suse;
 mod vls;
 
 use super::Candidates;
-use crate::{error::Error, model::EnabledBy};
+use crate::{
+    error::Error,
+    model::{AssertionOrigin, EnabledBy},
+};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
     sea_query::{Expr, ExprTrait, SimpleExpr},
@@ -33,6 +36,11 @@ use trustify_entity::{
 
 /// Derives additional, implied version ranges from the statements of an advisory.
 pub trait RangeRule: Send + Sync {
+    /// Whether the rule matches a stated range or derives a status from other information.
+    fn origin(&self) -> AssertionOrigin {
+        AssertionOrigin::Inferred
+    }
+
     /// Evidence type of matches on derived ranges, e.g. `purl_first_fixed`.
     fn id(&self) -> &'static str;
 

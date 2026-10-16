@@ -1,0 +1,137 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en",
+    "publisher": {
+      "category": "vendor",
+      "name": "Synthetic regression test publisher (Red Hat namespace for policy testing)",
+      "namespace": "https://www.redhat.com"
+    },
+    "title": "Synthetic test: a fix followed by an explicit RPM regression",
+    "tracking": {
+      "current_release_date": "2026-10-08T00:00:00Z",
+      "id": "SYNTHETIC-S28",
+      "initial_release_date": "2026-10-08T00:00:00Z",
+      "revision_history": [
+        {
+          "date": "2026-10-08T00:00:00Z",
+          "number": "1",
+          "summary": "Initial version"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "full_product_names": [
+      {
+        "name": "Synthetic RHEL 8",
+        "product_id": "rhel8",
+        "product_identification_helper": {
+          "cpe": "cpe:/o:redhat:enterprise_linux:8"
+        }
+      },
+      {
+        "name": "Synthetic RHEL 9",
+        "product_id": "rhel9",
+        "product_identification_helper": {
+          "cpe": "cpe:/o:redhat:enterprise_linux:9"
+        }
+      },
+      {
+        "name": "demo-regression 1.0-2.el9",
+        "product_id": "initial-fix",
+        "product_identification_helper": {
+          "purl": "pkg:rpm/redhat/demo-regression@1.0-2.el9?arch=x86_64"
+        }
+      },
+      {
+        "name": "demo-regression 1.0-3.el9",
+        "product_id": "regression",
+        "product_identification_helper": {
+          "purl": "pkg:rpm/redhat/demo-regression@1.0-3.el9?arch=x86_64"
+        }
+      },
+      {
+        "name": "demo-regression 1.0-4.el9",
+        "product_id": "subsequent-fix",
+        "product_identification_helper": {
+          "purl": "pkg:rpm/redhat/demo-regression@1.0-4.el9?arch=x86_64"
+        }
+      },
+      {
+        "name": "demo-regression 1.0-5.el8",
+        "product_id": "other-stream-affected",
+        "product_identification_helper": {
+          "purl": "pkg:rpm/redhat/demo-regression@1.0-5.el8?arch=x86_64"
+        }
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "initial-fix in synthetic RHEL 9",
+          "product_id": "rhel9:initial-fix"
+        },
+        "product_reference": "initial-fix",
+        "relates_to_product_reference": "rhel9"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "regression in synthetic RHEL 9",
+          "product_id": "rhel9:regression"
+        },
+        "product_reference": "regression",
+        "relates_to_product_reference": "rhel9"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "subsequent-fix in synthetic RHEL 9",
+          "product_id": "rhel9:subsequent-fix"
+        },
+        "product_reference": "subsequent-fix",
+        "relates_to_product_reference": "rhel9"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "other-stream-affected in synthetic RHEL 8",
+          "product_id": "rhel8:other-stream-affected"
+        },
+        "product_reference": "other-stream-affected",
+        "relates_to_product_reference": "rhel8"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-99991",
+      "notes": [
+        {
+          "category": "description",
+          "text": "Synthetic test identifier, not a claim about a published vulnerability."
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "rhel9:initial-fix",
+          "rhel9:subsequent-fix"
+        ],
+        "known_affected": [
+          "rhel9:regression",
+          "rhel8:other-stream-affected"
+        ]
+      }
+    }
+  ]
+}

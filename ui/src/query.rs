@@ -137,7 +137,7 @@ enum VerdictColumn {
 }
 
 #[derive(Clone, PartialEq)]
-struct VerdictEntry(QueryVerdict);
+struct VerdictEntry(QueryVerdict, crate::model::IdentifierRef);
 
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
@@ -152,11 +152,26 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
-            VerdictColumn::Status => html!(status_label(self.0.status)).into(),
+            VerdictColumn::Status => html! {
+                <div>
+                    {status_label(self.0.status)}
+                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                </div>
+            }.into(),
             VerdictColumn::Evidence => {
                 html!(<Badge>{ self.0.matches.len().to_string() }</Badge>).into()
             }
         }
+    }
+
+    fn actions(&self) -> Vec<MenuChildVariant> {
+        vec![html_nested! {
+            <Raw>
+                <crate::weighting::ResolutionAction
+                    target={trustify_api::correlation::PreviewTarget::Identifier{identifier:self.1.clone()}}
+                    vulnerability_id={Some(self.0.vulnerability_id.clone())}/>
+            </Raw>
+        }.into()]
     }
 
     fn render_details(&self) -> Vec<Span> {
@@ -262,12 +277,15 @@ fn query_results(props: &QueryResultsProps) -> Html {
 
     let summary = verdict_summary_counts(&props.data.verdicts);
 
-    let entries = use_memo(props.data.verdicts.clone(), |verdicts| {
-        verdicts
-            .iter()
-            .map(|v| VerdictEntry(v.clone()))
-            .collect::<Vec<_>>()
-    });
+    let entries = use_memo(
+        (props.data.verdicts.clone(), props.data.query.clone()),
+        |(verdicts, query)| {
+            verdicts
+                .iter()
+                .map(|v| VerdictEntry(v.clone(), query.clone()))
+                .collect::<Vec<_>>()
+        },
+    );
 
     let (entries, onexpand) = use_table_data(MemoizedTableModel::new(entries));
 

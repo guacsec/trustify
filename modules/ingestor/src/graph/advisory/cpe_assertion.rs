@@ -29,6 +29,7 @@ pub struct CpeAssertion {
     pub context: Option<Uuid>,
     /// Whether it is the default status: of all versions no other assertion lists.
     pub default: bool,
+    pub source_provider: Option<trustify_api::correlation::ProviderIdentity>,
 }
 
 impl CpeAssertion {
@@ -52,6 +53,9 @@ impl CpeAssertion {
         }
         if self.default {
             id = Uuid::new_v5(&id, b"default");
+        }
+        if let Some(provider) = &self.source_provider {
+            id = Uuid::new_v5(&id, serde_json::json!(provider).to_string().as_bytes());
         }
         id
     }
@@ -107,6 +111,7 @@ impl CpeAssertionCreator {
                 version_range_id: Set(version_range_id),
                 assertion_context_id: Set(assertion.context),
                 is_default: Set(assertion.default),
+                source_provider: Set(assertion.source_provider.map(|p| serde_json::json!(p))),
             });
             cpes.add(assertion.cpe);
         }

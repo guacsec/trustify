@@ -16,7 +16,7 @@
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef, MatchedValue},
+    model::{AssertionOrigin, IdentifierKind, IdentifierRef, MatchedValue},
 };
 use sea_orm::{
     ActiveEnum, ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait,
@@ -94,6 +94,7 @@ const ASSERTION_COLUMNS: &str = r#"
     a.version_range_id,
     a.assertion_context_id,
     a.is_default,
+    a.source_provider,
     CASE
         WHEN ac.version <> '*' THEN 'exact'
         WHEN a.version_range_id IS NOT NULL THEN 'range'
@@ -110,17 +111,22 @@ struct AssertionRow {
     cpe_id: Uuid,
     version_range_id: Option<Uuid>,
     assertion_context_id: Option<Uuid>,
+    source_provider: Option<serde_json::Value>,
     is_default: bool,
     version_check: String,
 }
 
 impl AssertionRow {
     /// The CPE a listed assertion shadows the default of.
-    fn subject(&self) -> (Uuid, &str, Uuid) {
+    fn subject(&self) -> (Uuid, &str, Uuid, String) {
         (
             self.advisory_id,
             self.vulnerability_id.as_str(),
             self.cpe_id,
+            self.source_provider
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default(),
         )
     }
 }
@@ -136,16 +142,17 @@ fn without_shadowed_defaults<K: Ord + Clone, R>(
         .map(&key)
         .filter(|(_, row)| !row.is_default)
         .map(|(target, row)| {
-            let (advisory, vulnerability, cpe) = row.subject();
-            (target, advisory, vulnerability.to_string(), cpe)
+            let (advisory, vulnerability, cpe, provider) = row.subject();
+            (target, advisory, vulnerability.to_string(), cpe, provider)
         })
         .collect::<BTreeSet<_>>();
 
     rows.into_iter()
         .filter(|r| {
             let (target, row) = key(r);
-            let (advisory, vulnerability, cpe) = row.subject();
-            !row.is_default || !listed.contains(&(target, advisory, vulnerability.to_string(), cpe))
+            let (advisory, vulnerability, cpe, provider) = row.subject();
+            !row.is_default
+                || !listed.contains(&(target, advisory, vulnerability.to_string(), cpe, provider))
         })
         .collect()
 }
@@ -370,14 +377,25 @@ fn assertion(
         "range" => VersionCheck::Range,
         _ => VersionCheck::Any,
     };
+    let mut matched_value = matched_values
+        .get(&(row.cpe_id, row.version_range_id))
+        .cloned()
+        .unwrap_or_default();
+    matched_value.origin = if row.is_default {
+        AssertionOrigin::Default
+    } else {
+        AssertionOrigin::Stated
+    };
+    matched_value.source_provider = row
+        .source_provider
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(Error::MatchedValue)?;
     Ok(Assertion {
         extractor: if row.is_default { DEFAULT } else { ID },
         status: AssertionStatus::try_from_value(&row.status)?,
         confidence: check.confidence(),
-        matched_value: matched_values
-            .get(&(row.cpe_id, row.version_range_id))
-            .cloned()
-            .unwrap_or_default(),
+        matched_value,
         advisory_id: row.advisory_id,
         vulnerability_id: row.vulnerability_id,
         context_id: row.assertion_context_id,
@@ -423,6 +441,8 @@ async fn matched_values(
         .into_iter()
         .filter_map(|(cpe_id, range_id)| {
             let value = MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::Stated,
                 identifier: format_cpe23(cpes.get(&cpe_id)?),
                 ranges: range_id
                     .and_then(|id| ranges.get(&id))
@@ -786,6 +806,8 @@ mod test {
                     status: AssertionStatus::Affected,
                     confidence: 0.7,
                     matched_value: MatchedValue {
+                        source_provider: None,
+                        origin: AssertionOrigin::Stated,
                         identifier: "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*".into(),
                         ranges: vec![MatchedRange {
                             scheme: "semver".into(),
@@ -987,6 +1009,7 @@ mod test {
             };
 
             advisory_vulnerability_cpe::ActiveModel {
+                source_provider: Set(None),
                 id: Set(Uuid::new_v4()),
                 advisory_id: Set(advisory_id),
                 vulnerability_id: Set(format!("case-{n}")),
