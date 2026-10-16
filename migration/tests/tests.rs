@@ -87,8 +87,8 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             .len(),
         2
     );
-    // Also roll back the newer evidence-origin metadata migration.
-    migrator.down(&ctx.db, Some(3)).await?;
+    // Also roll back the newer origin, provider metadata, and policy-removal migrations.
+    migrator.down(&ctx.db, Some(4)).await?;
     assert_eq!(
         correlation_evidence::Entity::find()
             .all(&ctx.db)
@@ -102,7 +102,7 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             "SELECT id FROM purl_status_effective".to_string(),
         ))
         .await?;
-    migrator.up(&ctx.db, Some(3)).await?;
+    migrator.up(&ctx.db, Some(4)).await?;
     let restored = purl_status::Entity::find().all(&ctx.db).await?;
     assert_eq!(
         restored
@@ -130,7 +130,7 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
     let sbom = ctx.ingest_document("spdx/simple.json").await?;
     let advisory = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     let migrator = Migrator::new(ctx.storage.clone(), ());
-    migrator.down(&ctx.db, Some(2)).await?;
+    migrator.down(&ctx.db, Some(3)).await?;
     let mut expected = Vec::new();
     for (extractor, origin, null_value) in [
         ("purl", Some("stated"), false),
@@ -197,7 +197,7 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
         }
         expected.push((row, value));
     }
-    migrator.up(&ctx.db, Some(2)).await?;
+    migrator.up(&ctx.db, Some(3)).await?;
     for (old, value) in &expected {
         let row = correlation_evidence::Entity::find_by_id(old.id)
             .one(&ctx.db)
@@ -212,7 +212,7 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
             }
         );
     }
-    migrator.down(&ctx.db, Some(2)).await?;
+    migrator.down(&ctx.db, Some(3)).await?;
     for (old, value) in &expected {
         let row = correlation_evidence::Entity::find_by_id(old.id)
             .one(&ctx.db)
@@ -222,6 +222,86 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
         value.as_object_mut().unwrap().remove("origin");
         assert_eq!(row.matched_value, Some(value));
     }
-    migrator.up(&ctx.db, Some(2)).await?;
+    migrator.up(&ctx.db, Some(3)).await?;
+    Ok(())
+}
+
+/// Removing policies must preserve aliases, source identity, and distinct evidence sources.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use sea_orm::{ActiveModelTrait, ConnectionTrait, DbBackend, EntityTrait, Set, Statement};
+    use trustify_entity::correlation_evidence::{self, AssertionStatus};
+    use uuid::Uuid;
+
+    async fn retained_data(ctx: &TrustifyContext) -> anyhow::Result<Vec<serde_json::Value>> {
+        let mut result = Vec::new();
+        for table in [
+            "correlation_provider_alias",
+            "correlation_evidence",
+            "sbom_package",
+            "purl_status",
+            "advisory_vulnerability_cpe",
+        ] {
+            let row = ctx.db.query_one_raw(Statement::from_string(DbBackend::Postgres,
+                format!("SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text), '[]'::jsonb) AS data FROM {table} t")))
+                .await?.unwrap();
+            result.push(row.try_get("", "data")?);
+        }
+        Ok(result)
+    }
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let sbom = ctx.ingest_document("spdx/simple.json").await?;
+    let advisory = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
+    for provider in ["A", "B"] {
+        correlation_evidence::ActiveModel {
+            id: Set(Uuid::new_v4()), sbom_id: Set(Uuid::parse_str(&sbom.id)?),
+            node_id: Set("SPDXRef-Package".into()), advisory_id: Set(Uuid::parse_str(&advisory.id)?),
+            vulnerability_id: Set("CVE-2023-33201".into()), status: Set(AssertionStatus::Affected),
+            confidence: Set(0.9), extractor: Set("purl".into()),
+            matched_value: Set(Some(serde_json::json!({"identifier":"pkg:generic/demo@1", "origin":"stated", "source_provider":{"identifiers":[format!("name:{provider}")]}}))),
+            created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
+        }.insert(&ctx.db).await?;
+    }
+    migrator.down(&ctx.db, Some(1)).await?;
+    ctx.db.execute_unprepared("INSERT INTO correlation_weight_policy(id, revision, scope, weights) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', '{\"kind\":\"instance\"}', '{\"direct\":2}');
+        INSERT INTO correlation_provider_alias(id, revision, provider, aliases) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'A', '[\"name:A\"]');
+        UPDATE sbom_package SET supplier = '{\"identifiers\":[\"name:A\"]}';
+        UPDATE purl_status SET source_provider = '{\"identifiers\":[\"name:A\"]}';
+        UPDATE advisory_vulnerability_cpe SET source_provider = '{\"identifiers\":[\"name:A\"]}';").await?;
+    let before = retained_data(ctx).await?;
+    migrator.up(&ctx.db, Some(1)).await?;
+    let table: Option<String> = ctx
+        .db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT to_regclass('correlation_weight_policy')::text AS name".to_string(),
+        ))
+        .await?
+        .unwrap()
+        .try_get("", "name")?;
+    assert!(table.is_none());
+    assert_eq!(before, retained_data(ctx).await?);
+    assert_eq!(
+        correlation_evidence::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .len(),
+        2
+    );
+    migrator.down(&ctx.db, Some(1)).await?;
+    let count: i64 = ctx
+        .db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT count(*) AS count FROM correlation_weight_policy".to_string(),
+        ))
+        .await?
+        .unwrap()
+        .try_get("", "count")?;
+    assert_eq!(count, 0);
+    assert_eq!(before, retained_data(ctx).await?);
+    migrator.up(&ctx.db, Some(1)).await?;
+    assert_eq!(before, retained_data(ctx).await?);
     Ok(())
 }

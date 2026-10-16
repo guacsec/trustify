@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 /// Query parameters for SBOM correlation.
 #[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
 struct SbomCorrelationParams {
     /// When true, include components that have no correlation evidence.
     #[serde(default)]
@@ -26,13 +27,12 @@ struct SbomCorrelationParams {
     include_explanation: bool,
     node_id: Option<String>,
     vulnerability_id: Option<String>,
-    group_id: Option<Uuid>,
 }
 
 mod option;
+mod resolution;
 #[cfg(test)]
 mod test;
-mod weighting;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
@@ -52,7 +52,7 @@ pub fn configure(
         .service(count_verdicts)
         .service(query_correlation)
         .configure(option::configure)
-        .configure(weighting::configure);
+        .configure(resolution::configure);
 }
 
 /// Get correlation verdicts for an SBOM.
@@ -83,7 +83,6 @@ async fn get_sbom_correlation(
                 include_explanation: params.include_explanation,
                 node_id: params.node_id.clone(),
                 vulnerability_id: params.vulnerability_id.clone(),
-                group_id: params.group_id,
                 ..Default::default()
             },
             &tx,
@@ -126,6 +125,7 @@ async fn count_verdicts(
 
 /// Query parameters for identifier lookup.
 #[derive(Debug, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
 struct IdentifierQuery {
     /// The kind of the identifier.
     kind: IdentifierKind,
@@ -169,10 +169,7 @@ async fn query_correlation(
             &crate::model::ResolutionRequest {
                 include_explanation,
                 vulnerability_id,
-                overrides: crate::model::WeightOverrides {
-                    component_provider: provider,
-                    ..Default::default()
-                },
+                component_provider: provider,
                 ..Default::default()
             },
             &tx,

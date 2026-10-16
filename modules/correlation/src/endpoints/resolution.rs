@@ -1,7 +1,7 @@
 use crate::{
     error::Error,
     model::*,
-    service::{CorrelationService, weighting::store},
+    service::{CorrelationService, resolution::store},
 };
 use actix_web::{HttpResponse, Responder, delete, get, post, put, web};
 use sea_orm::TransactionTrait;
@@ -12,52 +12,6 @@ use trustify_auth::{
 use trustify_common::db;
 use uuid::Uuid;
 
-#[utoipa::path(tag="correlation",operation_id="listWeightPolicies",responses((status=200,body=Vec<WeightPolicy>)))]
-#[get("/v3/correlation/weight-policy")]
-async fn policies(
-    db: web::Data<db::ReadOnly>,
-    _: Require<ReadCorrelationOption>,
-) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    Ok(HttpResponse::Ok().json(store::list_policies(&tx).await?))
-}
-#[utoipa::path(tag="correlation",operation_id="createWeightPolicy",request_body=WeightPolicyData,responses((status=201,body=WeightPolicy)))]
-#[post("/v3/correlation/weight-policy")]
-async fn create_policy(
-    db: web::Data<db::ReadWrite>,
-    data: web::Json<WeightPolicyData>,
-    _: Require<CreateCorrelationOption>,
-) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    let result = store::save_policy(None, data.into_inner(), &tx).await?;
-    tx.commit().await?;
-    Ok(HttpResponse::Created().json(result))
-}
-#[utoipa::path(tag="correlation",operation_id="updateWeightPolicy",params(("id"=Uuid,Path)),request_body=WeightPolicyData,responses((status=200,body=WeightPolicy)))]
-#[put("/v3/correlation/weight-policy/{id}")]
-async fn update_policy(
-    db: web::Data<db::ReadWrite>,
-    id: web::Path<Uuid>,
-    data: web::Json<WeightPolicyData>,
-    _: Require<UpdateCorrelationOption>,
-) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    let result = store::save_policy(Some(*id), data.into_inner(), &tx).await?;
-    tx.commit().await?;
-    Ok(HttpResponse::Ok().json(result))
-}
-#[utoipa::path(tag="correlation",operation_id="deleteWeightPolicy",params(("id"=Uuid,Path)),responses((status=204)))]
-#[delete("/v3/correlation/weight-policy/{id}")]
-async fn remove_policy(
-    db: web::Data<db::ReadWrite>,
-    id: web::Path<Uuid>,
-    _: Require<DeleteCorrelationOption>,
-) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    store::delete_policy(*id, &tx).await?;
-    tx.commit().await?;
-    Ok(HttpResponse::NoContent().finish())
-}
 #[utoipa::path(tag="correlation",operation_id="listProviderAliases",responses((status=200,body=Vec<ProviderAlias>)))]
 #[get("/v3/correlation/provider-alias")]
 async fn aliases(
@@ -104,7 +58,7 @@ async fn remove_alias(
     tx.commit().await?;
     Ok(HttpResponse::NoContent().finish())
 }
-/// A preview changes resolution settings only; it cannot write policies or evidence.
+/// A preview changes request context only; it cannot write aliases or evidence.
 #[utoipa::path(tag="correlation",operation_id="previewCorrelation",request_body=PreviewRequest,responses((status=200,body=PreviewResult)))]
 #[post("/v3/correlation/preview")]
 async fn preview(
@@ -131,10 +85,6 @@ async fn preview(
 
 pub(super) fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig) {
     config
-        .service(policies)
-        .service(create_policy)
-        .service(update_policy)
-        .service(remove_policy)
         .service(aliases)
         .service(create_alias)
         .service(update_alias)

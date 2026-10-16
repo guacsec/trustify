@@ -123,72 +123,11 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn weighting_configuration_and_read_only_preview(
-    ctx: &TrustifyContext,
-) -> anyhow::Result<()> {
+async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow::Result<()> {
     use serde_json::{Value, json};
     use trustify_test_context::call::{CallService, caller};
     let app = caller(|svc| configure(svc, ctx)).await?;
     let base = "/api/v3/correlation";
-    let body = json!({"scope":{"kind":"instance"},"weights":{"matching_provider":3.0}});
-    let response = app
-        .call_service(
-            TestRequest::post()
-                .uri(&format!("{base}/weight-policy"))
-                .set_json(&body)
-                .to_request(),
-        )
-        .await;
-    assert_eq!(response.status(), 201);
-    let created: Value = actix_web::test::read_body_json(response).await;
-    let id = created["id"].as_str().unwrap();
-    let response = app
-        .call_service(
-            TestRequest::post()
-                .uri(&format!("{base}/weight-policy"))
-                .set_json(&body)
-                .to_request(),
-        )
-        .await;
-    assert_eq!(response.status(), 409);
-    let response = app
-        .call_service(
-            TestRequest::put()
-                .uri(&format!("{base}/weight-policy/{id}"))
-                .set_json(json!({"scope":{"kind":"instance"},"weights":{"direct":-1}}))
-                .to_request(),
-        )
-        .await;
-    assert_eq!(response.status(), 400);
-    let response = app
-        .call_service(
-            TestRequest::put()
-                .uri(&format!("{base}/weight-policy/{id}"))
-                .set_json(json!({"scope":{"kind":"instance"},"weights":{"matching_provider":4}}))
-                .to_request(),
-        )
-        .await;
-    assert_eq!(response.status(), 200);
-    let updated: Value = actix_web::test::read_body_json(response).await;
-    assert_ne!(updated["revision"], created["revision"]);
-    let preview = json!({"target":{"kind":"identifier","identifier":{"kind":"purl","value":"pkg:generic/absent@1"}},"resolution":{"include_explanation":true,"overrides":{"direct":0}}});
-    let response = app
-        .call_service(
-            TestRequest::post()
-                .uri(&format!("{base}/preview"))
-                .set_json(&preview)
-                .to_request(),
-        )
-        .await;
-    assert_eq!(response.status(), 200);
-    let read: Vec<Value> = app
-        .call_and_read_body_json(
-            TestRequest::get()
-                .uri(&format!("{base}/weight-policy"))
-                .to_request(),
-        )
-        .await;
-    assert_eq!(read, vec![updated]);
     let response = app
         .call_service(
             TestRequest::post()
@@ -200,6 +139,7 @@ async fn weighting_configuration_and_read_only_preview(
     assert_eq!(response.status(), 201);
     let alias: Value = actix_web::test::read_body_json(response).await;
     assert_eq!(alias["provider"], "A");
+    let id = alias["id"].as_str().unwrap();
     let response = app
         .call_service(
             TestRequest::post()
@@ -209,19 +149,100 @@ async fn weighting_configuration_and_read_only_preview(
         )
         .await;
     assert_eq!(response.status(), 409);
-    for (resource, id) in [
-        ("weight-policy", id),
-        ("provider-alias", alias["id"].as_str().unwrap()),
+    let response = app
+        .call_service(
+            TestRequest::put()
+                .uri(&format!("{base}/provider-alias/{id}"))
+                .set_json(json!({"provider":"A","aliases":["name:Acme", "name:Acme Inc."]}))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), 200);
+    let updated: Value = actix_web::test::read_body_json(response).await;
+    assert_ne!(updated["revision"], alias["revision"]);
+    let before: Vec<Value> = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("{base}/provider-alias"))
+                .to_request(),
+        )
+        .await;
+    let target =
+        json!({"kind":"identifier","identifier":{"kind":"purl","value":"pkg:generic/absent@1"}});
+    let response = app.call_service(TestRequest::post()
+        .uri(&format!("{base}/preview"))
+        .set_json(json!({"target":target,"resolution":{"include_explanation":true,"component_provider":"A"}})).to_request()).await;
+    assert_eq!(response.status(), 200);
+    let after: Vec<Value> = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("{base}/provider-alias"))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(before, after);
+    assert!(after.contains(&updated));
+
+    for resolution in [
+        json!({"overrides":{"direct":0}}),
+        json!({"group_id":Uuid::nil()}),
+        json!({"weights":{}}),
+        json!({"component_provider":" / "}),
+        json!({"node_id":"node"}),
     ] {
         let response = app
             .call_service(
-                TestRequest::delete()
-                    .uri(&format!("{base}/{resource}/{id}"))
+                TestRequest::post()
+                    .uri(&format!("{base}/preview"))
+                    .set_json(json!({"target":target,"resolution":resolution}))
                     .to_request(),
             )
             .await;
-        assert_eq!(response.status(), 204);
+        assert_eq!(response.status(), 400);
     }
+    for path in [
+        format!("sbom/{}?group_id={}", Uuid::nil(), Uuid::nil()),
+        "query?kind=purl&q=pkg:generic/absent@1&direct=2".into(),
+    ] {
+        let response = app
+            .call_service(
+                TestRequest::get()
+                    .uri(&format!("{base}/{path}"))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(response.status(), 400);
+    }
+    for request in [
+        TestRequest::get().uri(&format!("{base}/weight-policy")),
+        TestRequest::post()
+            .uri(&format!("{base}/weight-policy"))
+            .set_json(json!({})),
+        TestRequest::put()
+            .uri(&format!("{base}/weight-policy/{}", Uuid::nil()))
+            .set_json(json!({})),
+        TestRequest::delete().uri(&format!("{base}/weight-policy/{}", Uuid::nil())),
+    ] {
+        assert_eq!(app.call_service(request.to_request()).await.status(), 404);
+    }
+    assert_eq!(
+        app.call_service(
+            TestRequest::delete()
+                .uri(&format!("{base}/provider-alias/{id}"))
+                .to_request()
+        )
+        .await
+        .status(),
+        204
+    );
+    let aliases: Vec<Value> = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("{base}/provider-alias"))
+                .to_request(),
+        )
+        .await;
+    assert!(!aliases.iter().any(|alias| alias["id"] == id));
     Ok(())
 }
 
@@ -503,5 +524,57 @@ async fn advisory_statements(ctx: &TrustifyContext) -> anyhow::Result<()> {
         ]
     );
 
+    Ok(())
+}
+
+/// Ordinary reads and context previews expose the same explanation contract.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn explained_query_matches_preview(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use serde_json::{Value, json};
+    use trustify_test_context::call::{CallService, caller};
+    ctx.ingest_document("scenarios/S18_digest_correlation/vex/vde-2025-106.json")
+        .await?;
+    let app = caller(|svc| configure(svc, ctx)).await?;
+    let base = "/api/v3/correlation";
+    let digest = "sha256:d62b79b11e2ec822514b5b75fc7733e274b7efc722a3d099e10c4e1184dcf849";
+    let ordinary: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("{base}/query?kind=digest&q={digest}"))
+                .to_request(),
+        )
+        .await;
+    let mut explained: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!(
+                    "{base}/query?kind=digest&q={digest}&include_explanation=true"
+                ))
+                .to_request(),
+        )
+        .await;
+    let preview: Value = app.call_and_read_body_json(TestRequest::post()
+        .uri(&format!("{base}/preview"))
+        .set_json(json!({"target":{"kind":"identifier","identifier":{"kind":"digest","value":digest}},"resolution":{"include_explanation":true}})).to_request()).await;
+    assert_eq!(preview["result"], explained);
+    let verdict = &mut explained["verdicts"][0];
+    assert_eq!(verdict["status"], "fixed");
+    assert_eq!(verdict["confidence"], 1.0);
+    assert!(verdict.get("decision_weight").is_none());
+    let trace = verdict
+        .as_object_mut()
+        .unwrap()
+        .remove("explanation")
+        .unwrap();
+    assert!(trace.get("settings").is_none());
+    assert!(trace.get("policy_revision").is_none());
+    assert!(trace.get("confidence_penalty").is_none());
+    assert!(trace["resolution_revision"].is_string());
+    assert_eq!(trace["deciding_criterion"], "only_eligible_evidence");
+    assert_eq!(trace["evidence"][0]["outcome"], "selected");
+    assert_eq!(trace["evidence"][0]["match_confidence"], 1.0);
+    assert!(trace["evidence"][0].get("weight").is_none());
+    assert_eq!(ordinary, explained);
     Ok(())
 }

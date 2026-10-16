@@ -6,7 +6,7 @@ use crate::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
         IdentifierRef, MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
     },
-    weighting::provider_view,
+    resolution::provider_view,
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
@@ -137,7 +137,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             VerdictColumn::Status => html! {
                 <div>
                     {status_label(self.0.status)}
-                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                    <p>{format!("Selected match confidence: {:.0}%{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
                 </div>
             }.into(),
             VerdictColumn::Evidence => {
@@ -150,7 +150,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         vec![
             html_nested! {
                 <Raw>
-                    <crate::weighting::ResolutionAction
+                    <crate::resolution::ResolutionAction
                         target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
                         node_id={Some(self.0.component.node_id.clone())}
                         vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
@@ -172,7 +172,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                     <Flex>
                         <FlexItem><Title level={Level::H4}>{ "Component in the SBOM" }</Title></FlexItem>
                         <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
-                            <crate::weighting::ResolutionButton
+                            <crate::resolution::ResolutionButton
                                 target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
                                 node_id={Some(self.0.component.node_id.clone())}
                                 vulnerability_id={Some(self.0.vulnerability.id.clone())}/>

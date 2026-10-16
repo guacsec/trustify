@@ -1,23 +1,13 @@
-use super::engine::{EffectivePolicy, normalize_reference, validate_weights};
+use super::provider::{ResolutionContext, normalize_reference};
 use crate::{error::Error, extractor::context::format_cpe, model::*};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
     QueryFilter, Statement,
 };
-use std::collections::{BTreeMap, HashMap, HashSet};
-use trustify_entity::{
-    advisory, organization, sbom, sbom_group, sbom_group_assignment, sbom_package,
-};
+use std::collections::{HashMap, HashSet};
+use trustify_entity::{advisory, organization, sbom, sbom_package};
 use uuid::Uuid;
 
-#[derive(FromQueryResult)]
-struct PolicyRow {
-    id: Uuid,
-    revision: Uuid,
-    scope: serde_json::Value,
-    priority: i32,
-    weights: serde_json::Value,
-}
 #[derive(FromQueryResult)]
 struct AliasRow {
     id: Uuid,
@@ -27,24 +17,20 @@ struct AliasRow {
 }
 
 #[derive(Default)]
-pub struct PolicySnapshot {
-    pub policies: Vec<WeightPolicy>,
+pub struct ProviderSnapshot {
     pub aliases: Vec<ProviderAlias>,
-    groups: HashMap<Uuid, Option<Uuid>>,
-    memberships: HashMap<Uuid, Vec<Uuid>>,
     suppliers: HashMap<(Uuid, String), ProviderIdentity>,
     products: HashMap<Uuid, ProviderIdentity>,
     pub advisory_providers: HashMap<Uuid, ProviderIdentity>,
 }
 
-impl PolicySnapshot {
+impl ProviderSnapshot {
     pub async fn load(
         connection: &DatabaseTransaction,
         sboms: &[Uuid],
         advisories: &[Uuid],
     ) -> Result<Self, Error> {
         let mut result = Self {
-            policies: list_policies(connection).await?,
             aliases: list_aliases(connection).await?,
             ..Default::default()
         };
@@ -105,22 +91,6 @@ impl PolicySnapshot {
                     product.identifiers.dedup();
                 }
             }
-            {
-                for row in sbom_group::Entity::find().all(connection).await? {
-                    result.groups.insert(row.id, row.parent);
-                }
-                for row in sbom_group_assignment::Entity::find()
-                    .filter(sbom_group_assignment::Column::SbomId.is_in(sboms.iter().copied()))
-                    .all(connection)
-                    .await?
-                {
-                    result
-                        .memberships
-                        .entry(row.sbom_id)
-                        .or_default()
-                        .push(row.group_id);
-                }
-            }
         }
         if !advisories.is_empty() {
             let rows = advisory::Entity::find()
@@ -164,103 +134,8 @@ impl PolicySnapshot {
         Ok(result)
     }
 
-    fn group_depths(
-        &self,
-        sbom_id: Uuid,
-        selected: Option<Uuid>,
-    ) -> Result<HashMap<Uuid, usize>, Error> {
-        let mut depths = HashMap::new();
-        let members = self.memberships.get(&sbom_id).cloned().unwrap_or_default();
-        if selected.is_some_and(|id| !members.contains(&id)) {
-            return Err(Error::BadRequest(
-                "Selected policy group is not assigned to this SBOM".into(),
-            ));
-        }
-        for group in selected.map(|id| vec![id]).unwrap_or(members) {
-            let mut chain = Vec::new();
-            let mut current = Some(group);
-            while let Some(id) = current {
-                if chain.contains(&id) {
-                    return Err(Error::BadRequest(
-                        "SBOM group hierarchy contains a cycle".into(),
-                    ));
-                }
-                chain.push(id);
-                current = self.groups.get(&id).copied().flatten();
-            }
-            for (depth, id) in chain.into_iter().rev().enumerate() {
-                depths
-                    .entry(id)
-                    .and_modify(|v: &mut usize| *v = (*v).max(depth))
-                    .or_insert(depth);
-            }
-        }
-        Ok(depths)
-    }
-
-    pub fn effective(
-        &self,
-        sbom_id: Option<Uuid>,
-        node_id: Option<&str>,
-        request: &ResolutionRequest,
-    ) -> Result<EffectivePolicy, Error> {
-        let mut effective = EffectivePolicy {
-            aliases: self.aliases.clone(),
-            ..Default::default()
-        };
-        let groups = sbom_id
-            .map(|id| self.group_depths(id, request.group_id))
-            .transpose()?
-            .unwrap_or_default();
-        let mut applicable = self
-            .policies
-            .iter()
-            .filter_map(|p| {
-                let rank = match &p.data.scope {
-                    PolicyScope::Instance => (0, 0),
-                    PolicyScope::Group { group_id } => (1, *groups.get(group_id)?),
-                    PolicyScope::Sbom { sbom_id: id } if Some(*id) == sbom_id => (2, 0),
-                    PolicyScope::Component {
-                        sbom_id: id,
-                        node_id: node,
-                    } if Some(*id) == sbom_id && Some(node.as_str()) == node_id => (3, 0),
-                    _ => return None,
-                };
-                Some((rank, p))
-            })
-            .collect::<Vec<_>>();
-        applicable.sort_by_key(|(rank, p)| (*rank, p.data.priority, p.id));
-        let mut seen = BTreeMap::<((u8, usize), i32, String), serde_json::Value>::new();
-        for (rank, p) in applicable {
-            let origin = SettingOrigin {
-                source: p.data.scope.to_string(),
-                policy_id: Some(p.id),
-                revision: Some(p.revision),
-                scope: Some(p.data.scope.clone()),
-            };
-            let mut patch = EffectivePolicy::default();
-            patch.settings.clear();
-            patch.apply(&p.data.weights, origin.clone())?;
-            for (key, setting) in patch.settings {
-                if let Some(previous) =
-                    seen.insert((rank, p.data.priority, key.clone()), setting.value.clone())
-                    && previous != setting.value
-                {
-                    return Err(Error::Conflict(format!(
-                        "Conflicting group policies at the same priority for {key}; select a group"
-                    )));
-                }
-            }
-            effective.apply(&p.data.weights, origin)?;
-        }
-        effective.apply(
-            &request.overrides,
-            SettingOrigin {
-                source: "request override".into(),
-                ..Default::default()
-            },
-        )?;
-        Ok(effective)
+    pub fn context(&self, request: &ResolutionRequest) -> Result<ResolutionContext, Error> {
+        ResolutionContext::new(self.aliases.clone(), request)
     }
 
     pub fn component_provider(
@@ -268,16 +143,12 @@ impl PolicySnapshot {
         sbom_id: Option<Uuid>,
         node_id: Option<&str>,
         identifiers: &[IdentifierRef],
-        policy: &EffectivePolicy,
+        context: &ResolutionContext,
     ) -> ProviderResolution {
-        if let Some(provider) = policy
-            .settings
-            .get("component_provider")
-            .and_then(|s| s.value.as_str())
-        {
+        if let Some(provider) = &context.component_provider {
             return ProviderResolution {
-                provider: Some(provider.trim_end_matches('/').into()),
-                source: policy.settings["component_provider"].origin.source.clone(),
+                provider: Some(provider.clone()),
+                source: "request context".into(),
                 ..Default::default()
             };
         }
@@ -285,7 +156,7 @@ impl PolicySnapshot {
             .zip(node_id)
             .and_then(|(sbom, node)| self.suppliers.get(&(sbom, node.into())))
         {
-            return policy.provider(identity, "component supplier");
+            return context.provider(identity, "component supplier");
         }
         let mut distribution = Vec::new();
         let mut package_ids = Vec::new();
@@ -341,7 +212,7 @@ impl PolicySnapshot {
                     identifiers: ids,
                     ..Default::default()
                 };
-                let resolved = policy.provider(&identity, source);
+                let resolved = context.provider(&identity, source);
                 if resolved.provider.is_some()
                     || resolved
                         .diagnostics
@@ -353,10 +224,10 @@ impl PolicySnapshot {
             }
         }
         if let Some(identity) = sbom_id.and_then(|id| self.products.get(&id)) {
-            return policy.provider(identity, "product supplier");
+            return context.provider(identity, "product supplier");
         }
         if !upstream_ids.is_empty() {
-            let resolved = policy.provider(
+            let resolved = context.provider(
                 &ProviderIdentity {
                     identifiers: upstream_ids,
                     ..Default::default()
@@ -368,9 +239,9 @@ impl PolicySnapshot {
             }
         }
         let diagnostic = if tried.is_empty() {
-            "The SBOM states no supplier or other provider identifier for this component; providerless evidence receives the fallback boost."
+            "The SBOM states no supplier or other provider identifier for this component."
         } else {
-            "Provider identifiers have no configured alias; providerless evidence receives the fallback boost."
+            "Provider identifiers have no configured alias."
         };
         ProviderResolution {
             source: "unknown".into(),
@@ -381,28 +252,6 @@ impl PolicySnapshot {
     }
 }
 
-pub async fn list_policies(connection: &impl ConnectionTrait) -> Result<Vec<WeightPolicy>, Error> {
-    PolicyRow::find_by_statement(Statement::from_string(
-        DbBackend::Postgres,
-        "SELECT id,revision,scope,priority,weights FROM correlation_weight_policy ORDER BY id"
-            .to_string(),
-    ))
-    .all(connection)
-    .await?
-    .into_iter()
-    .map(|r| {
-        Ok(WeightPolicy {
-            id: r.id,
-            revision: r.revision,
-            data: WeightPolicyData {
-                scope: serde_json::from_value(r.scope).map_err(Error::MatchedValue)?,
-                priority: r.priority,
-                weights: serde_json::from_value(r.weights).map_err(Error::MatchedValue)?,
-            },
-        })
-    })
-    .collect()
-}
 pub async fn list_aliases(connection: &impl ConnectionTrait) -> Result<Vec<ProviderAlias>, Error> {
     AliasRow::find_by_statement(Statement::from_string(
         DbBackend::Postgres,
@@ -423,70 +272,6 @@ pub async fn list_aliases(connection: &impl ConnectionTrait) -> Result<Vec<Provi
         })
     })
     .collect()
-}
-
-pub async fn save_policy(
-    id: Option<Uuid>,
-    data: WeightPolicyData,
-    connection: &DatabaseTransaction,
-) -> Result<WeightPolicy, Error> {
-    validate_weights(&data.weights)?;
-    match &data.scope {
-        PolicyScope::Instance => {}
-        PolicyScope::Group { group_id } => {
-            if sbom_group::Entity::find_by_id(*group_id)
-                .one(connection)
-                .await?
-                .is_none()
-            {
-                return Err(Error::NotFound(group_id.to_string()));
-            }
-        }
-        PolicyScope::Sbom { sbom_id } => {
-            if sbom::Entity::find_by_id(*sbom_id)
-                .one(connection)
-                .await?
-                .is_none()
-            {
-                return Err(Error::NotFound(sbom_id.to_string()));
-            }
-        }
-        PolicyScope::Component { sbom_id, node_id } => {
-            if sbom_package::Entity::find_by_id((*sbom_id, node_id.clone()))
-                .one(connection)
-                .await?
-                .is_none()
-            {
-                return Err(Error::NotFound(node_id.clone()));
-            }
-        }
-    }
-    connection
-        .execute_unprepared("LOCK TABLE correlation_weight_policy IN SHARE ROW EXCLUSIVE MODE")
-        .await?;
-    let existing = list_policies(connection).await?;
-    if let Some(id) = id
-        && !existing.iter().any(|p| p.id == id)
-    {
-        return Err(Error::NotFound(id.to_string()));
-    }
-    if existing
-        .iter()
-        .any(|p| Some(p.id) != id && p.data.scope == data.scope)
-    {
-        return Err(Error::Conflict(
-            "A policy already exists for this scope".into(),
-        ));
-    }
-    let result = WeightPolicy {
-        id: id.unwrap_or_else(Uuid::now_v7),
-        revision: Uuid::now_v7(),
-        data,
-    };
-    let scope = serde_json::to_value(&result.data.scope).map_err(Error::MatchedValue)?;
-    let weights = serde_json::to_value(&result.data.weights).map_err(Error::MatchedValue)?;
-    connection.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,"INSERT INTO correlation_weight_policy(id,revision,scope,priority,weights) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET revision=$2,scope=$3,priority=$4,weights=$5",[result.id.into(),result.revision.into(),scope.into(),result.data.priority.into(),weights.into()])).await?;
-    Ok(result)
 }
 
 pub async fn save_alias(
@@ -540,16 +325,6 @@ pub async fn save_alias(
     Ok(result)
 }
 
-pub async fn delete_policy(id: Uuid, connection: &impl ConnectionTrait) -> Result<(), Error> {
-    connection
-        .execute_raw(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            "DELETE FROM correlation_weight_policy WHERE id=$1",
-            [id.into()],
-        ))
-        .await?;
-    Ok(())
-}
 pub async fn delete_alias(id: Uuid, connection: &impl ConnectionTrait) -> Result<(), Error> {
     connection
         .execute_raw(Statement::from_sql_and_values(
@@ -609,70 +384,10 @@ pub async fn provider_identifiers(
 mod tests {
     use super::*;
 
-    fn policy(scope: PolicyScope, priority: i32, value: f64) -> WeightPolicy {
-        WeightPolicy {
-            id: Uuid::new_v4(),
-            revision: Uuid::new_v4(),
-            data: WeightPolicyData {
-                scope,
-                priority,
-                weights: WeightOverrides {
-                    direct: Some(value),
-                    ..Default::default()
-                },
-            },
-        }
-    }
-
-    #[test]
-    fn group_conflicts_require_selection_and_priority_is_explicit() {
-        let sbom = Uuid::new_v4();
-        let parent = Uuid::new_v4();
-        let a = Uuid::new_v4();
-        let b = Uuid::new_v4();
-        let mut snapshot = PolicySnapshot {
-            groups: HashMap::from([(parent, None), (a, Some(parent)), (b, Some(parent))]),
-            ..Default::default()
-        };
-        snapshot.memberships.insert(sbom, vec![b, a]);
-        snapshot.policies = vec![
-            policy(PolicyScope::Group { group_id: parent }, 100, 2.0),
-            policy(PolicyScope::Group { group_id: a }, 0, 3.0),
-            policy(PolicyScope::Group { group_id: b }, 0, 4.0),
-        ];
-        assert!(matches!(
-            snapshot.effective(Some(sbom), None, &ResolutionRequest::default()),
-            Err(Error::Conflict(_))
-        ));
-        let selected = ResolutionRequest {
-            group_id: Some(a),
-            ..Default::default()
-        };
-        assert_eq!(
-            snapshot
-                .effective(Some(sbom), None, &selected)
-                .unwrap()
-                .factor("direct")
-                .multiplier,
-            3.0
-        );
-        snapshot.policies[2].data.priority = 1;
-        assert_eq!(
-            snapshot
-                .effective(Some(sbom), None, &ResolutionRequest::default())
-                .unwrap()
-                .factor("direct")
-                .multiplier,
-            4.0
-        );
-        snapshot.groups.insert(parent, Some(a));
-        assert!(snapshot.effective(Some(sbom), None, &selected).is_err());
-    }
-
     #[test]
     fn supplier_identity_is_exact_and_unresolved_supplier_does_not_inherit() {
         let sbom = Uuid::new_v4();
-        let mut snapshot = PolicySnapshot::default();
+        let mut snapshot = ProviderSnapshot::default();
         snapshot.products.insert(
             sbom,
             ProviderIdentity {
@@ -687,7 +402,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        let policy = EffectivePolicy {
+        let context = ResolutionContext {
             aliases: vec![ProviderAlias {
                 id: Uuid::nil(),
                 revision: Uuid::nil(),
@@ -700,13 +415,13 @@ mod tests {
         };
         assert_eq!(
             snapshot
-                .component_provider(Some(sbom), Some("component"), &[], &policy)
+                .component_provider(Some(sbom), Some("component"), &[], &context)
                 .provider,
             None
         );
         assert_eq!(
             snapshot
-                .component_provider(Some(sbom), Some("inherited"), &[], &policy)
+                .component_provider(Some(sbom), Some("inherited"), &[], &context)
                 .provider
                 .as_deref(),
             Some("A")
@@ -716,7 +431,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            policy.provider(&cve, "assertion").provider.as_deref(),
+            context.provider(&cve, "assertion").provider.as_deref(),
             Some("A")
         );
         assert_eq!(normalize_reference("name:Organization: ACME"), "name:acme");

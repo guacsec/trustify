@@ -154,13 +154,16 @@ affected | fixed | not_affected | under_investigation | none
 
 `none` = no applicable evidence. Not the same as `not_affected`.
 
-Resolution uses soft multiplicative preferences for the SBOM component's supplier (a weaker,
-unverified preference when only the provider names match), assertion provider, direct/inferred origin, match method, and rule. The maximum weight per status wins;
-affected breaks equal-weight ties. Opposing evidence reduces verdict confidence without changing
-stored match confidence. Policies inherit through instance, hierarchical groups, SBOM, component,
-and request scopes. Opt-in API explanations and UI previews expose the factors and their origins.
-See the [module documentation](../../modules/correlation/README.md#weighted-resolution) for the
-defaults, confidence calculation, scope conflict rules, provider aliases, and migration behavior.
+Resolution uses fixed precedence: provider relationship (resolved match, unverified name match,
+providerless, other/unresolved), direct/default before inferred/unknown origin, original match
+confidence, then affected, fixed, not_affected, and under_investigation. Stable evidence references
+break remaining ties. Earlier criteria always take precedence over later criteria; no numeric
+weights or saved resolution policies are used. Recommended and zero-confidence statements do not
+select a verdict. Verdict confidence is the selected statement's original match confidence.
+Conflicting statuses remain visible through a separate conflict flag, without a confidence penalty.
+Provider aliases and opt-in API/UI explanations remain, including read-only provider/product-context
+previews. See the [module documentation](../../modules/correlation/README.md#verdict-resolution)
+for precedence, API changes, and migration behavior.
 
 ### Assertion status
 

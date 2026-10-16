@@ -3,8 +3,8 @@ use std::fmt;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-mod weighting;
-pub use weighting::*;
+mod resolution;
+pub use resolution::*;
 
 /// Top-level correlation result for an SBOM.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub struct VerdictSummary {
     pub status: VerdictStatus,
     #[serde(flatten, default)]
     pub resolution: ResolutionSummary,
-    /// The provider who supplied the component, as resolved by the weighting policy.
+    /// The provider who supplied the component, as resolved through provider aliases.
     #[serde(default)]
     pub component_provider: ProviderResolution,
     pub evidence: Vec<EvidenceDetail>,
@@ -140,7 +140,7 @@ pub struct EvidenceDetail {
     /// has no context, or the SBOM nothing to compare it with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contexts: Vec<EvidenceContext>,
-    /// The provider making the assertion, as resolved by the weighting policy.
+    /// The provider making the assertion, as resolved through provider aliases.
     #[serde(default)]
     pub provider: ProviderResolution,
     /// How the provider matches the provider of the component, if at all.

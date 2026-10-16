@@ -27,15 +27,14 @@
     another minor (`10.1`), only the RPM's product matches them. In syft's SBOMs, the
     operating-system component is no context of the RPMs, so it doesn't interfere there (scenario
     S24).
-- [x] Correlation, weighted verdicts: installed-build supplier and assertion provider influence
-  soft weights alongside direct/inferred provenance, matching method, and rule preferences.
-  Instance, hierarchical group, SBOM, component, and request overrides replace inherited knobs.
-  Maximum weight per status decides; affected breaks ties; conflicts reduce verdict confidence.
-  Opt-in API explanations and UI previews expose factors, origins, providers, and revisions.
+- [x] Correlation, explainable verdicts: fixed precedence compares provider relationship,
+  directness, original match confidence, status, then stable evidence reference. Conflicts remain
+  visible without reducing match confidence. Provider aliases, opt-in explanations, and temporary
+  context previews remain; weight policies and multipliers are removed by `m0002630`.
   [S28](etc/test-data/scenarios/S28_fixed_then_regression/README.md) and
   [S29](etc/test-data/scenarios/S29_provider_weighting/README.md) cover regressions, mixed
   suppliers, CNA/ADP sources, both SBOM formats, ingestion orders, and counts. Migrations
-  `m0002610`/`m0002620` backfill provenance and mark unrecoverable provider metadata.
+  `m0002610`/`m0002620` retain provenance and diagnose unrecoverable provider metadata.
 - [ ] CSAF `first_fixed`, `first_affected` and `last_affected` are only stored for PURLs
   (`purl_status`, `product_status`). CPE, hash and product identifier assertions
   (`assertion_status`) have no such values, so those statements are dropped for them, and the
