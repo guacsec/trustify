@@ -222,11 +222,19 @@ pub fn provider_view(provider: &ProviderResolution) -> Html {
                 <span class="pf-v6-u-text-color-subtle">{ "Unknown" }</span>
             </Tooltip>
         },
-        (None, name) => {
-            let stated = name
-                .map(str::to_owned)
-                .or_else(|| provider.identifiers.first().cloned())
-                .unwrap_or_default();
+        // A stated name still matches the same name on the other side, just unverified.
+        (None, Some(name)) => html! {
+            <Tooltip text="Identified by its stated name only. Assertions stating the same name count as an unverified match. Add the name to a provider alias to verify it.">
+                <span>
+                    { name }{ " " }
+                    <Link<AppRoute> to={AppRoute::ProviderAliases}>
+                        <Label compact=true label="name only" color={Color::Blue}/>
+                    </Link<AppRoute>>
+                </span>
+            </Tooltip>
+        },
+        (None, None) => {
+            let stated = provider.identifiers.first().cloned().unwrap_or_default();
             let more = provider.identifiers.len().saturating_sub(1);
             html! {
                 <Tooltip text={format!(
