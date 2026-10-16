@@ -255,6 +255,7 @@ fn is_file_drag(event: &DragEvent) -> bool {
 
 #[function_component(IngestDropZone)]
 pub fn ingest_drop_zone() -> Html {
+    #[allow(clippy::expect_used)]
     let context =
         use_context::<IngestionContext>().expect("IngestDropZone requires IngestionProvider");
     let drag_over = use_state_eq(|| false);

@@ -132,6 +132,7 @@ fn alias_dialog(props: &AliasDialogProps) -> Html {
             .unwrap_or_default()
     });
     let error = use_state(|| None::<String>);
+    #[allow(clippy::expect_used)]
     let backdrop = use_backdrop().expect("AliasDialog requires BackdropViewer");
     let latest = use_latest_access_token();
     let token = latest.as_ref().and_then(|t| t.access_token());
@@ -200,6 +201,7 @@ pub fn provider_alias_page() -> Html {
     let aliases = use_state(Vec::<ProviderAlias>::new);
     let error = use_state(|| None::<String>);
     let generation = use_state(|| 0u32);
+    #[allow(clippy::expect_used)]
     let backdrop = use_backdrop().expect("ProviderAliasPage requires BackdropViewer");
     let latest = use_latest_access_token();
     let token = latest.as_ref().and_then(|t| t.access_token());

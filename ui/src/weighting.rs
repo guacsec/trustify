@@ -436,6 +436,7 @@ pub struct ResolutionPanelProps {
 }
 #[hook]
 fn use_open_resolution(props: &ResolutionPanelProps) -> Callback<()> {
+    #[allow(clippy::expect_used)]
     let backdrop = use_backdrop().expect("Explaining a verdict requires BackdropViewer");
     let props = props.clone();
     Callback::from(move |()| {
@@ -479,6 +480,7 @@ fn resolution_dialog(props: &ResolutionPanelProps) -> Html {
     let group = use_state(String::new);
     let context = use_state(String::new);
     let is_preview = use_state(|| false);
+    #[allow(clippy::expect_used)]
     let backdrop = use_backdrop().expect("ResolutionDialog requires BackdropViewer");
     let close = Callback::from(move |_: MouseEvent| backdrop.close());
     let latest = use_latest_access_token();

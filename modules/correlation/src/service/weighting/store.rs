@@ -1,5 +1,5 @@
 use super::engine::{EffectivePolicy, normalize_reference, validate_weights};
-use crate::{error::Error, model::*};
+use crate::{error::Error, extractor::context::format_cpe, model::*};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
     QueryFilter, Statement,
@@ -465,8 +465,10 @@ pub async fn save_policy(
         .execute_unprepared("LOCK TABLE correlation_weight_policy IN SHARE ROW EXCLUSIVE MODE")
         .await?;
     let existing = list_policies(connection).await?;
-    if id.is_some_and(|id| !existing.iter().any(|p| p.id == id)) {
-        return Err(Error::NotFound(id.unwrap().to_string()));
+    if let Some(id) = id
+        && !existing.iter().any(|p| p.id == id)
+    {
+        return Err(Error::NotFound(id.to_string()));
     }
     if existing
         .iter()
@@ -512,8 +514,10 @@ pub async fn save_alias(
         .execute_unprepared("LOCK TABLE correlation_provider_alias IN SHARE ROW EXCLUSIVE MODE")
         .await?;
     let existing = list_aliases(connection).await?;
-    if id.is_some_and(|id| !existing.iter().any(|a| a.id == id)) {
-        return Err(Error::NotFound(id.unwrap().to_string()));
+    if let Some(id) = id
+        && !existing.iter().any(|a| a.id == id)
+    {
+        return Err(Error::NotFound(id.to_string()));
     }
     if existing.iter().any(|a| {
         Some(a.id) != id
@@ -593,7 +597,7 @@ pub async fn provider_identifiers(
                     .or_default()
                     .push(IdentifierRef {
                         kind: IdentifierKind::Cpe,
-                        value: crate::extractor::context::format_cpe(&cpe),
+                        value: format_cpe(&cpe),
                     });
             }
         }
