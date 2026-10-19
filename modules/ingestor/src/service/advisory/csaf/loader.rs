@@ -1000,9 +1000,9 @@ mod test {
         Ok(())
     }
 
-    /// For a relationship of hardware and firmware, only the firmware's model number is stated
-    /// as affected. The SKUs of the platform and of the combination identify the hardware it is
-    /// installed on, and only go into the context.
+    /// For a relationship of hardware and firmware, only the firmware's model number is stated,
+    /// with the firmware's versions. The SKUs of the platform and of the combination identify the
+    /// hardware it is installed on, and only go into the context.
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn relationship_hardware_identifiers(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -1011,6 +1011,8 @@ mod test {
             advisory_vulnerability_product_identifier::{self, ProductIdentifierType},
             assertion_context::{self, AssertionContextCategory},
             assertion_context_identifier::{self, ContextIdentifierKind},
+            correlation_evidence::AssertionStatus,
+            version_range,
         };
 
         let result = ctx
@@ -1018,21 +1020,69 @@ mod test {
             .await?;
         let advisory_id = result.id.parse::<Uuid>()?;
 
-        let identifiers = advisory_vulnerability_product_identifier::Entity::find()
+        let rows = advisory_vulnerability_product_identifier::Entity::find()
             .filter(advisory_vulnerability_product_identifier::Column::AdvisoryId.eq(advisory_id))
+            .find_also_related(version_range::Entity)
+            .order_by_asc(advisory_vulnerability_product_identifier::Column::Status)
             .all(&ctx.db)
             .await?;
-        let [identifier] = identifiers.as_slice() else {
-            panic!("unexpected identifiers: {identifiers:?}");
-        };
+        let contexts = rows
+            .iter()
+            .map(|(identifier, _)| identifier.assertion_context_id)
+            .collect::<std::collections::BTreeSet<_>>();
+        let identifiers = rows
+            .into_iter()
+            .map(|(identifier, range)| {
+                (
+                    identifier.identifier_type,
+                    identifier.value,
+                    identifier.status,
+                    range.map(|range| {
+                        (
+                            range.version_scheme_id,
+                            range.low_version,
+                            range.low_inclusive,
+                            range.high_version,
+                            range.high_inclusive,
+                        )
+                    }),
+                )
+            })
+            .collect::<Vec<_>>();
         assert_eq!(
-            (identifier.identifier_type, identifier.value.as_str()),
-            (ProductIdentifierType::ModelNumber, "Flip 4")
+            identifiers,
+            [
+                (
+                    ProductIdentifierType::ModelNumber,
+                    "Flip 4".to_string(),
+                    AssertionStatus::Affected,
+                    Some((
+                        VersionScheme::Semver,
+                        None,
+                        Some(false),
+                        Some("4.1.0".to_string()),
+                        Some(false)
+                    )),
+                ),
+                (
+                    ProductIdentifierType::ModelNumber,
+                    "Flip 4".to_string(),
+                    AssertionStatus::Fixed,
+                    Some((
+                        VersionScheme::Generic,
+                        Some("4.1.0".to_string()),
+                        Some(true),
+                        Some("4.1.0".to_string()),
+                        Some(true)
+                    )),
+                ),
+            ]
         );
 
-        let context_id = identifier
-            .assertion_context_id
-            .expect("stated in a context");
+        // both combinations are installed on the same device
+        let [Some(context_id)] = contexts.into_iter().collect::<Vec<_>>()[..] else {
+            panic!("expected one context");
+        };
         let context = assertion_context::Entity::find_by_id(context_id)
             .one(&ctx.db)
             .await?
@@ -1050,12 +1100,33 @@ mod test {
             .into_iter()
             .map(|identifier| (identifier.kind, identifier.value))
             .collect::<Vec<_>>();
+        let skus = [
+            "050036336109",
+            "050036336116",
+            "050036336123",
+            "050036336130",
+            "050036336147",
+            "050036337366",
+            "050036337373",
+            "050036337380",
+            "050036337397",
+            "050036337403",
+            "050036337441",
+            "6925281922404",
+            "6925281922411",
+            "6925281922428",
+            "6925281922435",
+            "6925281922442",
+            "6925281924408",
+            "6925281924415",
+            "6925281924422",
+            "6925281924439",
+            "6925281924446",
+            "6925281924545",
+        ];
         assert_eq!(
             identifiers,
-            [
-                (ContextIdentifierKind::Sku, "050036337366".to_string()),
-                (ContextIdentifierKind::Sku, "6925281924439".to_string()),
-            ]
+            skus.map(|sku| (ContextIdentifierKind::Sku, sku.to_string()))
         );
 
         Ok(())

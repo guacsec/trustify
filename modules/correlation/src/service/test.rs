@@ -1,15 +1,15 @@
 use crate::extractor::Extractors;
 use crate::{
     model::{
-        ApiAssertionStatus, AssertionOrigin, ComponentRef, CorrelationResult, IdentifierKind,
-        IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts,
-        VerdictStatus,
+        ApiAssertionStatus, AssertionOrigin, ComponentRef, ConfidenceFactor, ConfidenceReason,
+        CorrelationResult, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue, QueryMatch,
+        QueryResult, QueryVerdict, RangeBound, SbomVerdictCounts, VerdictStatus, combine,
     },
     service::CorrelationService,
 };
 use rstest::rstest;
-use sea_orm::{ActiveModelTrait, Set, TransactionTrait};
-use std::collections::BTreeMap;
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
+use std::collections::{BTreeMap, HashSet};
 use test_context::test_context;
 use test_log::test;
 use trustify_entity::correlation_evidence::{self, AssertionStatus};
@@ -48,6 +48,7 @@ async fn evidence_produces_verdict(ctx: &TrustifyContext) -> anyhow::Result<()> 
         extractor: Set("digest".to_string()),
         matched_value: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
+        confidence_factors: Set(serde_json::json!([])),
     };
     evidence.insert(&ctx.db).await?;
 
@@ -89,6 +90,7 @@ async fn include_unmatched_returns_components_without_evidence(
         extractor: Set("digest".to_string()),
         matched_value: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
+        confidence_factors: Set(serde_json::json!([])),
     };
     evidence.insert(&ctx.db).await?;
 
@@ -240,7 +242,17 @@ async fn query_wildcard_model_number(ctx: &TrustifyContext) -> anyhow::Result<()
                 status: VerdictStatus::Affected,
                 matches: vec![QueryMatch {
                     kind: IdentifierKind::ModelNumber,
-                    value: MatchedValue::new("Flip ?"),
+                    value: MatchedValue {
+                        ranges: vec![MatchedRange {
+                            scheme: "semver".into(),
+                            low: None,
+                            high: Some(RangeBound {
+                                version: "5.0.0".into(),
+                                inclusive: false,
+                            }),
+                        }],
+                        ..MatchedValue::new("Flip ?")
+                    },
                     advisory_id,
                     advisory_identifier: "https://www.harman.com/#HBSA-2025-0004".into(),
                     advisory_type: Some("csaf".into()),
@@ -436,6 +448,7 @@ async fn scenario(
     for (sbom, sbom_id, expected) in sboms {
         let tx = ctx.db.begin().await?;
         let mut actual = BTreeMap::<_, BTreeMap<_, _>>::new();
+        let mut remediations = HashSet::new();
         for verdict in service
             .correlate_sbom_with(
                 sbom_id,
@@ -464,6 +477,16 @@ async fn scenario(
                     crate::model::SelectionReason::StatusPriority
                 );
             }
+            for evidence in &verdict.evidence {
+                for remediation in &evidence.remediations {
+                    remediations.insert((
+                        verdict.component.node_id.clone(),
+                        verdict.vulnerability.id.clone(),
+                        evidence.advisory_id,
+                        remediation.clone(),
+                    ));
+                }
+            }
             actual
                 .entry(verdict.component.node_id)
                 .or_default()
@@ -475,9 +498,28 @@ async fn scenario(
             "{name} ({expectations}): {sbom}, SBOMs first: {sboms_first}"
         );
 
+        // each confidence is the product of its factors
+        {
+            for evidence in correlation_evidence::Entity::find()
+                .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+                .all(&tx)
+                .await?
+            {
+                let factors =
+                    serde_json::from_value::<Vec<ConfidenceFactor>>(evidence.confidence_factors)?;
+                assert!(!factors.is_empty(), "{name}: {sbom}, {}", evidence.id);
+                assert_eq!(
+                    combine(&factors),
+                    evidence.confidence,
+                    "{name}: {sbom}, {factors:?}"
+                );
+            }
+        }
+
         // the counts must agree with the verdicts
         let mut counts = SbomVerdictCounts {
             sbom_id,
+            remediations: remediations.len() as u64,
             ..Default::default()
         };
         for status in actual.values().flat_map(BTreeMap::values) {
@@ -894,6 +936,160 @@ async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<(
                 0.9
             ),
         ]
+    );
+
+    // how its confidence comes about
+    let factors = read.verdicts[0]
+        .resolution
+        .explanation
+        .as_ref()
+        .unwrap()
+        .evidence
+        .iter()
+        .map(|e| e.confidence_factors.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        factors,
+        vec![vec![
+            ConfidenceFactor::new(ConfidenceReason::ProductIdentifier, 1.0),
+            ConfidenceFactor::new(
+                ConfidenceReason::ProductConfirmed {
+                    source: ContextSource::AncestorNode,
+                    distance: 1
+                },
+                0.9
+            ),
+        ]]
+    );
+    Ok(())
+}
+
+/// The version fixing an OSV interval is offered as a remediation of the affected evidence, in the
+/// evidence and in the explanation.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn osv_fixed_remediation(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{EvidenceRemediation, RemediationCategory, ResolutionRequest};
+
+    let sbom = ctx
+        .ingest_document("correlation/osv/hyper-0.14.1.cdx.json")
+        .await?;
+    ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+
+    let tx = ctx.db.begin().await?;
+    let result = CorrelationService::default()
+        .correlate_sbom_with(
+            sbom_id,
+            false,
+            &ResolutionRequest {
+                include_explanation: true,
+                ..Default::default()
+            },
+            &tx,
+        )
+        .await?;
+
+    let fix = vec![EvidenceRemediation {
+        category: RemediationCategory::VendorFix,
+        details: Some("Fixed in 0.14.10".into()),
+        url: None,
+    }];
+    let [verdict] = result.verdicts.as_slice() else {
+        panic!("expected one verdict: {:?}", result.verdicts);
+    };
+    assert_eq!(verdict.status, VerdictStatus::Affected);
+    assert_eq!(
+        verdict
+            .evidence
+            .iter()
+            .map(|e| e.remediations.clone())
+            .collect::<Vec<_>>(),
+        vec![fix.clone()]
+    );
+    assert_eq!(
+        verdict
+            .resolution
+            .explanation
+            .as_ref()
+            .unwrap()
+            .evidence
+            .iter()
+            .map(|e| e.remediations.clone())
+            .collect::<Vec<_>>(),
+        vec![fix]
+    );
+
+    // the SBOM list counts it
+    assert_eq!(
+        CorrelationService::default()
+            .count_verdicts(&[sbom_id], &tx)
+            .await?,
+        vec![SbomVerdictCounts {
+            sbom_id,
+            affected: 1,
+            remediations: 1,
+            ..Default::default()
+        }]
+    );
+    Ok(())
+}
+
+/// A distribution's OSV record keeps its statements under its own ID, and names the upstream CVEs
+/// on the verdict.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn osv_upstream(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{EvidenceRemediation, RemediationCategory};
+
+    let sbom = ctx
+        .ingest_document("correlation/osv/node-dompurify-debian-12.cdx.json")
+        .await?;
+    ctx.ingest_document("osv/DSA-5790-1.json").await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+
+    let tx = ctx.db.begin().await?;
+    let result = CorrelationService::default()
+        .correlate_sbom(sbom_id, false, &tx)
+        .await?;
+    let verdicts = result
+        .verdicts
+        .iter()
+        .map(|v| {
+            (
+                v.component.node_id.clone(),
+                v.vulnerability.id.clone(),
+                v.vulnerability.upstream.clone(),
+                v.status,
+                v.evidence
+                    .iter()
+                    .flat_map(|e| e.remediations.clone())
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        verdicts,
+        vec![(
+            "node-dompurify".to_string(),
+            "DSA-5790-1".to_string(),
+            vec![
+                "CVE-2024-47875".to_string(),
+                "DEBIAN-CVE-2024-47875".to_string()
+            ],
+            VerdictStatus::Affected,
+            vec![EvidenceRemediation {
+                category: RemediationCategory::VendorFix,
+                details: Some("Fixed in 2.4.1+dfsg+~2.4.0-2".into()),
+                url: None,
+            }]
+        )]
     );
     Ok(())
 }

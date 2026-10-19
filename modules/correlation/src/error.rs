@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
+use std::num::TryFromIntError;
 use trustify_common::{
     db::{DatabaseErrors, DbError, pagination_cache::LimitError},
     error::ErrorInformation,
@@ -21,6 +22,8 @@ pub enum Error {
     Unavailable,
     #[error("failed to serialize the matched value: {0}")]
     MatchedValue(#[source] serde_json::Error),
+    #[error("invalid distance of a context: {0}")]
+    Distance(#[from] TryFromIntError),
 }
 
 impl From<DbErr> for Error {

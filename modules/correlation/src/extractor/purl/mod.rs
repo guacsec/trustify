@@ -42,7 +42,8 @@ use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, No
 use crate::{
     error::Error,
     model::{
-        AssertionOrigin, EnabledBy, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue,
+        AssertionOrigin, ConfidenceFactor, ConfidenceReason, EnabledBy, IdentifierKind,
+        IdentifierRef, MatchedRange, MatchedValue, combine,
     },
 };
 use sea_orm::{
@@ -338,6 +339,7 @@ fn group<'a, K: Ord + Clone>(
         source_provider: Option<crate::model::ProviderIdentity>,
         origin: AssertionOrigin,
         confidence: f64,
+        factors: Vec<ConfidenceFactor>,
         ranges: BTreeSet<MatchedRange>,
         enabled_by: Option<EnabledBy>,
         requires_context: bool,
@@ -433,15 +435,30 @@ fn group<'a, K: Ord + Clone>(
         {
             continue;
         }
-        let (extractor, confidence) = match source {
-            None if row.is_default => (DEFAULT, stream.confidence() * DEFAULT_CONFIDENCE),
-            None => (stream.extractor(), stream.confidence()),
-            // rounded, so that e.g. 0.8 × 0.9 is stored as 0.72
+        let (extractor, factors) = match source {
+            None if row.is_default => (
+                DEFAULT,
+                vec![
+                    stream.factor(),
+                    ConfidenceFactor::new(ConfidenceReason::DefaultStatus, DEFAULT_CONFIDENCE),
+                ],
+            ),
+            None => (stream.extractor(), vec![stream.factor()]),
             Some(rule) => (
                 rule.id(),
-                (stream.confidence() * rule.confidence() * 100.0).round() / 100.0,
+                vec![
+                    stream.factor(),
+                    ConfidenceFactor::new(
+                        ConfidenceReason::Rule {
+                            rule: rule.id().to_string(),
+                        },
+                        rule.confidence(),
+                    ),
+                ],
             ),
         };
+        // rounded, so that e.g. 0.8 × 0.9 is stored as 0.72
+        let confidence = combine(&factors);
         let origin = match source {
             Some(rule) => rule.origin(),
             None if row.is_default => AssertionOrigin::Default,
@@ -492,11 +509,16 @@ fn group<'a, K: Ord + Clone>(
                 source_provider,
                 origin,
                 confidence,
+                factors: factors.clone(),
                 ranges: BTreeSet::new(),
                 enabled_by,
                 requires_context,
             });
-        entry.confidence = entry.confidence.max(confidence);
+        // the best range of the group decides its confidence
+        if confidence > entry.confidence {
+            entry.confidence = confidence;
+            entry.factors = factors;
+        }
         entry.ranges.insert(range);
     }
 
@@ -513,6 +535,7 @@ fn group<'a, K: Ord + Clone>(
                     vulnerability_id,
                     status: group.status,
                     confidence: group.confidence,
+                    factors: group.factors,
                     matched_value: MatchedValue {
                         source_provider: group.source_provider,
                         origin: group.origin,
@@ -522,6 +545,7 @@ fn group<'a, K: Ord + Clone>(
                     },
                     context_id,
                     requires_context: group.requires_context,
+                    version_range_id: None,
                 },
             )
         },

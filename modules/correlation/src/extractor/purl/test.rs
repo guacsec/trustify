@@ -1,9 +1,12 @@
 use super::*;
 use crate::{
     extractor::Extractors,
-    model::{CorrelationOptionKey, EnabledBy, RangeBound},
+    model::{
+        ContextSource as ApiContextSource, CorrelationOptionKey, EnabledBy, RangeBound,
+        StreamRelation,
+    },
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{QueryOrder, TransactionTrait};
 use serde_json::json;
 use test_context::test_context;
 use test_log::test;
@@ -1229,5 +1232,96 @@ async fn thunderbird_control_has_no_evidence(ctx: &TrustifyContext) -> anyhow::R
     assert!(load_evidence(ctx, sbom_id).await?.is_empty());
     extract_for_advisory(ctx, Uuid::parse_str(&advisory.id)?).await?;
     assert!(load_evidence(ctx, sbom_id).await?.is_empty());
+    Ok(())
+}
+
+/// The distinct factors of the confidences of an SBOM's evidence, by node and type. Evidence of
+/// several original PURLs of the same statement has the same factors.
+async fn factors_of(
+    ctx: &TrustifyContext,
+    sbom_id: Uuid,
+) -> anyhow::Result<Vec<(String, String, f64, Vec<ConfidenceFactor>)>> {
+    let mut result = correlation_evidence::Entity::find()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .order_by_asc(correlation_evidence::Column::NodeId)
+        .order_by_asc(correlation_evidence::Column::Extractor)
+        .all(&ctx.db)
+        .await?
+        .into_iter()
+        .map(|e| {
+            Ok((
+                e.node_id,
+                e.extractor,
+                e.confidence,
+                serde_json::from_value(e.confidence_factors)?,
+            ))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    result.dedup();
+    Ok(result)
+}
+
+/// The confidence of a match is the product of its factors: the RPM stream, the rule deriving
+/// the range, the default status, and the product.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn confidence_factors(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // an el8 package below an el8_7 fix, in RHEL 8 by its `distro=` qualifier
+    let sbom = ctx.ingest_document(S5_SBOM).await?;
+    ctx.ingest_document(S5_VEX).await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    extract_for_sbom(ctx, sbom_id).await?;
+    assert_eq!(
+        factors_of(ctx, sbom_id).await?,
+        vec![(
+            "pkg-openssl".to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
+            0.55,
+            vec![
+                ConfidenceFactor::new(
+                    ConfidenceReason::RpmStream {
+                        stream: StreamRelation::Major
+                    },
+                    0.8
+                ),
+                ConfidenceFactor::new(
+                    ConfidenceReason::Rule {
+                        rule: FIXED_AS_FIRST_FIXED_BEFORE.into()
+                    },
+                    0.9
+                ),
+                ConfidenceFactor::new(
+                    ConfidenceReason::ProductConfirmed {
+                        source: ApiContextSource::PurlQualifier,
+                        distance: 0
+                    },
+                    0.77
+                ),
+            ]
+        )]
+    );
+
+    // a CVE record's default status
+    const BASE: &str = "scenarios/S25_cve_package_url";
+    ctx.ingest_document(&format!("{BASE}/cve/CVE-2026-2950.json"))
+        .await?;
+    let sbom = ctx
+        .ingest_document(&format!("{BASE}/sbom_lodash_4.17.21.cdx.json"))
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    extract_for_sbom(ctx, sbom_id).await?;
+    assert_eq!(
+        factors_of(ctx, sbom_id).await?,
+        vec![(
+            "pkg-lodash".to_string(),
+            DEFAULT.to_string(),
+            0.9,
+            vec![
+                ConfidenceFactor::new(ConfidenceReason::Purl, 1.0),
+                ConfidenceFactor::new(ConfidenceReason::DefaultStatus, 0.9),
+            ]
+        )]
+    );
+
     Ok(())
 }

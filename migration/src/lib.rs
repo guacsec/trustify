@@ -111,6 +111,9 @@ mod m0002610_correlation_assertion_origin;
 mod m0002620_correlation_weighting;
 mod m0002630_remove_correlation_weights;
 mod m0002640_context_source_unconfirmed;
+mod m0002650_product_identifier_version_range;
+mod m0002660_evidence_confidence_factors;
+mod m0002670_vulnerability_upstream;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -237,6 +240,9 @@ impl MigratorExt for Migrator {
             .normal(m0002620_correlation_weighting::Migration)
             .normal(m0002630_remove_correlation_weights::Migration)
             .normal(m0002640_context_source_unconfirmed::Migration)
+            .normal(m0002650_product_identifier_version_range::Migration)
+            .normal(m0002660_evidence_confidence_factors::Migration)
+            .normal(m0002670_vulnerability_upstream::Migration)
     }
 }
 

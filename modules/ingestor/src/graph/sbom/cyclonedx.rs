@@ -450,8 +450,10 @@ impl ComponentCreator {
                 use ComponentType::*;
                 const EMPTY: Vec<PackageReference> = vec![];
                 match ty {
-                    // We treat all these types as "packages"
-                    Application | Framework | Library | Container | OperatingSystem => {
+                    // We treat all these types as "packages", hardware and firmware included:
+                    // they have versions and identifiers (PURL, CPE) like software
+                    Application | Framework | Library | Container | OperatingSystem | Device
+                    | DeviceDriver | Firmware => {
                         self.packages.add(
                             NodeInfoParam {
                                 supplier: comp.supplier.as_ref().map(|supplier| {
@@ -474,7 +476,11 @@ impl ComponentCreator {
                             },
                             self.refs.get(&node_id).unwrap_or(&EMPTY).iter(),
                             comp.hashes.clone().into_iter().flatten(),
-                        )
+                        );
+                        if matches!(ty, Device | DeviceDriver | Firmware) {
+                            self.devices
+                                .add(node_id.clone(), extract_device_identifiers(comp));
+                        }
                     }
                     File => {
                         self.files.add(
@@ -498,15 +504,6 @@ impl ComponentCreator {
                             comp.name.to_string(),
                             comp.hashes.clone().into_iter().flatten(),
                             comp.try_into()?,
-                        );
-                    }
-                    Device | DeviceDriver | Firmware => {
-                        let identifiers = extract_device_identifiers(comp);
-                        self.devices.add(
-                            node_id.clone(),
-                            comp.name.to_string(),
-                            comp.hashes.clone().into_iter().flatten(),
-                            identifiers,
                         );
                     }
                     _ => tracing::error!("Unsupported component type: '{ty}'"),
@@ -641,8 +638,7 @@ impl ComponentCreator {
             .add_source(&self.packages)
             .add_source(&self.files)
             .add_source(&self.models)
-            .add_source(&self.crypto)
-            .add_source(&self.devices);
+            .add_source(&self.crypto);
         self.relationships
             .validate(sources)
             .map_err(Error::InvalidContent)
@@ -781,6 +777,105 @@ mod test {
                     "comp-flip4-device"
                 ),
                 rel(CYCLONEDX_DOC_REF, Relationship::Describes, "jbl-flip4-root"),
+            ]
+        );
+
+        Ok(())
+    }
+
+    /// Devices and firmware are packages: they keep their version, CPE, and product identifiers.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn firmware_is_package(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        use trustify_entity::{
+            advisory_vulnerability_product_identifier::ProductIdentifierType, cpe,
+            sbom_node_cpe_ref, sbom_node_product_identifier, sbom_package,
+        };
+
+        let result = ctx
+            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json")
+            .await?;
+        let sbom_id = result.id.parse::<Uuid>()?;
+
+        let packages = sbom_package::Entity::find()
+            .filter(sbom_package::Column::SbomId.eq(sbom_id))
+            .order_by_asc(sbom_package::Column::NodeId)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|package| (package.node_id, package.version))
+            .collect::<Vec<_>>();
+        let package = |node: &str, version: &str| (node.to_string(), Some(version.to_string()));
+        assert_eq!(
+            packages,
+            vec![
+                package("comp-bt-lib", "3.0.0"),
+                package("comp-flip4-device", "1.0.0"),
+                package("comp-flip4-fw", "2.3.1"),
+                package("jbl-flip4-root", "1.0.0"),
+            ]
+        );
+
+        let identifiers = sbom_node_product_identifier::Entity::find()
+            .filter(sbom_node_product_identifier::Column::SbomId.eq(sbom_id))
+            .order_by_asc(sbom_node_product_identifier::Column::NodeId)
+            .order_by_asc(sbom_node_product_identifier::Column::Value)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|id| (id.node_id, id.identifier_type, id.value))
+            .collect::<Vec<_>>();
+        let id = |node: &str, ty, value: &str| (node.to_string(), ty, value.to_string());
+        assert_eq!(
+            identifiers,
+            vec![
+                id(
+                    "comp-flip4-device",
+                    ProductIdentifierType::Sku,
+                    "050036337366"
+                ),
+                id(
+                    "comp-flip4-device",
+                    ProductIdentifierType::Sku,
+                    "6925281924439"
+                ),
+                id(
+                    "comp-flip4-device",
+                    ProductIdentifierType::SerialNumber,
+                    "SN-JBL-FLIP4-001"
+                ),
+                id(
+                    "comp-flip4-fw",
+                    ProductIdentifierType::ModelNumber,
+                    "Flip 4"
+                ),
+            ]
+        );
+
+        // a firmware's CPE
+        let result = ctx
+            .ingest_document(
+                "scenarios/S22_cpe_third_party_openssl_phoenix/sbom/mguard_4302_fw_10.5.0.cdx.json",
+            )
+            .await?;
+        let sbom_id = result.id.parse::<Uuid>()?;
+        let mut cpes = sbom_node_cpe_ref::Entity::find()
+            .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
+            .find_also_related(cpe::Entity)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|(r, cpe)| (r.node_id, cpe.and_then(|cpe| cpe.product)))
+            .collect::<Vec<_>>();
+        cpes.sort();
+        assert_eq!(
+            cpes,
+            vec![
+                (
+                    "firmware".to_string(),
+                    Some("fl_mguard_firmware".to_string())
+                ),
+                ("openssl".to_string(), Some("openssl".to_string())),
             ]
         );
 

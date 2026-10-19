@@ -3,10 +3,11 @@ use crate::{
     advisory::advisory_link,
     api,
     model::{
-        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef,
-        MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
+        ComponentRef, CorrelationResult, EvidenceDetail, EvidenceRemediation, IdentifierKind,
+        IdentifierRef, MatchedValue, ProviderMatch, RemediationCategory, VerdictStatus,
+        VerdictSummary,
     },
-    resolution::{product_names, provider_view},
+    resolution::{confidence_cell, product_names, provider_view},
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
@@ -126,6 +127,13 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                         <br />
                         <small>{ title }</small>
                     }
+                    if !self.0.vulnerability.upstream.is_empty() {
+                        <Tooltip text="The vulnerabilities this advisory refers to upstream. They are different vulnerabilities, not aliases.">
+                            <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                                { "Upstream: " }{ self.0.vulnerability.upstream.join(", ") }
+                            </div>
+                        </Tooltip>
+                    }
                 </>
             }
             .into(),
@@ -219,9 +227,12 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
     fn render_cell(&self, context: CellContext<'_, EvidenceColumn>) -> Cell {
         match context.column {
             EvidenceColumn::Assertion => html!(self.0.assertion_status.label()).into(),
-            EvidenceColumn::Confidence => {
-                html!(format!("{:.0}%", self.0.confidence * 100.0)).into()
-            }
+            EvidenceColumn::Confidence => confidence_cell(
+                &self.0.confidence_factors,
+                &self.0.contexts,
+                self.0.confidence,
+            )
+            .into(),
             EvidenceColumn::Extractor => html!(&self.0.extractor).into(),
             EvidenceColumn::MatchedValue => match &self.0.matched_value {
                 Some(value) => matched_value(value).into(),
@@ -311,8 +322,125 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
     }
 }
 
+/// The tabs of the correlation result of an SBOM.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CorrelationTab {
+    Verdicts,
+    Remediations,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RemediationColumn {
+    Component,
+    Vulnerability,
+    Status,
+    Remediation,
+    Advisory,
+}
+
+/// A remediation an advisory states for the statement of a verdict's evidence.
+#[derive(Clone, PartialEq)]
+struct RemediationEntry {
+    component: ComponentRef,
+    vulnerability: String,
+    status: VerdictStatus,
+    remediation: EvidenceRemediation,
+    advisory_id: uuid::Uuid,
+    advisory_identifier: String,
+    advisory_type: Option<String>,
+}
+
+impl TableEntryRenderer<RemediationColumn> for RemediationEntry {
+    fn render_cell(&self, context: CellContext<'_, RemediationColumn>) -> Cell {
+        match context.column {
+            RemediationColumn::Component => html! {
+                <div>
+                    { &self.component.name }
+                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                        <code style="color: inherit; overflow-wrap: anywhere;">{ &self.component.node_id }</code>
+                    </div>
+                </div>
+            }
+            .into(),
+            RemediationColumn::Vulnerability => html!(<strong>{ &self.vulnerability }</strong>).into(),
+            RemediationColumn::Status => status_label(self.status).into(),
+            RemediationColumn::Remediation => remediation(&self.remediation).into(),
+            RemediationColumn::Advisory => advisory_link(
+                self.advisory_id,
+                &self.advisory_identifier,
+                self.advisory_type.as_deref(),
+            )
+            .into(),
+        }
+    }
+}
+
+/// The remediations of the evidence of the verdicts, each once per component and vulnerability.
+fn remediation_entries(verdicts: &[VerdictSummary]) -> Vec<RemediationEntry> {
+    let mut result = Vec::<RemediationEntry>::new();
+    for verdict in verdicts {
+        for evidence in &verdict.evidence {
+            for remediation in &evidence.remediations {
+                let entry = RemediationEntry {
+                    component: verdict.component.clone(),
+                    vulnerability: verdict.vulnerability.id.clone(),
+                    status: verdict.status,
+                    remediation: remediation.clone(),
+                    advisory_id: evidence.advisory_id,
+                    advisory_identifier: evidence.advisory_identifier.clone(),
+                    advisory_type: evidence.advisory_type.clone(),
+                };
+                if !result.contains(&entry) {
+                    result.push(entry);
+                }
+            }
+        }
+    }
+    result
+}
+
+/// A remediation, e.g. "Fixed in 4.1.2", or its category and details.
+fn remediation(remediation: &EvidenceRemediation) -> Html {
+    let text = match (&remediation.category, &remediation.details) {
+        // a vendor fix's details already say what fixes it
+        (RemediationCategory::VendorFix, Some(details)) => details.clone(),
+        (category, Some(details)) => format!("{}: {details}", category.label()),
+        (category, None) => category.label().to_string(),
+    };
+    html! {
+        <span>
+            <i class="fas fa-wrench pf-v6-u-mr-xs" aria-hidden="true"/>
+            if let Some(url) = &remediation.url {
+                <a href={url.clone()} target="_blank" rel="noopener noreferrer">{ text }</a>
+            } else {
+                { text }
+            }
+        </span>
+    }
+}
+
 #[function_component(CorrelationContent)]
 fn correlation_content(props: &CorrelationContentProps) -> Html {
+    let tab = use_state_eq(|| CorrelationTab::Verdicts);
+    let onselect = {
+        let tab = tab.clone();
+        Callback::from(move |index: CorrelationTab| tab.set(index))
+    };
+    let remediation_entries = use_memo(props.verdicts.clone(), |verdicts| {
+        remediation_entries(verdicts)
+    });
+    let remediation_count = remediation_entries.len();
+    let (remediation_entries, _) = use_table_data(MemoizedTableModel::new(remediation_entries));
+    let remediation_header = html_nested! {
+        <TableHeader<RemediationColumn>>
+            <TableColumn<RemediationColumn> label="Component" index={RemediationColumn::Component} />
+            <TableColumn<RemediationColumn> label="Vulnerability" index={RemediationColumn::Vulnerability} />
+            <TableColumn<RemediationColumn> label="Status" index={RemediationColumn::Status} />
+            <TableColumn<RemediationColumn> label="Remediation" index={RemediationColumn::Remediation} />
+            <TableColumn<RemediationColumn> label="Advisory" index={RemediationColumn::Advisory} />
+        </TableHeader<RemediationColumn>>
+    };
+
     let has_verdicts = !props.verdicts.is_empty();
     let has_unmatched = !props.unmatched_components.is_empty();
 
@@ -411,6 +539,9 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
 
             <br />
 
+            <Tabs<CorrelationTab> selected={*tab} {onselect}>
+            <Tab<CorrelationTab> index={CorrelationTab::Verdicts} title="Verdicts">
+            <TabContent><TabContentBody padding=true>
             if has_verdicts {
                 <Title level={Level::H2}>
                     { "Correlated components " }
@@ -436,6 +567,25 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
                     entries={unmatched_entries}
                 />
             }
+            </TabContentBody></TabContent>
+            </Tab<CorrelationTab>>
+            <Tab<CorrelationTab> index={CorrelationTab::Remediations} title={format!("Remediations ({remediation_count})")}>
+            <TabContent><TabContentBody padding=true>
+            if remediation_count == 0 {
+                <EmptyState title="No remediations" icon={Icon::InfoCircle} size={Size::Large}>
+                    { "The advisories of the evidence state no remediation, such as a fixed version." }
+                </EmptyState>
+            } else {
+                <p>{ "What the advisories state to remediate the vulnerabilities of the components, e.g. the version fixing them." }</p>
+                <Table<RemediationColumn, UseTableData<RemediationColumn, MemoizedTableModel<RemediationEntry>>>
+                    mode={TableMode::Compact}
+                    header={remediation_header}
+                    entries={remediation_entries}
+                />
+            }
+            </TabContentBody></TabContent>
+            </Tab<CorrelationTab>>
+            </Tabs<CorrelationTab>>
         </>
     }
 }

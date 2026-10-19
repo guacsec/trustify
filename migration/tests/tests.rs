@@ -4,6 +4,39 @@ use test_context::test_context;
 use test_log::test;
 use trustify_test_context::TrustifyContext;
 
+/// The number of applied migrations from the named one on, to roll back to just before it (and
+/// re-apply them), independent of migrations added later.
+async fn since(
+    migrator: &Migrator,
+    db: &sea_orm::DatabaseConnection,
+    name: &str,
+) -> anyhow::Result<u32> {
+    let names = migrator
+        .get_applied_migrations(db)
+        .await?
+        .iter()
+        .map(|migration| migration.name().to_string())
+        .collect::<Vec<_>>();
+    let position = names
+        .iter()
+        .position(|applied| applied == name)
+        .ok_or_else(|| anyhow::anyhow!("migration {name} is not applied"))?;
+    Ok(u32::try_from(names.len() - position)?)
+}
+
+/// The number of evidence rows, read without the entity, whose columns may not exist yet.
+async fn evidence_count(db: &sea_orm::DatabaseConnection) -> anyhow::Result<i64> {
+    use sea_orm::{ConnectionTrait, DbBackend, Statement};
+    Ok(db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT count(*) AS count FROM correlation_evidence".to_string(),
+        ))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no count"))?
+        .try_get("", "count")?)
+}
+
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_migrations(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
@@ -76,6 +109,7 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             extractor: Set("purl".into()),
             matched_value: Set(Some(serde_json::json!({"identifier": identifier}))),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
+            confidence_factors: sea_orm::NotSet,
         }
         .insert(&ctx.db)
         .await?;
@@ -88,21 +122,16 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
         2
     );
     // Also roll back the newer origin, provider metadata, and policy-removal migrations.
-    migrator.down(&ctx.db, Some(4)).await?;
-    assert_eq!(
-        correlation_evidence::Entity::find()
-            .all(&ctx.db)
-            .await?
-            .len(),
-        1
-    );
+    let migrations = since(&migrator, &ctx.db, "m0002600_purl_status_qualified_purl").await?;
+    migrator.down(&ctx.db, Some(migrations)).await?;
+    assert_eq!(evidence_count(&ctx.db).await?, 1);
     ctx.db
         .query_all_raw(Statement::from_string(
             DbBackend::Postgres,
             "SELECT id FROM purl_status_effective".to_string(),
         ))
         .await?;
-    migrator.up(&ctx.db, Some(4)).await?;
+    migrator.up(&ctx.db, Some(migrations)).await?;
     let restored = purl_status::Entity::find().all(&ctx.db).await?;
     assert_eq!(
         restored
@@ -123,14 +152,15 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
 async fn correlation_assertion_origin_upgrade_and_downgrade(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
-    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    use sea_orm::{EntityTrait, QuerySelect, Set, TryIntoModel};
     use trustify_entity::correlation_evidence::{self, AssertionStatus};
     use uuid::Uuid;
 
     let sbom = ctx.ingest_document("spdx/simple.json").await?;
     let advisory = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     let migrator = Migrator::new(ctx.storage.clone(), ());
-    migrator.down(&ctx.db, Some(3)).await?;
+    let migrations = since(&migrator, &ctx.db, "m0002610_correlation_assertion_origin").await?;
+    migrator.down(&ctx.db, Some(migrations)).await?;
     let mut expected = Vec::new();
     for (extractor, origin, null_value) in [
         ("purl", Some("stated"), false),
@@ -186,18 +216,24 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
             extractor: Set(extractor.into()),
             matched_value: Set(Some(value.clone())),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
+            confidence_factors: sea_orm::NotSet,
         };
         if null_value {
             row.matched_value = Set(None);
             value = serde_json::json!({"identifier": ""});
         }
-        let row = row.insert(&ctx.db).await?;
+        // inserted into the rolled back schema, without the columns of later migrations
+        correlation_evidence::Entity::insert(row.clone())
+            .exec_without_returning(&ctx.db)
+            .await?;
+        row.confidence_factors = Set(serde_json::json!([]));
+        let row = row.try_into_model()?;
         if let Some(origin) = origin {
             value["origin"] = origin.into();
         }
         expected.push((row, value));
     }
-    migrator.up(&ctx.db, Some(3)).await?;
+    migrator.up(&ctx.db, Some(migrations)).await?;
     for (old, value) in &expected {
         let row = correlation_evidence::Entity::find_by_id(old.id)
             .one(&ctx.db)
@@ -212,17 +248,21 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
             }
         );
     }
-    migrator.down(&ctx.db, Some(3)).await?;
+    migrator.down(&ctx.db, Some(migrations)).await?;
     for (old, value) in &expected {
-        let row = correlation_evidence::Entity::find_by_id(old.id)
+        // only the column which exists in the rolled back schema
+        let matched_value = correlation_evidence::Entity::find_by_id(old.id)
+            .select_only()
+            .column(correlation_evidence::Column::MatchedValue)
+            .into_tuple::<Option<serde_json::Value>>()
             .one(&ctx.db)
             .await?
             .unwrap();
         let mut value = value.clone();
         value.as_object_mut().unwrap().remove("origin");
-        assert_eq!(row.matched_value, Some(value));
+        assert_eq!(matched_value, Some(value));
     }
-    migrator.up(&ctx.db, Some(3)).await?;
+    migrator.up(&ctx.db, Some(migrations)).await?;
     Ok(())
 }
 
@@ -244,7 +284,8 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
             "advisory_vulnerability_cpe",
         ] {
             let row = ctx.db.query_one_raw(Statement::from_string(DbBackend::Postgres,
-                format!("SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text), '[]'::jsonb) AS data FROM {table} t")))
+                // without the columns of later migrations
+                format!("SELECT coalesce(jsonb_agg(to_jsonb(t) - 'confidence_factors' ORDER BY (to_jsonb(t) - 'confidence_factors')::text), '[]'::jsonb) AS data FROM {table} t")))
                 .await?.unwrap();
             result.push(row.try_get("", "data")?);
         }
@@ -261,16 +302,18 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
             confidence: Set(0.9), extractor: Set("purl".into()),
             matched_value: Set(Some(serde_json::json!({"identifier":"pkg:generic/demo@1", "origin":"stated", "source_provider":{"identifiers":[format!("name:{provider}")]}}))),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
+            confidence_factors: sea_orm::NotSet,
         }.insert(&ctx.db).await?;
     }
-    migrator.down(&ctx.db, Some(1)).await?;
+    let migrations = since(&migrator, &ctx.db, "m0002630_remove_correlation_weights").await?;
+    migrator.down(&ctx.db, Some(migrations)).await?;
     ctx.db.execute_unprepared("INSERT INTO correlation_weight_policy(id, revision, scope, weights) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', '{\"kind\":\"instance\"}', '{\"direct\":2}');
         INSERT INTO correlation_provider_alias(id, revision, provider, aliases) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'A', '[\"name:A\"]');
         UPDATE sbom_package SET supplier = '{\"identifiers\":[\"name:A\"]}';
         UPDATE purl_status SET source_provider = '{\"identifiers\":[\"name:A\"]}';
         UPDATE advisory_vulnerability_cpe SET source_provider = '{\"identifiers\":[\"name:A\"]}';").await?;
     let before = retained_data(ctx).await?;
-    migrator.up(&ctx.db, Some(1)).await?;
+    migrator.up(&ctx.db, Some(migrations)).await?;
     let table: Option<String> = ctx
         .db
         .query_one_raw(Statement::from_string(
@@ -289,7 +332,7 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
             .len(),
         2
     );
-    migrator.down(&ctx.db, Some(1)).await?;
+    migrator.down(&ctx.db, Some(migrations)).await?;
     let count: i64 = ctx
         .db
         .query_one_raw(Statement::from_string(
@@ -301,7 +344,7 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
         .try_get("", "count")?;
     assert_eq!(count, 0);
     assert_eq!(before, retained_data(ctx).await?);
-    migrator.up(&ctx.db, Some(1)).await?;
+    migrator.up(&ctx.db, Some(migrations)).await?;
     assert_eq!(before, retained_data(ctx).await?);
     Ok(())
 }

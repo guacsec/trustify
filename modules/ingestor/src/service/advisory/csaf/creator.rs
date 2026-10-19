@@ -30,7 +30,8 @@ use csaf::schema::csaf2_0::schema::{
 };
 use sbom_walker::report::ReportSink;
 use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
-use std::collections::{HashMap, HashSet};
+use sea_query::OnConflict;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::instrument;
 use trustify_common::{
     cpe::{Component, Cpe},
@@ -74,8 +75,15 @@ type CpeEntry = (Cpe, Option<VersionInfo>, AssertionStatus, Option<Uuid>);
 /// A file hash (algorithm, value) an advisory makes an assertion about, in a context.
 type HashEntry = (String, String, AssertionStatus, Option<Uuid>);
 
-/// A product identifier an advisory makes an assertion about, in a context.
-type ProductIdentifierEntry = (ProductIdentifierType, String, AssertionStatus, Option<Uuid>);
+/// A product identifier an advisory makes an assertion about, optionally constrained by the
+/// versions of the identified product, in a context.
+type ProductIdentifierEntry = (
+    ProductIdentifierType,
+    String,
+    Option<VersionInfo>,
+    AssertionStatus,
+    Option<Uuid>,
+);
 
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
@@ -159,6 +167,7 @@ impl<'a> StatusCreator<'a> {
                 // those go into the context instead.
                 for (product_id, _) in parts.iter().filter(|(_, subject)| *subject) {
                     let combination = self.cache.get_relationship(product_id).is_some();
+                    let mut identifiers = Vec::new();
                     for pih in self.cache.helpers(product_id) {
                         for hc in &pih.hashes {
                             for fh in &hc.file_hashes {
@@ -174,26 +183,36 @@ impl<'a> StatusCreator<'a> {
                         if combination {
                             continue;
                         }
-                        for mn in pih.model_numbers.iter().flatten() {
+                        identifiers.extend(
+                            pih.model_numbers
+                                .iter()
+                                .flatten()
+                                .map(|value| {
+                                    (ProductIdentifierType::ModelNumber, value.to_string())
+                                })
+                                .chain(pih.serial_numbers.iter().flatten().map(|value| {
+                                    (ProductIdentifierType::SerialNumber, value.to_string())
+                                }))
+                                .chain(
+                                    pih.skus.iter().map(|value| {
+                                        (ProductIdentifierType::Sku, value.to_string())
+                                    }),
+                                ),
+                        );
+                    }
+                    if identifiers.is_empty() {
+                        continue;
+                    }
+                    // the identifiers name the product, its versions are the ones of its branch
+                    let Some(ranges) = self.version_ranges(product_id) else {
+                        continue;
+                    };
+                    for (id_type, value) in identifiers {
+                        for range in &ranges {
                             self.product_identifier_entries.insert((
-                                ProductIdentifierType::ModelNumber,
-                                mn.to_string(),
-                                assertion,
-                                context,
-                            ));
-                        }
-                        for sn in pih.serial_numbers.iter().flatten() {
-                            self.product_identifier_entries.insert((
-                                ProductIdentifierType::SerialNumber,
-                                sn.to_string(),
-                                assertion,
-                                context,
-                            ));
-                        }
-                        for sku in &pih.skus {
-                            self.product_identifier_entries.insert((
-                                ProductIdentifierType::Sku,
-                                sku.to_string(),
+                                id_type,
+                                value.clone(),
+                                range.clone(),
                                 assertion,
                                 context,
                             ));
@@ -266,23 +285,9 @@ impl<'a> StatusCreator<'a> {
         } else {
             // for a relationship, the component states the version (e.g. a firmware range,
             // installed on a device which is identified by the relationship's CPE)
-            match self.cache.version_branch(product_id) {
-                None => vec![None],
-                Some(leaf) => match leaf.category {
-                    CategoryOfTheBranch::ProductVersionRange => match parse_range(&leaf.name) {
-                        Ok(infos) => infos.into_iter().map(Some).collect(),
-                        Err(err) => {
-                            // never widen an unparsable range to "all versions"
-                            tracing::debug!(%cpe, range = leaf.name.as_str(), "skipping CPE with invalid range: {err}");
-                            return Ok(());
-                        }
-                    },
-                    CategoryOfTheBranch::ProductVersion => vec![Some(VersionInfo {
-                        scheme: VersionScheme::Generic,
-                        spec: VersionSpec::Exact(leaf.name.to_string()),
-                    })],
-                    _ => vec![None],
-                },
+            match self.version_ranges(product_id) {
+                Some(ranges) => ranges,
+                None => return Ok(()),
             }
         };
 
@@ -292,6 +297,33 @@ impl<'a> StatusCreator<'a> {
         }
 
         Ok(())
+    }
+
+    /// The versions of a product: the range or version of its version branch, which for a
+    /// relationship is the one of its component. `[None]` without a version branch (all versions),
+    /// `None` for a range which can't be parsed, which must never widen to all versions.
+    fn version_ranges(&self, product_id: &str) -> Option<Vec<Option<VersionInfo>>> {
+        let Some(leaf) = self.cache.version_branch(product_id) else {
+            return Some(vec![None]);
+        };
+        match leaf.category {
+            CategoryOfTheBranch::ProductVersionRange => match parse_range(&leaf.name) {
+                Ok(infos) => Some(infos.into_iter().map(Some).collect()),
+                Err(err) => {
+                    tracing::debug!(
+                        product_id,
+                        range = leaf.name.as_str(),
+                        "skipping product with invalid range: {err}"
+                    );
+                    None
+                }
+            },
+            CategoryOfTheBranch::ProductVersion => Some(vec![Some(VersionInfo {
+                scheme: VersionScheme::Generic,
+                spec: VersionSpec::Exact(leaf.name.to_string()),
+            })]),
+            _ => Some(vec![None]),
+        }
     }
 
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
@@ -584,14 +616,23 @@ impl<'a> StatusCreator<'a> {
         }
 
         if !self.product_identifier_entries.is_empty() {
-            let mut pid_models: Vec<advisory_vulnerability_product_identifier::ActiveModel> = self
+            let mut version_ranges = BTreeMap::new();
+            let mut pid_models = self
                 .product_identifier_entries
                 .iter()
-                .map(|(id_type, value, status, context)| {
+                .map(|(id_type, value, range, status, context)| {
+                    let version_range_id = range.as_ref().map(|range| {
+                        let id = range.uuid();
+                        version_ranges
+                            .entry(id)
+                            .or_insert_with(|| range.clone().into_active_model());
+                        id
+                    });
+                    let range_id = version_range_id.unwrap_or_default().to_string();
                     advisory_vulnerability_product_identifier::ActiveModel {
                         id: Set(self.entry_id(
                             ADVISORY_PRODUCT_IDENTIFIER_NAMESPACE,
-                            &[&id_type.to_value(), value],
+                            &[&id_type.to_value(), value, &range_id],
                             *status,
                             *context,
                         )),
@@ -601,11 +642,20 @@ impl<'a> StatusCreator<'a> {
                         value: Set(value.clone()),
                         status: Set(*status),
                         assertion_context_id: Set(*context),
+                        version_range_id: Set(version_range_id),
                     }
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
             pid_models.sort_by_key(|model| *model.id.as_ref());
+
+            for batch in &version_ranges.into_values().chunked() {
+                version_range::Entity::insert_many(batch)
+                    .on_conflict(OnConflict::new().do_nothing().to_owned())
+                    .try_insert()
+                    .exec_without_returning(connection)
+                    .await?;
+            }
 
             for batch in &pid_models.chunked() {
                 advisory_vulnerability_product_identifier::Entity::insert_many(batch)

@@ -8,16 +8,16 @@ pub mod wildcard;
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef, MatchedValue},
+    model::{ConfidenceFactor, ConfidenceReason, IdentifierKind, IdentifierRef, MatchedValue},
 };
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter,
 };
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
     advisory_vulnerability_product_identifier::{self, ProductIdentifierType},
-    sbom_node_product_identifier,
+    sbom_node_product_identifier, version_range,
 };
 use uuid::Uuid;
 use wildcard::{csaf_glob_matches, csaf_glob_to_like, has_wildcards};
@@ -41,17 +41,56 @@ fn identifier_type(kind: IdentifierKind) -> Option<ProductIdentifierType> {
     }
 }
 
-fn assertion(ap: &advisory_vulnerability_product_identifier::Model) -> Assertion {
+/// The version ranges of advisory product identifiers, by ID.
+type Ranges = HashMap<Uuid, version_range::Model>;
+
+/// The assertion of an advisory product identifier. The identifier names a product, its versions
+/// are the ones of the product's version range, checked against the node's version.
+fn assertion(ap: &advisory_vulnerability_product_identifier::Model, ranges: &Ranges) -> Assertion {
+    let mut matched_value = MatchedValue::new(ap.value.clone());
+    matched_value.ranges = ap
+        .version_range_id
+        .and_then(|id| ranges.get(&id))
+        .map(|range| range.clone().into())
+        .into_iter()
+        .collect();
     Assertion {
         extractor: ID,
         advisory_id: ap.advisory_id,
         vulnerability_id: ap.vulnerability_id.clone(),
         status: ap.status,
         confidence: CONFIDENCE,
-        matched_value: MatchedValue::new(ap.value.clone()),
+        factors: vec![ConfidenceFactor::new(
+            ConfidenceReason::ProductIdentifier,
+            CONFIDENCE,
+        )],
+        matched_value,
         context_id: ap.assertion_context_id,
         requires_context: false,
+        version_range_id: ap.version_range_id,
     }
+}
+
+/// Load the version ranges of advisory product identifiers.
+async fn load_ranges<'a>(
+    rows: impl IntoIterator<Item = &'a advisory_vulnerability_product_identifier::Model>,
+    connection: &impl ConnectionTrait,
+) -> Result<Ranges, Error> {
+    let ids = rows
+        .into_iter()
+        .filter_map(|row| row.version_range_id)
+        .collect::<BTreeSet<_>>();
+    if ids.is_empty() {
+        return Ok(Ranges::new());
+    }
+    Ok(version_range::Entity::find()
+        .filter(version_range::Column::Id.is_in(ids))
+        .all(connection)
+        .instrument(info_span!("loading product version ranges"))
+        .await?
+        .into_iter()
+        .map(|range| (range.id, range))
+        .collect())
 }
 
 #[async_trait::async_trait]
@@ -116,6 +155,11 @@ impl Extractor for ProductIdentifierExtractor {
             return Ok(Vec::new());
         }
 
+        let values = value_map.keys().copied().collect::<Vec<_>>();
+        let exact = load_product_identifiers_by_values(&values, tx).await?;
+        let wildcards = load_wildcard_product_identifiers(tx).await?;
+        let ranges = load_ranges(exact.iter().chain(&wildcards), tx).await?;
+
         let mut result = Vec::new();
         let mut push_matches =
             |ap: &advisory_vulnerability_product_identifier::Model,
@@ -124,23 +168,22 @@ impl Extractor for ProductIdentifierExtractor {
                     if *id_type == ap.identifier_type {
                         result.push(IdentifierMatch {
                             index: *idx,
-                            assertion: assertion(ap),
+                            assertion: assertion(ap, &ranges),
                         });
                     }
                 }
             };
 
-        let values = value_map.keys().copied().collect::<Vec<_>>();
-        for ap in load_product_identifiers_by_values(&values, tx).await? {
+        for ap in &exact {
             if let Some(entries) = value_map.get(ap.value.as_str()) {
-                push_matches(&ap, entries);
+                push_matches(ap, entries);
             }
         }
 
-        for ap in load_wildcard_product_identifiers(tx).await? {
+        for ap in &wildcards {
             for (value, entries) in &value_map {
                 if csaf_glob_matches(&ap.value, value) {
-                    push_matches(&ap, entries);
+                    push_matches(ap, entries);
                 }
             }
         }
@@ -173,6 +216,7 @@ impl Extractor for ProductIdentifierExtractor {
         if advisory_pids.is_empty() {
             return Ok(Vec::new());
         }
+        let ranges = load_ranges(&advisory_pids, tx).await?;
 
         let mut value_map =
             HashMap::<&str, Vec<&advisory_vulnerability_product_identifier::Model>>::new();
@@ -215,7 +259,7 @@ impl Extractor for ProductIdentifierExtractor {
                             sbom_id: si.sbom_id,
                             node_id: si.node_id.clone(),
                         },
-                        assertion: assertion(ap),
+                        assertion: assertion(ap, &ranges),
                     });
                 }
             }
@@ -281,12 +325,14 @@ async fn load_sbom_product_identifiers_by_values(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::extractor::Extractors;
+    use crate::{extractor::Extractors, model::ContextSource as ApiContextSource};
     use sea_orm::{QueryOrder, TransactionTrait};
+    use serde_json::{Value, json};
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::{
-        correlation_evidence, correlation_evidence_context,
+        correlation_evidence::{self, AssertionStatus},
+        correlation_evidence_context,
         correlation_evidence_context::ContextSource,
     };
     use trustify_test_context::TrustifyContext;
@@ -314,23 +360,15 @@ mod test {
         Ok(count)
     }
 
-    /// The evidence of an SBOM, by node: its confidence and context links.
-    async fn evidence_of(
-        ctx: &TrustifyContext,
-        sbom_id: Uuid,
-    ) -> anyhow::Result<
-        Vec<(
-            String,
-            String,
-            f64,
-            Vec<(ContextSource, String, String, f64)>,
-        )>,
-    > {
+    /// The evidence of an SBOM, by node: vulnerability, status, confidence, the matched value and
+    /// context links.
+    async fn evidence_of(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
         let mut result = Vec::new();
         for evidence in correlation_evidence::Entity::find()
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
             .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
             .order_by_asc(correlation_evidence::Column::NodeId)
+            .order_by_asc(correlation_evidence::Column::VulnerabilityId)
             .all(&ctx.db)
             .await?
         {
@@ -350,29 +388,99 @@ mod test {
                     )
                 })
                 .collect();
-            result.push((
-                evidence.node_id,
-                evidence.vulnerability_id,
-                evidence.confidence,
+            result.push(Evidence {
+                node_id: evidence.node_id,
+                vulnerability_id: evidence.vulnerability_id,
+                status: evidence.status,
+                confidence: evidence.confidence,
+                factors: serde_json::from_value(evidence.confidence_factors)?,
+                matched_value: evidence.matched_value.unwrap_or_default(),
                 links,
-            ));
+            });
         }
         Ok(result)
     }
 
+    /// An evidence row, as compared by the tests.
+    #[derive(Debug, PartialEq)]
+    struct Evidence {
+        node_id: String,
+        vulnerability_id: String,
+        status: AssertionStatus,
+        confidence: f64,
+        factors: Vec<ConfidenceFactor>,
+        matched_value: Value,
+        links: Vec<(ContextSource, String, String, f64)>,
+    }
+
+    /// The factors of a product identifier match, in a confirmed or unconfirmed product.
+    fn factors(product: Option<ConfidenceFactor>) -> Vec<ConfidenceFactor> {
+        let mut factors = vec![ConfidenceFactor::new(
+            ConfidenceReason::ProductIdentifier,
+            1.0,
+        )];
+        factors.extend(product);
+        factors
+    }
+
+    /// The factor of a product confirmed by the parent's SKUs.
+    fn by_parent() -> Option<ConfidenceFactor> {
+        Some(ConfidenceFactor::new(
+            ConfidenceReason::ProductConfirmed {
+                source: ApiContextSource::AncestorNode,
+                distance: 1,
+            },
+            0.9,
+        ))
+    }
+
+    /// The factor of a product nothing confirms.
+    fn not_confirmed() -> Option<ConfidenceFactor> {
+        Some(ConfidenceFactor::new(
+            ConfidenceReason::ProductNotConfirmed,
+            0.7,
+        ))
+    }
+
+    /// The SKUs of the JBL Flip 4 in HBSA-2025-0003, as recorded on an unconfirmed context link.
+    const FLIP4_SKUS: &str = "sku:050036336109, sku:050036336116, sku:050036336123, \
+        sku:050036336130, sku:050036336147, sku:050036337366, sku:050036337373, sku:050036337380, \
+        sku:050036337397, sku:050036337403, sku:050036337441, sku:6925281922404, sku:6925281922411, \
+        sku:6925281922428, sku:6925281922435, sku:6925281922442, sku:6925281924408, sku:6925281924415, \
+        sku:6925281924422, sku:6925281924439, sku:6925281924446, sku:6925281924545";
+
+    /// The matched value of model number `Flip 4`, for firmware below 4.1.0 or exactly 4.1.0.
+    fn flip4(fixed: bool) -> Value {
+        let range = match fixed {
+            false => json!({"scheme": "semver", "high": {"version": "4.1.0", "inclusive": false}}),
+            true => json!({
+                "scheme": "generic",
+                "low": {"version": "4.1.0", "inclusive": true},
+                "high": {"version": "4.1.0", "inclusive": true},
+            }),
+        };
+        json!({"origin": "stated", "identifier": "Flip 4", "ranges": [range]})
+    }
+
+    /// Ingest an S19 SBOM and advisory, and extract the evidence of the SBOM.
+    async fn s19(ctx: &TrustifyContext, sbom: &str, advisory: &str) -> anyhow::Result<Uuid> {
+        let sbom = ctx
+            .ingest_document(&format!("scenarios/S19_sku_correlation/sbom/{sbom}"))
+            .await?;
+        ctx.ingest_document(&format!("scenarios/S19_sku_correlation/vex/{advisory}"))
+            .await?;
+        let sbom_id = Uuid::parse_str(&sbom.id)?;
+        extract_for_sbom(ctx, sbom_id).await?;
+        Ok(sbom_id)
+    }
+
     /// Only the firmware is affected, not the device it is installed on. Contained in the device,
-    /// the device's SKUs confirm the product the statement is about.
+    /// the device's SKUs confirm the product the statement is about. The firmware's version is
+    /// below 4.1.0, so the statement of the fixed 4.1.0 doesn't apply.
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
     async fn sku_confirms_firmware_in_assembly(ctx: &TrustifyContext) -> anyhow::Result<()> {
-        let sbom = ctx
-            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json")
-            .await?;
-        ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
-            .await?;
-        let sbom_id = Uuid::parse_str(&sbom.id)?;
-
-        extract_for_sbom(ctx, sbom_id).await?;
+        let sbom_id = s19(ctx, "jbl_flip4_assembly.cdx.json", "hbsa-2025-0003.json").await?;
 
         let link = |sku: &str| {
             (
@@ -384,12 +492,50 @@ mod test {
         };
         assert_eq!(
             evidence_of(ctx, sbom_id).await?,
-            vec![(
-                "comp-flip4-fw".to_string(),
-                "CVE-2025-41725".to_string(),
+            vec![Evidence {
+                node_id: "comp-flip4-fw".into(),
+                vulnerability_id: "CVE-2025-41725".into(),
+                status: AssertionStatus::Affected,
+                confidence: 0.9,
+                factors: factors(by_parent()),
+                matched_value: flip4(false),
+                links: vec![link("050036337366"), link("6925281924439")],
+            }]
+        );
+
+        Ok(())
+    }
+
+    /// The firmware 4.1.0 is only in the fixed statement.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn fixed_firmware_version(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let sbom_id = s19(
+            ctx,
+            "jbl_flip4_assembly_fw_4.1.0.cdx.json",
+            "hbsa-2025-0003.json",
+        )
+        .await?;
+
+        let link = |sku: &str| {
+            (
+                ContextSource::AncestorNode,
+                format!("sku:{sku}"),
+                format!("sku:{sku}"),
                 0.9,
-                vec![link("050036337366"), link("6925281924439")]
-            )]
+            )
+        };
+        assert_eq!(
+            evidence_of(ctx, sbom_id).await?,
+            vec![Evidence {
+                node_id: "comp-flip4-fw".into(),
+                vulnerability_id: "CVE-2025-41725".into(),
+                status: AssertionStatus::Fixed,
+                confidence: 0.9,
+                factors: factors(by_parent()),
+                matched_value: flip4(true),
+                links: vec![link("050036337366"), link("6925281924439")],
+            }]
         );
 
         Ok(())
@@ -399,29 +545,84 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
     async fn model_number_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
-        let sbom = ctx
-            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
-            .await?;
-        ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
-            .await?;
-        let sbom_id = Uuid::parse_str(&sbom.id)?;
-
-        extract_for_sbom(ctx, sbom_id).await?;
+        let sbom_id = s19(ctx, "jbl_flip4.cdx.json", "hbsa-2025-0003.json").await?;
 
         assert_eq!(
             evidence_of(ctx, sbom_id).await?,
-            vec![(
-                "comp-flip4-fw".to_string(),
-                "CVE-2025-41725".to_string(),
-                0.7,
-                vec![(
+            vec![Evidence {
+                node_id: "comp-flip4-fw".into(),
+                vulnerability_id: "CVE-2025-41725".into(),
+                status: AssertionStatus::Affected,
+                confidence: 0.7,
+                factors: factors(not_confirmed()),
+                matched_value: flip4(false),
+                links: vec![(
                     ContextSource::Unconfirmed,
                     String::new(),
-                    "sku:050036337366, sku:6925281924439".to_string(),
+                    FLIP4_SKUS.to_string(),
                     0.7
-                )]
-            )]
+                )],
+            }]
         );
+
+        Ok(())
+    }
+
+    /// A product stated without a relationship is affected through its own SKU, in all versions.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn sku_of_device(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let sbom_id = s19(ctx, "jbl_flip5.cdx.json", "hbsa-2025-0002.json").await?;
+
+        assert_eq!(
+            evidence_of(ctx, sbom_id).await?,
+            vec![Evidence {
+                node_id: "comp-flip5-device".into(),
+                vulnerability_id: "CVE-2024-2105".into(),
+                status: AssertionStatus::Affected,
+                confidence: 1.0,
+                factors: factors(None),
+                matched_value: json!({"origin": "stated", "identifier": "050036359160"}),
+                links: vec![],
+            }]
+        );
+
+        Ok(())
+    }
+
+    /// A node without a version is in no version range.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn no_version_no_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        use crate::extractor::version::retain_in_range;
+
+        let sbom = ctx
+            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
+            .await?;
+        let advisory = ctx
+            .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+            .await?;
+        let sbom_id = Uuid::parse_str(&sbom.id)?;
+
+        let tx = ctx.db.begin().await?;
+        let matches = ProductIdentifierExtractor
+            .match_advisory(Uuid::parse_str(&advisory.id)?, &tx)
+            .await?
+            .into_iter()
+            .filter(|m| m.node.sbom_id == sbom_id)
+            .map(|m| {
+                (
+                    NodeRef {
+                        sbom_id,
+                        // no package, so no version
+                        node_id: "unknown".into(),
+                    },
+                    m.assertion,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(matches.len(), 2);
+        assert_eq!(retain_in_range(matches, &tx).await?, vec![]);
 
         Ok(())
     }
@@ -508,28 +709,28 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
     async fn wildcard_model_number_match_from_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
-        let sbom = ctx
-            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
-            .await?;
-        ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
-            .await?;
-        let sbom_id = Uuid::parse_str(&sbom.id)?;
-
-        extract_for_sbom(ctx, sbom_id).await?;
+        let sbom_id = s19(ctx, "jbl_flip4.cdx.json", "hbsa-2025-0004.json").await?;
 
         assert_eq!(
             evidence_of(ctx, sbom_id).await?,
-            vec![(
-                "comp-flip4-fw".to_string(),
-                "CVE-2026-50001".to_string(),
-                0.7,
-                vec![(
+            vec![Evidence {
+                node_id: "comp-flip4-fw".into(),
+                vulnerability_id: "CVE-2026-50001".into(),
+                status: AssertionStatus::Affected,
+                confidence: 0.7,
+                factors: factors(not_confirmed()),
+                matched_value: json!({
+                    "origin": "stated",
+                    "identifier": "Flip ?",
+                    "ranges": [{"scheme": "semver", "high": {"version": "5.0.0", "inclusive": false}}],
+                }),
+                links: vec![(
                     ContextSource::Unconfirmed,
                     String::new(),
                     "sku:6925281*".to_string(),
                     0.7
-                )]
-            )]
+                )],
+            }]
         );
 
         Ok(())

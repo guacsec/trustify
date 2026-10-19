@@ -51,8 +51,11 @@ impl EvidenceWriter {
         let id = Self::evidence_id(node, &assertion);
         match self.evidence.get_mut(&id) {
             Some(pending) => {
-                pending.assertion.confidence =
-                    pending.assertion.confidence.max(assertion.confidence);
+                // the best match decides the confidence, and so its factors
+                if assertion.confidence > pending.assertion.confidence {
+                    pending.assertion.confidence = assertion.confidence;
+                    pending.assertion.factors = assertion.factors;
+                }
                 let ranges = &mut pending.assertion.matched_value.ranges;
                 ranges.extend(assertion.matched_value.ranges);
                 ranges.sort();
@@ -113,12 +116,14 @@ impl EvidenceWriter {
             } = pending;
             let matched_value =
                 serde_json::to_value(&assertion.matched_value).map_err(Error::MatchedValue)?;
+            let confidence_factors =
+                serde_json::to_value(&assertion.factors).map_err(Error::MatchedValue)?;
             for link in contexts {
                 links.push(correlation_evidence_context::ActiveModel {
                     evidence_id: Set(id),
                     context_id: Set(link.context_id),
                     source: Set(link.source),
-                    distance: Set(link.distance),
+                    distance: Set(i32::try_from(link.distance)?),
                     node_identifier: Set(link.node_identifier),
                     context_identifier: Set(link.context_identifier),
                     confidence: Set(link.confidence),
@@ -135,6 +140,7 @@ impl EvidenceWriter {
                 extractor: Set(assertion.extractor.to_string()),
                 matched_value: Set(Some(matched_value)),
                 created_at: Set(time::OffsetDateTime::now_utc()),
+                confidence_factors: Set(confidence_factors),
             });
         }
 
@@ -176,9 +182,11 @@ mod test {
             vulnerability_id: "CVE-0000-0001".into(),
             status: AssertionStatus::Affected,
             confidence: 1.0,
+            factors: vec![],
             matched_value: MatchedValue::default(),
             context_id: None,
             requires_context: false,
+            version_range_id: None,
         };
 
         assert_eq!(
@@ -244,6 +252,7 @@ mod test {
             vulnerability_id: "CVE-0000-0001".into(),
             status: AssertionStatus::Affected,
             confidence,
+            factors: vec![],
             matched_value: MatchedValue {
                 source_provider: None,
                 origin: crate::model::AssertionOrigin::Stated,
@@ -253,6 +262,7 @@ mod test {
             },
             context_id: Some(Uuid::from_u128(context)),
             requires_context: false,
+            version_range_id: None,
         };
         let link = |context: u128, confidence: f64| ContextLink {
             context_id: Uuid::from_u128(context),

@@ -18,6 +18,10 @@ pub struct Model {
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub matched_value: Option<serde_json::Value>,
     pub created_at: TimeDateTimeWithTimeZone,
+    /// The factors of the confidence, serialized `trustify_api::correlation::ConfidenceFactor`s.
+    /// Empty for evidence extracted before they were recorded.
+    #[sea_orm(column_type = "JsonBinary")]
+    pub confidence_factors: serde_json::Value,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, EnumIter, DeriveRelation)]

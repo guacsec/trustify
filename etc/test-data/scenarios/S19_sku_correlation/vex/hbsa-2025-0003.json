@@ -1,28 +1,116 @@
 {
   "document": {
-    "category": "csaf_vex",
+    "acknowledgments": [
+      {
+        "organization": "CERT@VDE",
+        "summary": "coordination",
+        "urls": [
+          "https://certvde.com"
+        ]
+      },
+      {
+        "names": [
+          "Justus W. Perlwitz"
+        ],
+        "organization": "JWP Consulting",
+        "summary": "reporting",
+        "urls": [
+          "https://www.jwpconsulting.net/"
+        ]
+      }
+    ],
+    "aggregate_severity": {
+      "namespace": "https://www.first.org/cvss/calculator/3.1#CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+      "text": "Medium (6.5)"
+    },
+    "category": "csaf_security_advisory",
     "csaf_version": "2.0",
     "distribution": {
       "tlp": {
         "label": "WHITE"
       }
     },
-    "lang": "en-US",
+    "lang": "en-GB",
+    "notes": [
+      {
+        "audience": "all",
+        "category": "summary",
+        "text": "The Bluetooth Classic implementation on JBL Flip 4 devices with firmware version prior to 4.1.0 does not properly\nhandle malformed LMP messages and causes the entire device to crash. Any attacker in radio range can\nexploit this vulnerability.",
+        "title": "Summary"
+      },
+      {
+        "audience": "all",
+        "category": "description",
+        "text": "Any attacker in radio range can send malicious messages to cause the device to crash.",
+        "title": "Impact"
+      },
+      {
+        "audience": "all",
+        "category": "description",
+        "text": "There is no known mitigation at this moment.",
+        "title": "Mitigation"
+      },
+      {
+        "audience": "all",
+        "category": "description",
+        "text": "The vulnerability is fixed in firmware version 4.1.0.",
+        "title": "Remediation"
+      },
+      {
+        "audience": "all",
+        "category": "description",
+        "text": "The JBL Flip 4 is a portable bluetooth speaker.",
+        "title": "Product Description"
+      }
+    ],
     "publisher": {
       "category": "vendor",
-      "name": "HARMAN International",
+      "contact_details": "productsecurity@harman.com",
+      "name": "Harman International",
       "namespace": "https://www.harman.com"
     },
-    "title": "DoS vulnerability in JBL Flip 4",
+    "references": [
+      {
+        "category": "external",
+        "summary": "CERT@VDE Security Advisories for Harman",
+        "url": "https://certvde.com/en/advisories/vendor/harmann/"
+      },
+      {
+        "category": "self",
+        "summary": "HBSA-2025-0003: JBL: DoS vulnerability in Flip 4 - HTML",
+        "url": "https://certvde.com/en/advisories/VDE-2025-090"
+      },
+      {
+        "category": "self",
+        "summary": "HBSA-2025-0003: JBL: DoS vulnerability in Flip 4 - CSAF",
+        "url": "https://harman.csaf-tp.certvde.com/.well-known/csaf/white/2026/hbsa-2025-0003.json"
+      },
+      {
+        "category": "external",
+        "summary": "Braktooth, a description of a family of security vulnerabilities in commercial BT stacks.",
+        "url": "https://asset-group.github.io/disclosures/braktooth/"
+      }
+    ],
+    "title": "JBL: DoS vulnerability in Flip 4",
     "tracking": {
-      "current_release_date": "2026-02-13T11:00:00.000Z",
+      "aliases": [
+        "VDE-2026-0001"
+      ],
+      "current_release_date": "2026-02-18T07:00:00.000Z",
+      "generator": {
+        "date": "2026-02-12T14:20:52.263Z",
+        "engine": {
+          "name": "Secvisogram",
+          "version": "2.5.42"
+        }
+      },
       "id": "HBSA-2025-0003",
-      "initial_release_date": "2026-02-13T11:00:00.000Z",
+      "initial_release_date": "2026-02-18T07:00:00.000Z",
       "revision_history": [
         {
-          "date": "2026-02-13T11:00:00.000Z",
+          "date": "2026-02-18T07:00:00.000Z",
           "number": "1.0.0",
-          "summary": "Initial revision"
+          "summary": "Initial release."
         }
       ],
       "status": "final",
@@ -32,12 +120,8 @@
   "product_tree": {
     "branches": [
       {
-        "category": "vendor",
-        "name": "JBL",
         "branches": [
           {
-            "category": "product_family",
-            "name": "Hardware",
             "branches": [
               {
                 "category": "product_name",
@@ -48,20 +132,38 @@
                   "product_identification_helper": {
                     "skus": [
                       "6925281924439",
-                      "050036337366"
+                      "6925281924415",
+                      "6925281924422",
+                      "6925281924446",
+                      "6925281924408",
+                      "6925281924545",
+                      "6925281922428",
+                      "6925281922442",
+                      "6925281922404",
+                      "6925281922411",
+                      "6925281922435",
+                      "050036337366",
+                      "050036337397",
+                      "050036337380",
+                      "050036337403",
+                      "050036337373",
+                      "050036336123",
+                      "050036336116",
+                      "050036336130",
+                      "050036337441",
+                      "050036336109",
+                      "050036336147"
                     ]
                   }
                 }
               }
-            ]
+            ],
+            "category": "product_family",
+            "name": "Hardware"
           },
           {
-            "category": "product_family",
-            "name": "Firmware",
             "branches": [
               {
-                "category": "product_name",
-                "name": "Flip 4 Firmware",
                 "branches": [
                   {
                     "category": "product_version_range",
@@ -75,12 +177,31 @@
                         ]
                       }
                     }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "4.1.0",
+                    "product": {
+                      "name": "JBL Flip 4 Firmware 4.1.0",
+                      "product_id": "CSAFPID-22001",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "Flip 4"
+                        ]
+                      }
+                    }
                   }
-                ]
+                ],
+                "category": "product_name",
+                "name": "Flip 4 "
               }
-            ]
+            ],
+            "category": "product_family",
+            "name": "Firmware"
           }
-        ]
+        ],
+        "category": "vendor",
+        "name": "JBL"
       }
     ],
     "relationships": [
@@ -92,30 +213,116 @@
           "product_identification_helper": {
             "skus": [
               "6925281924439",
-              "050036337366"
+              "6925281924415",
+              "6925281924422",
+              "6925281924446",
+              "6925281924408",
+              "6925281924545",
+              "6925281922428",
+              "6925281922442",
+              "6925281922404",
+              "6925281922411",
+              "6925281922435",
+              "050036337366",
+              "050036337397",
+              "050036337380",
+              "050036337403",
+              "050036337373",
+              "050036336123",
+              "050036336116",
+              "050036336130",
+              "050036337441",
+              "050036336109",
+              "050036336147"
             ]
           }
         },
         "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "JBL Flip 4 Firmware 4.1.0 installed on JBL Flip 4",
+          "product_id": "CSAFPID-32001",
+          "product_identification_helper": {
+            "skus": [
+              "6925281924439",
+              "6925281924415",
+              "6925281924422",
+              "6925281924446",
+              "6925281924408",
+              "6925281924545",
+              "6925281922428",
+              "6925281922442",
+              "6925281922404",
+              "6925281922411",
+              "6925281922435",
+              "050036337366",
+              "050036337397",
+              "050036337380",
+              "050036337403",
+              "050036337373",
+              "050036336123",
+              "050036336116",
+              "050036336130",
+              "050036337441",
+              "050036336109",
+              "050036336147"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
         "relates_to_product_reference": "CSAFPID-11001"
       }
     ]
   },
   "vulnerabilities": [
     {
+      "acknowledgments": [
+        {
+          "names": [
+            "Justus W. Perlwitz"
+          ],
+          "organization": "JWP Consulting GK",
+          "summary": "reporting",
+          "urls": [
+            "https://www.jwpconsulting.net/"
+          ]
+        }
+      ],
       "cve": "CVE-2025-41725",
+      "cwe": {
+        "id": "CWE-923",
+        "name": "Improper Restriction of Communication Channel to Intended Endpoints"
+      },
+      "discovery_date": "2025-05-22T10:00:00.000Z",
       "notes": [
         {
+          "audience": "all",
           "category": "description",
-          "text": "Affected devices running firmware versions prior to 4.1.0 may crash when receiving specific malformed Bluetooth messages.",
+          "text": "Affected devices running firmware versions prior to 4.1.0 may crash and become unavailable when receiving specific malformed Bluetooth messages from an unauthenticated attacker.",
           "title": "CVE Description"
         }
       ],
       "product_status": {
+        "fixed": [
+          "CSAFPID-32001"
+        ],
         "known_affected": [
           "CSAFPID-31001"
         ]
       },
+      "release_date": "2026-02-13T11:00:00.000Z",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Update JBL Flip 4 firmware to version 4.1.0 to remediate the issue.",
+          "product_ids": [
+            "CSAFPID-31001"
+          ]
+        }
+      ],
       "scores": [
         {
           "cvss_v3": {
@@ -125,9 +332,13 @@
             "baseScore": 6.5,
             "baseSeverity": "MEDIUM",
             "confidentialityImpact": "NONE",
+            "environmentalScore": 6.5,
+            "environmentalSeverity": "MEDIUM",
             "integrityImpact": "NONE",
             "privilegesRequired": "NONE",
             "scope": "UNCHANGED",
+            "temporalScore": 6.5,
+            "temporalSeverity": "MEDIUM",
             "userInteraction": "NONE",
             "vectorString": "CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
             "version": "3.1"

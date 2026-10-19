@@ -1,4 +1,7 @@
-use super::{AssertionOrigin, AssertionStatus, EvidenceContext, IdentifierRef, VerdictStatus};
+use super::{
+    AssertionOrigin, AssertionStatus, ConfidenceFactor, EvidenceContext, EvidenceRemediation,
+    IdentifierRef, VerdictStatus,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -150,6 +153,13 @@ pub struct ResolutionEvidence {
     /// into them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contexts: Vec<EvidenceContext>,
+    /// The factors of the match confidence, empty for evidence extracted before they were
+    /// recorded.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub confidence_factors: Vec<ConfidenceFactor>,
+    /// The remediations the advisory states for the statement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remediations: Vec<EvidenceRemediation>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -3,7 +3,7 @@
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef, MatchedValue},
+    model::{ConfidenceFactor, ConfidenceReason, IdentifierKind, IdentifierRef, MatchedValue},
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter};
 use std::collections::HashMap;
@@ -112,12 +112,17 @@ impl Extractor for DigestExtractor {
                             vulnerability_id: ah.vulnerability_id.clone(),
                             status: ah.status,
                             confidence: CONFIDENCE,
+                            factors: vec![ConfidenceFactor::new(
+                                ConfidenceReason::Digest,
+                                CONFIDENCE,
+                            )],
                             matched_value: MatchedValue::new(format_digest(
                                 &ah.algorithm,
                                 &ah.value,
                             )),
                             context_id: ah.assertion_context_id,
                             requires_context: false,
+                            version_range_id: None,
                         },
                     });
                 }
@@ -174,12 +179,17 @@ impl Extractor for DigestExtractor {
                             vulnerability_id: ah.vulnerability_id.clone(),
                             status: ah.status,
                             confidence: CONFIDENCE,
+                            factors: vec![ConfidenceFactor::new(
+                                ConfidenceReason::Digest,
+                                CONFIDENCE,
+                            )],
                             matched_value: MatchedValue::new(format_digest(
                                 &ah.algorithm,
                                 &ah.value,
                             )),
                             context_id: ah.assertion_context_id,
                             requires_context: false,
+                            version_range_id: None,
                         },
                     });
                 }

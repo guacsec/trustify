@@ -196,6 +196,186 @@ fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
     }
 }
 
+/// A match confidence as the product of its factors below 100%, e.g. `70% × 70% = 49%`. `None`
+/// for evidence without recorded factors.
+fn factors_formula(factors: &[ConfidenceFactor], confidence: f64) -> Option<String> {
+    if factors.is_empty() {
+        return None;
+    }
+    let reducing = factors
+        .iter()
+        .filter(|f| f.factor < 1.0)
+        .map(|f| percent(f.factor))
+        .collect::<Vec<_>>();
+    Some(match reducing.as_slice() {
+        [] => format!("{} (nothing reduces it)", percent(confidence)),
+        [single] => single.clone(),
+        many => format!("{} = {}", many.join(" × "), percent(confidence)),
+    })
+}
+
+fn percent(value: f64) -> String {
+    format!("{:.0}%", value * 100.0)
+}
+
+/// Why a factor applies to a match confidence.
+fn factor_text(factor: &ConfidenceFactor, contexts: &[EvidenceContext]) -> String {
+    match &factor.reason {
+        ConfidenceReason::Digest => "The file digest is equal.".into(),
+        ConfidenceReason::ProductIdentifier => {
+            "A product identifier (SKU, model or serial number) matches.".into()
+        }
+        ConfidenceReason::CpeExactVersion => {
+            "The advisory's CPE states the component's version.".into()
+        }
+        ConfidenceReason::CpeVersionRange => "The advisory's CPE has no version, the component's version is in the version range of the statement.".into(),
+        ConfidenceReason::CpeAnyVersion => {
+            "The advisory's CPE applies to all versions, without a version range.".into()
+        }
+        ConfidenceReason::Purl => "The PURL is in a version range the advisory states.".into(),
+        ConfidenceReason::RpmStream { stream } => match stream {
+            StreamRelation::Exact => "The RPM's release stream (e.g. el8_6) is the statement's.",
+            StreamRelation::Major => "The RPM's release stream only shares its major version with the statement's (e.g. el8 and el8_6).",
+            StreamRelation::Minor => "The statement is about another minor stream of the same major version (e.g. el9_0 and el9_1), and nothing is stated for the RPM's own.",
+        }
+        .into(),
+        ConfidenceReason::Rule { rule } => rule_text(rule),
+        ConfidenceReason::DefaultStatus => {
+            "The status is the advisory's default for versions it doesn't list.".into()
+        }
+        ConfidenceReason::ProductConfirmed { source, distance } => format!(
+            "The SBOM confirms the product the statement is about, through the {}{}.",
+            source.label(),
+            match distance {
+                0 | 1 => String::new(),
+                hops => format!(" ({hops} hops away)"),
+            }
+        ),
+        ConfidenceReason::ProductNotConfirmed => {
+            let names = contexts
+                .iter()
+                .filter(|c| c.source == ContextSource::Unconfirmed)
+                .map(|c| c.name.as_str())
+                .collect::<Vec<_>>();
+            match names.is_empty() {
+                true => "Nothing in the SBOM confirms the product the statement is about.".into(),
+                false => format!(
+                    "Nothing in the SBOM confirms the product the statement is about: {}.",
+                    names.join(", ")
+                ),
+            }
+        }
+    }
+}
+
+/// Why a rule derived the range of a statement, by its evidence type.
+fn rule_text(rule: &str) -> String {
+    match rule {
+        "purl_first_fixed" => "The advisory states the first fixed version: it and later versions are fixed.",
+        "purl_first_fixed_before" => "The advisory states the first fixed version: earlier versions are affected.",
+        "purl_fixed_as_first_fixed" => "The publisher's fixed version is read as the first fixed one: later builds of the stream are fixed.",
+        "purl_fixed_as_first_fixed_before" => "The publisher's fixed version is read as the first fixed one: earlier builds of the stream are affected.",
+        "purl_first_affected" => "The advisory states the first affected version.",
+        "purl_last_affected" => "The advisory states the last affected version.",
+        "purl_any_version" => "The publisher's PURL without a version is read as all versions.",
+        "purl_vls_range" => "The version range states no versioning scheme, it is compared with the one of the PURL type.",
+        "purl_custom_range" => "The CVE range has a custom version type, it is compared with the scheme of the PURL type.",
+        "purl_suse_recommended" => "SUSE's recommended version is read as the fix: it and later builds are fixed.",
+        "purl_suse_recommended_before" => "SUSE's recommended version is read as the fix: earlier builds are affected.",
+        other => return format!("The rule {other} derived the version range."),
+    }
+    .into()
+}
+
+/// A short name of the reason of a factor.
+fn factor_label(factor: &ConfidenceFactor) -> &'static str {
+    match &factor.reason {
+        ConfidenceReason::Digest => "File digest",
+        ConfidenceReason::ProductIdentifier => "Product identifier",
+        ConfidenceReason::CpeExactVersion => "CPE with the exact version",
+        ConfidenceReason::CpeVersionRange => "CPE version in range",
+        ConfidenceReason::CpeAnyVersion => "CPE for all versions",
+        ConfidenceReason::Purl => "PURL version in range",
+        ConfidenceReason::RpmStream { stream } => match stream {
+            StreamRelation::Exact => "Same RPM stream",
+            StreamRelation::Major => "RPM stream shares the major only",
+            StreamRelation::Minor => "Other minor RPM stream",
+        },
+        ConfidenceReason::Rule { .. } => "Range derived by a rule",
+        ConfidenceReason::DefaultStatus => "Default status",
+        ConfidenceReason::ProductConfirmed { .. } => "Product confirmed",
+        ConfidenceReason::ProductNotConfirmed => "Product not confirmed",
+    }
+}
+
+/// How a match confidence comes about: each factor with its reason, and the result.
+pub(crate) fn confidence_breakdown(
+    factors: &[ConfidenceFactor],
+    contexts: &[EvidenceContext],
+    confidence: f64,
+) -> Html {
+    html! {
+        <Stack>
+            <StackItem>
+                <ul class="pf-v6-c-list pf-m-plain">
+                    {for factors.iter().enumerate().map(|(index, f)| html! {
+                        <li>
+                            <strong>{ if index == 0 { "" } else { "× " } }{ percent(f.factor) }</strong>
+                            { " " }{ factor_label(f) }
+                            <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                                { factor_text(f, contexts) }
+                            </div>
+                        </li>
+                    })}
+                </ul>
+            </StackItem>
+            <StackItem>
+                <strong>{ format!("= {} match confidence", percent(confidence)) }</strong>
+            </StackItem>
+        </Stack>
+    }
+}
+
+/// A match confidence, opening a popover with its breakdown if its factors are recorded.
+pub(crate) fn confidence_cell(
+    factors: &[ConfidenceFactor],
+    contexts: &[EvidenceContext],
+    confidence: f64,
+) -> Html {
+    if factors.is_empty() {
+        return html!(percent(confidence));
+    }
+    let target = html! {
+        <Button
+            variant={ButtonVariant::InlineLink}
+            label={percent(confidence)}
+            icon={html!(<i class="fas fa-circle-info" aria-hidden="true"/>)}
+            align={Align::End}
+            style="white-space: nowrap;"
+        />
+    };
+    html! {
+        <Popover {target} body={html_nested! {
+            <PopoverBody header={html!("How the match confidence comes about")}>
+                { confidence_breakdown(factors, contexts, confidence) }
+            </PopoverBody>
+        }}/>
+    }
+}
+
+/// How the match confidence of a statement comes about, in its details.
+fn confidence_factors(e: &ResolutionEvidence) -> Html {
+    let Some(formula) = factors_formula(&e.confidence_factors, e.match_confidence) else {
+        return Html::default();
+    };
+    html! {
+        <>
+            <p>{ format!("Match confidence: {formula}") }</p>
+            { confidence_breakdown(&e.confidence_factors, &e.contexts, e.match_confidence) }
+        </>
+    }
+}
+
 fn verdict_color(status: VerdictStatus) -> Color {
     match status {
         VerdictStatus::Affected => Color::Red,
@@ -217,7 +397,9 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 </Stack>
             }.into(),
             EvidenceColumn::Product => product_names(&e.contexts).into(),
-            EvidenceColumn::Confidence=>html!{format!("{:.0}%",e.match_confidence*100.0)}.into(),
+            EvidenceColumn::Confidence => {
+                confidence_cell(&e.confidence_factors, &e.contexts, e.match_confidence).into()
+            }
             EvidenceColumn::Relationship => html!{e.provider_relationship.label()}.into(),
             EvidenceColumn::Origin => html!{e.assertion_origin.to_string()}.into(),
             EvidenceColumn::Role => html!{
@@ -238,6 +420,9 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
         let content = html! {
             <Stack gutter=true>
                 <StackItem><p>{e.selection_reason.label()}</p></StackItem>
+                if !e.confidence_factors.is_empty() {
+                    <StackItem>{confidence_factors(e)}</StackItem>
+                }
                 if !e.contexts.is_empty() {
                     <StackItem>{evidence_contexts(&e.contexts)}</StackItem>
                 }
@@ -308,7 +493,7 @@ fn explanation(props: &ExplanationProps) -> Html {
                 {for trace.component_provider.diagnostics.iter().map(|d|html!{<p>{d}</p>})}
             </StackItem>
             <StackItem>
-                <p>{"Statements are ordered by provider relationship, then directness, match confidence, and status. Expand a statement for the deciding rule, its products and provider identifiers."}</p>
+                <p>{"Statements are ordered by provider relationship, then directness, match confidence, and status. Expand a statement for the deciding rule, how its match confidence comes about, its products and provider identifiers."}</p>
                 <Table<EvidenceColumn,UseTableData<EvidenceColumn,MemoizedTableModel<EvidenceEntry>>> {header} {entries} {onexpand} mode={TableMode::CompactExpandable}/>
             </StackItem>
             <StackItem><small class="pf-v6-u-text-color-subtle">{"Calculated from current evidence and provider aliases. Resolution revision: "}{trace.resolution_revision.to_string()}</small></StackItem>

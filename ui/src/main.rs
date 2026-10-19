@@ -12,6 +12,7 @@ mod query;
 mod resolution;
 mod sbom_list;
 mod sort;
+mod stored;
 
 use advisory::AdvisoryPage;
 use advisory_list::AdvisoryList;

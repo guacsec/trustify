@@ -106,6 +106,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "not_affected": 0,
             "under_investigation": 0,
             "none": 0,
+            "remediations": 0,
         })
     };
     assert_eq!(body, serde_json::json!([zero(a), zero(b)]));

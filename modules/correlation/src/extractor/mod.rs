@@ -12,6 +12,7 @@ pub mod digest;
 pub mod product_identifier;
 pub mod purl;
 pub mod registry;
+pub mod version;
 pub mod worker;
 pub mod writer;
 
@@ -19,7 +20,7 @@ pub use registry::Extractors;
 
 use crate::{
     error::Error,
-    model::{IdentifierRef, MatchedValue},
+    model::{ConfidenceFactor, IdentifierRef, MatchedValue, combine},
 };
 use sea_orm::DatabaseTransaction;
 use trustify_entity::correlation_evidence::AssertionStatus;
@@ -51,7 +52,10 @@ pub struct Assertion {
     pub advisory_id: Uuid,
     pub vulnerability_id: String,
     pub status: AssertionStatus,
+    /// The product of the [`Self::factors`].
     pub confidence: f64,
+    /// The factors of the confidence, and why they apply.
+    pub factors: Vec<ConfidenceFactor>,
     /// The advisory side value which matched (e.g. a wildcard pattern and version ranges).
     pub matched_value: MatchedValue,
     /// The product (assertion context) the assertion is stated in, if any.
@@ -59,6 +63,17 @@ pub struct Assertion {
     /// Whether the assertion only applies to a node in its context, e.g. a versionless
     /// statement, which identifies the package only through its product.
     pub requires_context: bool,
+    /// The versions the node's own version must be in, when the matched identifier doesn't pin a
+    /// version (e.g. the model number of a firmware). See [`version::retain_in_range`].
+    pub version_range_id: Option<Uuid>,
+}
+
+impl Assertion {
+    /// Apply another factor to the confidence.
+    pub fn apply(&mut self, factor: ConfidenceFactor) {
+        self.factors.push(factor);
+        self.confidence = combine(&self.factors);
+    }
 }
 
 /// An assertion matching one of the identifiers passed to [`Extractor::match_identifiers`].

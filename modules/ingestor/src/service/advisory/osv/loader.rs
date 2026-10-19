@@ -23,11 +23,23 @@ use crate::{
     },
 };
 use osv::schema::{Ecosystem, Event, Package, Range, RangeType, ReferenceType, Vulnerability};
-use sea_orm::{ConnectionTrait, TransactionTrait};
-use std::{collections::HashSet, fmt::Debug, str::FromStr};
+use sea_orm::{ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait, TransactionTrait};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashSet},
+    fmt::Debug,
+    str::FromStr,
+};
 use tracing::instrument;
-use trustify_common::{hashing::Digests, purl::Purl, time::ChronoExt};
-use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
+use trustify_common::{
+    db::chunk::EntityChunkedIter, hashing::Digests, purl::Purl, time::ChronoExt,
+};
+use trustify_entity::{
+    advisory_vulnerability_upstream,
+    labels::Labels,
+    remediation::{self, RemediationCategory},
+    version_scheme::VersionScheme,
+};
+use uuid::Uuid;
 
 /// Loads OSV records.
 ///
@@ -35,7 +47,8 @@ use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
 /// `versions`, or lies in an interval of a range (`introduced` up to `fixed`, or up to and including
 /// `last_affected`). Only those are stored, as `affected`. Versions outside of the set are not
 /// affected according to the record, which states nothing else about them. A `fixed` event only
-/// ends an interval, it isn't a status of the fixed version.
+/// ends an interval, it isn't a status of the fixed version: it is stored as a vendor fix
+/// remediation of the interval's `affected` status.
 ///
 /// See: <https://ossf.github.io/osv-schema/#evaluation>
 pub struct OsvLoader<'g> {
@@ -105,6 +118,7 @@ impl<'g> OsvLoader<'g> {
 
         let mut purl_creator = PurlCreator::new();
         let mut purl_status_creator = PurlStatusCreator::new();
+        let mut remediations = FixedRemediations::default();
         let mut base_purls = HashSet::new();
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
 
@@ -123,6 +137,26 @@ impl<'g> OsvLoader<'g> {
                 Some((affected, package, package_purls(package, &warnings)))
             })
             .collect::<Vec<_>>();
+
+        // the upstream vulnerabilities the record refers to (e.g. the CVEs of a distribution's
+        // record): different vulnerabilities, not aliases, so its statements stay under its IDs
+        let upstream = osv
+            .upstream
+            .iter()
+            .flatten()
+            .filter(|id| !vulnerability_ids.contains(&id.as_str()))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut upstream_models = Vec::new();
+        for id in &vulnerability_ids {
+            for upstream_id in &upstream {
+                upstream_models.push(advisory_vulnerability_upstream::ActiveModel {
+                    advisory_id: Set(advisory.advisory.id),
+                    vulnerability_id: Set(id.to_string()),
+                    upstream_id: Set(upstream_id.clone()),
+                });
+            }
+        }
 
         for id in vulnerability_ids {
             let advisory_vuln = advisory
@@ -170,8 +204,18 @@ impl<'g> OsvLoader<'g> {
                                 affected.versions.iter().flatten(),
                             ),
                         };
-                        for entry in entries {
-                            purl_status_creator.add(entry);
+                        for (entry, fixed) in entries {
+                            match fixed {
+                                Some(fixed) => {
+                                    let remediation = remediations.add(
+                                        entry.advisory_id,
+                                        &entry.vulnerability_id,
+                                        fixed,
+                                    );
+                                    purl_status_creator.add_remediated(entry, remediation);
+                                }
+                                None => purl_status_creator.add(entry),
+                            }
                         }
                     }
                 }
@@ -184,7 +228,15 @@ impl<'g> OsvLoader<'g> {
         // Create base PURLs for range-based status entries
         purl::batch_create_base_purls(base_purls, tx).await?;
 
+        remediations.create(tx).await?;
         purl_status_creator.create(tx).await?;
+
+        for batch in &upstream_models.into_iter().chunked() {
+            advisory_vulnerability_upstream::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(tx)
+                .await?;
+        }
 
         Ok(IngestResult {
             id: advisory.advisory.id.to_string(),
@@ -277,6 +329,58 @@ enum End<'a> {
     LastAffected(&'a str),
 }
 
+impl<'a> Interval<'a> {
+    /// The version fixing the interval, if it states one.
+    fn fixed(&self) -> Option<&'a str> {
+        match self.end {
+            Some(End::Fixed(fixed)) => Some(fixed),
+            _ => None,
+        }
+    }
+}
+
+/// Namespace of the IDs of the remediations of OSV records.
+const REMEDIATION_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x2f, 0x8e, 0x41, 0x6c, 0x93, 0x0d, 0x4b, 0x52, 0xa7, 0x1e, 0x6d, 0xc4, 0x58, 0x3b, 0x90, 0xe2,
+]);
+
+/// The remediations of an OSV record: the versions fixing its intervals. A `fixed` event isn't a
+/// status, but a vendor fix of the affected versions before it (as OSV.dev and Dependency-Track
+/// show it).
+#[derive(Default)]
+struct FixedRemediations(BTreeMap<Uuid, remediation::ActiveModel>);
+
+impl FixedRemediations {
+    /// Add the remediation of a fixed version, returning its ID.
+    fn add(&mut self, advisory_id: Uuid, vulnerability_id: &str, fixed: &str) -> Uuid {
+        let mut id = Uuid::new_v5(&REMEDIATION_NAMESPACE, advisory_id.as_bytes());
+        id = Uuid::new_v5(&id, vulnerability_id.as_bytes());
+        id = Uuid::new_v5(&id, fixed.as_bytes());
+        self.0
+            .entry(id)
+            .or_insert_with(|| remediation::ActiveModel {
+                id: Set(id),
+                advisory_id: Set(advisory_id),
+                vulnerability_id: Set(vulnerability_id.to_string()),
+                category: Set(RemediationCategory::VendorFix),
+                details: Set(Some(format!("Fixed in {fixed}"))),
+                url: Set(None),
+                data: Set(serde_json::json!({ "fixed": fixed })),
+            });
+        id
+    }
+
+    async fn create(self, connection: &impl ConnectionTrait) -> Result<(), DbErr> {
+        for batch in &self.0.into_values().chunked() {
+            remediation::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+        Ok(())
+    }
+}
+
 /// The affected intervals of the events of a range.
 ///
 /// The spec evaluates the events in sorted order. Sorting requires the versioning scheme, so the
@@ -318,13 +422,14 @@ fn intervals(events: &[Event]) -> Vec<Interval<'_>> {
     result
 }
 
-/// Build the status entries of a range: one `affected` range per interval.
-fn build_package_status(
+/// Build the status entries of a range: one `affected` range per interval, with the version fixing
+/// it, if any.
+fn build_package_status<'a>(
     advisory_vuln: &AdvisoryVulnerabilityContext<'_>,
     purl: &Purl,
-    range: &Range,
+    range: &'a Range,
     version_scheme: VersionScheme,
-) -> Vec<PurlStatusEntry> {
+) -> Vec<(PurlStatusEntry, Option<&'a str>)> {
     intervals(&range.events)
         .into_iter()
         .map(|interval| {
@@ -337,36 +442,46 @@ fn build_package_status(
                 Some(End::LastAffected(last)) => Version::Inclusive(last.to_string()),
                 None => Version::Unbounded,
             };
-            affected_status(
-                advisory_vuln,
-                purl,
-                version_scheme,
-                VersionSpec::Range(low, high),
+            (
+                affected_status(
+                    advisory_vuln,
+                    purl,
+                    version_scheme,
+                    VersionSpec::Range(low, high),
+                ),
+                interval.fixed(),
             )
         })
         .collect()
 }
 
 /// Build the status entries of a range of an unknown scheme, from the listed versions: each
-/// version of an interval is `affected`.
+/// version of an interval is `affected`, with the version fixing the interval, if any.
 fn build_package_status_versions<'a>(
     advisory_vuln: &AdvisoryVulnerabilityContext<'_>,
     purl: &Purl,
-    range: &Range,
+    range: &'a Range,
     versions: impl IntoIterator<Item = &'a String>,
-) -> Vec<PurlStatusEntry> {
+) -> Vec<(PurlStatusEntry, Option<&'a str>)> {
     // the list of versions, sorted by the range type
     let versions = versions.into_iter().collect::<Vec<_>>();
 
     intervals(&range.events)
         .iter()
-        .flat_map(|interval| match_versions(&versions, interval))
-        .map(|version| {
-            affected_status(
-                advisory_vuln,
-                purl,
-                VersionScheme::Generic,
-                VersionSpec::Exact(version.to_string()),
+        .flat_map(|interval| {
+            match_versions(&versions, interval)
+                .into_iter()
+                .map(|version| (version, interval.fixed()))
+        })
+        .map(|(version, fixed)| {
+            (
+                affected_status(
+                    advisory_vuln,
+                    purl,
+                    VersionScheme::Generic,
+                    VersionSpec::Exact(version.to_string()),
+                ),
+                fixed,
             )
         })
         .collect()
@@ -705,6 +820,98 @@ mod test {
         }
         result.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
         Ok(result)
+    }
+
+    /// A distribution's record refers to the upstream CVEs, which aren't aliases: its statements
+    /// stay under its own ID.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn upstream(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::QueryOrder;
+        use trustify_entity::advisory_vulnerability_upstream;
+
+        let result = ctx.ingest_document("osv/DSA-5790-1.json").await?;
+        let advisory_id = Uuid::parse_str(&result.id)?;
+
+        let upstream = advisory_vulnerability_upstream::Entity::find()
+            .filter(advisory_vulnerability_upstream::Column::AdvisoryId.eq(advisory_id))
+            .order_by_asc(advisory_vulnerability_upstream::Column::UpstreamId)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|u| (u.vulnerability_id, u.upstream_id))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            upstream,
+            vec![
+                ("DSA-5790-1".to_string(), "CVE-2024-47875".to_string()),
+                (
+                    "DSA-5790-1".to_string(),
+                    "DEBIAN-CVE-2024-47875".to_string()
+                ),
+            ]
+        );
+
+        let vulnerabilities = purl_status::Entity::find()
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|s| s.vulnerability_id)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            vulnerabilities,
+            ["DSA-5790-1".to_string()].into_iter().collect()
+        );
+
+        Ok(())
+    }
+
+    /// The version fixing an interval is a vendor fix of its `affected` status.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn fixed_remediation(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use trustify_entity::{remediation, remediation_purl_status};
+
+        let result = ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+        let advisory_id = Uuid::parse_str(&result.id)?;
+
+        let remediations = remediation::Entity::find()
+            .filter(remediation::Column::AdvisoryId.eq(advisory_id))
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|r| (r.vulnerability_id, r.category, r.details, r.url, r.data))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            remediations,
+            vec![(
+                "CVE-2021-32714".to_string(),
+                RemediationCategory::VendorFix,
+                Some("Fixed in 0.14.10".to_string()),
+                None,
+                serde_json::json!({"fixed": "0.14.10"}),
+            )]
+        );
+
+        // linked to the statuses of the interval ending at it
+        let mut linked = Vec::new();
+        for (_, status) in remediation_purl_status::Entity::find()
+            .find_also_related(purl_status::Entity)
+            .all(&ctx.db)
+            .await?
+        {
+            let status = status.expect("linked status");
+            let range = version_range::Entity::find_by_id(status.version_range_id)
+                .one(&ctx.db)
+                .await?
+                .expect("version range of a status");
+            linked.push((range.high_version, range.high_inclusive));
+        }
+        linked.dedup();
+        assert_eq!(linked, vec![(Some("0.14.10".to_string()), Some(false))]);
+
+        Ok(())
     }
 
     /// Several intervals in a range, `last_affected`, no CVE alias, and a PURL with a version.

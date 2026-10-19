@@ -6123,6 +6123,136 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    ConfidenceFactor:
+      type: object
+      description: |-
+        One factor of a match confidence, and why it applies. The match confidence is the product of
+        its factors.
+      required:
+      - reason
+      - factor
+      properties:
+        factor:
+          type: number
+          format: double
+        reason:
+          $ref: '#/components/schemas/ConfidenceReason'
+    ConfidenceReason:
+      oneOf:
+      - type: object
+        description: A file digest is equal.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - digest
+      - type: object
+        description: A product identifier (SKU, model or serial number) matches.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - product_identifier
+      - type: object
+        description: The advisory CPE states the version, which the SBOM version equals.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - cpe_exact_version
+      - type: object
+        description: The advisory CPE has any version, and the SBOM version is in the assertion's range.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - cpe_version_range
+      - type: object
+        description: 'The advisory CPE has any version, without a range: all versions match.'
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - cpe_any_version
+      - type: object
+        description: The PURL is in a range the advisory states.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - purl
+      - type: object
+        description: The release streams of an RPM (e.g. `el8_6`) and the statement relate.
+        required:
+        - stream
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - rpm_stream
+          stream:
+            $ref: '#/components/schemas/StreamRelation'
+      - type: object
+        description: A rule derived the range from what the advisory states, e.g. `purl_first_fixed`.
+        required:
+        - rule
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - rule
+          rule:
+            type: string
+      - type: object
+        description: The status is the advisory's default for versions it doesn't list.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - default_status
+      - type: object
+        description: The component is in the product the statement is about.
+        required:
+        - source
+        - distance
+        - kind
+        properties:
+          distance:
+            type: integer
+            format: int32
+            minimum: 0
+          kind:
+            type: string
+            enum:
+            - product_confirmed
+          source:
+            $ref: '#/components/schemas/ContextSource'
+      - type: object
+        description: Nothing in the SBOM confirms the product the statement is about.
+        required:
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - product_not_confirmed
+      description: Why a factor applies to a match confidence.
     ContextCategory:
       type: string
       description: How the subject of an assertion relates to its context (CSAF relationship categories).
@@ -6473,6 +6603,7 @@ components:
           type: integer
           format: int32
           description: Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
+          minimum: 0
         name:
           type: string
           description: The name of the product, e.g. "Red Hat Storage 3".
@@ -6509,6 +6640,11 @@ components:
         confidence:
           type: number
           format: double
+        confidence_factors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfidenceFactor'
+          description: The factors of the confidence, empty for evidence extracted before they were recorded.
         contexts:
           type: array
           items:
@@ -6536,6 +6672,11 @@ components:
           - type: 'null'
           - $ref: '#/components/schemas/ProviderMatch'
             description: How the provider matches the provider of the component, if at all.
+        remediations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRemediation'
+          description: The remediations the advisory states for the matched statement.
     EvidenceOutcome:
       type: string
       enum:
@@ -6543,6 +6684,24 @@ components:
       - supporting
       - conflicting
       - non_voting
+    EvidenceRemediation:
+      type: object
+      description: |-
+        A remediation an advisory states for the statement of a piece of evidence, e.g. the version
+        fixing it.
+      required:
+      - category
+      properties:
+        category:
+          $ref: '#/components/schemas/RemediationCategory'
+        details:
+          type:
+          - string
+          - 'null'
+        url:
+          type:
+          - string
+          - 'null'
     Exploit:
       type: object
       description: |-
@@ -9094,6 +9253,7 @@ components:
       - undefined
     RemediationCategory:
       type: string
+      description: The kind of a remediation, as CSAF defines them (OSV's fixed versions are vendor fixes).
       enum:
       - vendor_fix
       - workaround
@@ -9285,6 +9445,13 @@ components:
           format: uuid
         assertion_origin:
           $ref: '#/components/schemas/AssertionOrigin'
+        confidence_factors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfidenceFactor'
+          description: |-
+            The factors of the match confidence, empty for evidence extracted before they were
+            recorded.
         contexts:
           type: array
           items:
@@ -9303,6 +9470,11 @@ components:
           $ref: '#/components/schemas/ProviderResolution'
         provider_relationship:
           $ref: '#/components/schemas/ProviderRelationship'
+        remediations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRemediation'
+          description: The remediations the advisory states for the statement.
         selection_reason:
           $ref: '#/components/schemas/SelectionReason'
         status:
@@ -9669,6 +9841,13 @@ components:
           type: integer
           format: int64
           minimum: 0
+        remediations:
+          type: integer
+          format: int64
+          description: |-
+            The number of remediations the advisories state for the evidence, each once per component,
+            vulnerability and advisory.
+          minimum: 0
         sbom_id:
           type: string
           format: uuid
@@ -9872,6 +10051,13 @@ components:
         properties:
           cpe:
             type: string
+    StreamRelation:
+      type: string
+      description: How the release stream of an RPM relates to the one of a statement.
+      enum:
+      - exact
+      - major
+      - minor
     Update:
       type: object
       description: |
@@ -10277,6 +10463,13 @@ components:
           type:
           - string
           - 'null'
+        upstream:
+          type: array
+          items:
+            type: string
+          description: |-
+            The upstream vulnerabilities the advisories of the evidence refer to for this one, e.g. the
+            CVEs of a distribution's OSV record. They are different vulnerabilities, not aliases.
     VulnerabilitySbomStatus:
       allOf:
       - $ref: '#/components/schemas/SbomHead'

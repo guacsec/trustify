@@ -3,6 +3,7 @@ use crate::{
     correlation::status_color,
     ingest_drop::use_ingested_documents,
     model::{SbomSummary, SbomVerdictCounts, VerdictStatus},
+    stored::{use_stored_pagination, use_stored_text},
 };
 use patternfly_yew::prelude::*;
 use std::collections::HashMap;
@@ -19,6 +20,7 @@ enum Column {
     Published,
     Packages,
     Verdicts,
+    Remediations,
 }
 
 /// An SBOM, with its verdict counts, once loaded.
@@ -33,6 +35,7 @@ impl TableEntryRenderer<Column> for SbomEntry {
             Column::Published => html!(self.0.published.as_deref().unwrap_or("-")).into(),
             Column::Packages => html!(self.0.number_of_packages).into(),
             Column::Verdicts => verdict_counts(self.1.as_ref()).into(),
+            Column::Remediations => remediation_count(self.1.as_ref()).into(),
         }
     }
 }
@@ -40,6 +43,22 @@ impl TableEntryRenderer<Column> for SbomEntry {
 /// The ID of an SBOM, which the API returns in URN form (`urn:uuid:…`).
 fn sbom_uuid(sbom: &SbomSummary) -> Option<Uuid> {
     Uuid::parse_str(&sbom.id).ok()
+}
+
+/// The number of remediations of an SBOM, once loaded.
+fn remediation_count(counts: Option<&SbomVerdictCounts>) -> Html {
+    match counts {
+        None => html!("…"),
+        Some(counts) if counts.remediations == 0 => html!("-"),
+        Some(counts) => html! {
+            <Tooltip text="Remediations the advisories state, e.g. the versions fixing the vulnerabilities. See the Remediations tab of the SBOM.">
+                <span>
+                    <i class="fas fa-wrench pf-v6-u-mr-xs" aria-hidden="true"/>
+                    { counts.remediations }
+                </span>
+            </Tooltip>
+        },
+    }
 }
 
 /// Labels for the non-zero verdict counts of an SBOM.
@@ -90,10 +109,10 @@ pub fn sbom_list() -> Html {
     let counts = use_state(|| Option::<HashMap<Uuid, SbomVerdictCounts>>::None);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
-    let search = use_state_eq(String::new);
+    let search = use_stored_text("sbom-list", "search");
     // the total number of matching SBOMs, kept while the next page loads
     let total = use_state_eq(|| Option::<usize>::None);
-    let pagination = use_pagination(*total, Default::default);
+    let pagination = use_stored_pagination("sbom-list", *total);
     let router = use_router::<AppRoute>();
     let ingested = use_ingested_documents();
 
@@ -172,6 +191,7 @@ pub fn sbom_list() -> Html {
             <TableColumn<Column> label="Published" index={Column::Published} />
             <TableColumn<Column> label="Packages" index={Column::Packages} />
             <TableColumn<Column> label="Verdicts" index={Column::Verdicts} />
+            <TableColumn<Column> label="Remediations" index={Column::Remediations} />
         </TableHeader<Column>>
     };
 

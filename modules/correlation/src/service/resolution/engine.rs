@@ -13,6 +13,10 @@ pub struct DecisionEvidence {
     pub provider: ProviderIdentity,
     /// The products the evidence was matched in, only reported in the explanation.
     pub contexts: Vec<EvidenceContext>,
+    /// The factors of the confidence, only reported in the explanation.
+    pub factors: Vec<ConfidenceFactor>,
+    /// The remediations of the statement, only reported in the explanation.
+    pub remediations: Vec<EvidenceRemediation>,
 }
 
 fn status(status: ApiAssertionStatus) -> Option<VerdictStatus> {
@@ -111,6 +115,8 @@ pub fn resolve(
             outcome: EvidenceOutcome::NonVoting,
             selection_reason: SelectionReason::NonVoting,
             contexts: e.contexts.clone(),
+            confidence_factors: e.factors.clone(),
+            remediations: e.remediations.clone(),
         });
     }
     details.sort_by(compare);

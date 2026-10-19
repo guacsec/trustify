@@ -1,10 +1,11 @@
 use super::{
     Assertion, Extractor, IdentifierMatch, NodeMatch, NodeRef,
-    context::{Scope, Scoper, round},
+    context::{Scope, Scoper},
     cpe::CpeExtractor,
     digest::DigestExtractor,
     product_identifier::ProductIdentifierExtractor,
     purl::PurlExtractor,
+    version::retain_in_range,
     writer::EvidenceWriter,
 };
 use crate::{error::Error, model::IdentifierRef};
@@ -65,6 +66,7 @@ impl Extractors {
                         .map(|node| (node.node.clone(), assertion))
                 })
                 .collect::<Vec<_>>();
+            let matches = retain_in_range(matches, tx).await?;
 
             let count = write_scoped(matches, &mut scoper, tx).await?;
 
@@ -95,6 +97,7 @@ impl Extractors {
                 .into_iter()
                 .map(|NodeMatch { node, assertion }| (node, assertion))
                 .collect::<Vec<_>>();
+            let matches = retain_in_range(matches, tx).await?;
             let count = write_scoped(matches, &mut scoper, tx).await?;
 
             tracing::info!(extractor = extractor.id(), %advisory_id, evidence_count = count, "extraction for advisory complete");
@@ -197,18 +200,17 @@ impl Extractors {
                     continue;
                 }
             } else {
-                match context::scope(
+                let scope = context::scope(
                     assertion.context_id.and_then(|id| contexts.get(&id)),
                     &node,
                     &[],
                     assertion.requires_context,
-                ) {
-                    Scope::Dropped => continue,
-                    Scope::Matched { confidence, .. }
-                    | Scope::Unscoped { confidence }
-                    | Scope::Unconfirmed { confidence, .. } => {
-                        assertion.confidence = round(assertion.confidence * confidence)
-                    }
+                );
+                if scope == Scope::Dropped {
+                    continue;
+                }
+                if let Some(factor) = scope.factor() {
+                    assertion.apply(factor);
                 }
             }
             assertion.context_id = None;
@@ -237,19 +239,16 @@ async fn write_scoped(
 
     let mut writer = EvidenceWriter::new();
     for (node, mut assertion) in matches {
-        match scoper.scope(&node, &assertion) {
+        let scope = scoper.scope(&node, &assertion);
+        if let Some(factor) = scope.factor() {
+            assertion.apply(factor);
+        }
+        match scope {
             Scope::Dropped => {}
-            Scope::Unscoped { confidence } => {
-                assertion.confidence = round(assertion.confidence * confidence);
-                writer.add(&node, assertion)?;
-            }
-            Scope::Matched { confidence, links } => {
-                assertion.confidence = round(assertion.confidence * confidence);
-                writer.add_in_context(&node, assertion, links)?;
-            }
-            Scope::Unconfirmed { confidence, link } => {
-                assertion.confidence = round(assertion.confidence * confidence);
-                writer.add_in_context(&node, assertion, vec![link])?;
+            Scope::Unscoped { .. } => writer.add(&node, assertion)?,
+            Scope::Matched { links, .. } => writer.add_in_context(&node, assertion, links)?,
+            Scope::Unconfirmed { link, .. } => {
+                writer.add_in_context(&node, assertion, vec![link])?
             }
         }
     }

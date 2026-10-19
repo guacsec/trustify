@@ -119,6 +119,10 @@ pub struct VulnerabilityRef {
     /// The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advisory_type: Option<String>,
+    /// The upstream vulnerabilities the advisories of the evidence refer to for this one, e.g. the
+    /// CVEs of a distribution's OSV record. They are different vulnerabilities, not aliases.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub upstream: Vec<String>,
 }
 
 /// One piece of evidence from the correlation engine.
@@ -140,6 +144,12 @@ pub struct EvidenceDetail {
     /// has no context, or the SBOM nothing to compare it with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contexts: Vec<EvidenceContext>,
+    /// The factors of the confidence, empty for evidence extracted before they were recorded.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub confidence_factors: Vec<ConfidenceFactor>,
+    /// The remediations the advisory states for the matched statement.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remediations: Vec<EvidenceRemediation>,
     /// The provider making the assertion, as resolved through provider aliases.
     #[serde(default)]
     pub provider: ProviderResolution,
@@ -164,7 +174,7 @@ pub struct EvidenceContext {
     /// Where the component got the matching identifier from.
     pub source: ContextSource,
     /// Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
-    pub distance: i32,
+    pub distance: u32,
     /// The SBOM side identifier which matched: a CPE, or e.g. `sku:6925281924439`.
     pub node_identifier: String,
     /// The product's identifier which matched.
@@ -219,6 +229,110 @@ impl ContextSource {
             Self::Unconfirmed => "nothing in the SBOM",
         }
     }
+}
+
+/// A remediation an advisory states for the statement of a piece of evidence, e.g. the version
+/// fixing it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EvidenceRemediation {
+    pub category: RemediationCategory,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// The kind of a remediation, as CSAF defines them (OSV's fixed versions are vendor fixes).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum RemediationCategory {
+    VendorFix,
+    Workaround,
+    Mitigation,
+    NoFixPlanned,
+    NoneAvailable,
+    WillNotFix,
+}
+
+impl RemediationCategory {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::VendorFix => "Vendor fix",
+            Self::Workaround => "Workaround",
+            Self::Mitigation => "Mitigation",
+            Self::NoFixPlanned => "No fix planned",
+            Self::NoneAvailable => "None available",
+            Self::WillNotFix => "Will not fix",
+        }
+    }
+}
+
+/// One factor of a match confidence, and why it applies. The match confidence is the product of
+/// its factors.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ConfidenceFactor {
+    pub reason: ConfidenceReason,
+    pub factor: f64,
+}
+
+impl ConfidenceFactor {
+    pub fn new(reason: ConfidenceReason, factor: f64) -> Self {
+        Self { reason, factor }
+    }
+}
+
+/// Why a factor applies to a match confidence.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConfidenceReason {
+    /// A file digest is equal.
+    Digest,
+    /// A product identifier (SKU, model or serial number) matches.
+    ProductIdentifier,
+    /// The advisory CPE states the version, which the SBOM version equals.
+    CpeExactVersion,
+    /// The advisory CPE has any version, and the SBOM version is in the assertion's range.
+    CpeVersionRange,
+    /// The advisory CPE has any version, without a range: all versions match.
+    CpeAnyVersion,
+    /// The PURL is in a range the advisory states.
+    Purl,
+    /// The release streams of an RPM (e.g. `el8_6`) and the statement relate.
+    RpmStream { stream: StreamRelation },
+    /// A rule derived the range from what the advisory states, e.g. `purl_first_fixed`.
+    Rule { rule: String },
+    /// The status is the advisory's default for versions it doesn't list.
+    DefaultStatus,
+    /// The component is in the product the statement is about.
+    ProductConfirmed {
+        source: ContextSource,
+        distance: u32,
+    },
+    /// Nothing in the SBOM confirms the product the statement is about.
+    ProductNotConfirmed,
+}
+
+/// How the release stream of an RPM relates to the one of a statement.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum StreamRelation {
+    /// Both streams are equal (e.g. `el8_6`).
+    Exact,
+    /// One of them is just the major (e.g. `el8` and `el8_6`).
+    Major,
+    /// Different minors of the same major (e.g. `el9_0` and `el9_1`).
+    Minor,
+}
+
+/// The confidence of factors: their product, rounded to two digits.
+pub fn combine<'a>(factors: impl IntoIterator<Item = &'a ConfidenceFactor>) -> f64 {
+    let product = factors.into_iter().map(|f| f.factor).product::<f64>();
+    (product * 100.0).round() / 100.0
 }
 
 /// How the matching status was obtained from an advisory.
@@ -580,8 +694,22 @@ mod entity_conversions {
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
         correlation_evidence_context::ContextSource as EntityContextSource,
         correlation_option::{self, CorrelationOptionKey as EntityCorrelationOptionKey},
+        remediation::RemediationCategory as EntityRemediationCategory,
         version_range,
     };
+
+    impl From<EntityRemediationCategory> for RemediationCategory {
+        fn from(value: EntityRemediationCategory) -> Self {
+            match value {
+                EntityRemediationCategory::VendorFix => Self::VendorFix,
+                EntityRemediationCategory::Workaround => Self::Workaround,
+                EntityRemediationCategory::Mitigation => Self::Mitigation,
+                EntityRemediationCategory::NoFixPlanned => Self::NoFixPlanned,
+                EntityRemediationCategory::NoneAvailable => Self::NoneAvailable,
+                EntityRemediationCategory::WillNotFix => Self::WillNotFix,
+            }
+        }
+    }
 
     impl From<EntityCategory> for ContextCategory {
         fn from(value: EntityCategory) -> Self {
@@ -709,6 +837,10 @@ pub struct SbomVerdictCounts {
     pub not_affected: u64,
     pub under_investigation: u64,
     pub none: u64,
+    /// The number of remediations the advisories state for the evidence, each once per component,
+    /// vulnerability and advisory.
+    #[serde(default)]
+    pub remediations: u64,
 }
 
 #[cfg(test)]

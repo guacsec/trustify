@@ -7,7 +7,7 @@ use sea_query::{Expr, ExprTrait, OnConflict, PgFunc};
 use std::collections::{BTreeMap, BTreeSet};
 use tracing::instrument;
 use trustify_common::{cpe::Cpe, db::chunk::EntityChunkedIter, purl::Purl};
-use trustify_entity::{purl_status, status, version_range};
+use trustify_entity::{purl_status, remediation_purl_status, status, version_range};
 use uuid::Uuid;
 
 /// Input data for creating a PURL status entry
@@ -34,6 +34,8 @@ pub struct PurlStatusEntry {
 #[derive(Default)]
 pub struct PurlStatusCreator {
     entries: Vec<PurlStatusEntry>,
+    /// The remediations of entries, by the index of the entry.
+    remediations: Vec<(usize, Uuid)>,
 }
 
 impl PurlStatusCreator {
@@ -43,6 +45,13 @@ impl PurlStatusCreator {
 
     /// Add a PURL status entry to be created
     pub fn add(&mut self, entry: PurlStatusEntry) {
+        self.entries.push(entry);
+    }
+
+    /// Add a PURL status entry to be created, linked to a remediation (`remediation_purl_status`).
+    /// The remediation must exist when creating.
+    pub fn add_remediated(&mut self, entry: PurlStatusEntry, remediation_id: Uuid) {
+        self.remediations.push((self.entries.len(), remediation_id));
         self.entries.push(entry);
     }
 
@@ -85,8 +94,13 @@ impl PurlStatusCreator {
         // 2. Deduplicate and build ActiveModels
         let mut version_ranges = BTreeMap::new();
         let mut purl_statuses = BTreeMap::new();
+        let remediations = self
+            .remediations
+            .into_iter()
+            .collect::<BTreeMap<usize, Uuid>>();
+        let mut remediation_links = BTreeSet::new();
 
-        for entry in self.entries {
+        for (index, entry) in self.entries.into_iter().enumerate() {
             // Validate status exists
             let status_id = *status_map
                 .get(&entry.status)
@@ -104,6 +118,9 @@ impl PurlStatusCreator {
             };
 
             let uuid = purl_status.uuid(entry.advisory_id, entry.vulnerability_id.clone());
+            if let Some(remediation_id) = remediations.get(&index) {
+                remediation_links.insert((*remediation_id, uuid));
+            }
             let base_purl_id = entry.purl.package_uuid();
             let version_range_id = entry.version_info.uuid();
             let context_cpe_id = entry.context_cpe.as_ref().map(|cpe| cpe.uuid());
@@ -146,6 +163,23 @@ impl PurlStatusCreator {
         // 4. Batch insert purl_statuses
         for batch in purl_statuses.into_values().chunked() {
             purl_status::Entity::insert_many(batch)
+                .on_conflict(OnConflict::new().do_nothing().to_owned())
+                .try_insert()
+                .exec_without_returning(connection)
+                .await?;
+        }
+
+        // 5. Link them to their remediations
+        let links = remediation_links
+            .into_iter()
+            .map(
+                |(remediation_id, purl_status_id)| remediation_purl_status::ActiveModel {
+                    remediation_id: Set(remediation_id),
+                    purl_status_id: Set(purl_status_id),
+                },
+            );
+        for batch in &links.chunked() {
+            remediation_purl_status::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()
                 .exec_without_returning(connection)

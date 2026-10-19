@@ -16,7 +16,10 @@
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{AssertionOrigin, IdentifierKind, IdentifierRef, MatchedValue},
+    model::{
+        AssertionOrigin, ConfidenceFactor, ConfidenceReason, IdentifierKind, IdentifierRef,
+        MatchedValue,
+    },
 };
 use sea_orm::{
     ActiveEnum, ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait,
@@ -61,6 +64,16 @@ impl VersionCheck {
             Self::Range => 0.7,
             Self::Any => 0.5,
         }
+    }
+
+    /// The confidence as a factor, with its reason.
+    pub fn factor(self) -> ConfidenceFactor {
+        let reason = match self {
+            Self::Exact => ConfidenceReason::CpeExactVersion,
+            Self::Range => ConfidenceReason::CpeVersionRange,
+            Self::Any => ConfidenceReason::CpeAnyVersion,
+        };
+        ConfidenceFactor::new(reason, self.confidence())
     }
 }
 
@@ -391,15 +404,22 @@ fn assertion(
         .map(serde_json::from_value)
         .transpose()
         .map_err(Error::MatchedValue)?;
+    // a default status is about all versions not listed
+    let factor = match row.is_default {
+        true => ConfidenceFactor::new(ConfidenceReason::DefaultStatus, check.confidence()),
+        false => check.factor(),
+    };
     Ok(Assertion {
         extractor: if row.is_default { DEFAULT } else { ID },
         status: AssertionStatus::try_from_value(&row.status)?,
-        confidence: check.confidence(),
+        confidence: factor.factor,
+        factors: vec![factor],
         matched_value,
         advisory_id: row.advisory_id,
         vulnerability_id: row.vulnerability_id,
         context_id: row.assertion_context_id,
         requires_context: false,
+        version_range_id: None,
     })
 }
 
@@ -521,11 +541,9 @@ mod test {
         Extractors::new(vec![Box::new(CpeExtractor)])
     }
 
-    /// Evidence of an SBOM: (node, vulnerability, status, confidence, matched value), sorted.
-    async fn evidence(
-        ctx: &TrustifyContext,
-        sbom_id: Uuid,
-    ) -> anyhow::Result<Vec<(String, String, AssertionStatus, f64, String)>> {
+    /// Evidence of an SBOM: (node, vulnerability, status, confidence, its factors, matched value),
+    /// sorted.
+    async fn evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
         correlation_evidence::Entity::find()
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
             .filter(correlation_evidence::Column::Extractor.eq("cpe"))
@@ -545,6 +563,7 @@ mod test {
                     e.vulnerability_id,
                     e.status,
                     e.confidence,
+                    serde_json::from_value(e.confidence_factors)?,
                     matched.to_string(),
                 ))
             })
@@ -577,7 +596,17 @@ mod test {
         Ok(count)
     }
 
-    fn expected() -> Vec<(String, String, AssertionStatus, f64, String)> {
+    /// An evidence row, see [`evidence`].
+    type Evidence = (
+        String,
+        String,
+        AssertionStatus,
+        f64,
+        Vec<ConfidenceFactor>,
+        String,
+    );
+
+    fn expected() -> Vec<Evidence> {
         const WAGO_RANGE: &str =
             "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:* semver: >= 1.0.0, < 4.10.0";
         const WAGO_FIXED: &str = "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*";
@@ -588,13 +617,16 @@ mod test {
 
         // WAGO states its firmware as installed on devices (a context), which the SBOM components
         // can't be compared with: ×0.7 (unchecked)
+        let not_confirmed = ConfidenceFactor::new(ConfidenceReason::ProductNotConfirmed, 0.7);
+        let exact = || vec![VersionCheck::Exact.factor()];
         let mut result = Vec::new();
-        for (node, vulns, status, confidence, matched) in [
+        for (node, vulns, status, confidence, factors, matched) in [
             (
                 "mdp-arm32",
                 BECKHOFF_CVES,
                 AssertionStatus::Fixed,
                 0.8,
+                exact(),
                 MDP_ARM32,
             ),
             (
@@ -602,6 +634,7 @@ mod test {
                 BECKHOFF_CVES,
                 AssertionStatus::Fixed,
                 0.8,
+                exact(),
                 MDP_X86,
             ),
             (
@@ -609,6 +642,7 @@ mod test {
                 WAGO_CVES,
                 AssertionStatus::Affected,
                 0.49,
+                vec![VersionCheck::Range.factor(), not_confirmed.clone()],
                 WAGO_RANGE,
             ),
             (
@@ -616,6 +650,7 @@ mod test {
                 WAGO_CVES,
                 AssertionStatus::Fixed,
                 0.56,
+                vec![VersionCheck::Exact.factor(), not_confirmed.clone()],
                 WAGO_FIXED,
             ),
             (
@@ -623,6 +658,7 @@ mod test {
                 WAGO_CVES,
                 AssertionStatus::Affected,
                 0.49,
+                vec![VersionCheck::Range.factor(), not_confirmed.clone()],
                 WAGO_HARDENED_RANGE,
             ),
         ] {
@@ -632,6 +668,7 @@ mod test {
                     vuln.to_string(),
                     status,
                     confidence,
+                    factors.clone(),
                     matched.to_string(),
                 ));
             }
@@ -805,6 +842,7 @@ mod test {
                     vulnerability_id: vuln.to_string(),
                     status: AssertionStatus::Affected,
                     confidence: 0.7,
+                    factors: vec![VersionCheck::Range.factor()],
                     matched_value: MatchedValue {
                         source_provider: None,
                         origin: AssertionOrigin::Stated,
@@ -824,6 +862,7 @@ mod test {
                     },
                     context_id: None,
                     requires_context: false,
+                    version_range_id: None,
                 })
                 .collect::<Vec<_>>()
         );

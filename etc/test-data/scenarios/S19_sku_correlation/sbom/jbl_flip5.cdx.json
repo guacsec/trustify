@@ -1,0 +1,32 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:s19-jbl-flip5",
+  "metadata": {
+    "timestamp": "2025-06-01T12:00:00Z",
+    "component": {
+      "type": "device",
+      "name": "JBL Flip 5",
+      "version": "1.0.0",
+      "bom-ref": "jbl-flip5-root"
+    }
+  },
+  "components": [
+    {
+      "type": "device",
+      "name": "JBL Flip 5 Speaker",
+      "version": "1.0.0",
+      "bom-ref": "comp-flip5-device",
+      "properties": [
+        { "name": "cdx:device:sku", "value": "050036359160" }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "jbl-flip5-root",
+      "dependsOn": ["comp-flip5-device"]
+    }
+  ]
+}

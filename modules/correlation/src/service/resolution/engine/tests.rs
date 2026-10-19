@@ -23,6 +23,8 @@ fn evidence(
             ..Default::default()
         },
         contexts: vec![],
+        factors: vec![],
+        remediations: vec![],
     }
 }
 fn component() -> ProviderResolution {

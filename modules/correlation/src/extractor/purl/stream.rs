@@ -4,6 +4,7 @@
 //! (e.g. `150600` of `3.1.4-150600.5.39.1`), see [`suse_codestream`].
 
 use super::{CONFIDENCE, PLAIN, STREAM};
+use crate::model::{ConfidenceFactor, ConfidenceReason, StreamRelation};
 use trustify_common::rpm::stream_major;
 
 /// How the RPM stream of an SBOM version relates to the stream of a matched range.
@@ -30,6 +31,23 @@ impl StreamMatch {
             Self::Exact | Self::Unscoped => CONFIDENCE,
             Self::Major | Self::Minor => 0.8,
         }
+    }
+
+    /// The confidence as a factor, with its reason.
+    pub fn factor(self) -> ConfidenceFactor {
+        let reason = match self {
+            Self::Exact => ConfidenceReason::RpmStream {
+                stream: StreamRelation::Exact,
+            },
+            Self::Major => ConfidenceReason::RpmStream {
+                stream: StreamRelation::Major,
+            },
+            Self::Minor => ConfidenceReason::RpmStream {
+                stream: StreamRelation::Minor,
+            },
+            Self::Unscoped => ConfidenceReason::Purl,
+        };
+        ConfidenceFactor::new(reason, self.confidence())
     }
 
     /// Type of the evidence of a stated range: only scoped matches are stream evidence.

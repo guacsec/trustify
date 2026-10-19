@@ -60,9 +60,22 @@ impl Deref for Doc {
     }
 }
 
-/// Parse an OSV record. Only JSON is supported, records in YAML are only shown as source.
-fn parse(text: &str) -> Result<Doc, serde_json::Error> {
-    serde_json::from_str(text).map(|osv| Doc(Rc::new(osv)))
+/// An OSV record which can't be read.
+#[derive(Debug, thiserror::Error)]
+enum ParseError {
+    #[error("invalid JSON: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("invalid YAML: {0}")]
+    Yaml(#[from] serde_saphyr::Error),
+}
+
+/// Parse an OSV record, in JSON (an object) or YAML.
+fn parse(text: &str) -> Result<Doc, ParseError> {
+    let osv = match text.trim_start().starts_with('{') {
+        true => serde_json::from_str(text)?,
+        false => serde_saphyr::from_str(text)?,
+    };
+    Ok(Doc(Rc::new(osv)))
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
@@ -79,7 +92,7 @@ pub fn osv_view(props: &OsvViewProps) -> Html {
         Err(err) => html! {
             <Alert title="Failed to read the OSV record" r#type={AlertType::Danger} inline=true>
                 <p>{ format!("Invalid OSV record: {err}") }</p>
-                <p>{ "Only records in JSON are supported, see the Source tab for the document." }</p>
+                <p>{ "See the Source tab for the document." }</p>
             </Alert>
         },
         Ok(doc) => {
@@ -153,8 +166,41 @@ mod test {
         );
     }
 
+    /// Records in YAML, as some databases publish them.
     #[test]
-    fn reject_yaml() {
-        assert!(parse("id: GHSA-g4mx-q9vg-27p4\nmodified: 2026-02-04T03:30:16Z\n").is_err());
+    fn parse_yaml() {
+        let doc = parse(include_str!(
+            "../../../../etc/test-data/osv/RSEC-2023-6.yaml"
+        ))
+        .expect("record parses");
+        assert_eq!(
+            (
+                doc.id.as_str(),
+                doc.aliases.as_deref(),
+                doc.affected.as_ref().map(Vec::len),
+                doc.references.as_ref().map(Vec::len),
+            ),
+            (
+                "RSEC-2023-6",
+                Some(["CVE-2020-5238".to_string()].as_slice()),
+                Some(1),
+                Some(3),
+            )
+        );
+
+        let doc = parse(include_str!(
+            "../../../../etc/test-data/osv/PYSEC-2024-55.yaml"
+        ))
+        .expect("record parses");
+        assert_eq!(
+            (doc.id.as_str(), doc.affected.as_ref().map(Vec::len)),
+            ("PYSEC-2024-55", Some(1))
+        );
+    }
+
+    #[test]
+    fn invalid_record() {
+        assert!(parse("{\"id\": 1}").is_err());
+        assert!(parse("id: [").is_err());
     }
 }

@@ -18,6 +18,7 @@
 use crate::{
     error::Error,
     extractor::{Assertion, NodeRef, product_identifier::wildcard::csaf_glob_matches},
+    model::{ConfidenceFactor, ConfidenceReason},
 };
 use sea_orm::{
     ActiveEnum, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter,
@@ -65,7 +66,7 @@ pub struct NodeCpe {
     pub cpe: cpe::Model,
     pub source: ContextSource,
     /// Hops to the node (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
-    pub distance: i32,
+    pub distance: u32,
 }
 
 impl NodeCpe {
@@ -84,13 +85,13 @@ pub struct NodeIdentifier {
     /// [`ContextSource::Node`] or [`ContextSource::AncestorNode`].
     pub source: ContextSource,
     /// Hops to the node, 0 for its own identifier.
-    pub distance: i32,
+    pub distance: u32,
 }
 
 /// The confidence of a context from the given source, at the given distance.
-fn source_confidence(source: ContextSource, distance: i32) -> f64 {
+fn source_confidence(source: ContextSource, distance: u32) -> f64 {
     let decreasing = |(start, step, min): (f64, f64, f64)| {
-        (start - step * f64::from((distance - 1).max(0))).max(min)
+        (start - step * f64::from(distance.saturating_sub(1))).max(min)
     };
     match source {
         ContextSource::Node => NODE,
@@ -151,7 +152,7 @@ pub struct AssertionContext {
 pub struct ContextLink {
     pub context_id: Uuid,
     pub source: ContextSource,
-    pub distance: i32,
+    pub distance: u32,
     pub node_identifier: String,
     pub context_identifier: String,
     pub confidence: f64,
@@ -172,6 +173,32 @@ pub enum Scope {
     Unconfirmed { confidence: f64, link: ContextLink },
     /// The contexts are comparable, but don't match, or a required context is missing.
     Dropped,
+}
+
+impl Scope {
+    /// The factor a matched product contributes to the confidence: the one of its best link, or
+    /// the reduction of an unconfirmed one. `None` if the assertion isn't about a product.
+    pub fn factor(&self) -> Option<ConfidenceFactor> {
+        match self {
+            Self::Matched { confidence, links } => {
+                let best = links
+                    .iter()
+                    .max_by(|a, b| a.confidence.total_cmp(&b.confidence))?;
+                Some(ConfidenceFactor::new(
+                    ConfidenceReason::ProductConfirmed {
+                        source: best.source.into(),
+                        distance: best.distance,
+                    },
+                    *confidence,
+                ))
+            }
+            Self::Unconfirmed { confidence, .. } => Some(ConfidenceFactor::new(
+                ConfidenceReason::ProductNotConfirmed,
+                *confidence,
+            )),
+            Self::Unscoped { .. } | Self::Dropped => None,
+        }
+    }
 }
 
 /// Scope an assertion with the given context against the CPEs and exact identifiers of a node.
@@ -604,7 +631,7 @@ GROUP BY f.sbom_id, f.node_id, f.source, c.id
             .push(NodeCpe {
                 cpe: row.cpe,
                 source: row.source,
-                distance: row.distance,
+                distance: u32::try_from(row.distance)?,
             });
     }
 
@@ -752,7 +779,7 @@ GROUP BY up.sbom_id, up.node_id, i.identifier_type, i.algorithm, i.value
                     0 => ContextSource::Node,
                     _ => ContextSource::AncestorNode,
                 },
-                distance: row.distance,
+                distance: u32::try_from(row.distance)?,
             });
     }
     Ok(result)
@@ -868,7 +895,7 @@ mod test {
         }
     }
 
-    fn node(value: &str, source: ContextSource, distance: i32) -> NodeCpe {
+    fn node(value: &str, source: ContextSource, distance: u32) -> NodeCpe {
         NodeCpe {
             cpe: cpe(value),
             source,
@@ -938,7 +965,7 @@ mod test {
     #[case::purl_qualifier(ContextSource::PurlQualifier, 0, 0.85)]
     #[case::purl_release(ContextSource::PurlRelease, 0, 0.75)]
     #[case::far_ancestor_sbom(ContextSource::AncestorSbom, 9, 0.5)]
-    fn proximity(#[case] source: ContextSource, #[case] distance: i32, #[case] expected: f64) {
+    fn proximity(#[case] source: ContextSource, #[case] distance: u32, #[case] expected: f64) {
         let confidence = node("cpe:/a:a:b", source, distance).confidence();
         assert_eq!(round(confidence), expected);
     }
@@ -1046,7 +1073,7 @@ mod test {
         }
     }
 
-    fn node_identifier(kind: ContextIdentifierKind, value: &str, distance: i32) -> NodeIdentifier {
+    fn node_identifier(kind: ContextIdentifierKind, value: &str, distance: u32) -> NodeIdentifier {
         NodeIdentifier {
             kind,
             value: normalize_identifier(kind, value),
@@ -1068,7 +1095,7 @@ mod test {
         #[case] kind: ContextIdentifierKind,
         #[case] context_value: &str,
         #[case] node_value: &str,
-        #[case] distance: i32,
+        #[case] distance: u32,
         #[case] expected: f64,
     ) {
         let node = node_identifier(kind, node_value, distance);

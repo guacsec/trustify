@@ -1,0 +1,27 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:8c2d1f0e-6a4b-4f3e-9d1c-2b7e5a9c4f02",
+  "metadata": {
+    "timestamp": "2026-10-19T12:00:00Z",
+    "component": {
+      "type": "container",
+      "name": "example-debian-12",
+      "version": "1.0.0",
+      "bom-ref": "example-image"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "node-dompurify",
+      "version": "2.4.1+dfsg+~2.4.0-1",
+      "bom-ref": "node-dompurify",
+      "purl": "pkg:deb/debian/node-dompurify@2.4.1%2Bdfsg%2B~2.4.0-1?arch=all&distro=debian-12"
+    }
+  ],
+  "dependencies": [
+    { "ref": "example-image", "dependsOn": ["node-dompurify"] }
+  ]
+}

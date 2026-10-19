@@ -1,7 +1,12 @@
 //! The list of advisories, searchable.
 
 use crate::{
-    AppRoute, advisory::AdvisoryFormat, api, ingest_drop::use_ingested_documents, sort::use_sort,
+    AppRoute,
+    advisory::AdvisoryFormat,
+    api,
+    ingest_drop::use_ingested_documents,
+    sort::use_sort,
+    stored::{use_stored_pagination, use_stored_text},
 };
 use patternfly_yew::prelude::*;
 use trustify_client::api::types::AdvisorySummary;
@@ -100,12 +105,12 @@ enum Page {
 #[function_component(AdvisoryList)]
 pub fn advisory_list() -> Html {
     let page = use_state_eq(|| Page::Loading);
-    let search = use_state_eq(String::new);
+    let search = use_stored_text("advisory-list", "search");
     let total = match &*page {
         Page::Ready { total, .. } => *total,
         _ => None,
     };
-    let pagination = use_pagination(total, Default::default);
+    let pagination = use_stored_pagination("advisory-list", total);
     let sort = use_sort::<Column>(None);
     let router = use_router::<AppRoute>();
     let ingested = use_ingested_documents();

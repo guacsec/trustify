@@ -1,0 +1,27 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:5a1f6c62-2f0b-4d61-9b0f-0d7a3c1e9a01",
+  "metadata": {
+    "timestamp": "2026-10-19T12:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "example-app",
+      "version": "1.0.0",
+      "bom-ref": "example-app"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "hyper",
+      "version": "0.14.1",
+      "bom-ref": "hyper",
+      "purl": "pkg:cargo/hyper@0.14.1"
+    }
+  ],
+  "dependencies": [
+    { "ref": "example-app", "dependsOn": ["hyper"] }
+  ]
+}
