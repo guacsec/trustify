@@ -607,7 +607,7 @@ impl<'a> StatusCreator<'a> {
 
             hash_models.sort_by_key(|model| *model.id.as_ref());
 
-            for batch in &hash_models.chunked() {
+            for batch in hash_models.chunked() {
                 advisory_vulnerability_hash::Entity::insert_many(batch)
                     .on_conflict_do_nothing()
                     .exec(connection)
@@ -649,7 +649,7 @@ impl<'a> StatusCreator<'a> {
 
             pid_models.sort_by_key(|model| *model.id.as_ref());
 
-            for batch in &version_ranges.into_values().chunked() {
+            for batch in version_ranges.into_values().chunked() {
                 version_range::Entity::insert_many(batch)
                     .on_conflict(OnConflict::new().do_nothing().to_owned())
                     .try_insert()
@@ -657,7 +657,7 @@ impl<'a> StatusCreator<'a> {
                     .await?;
             }
 
-            for batch in &pid_models.chunked() {
+            for batch in pid_models.chunked() {
                 advisory_vulnerability_product_identifier::Entity::insert_many(batch)
                     .on_conflict_do_nothing()
                     .exec(connection)

@@ -1,4 +1,8 @@
-use crate::{advisory::advisory_link, api, correlation::matched_value};
+use crate::{
+    advisory::advisory_link,
+    api,
+    correlation::{confidence_label, matched_value, status_color},
+};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
     AssertionStatus, IdentifierKind, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
@@ -152,10 +156,10 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             }
             .into(),
             VerdictColumn::Status => html! {
-                <div>
+                <span style="display: inline-flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
                     {status_label(self.0.status)}
-                    <p>{format!("Selected match confidence: {:.0}%{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
-                </div>
+                    {confidence_label(&self.0.resolution)}
+                </span>
             }.into(),
             VerdictColumn::Evidence => {
                 html!(<Badge>{ self.0.matches.len().to_string() }</Badge>).into()
@@ -354,21 +358,14 @@ fn query_results(props: &QueryResultsProps) -> Html {
 }
 
 fn status_label(status: VerdictStatus) -> Html {
-    let color = match status {
-        VerdictStatus::Affected => Color::Red,
-        VerdictStatus::Fixed => Color::Green,
-        VerdictStatus::NotAffected => Color::Blue,
-        VerdictStatus::UnderInvestigation => Color::Orange,
-        VerdictStatus::None => Color::Grey,
-    };
-    html! { <Label label={status.label()} {color} /> }
+    html! { <Label label={status.label()} color={status_color(status)} /> }
 }
 
 fn assertion_label(status: AssertionStatus) -> Html {
     let color = match status {
         AssertionStatus::Affected => Color::Red,
-        AssertionStatus::Fixed => Color::Green,
-        AssertionStatus::NotAffected => Color::Blue,
+        AssertionStatus::Fixed => Color::Blue,
+        AssertionStatus::NotAffected => Color::Green,
         AssertionStatus::UnderInvestigation => Color::Orange,
         AssertionStatus::Recommended => Color::Grey,
     };

@@ -7,7 +7,7 @@ Empty maps mean no applicable evidence. Explicit `not_affected` and `fixed` rema
 Publisher conventions such as Red Hat `fixed_is_first_fixed` and `versionless_purl` must be named
 in a scenario's review; they are not general CSAF rules.
 
-## Migration review of the remaining original scenarios
+## Migration review
 
 | Scenario | Disposition | Main correction or remaining question |
 |---|---|---|
@@ -17,27 +17,62 @@ in a scenario's review; they are not general CSAF rules.
 | [S8](S8_epoch_mismatch_openjdk/README.md) | Migrated concrete cases | Below-fix examples do not prove general epoch invariance |
 | [S9](S9_substream_openssl_el8/README.md) | Migrated | At-fix is fixed; own-stream rule is explicit |
 | [S10](S10_combined_describing_cpe/README.md) | Migrated | Assert each component; isolate CVE, CSAF, and OSV inputs |
-| [S11](S11_bareaffected_substream_firefox/README.md) | Blocked | Flatpak `rpmmod` negative incorrectly applies to base Firefox |
-| [S12](S12_notaffected_ignored_thunderbird/README.md) | Original migrated; control blocked | Removing negative exposes an affected result from inapplicable statements |
+| [S11](S11_bareaffected_substream_firefox/README.md) | Migrated | Module qualifiers prevent the Flatpak negative from applying to base Firefox |
+| [S12](S12_notaffected_ignored_thunderbird/README.md) | Original and control migrated | Removing the negative leaves no evidence; extended-support fixes do not apply to the mainline package |
 | [S15](S15_versioncmp_rpm_openssh/README.md) | Migrated | Mainline minor fallback is allowed; patched builds are fixed |
 | [S17](S17_crossproduct_ocp_kernel_go/README.md) | Migrated | Unrelated kernel has no verdict; patched Go builds are fixed |
 | [S30](S30_crossproduct_curl_notaffected/README.md) | Migrated | RHEL 8 explicit negative; RHEL 9 patched builds fixed |
 
-Nine additional scenarios are enabled. Together with the previous 15, the harness covers 24
-scenarios through 35 manifests (70 ingestion-order tests), with both SBOM formats for all newly
-migrated original cases. Dedicated digest-S18 and SKU-S19 extractor tests remain separate.
+## Current coverage
 
-The original advisory documents are unchanged. Historical legacy-engine result tables have been
-replaced by reviews. S7 and S11 retain their legacy `expected.json` files as historical artifacts,
-not accepted new-engine expectations. Reviewed blocked manifests are kept for future fixes:
+The [service harness](../../../modules/correlation/src/service/test.rs) covers 27 scenarios through
+39 manifests (78 ingestion-order tests). S7 is the only numbered scenario without accepted
+new-engine coverage. S18 (digests) and S19 (hardware identifiers) have separate extractor and
+service tests, but no full-verdict manifests in the common harness.
+
+All migrated original scenarios cover both CycloneDX and SPDX. S20–S22 and S24–S27 currently
+cover CycloneDX only. S23, S28, and S29 cover both formats. The original S18 curl cross-product
+scenario is now S30; S18 now identifies the digest scenario.
+
+Historical legacy-engine result tables have been replaced by reviews. S7 and S11 retain their
+legacy `expected.json` files as historical artifacts, not accepted new-engine expectations.
+The harness registers these reviewed manifests in both ingestion orders and both SBOM formats:
 
 - S11 `expected-reviewed.json`: mainline Firefox affected, EUS exact-fix Firefox fixed.
 - S12 `expected-control.json`: no verdict after removing all negative assertions from the synthetic control.
 
-Migration trials reproduce the S11 and S12 discrepancies in both ingestion orders. These manifests
-are deliberately not registered as acceptance cases; no ignored or output-derived tests are added.
-To reproduce after a fix, register each manifest as another case of `service::test::scenario`.
+S11 also has evidence-level controls for base, matching-module, and different-module packages,
+including identifier queries and both extraction directions. S12 has an additional extractor
+test requiring the control to produce no PURL evidence.
 Keep the S12 original and control in separate cases/databases because their document IDs match.
+
+## Changes from the original scenarios
+
+Legacy expectations used `not_affected` for "not reported", including fixed builds and unrelated
+statements. The new manifests distinguish `fixed`, explicit `not_affected`, and no verdict, and
+identify the component receiving each verdict.
+
+S2, S14, and S16 use official PURL-bearing VEX documents in place of the synthetic bare-name
+advisories used by the legacy tests. S14's positive component consequently changes from
+`netty-codec-http` to `netty-codec`. These cases do not establish support for the original bare-name
+matching path. S15 also changes the below-fix `el8_10` expectation to `affected` under the configured
+mainline-minor fallback policy.
+
+Most scenario tests of the deprecated fundamental APIs remain ignored. Passing the new service
+harness does not establish that those legacy endpoints satisfy the migrated expectations.
+
+## Remaining gaps
+
+- S7 needs an accepted interpretation of package-associated product CPEs, consistent with S27's
+  identifier-synonym handling.
+- S8 needs at/above-fix and conflicting-epoch controls before specifying a general missing-epoch policy.
+- S18 still exposes architecture-insensitive PURL matching and unsupported Debian/BSD range comparison.
+- S21 lacks CPE `first_*`/`last_*` status handling; S22 retains a generic-version range limitation.
+- S23 accepts an affected verdict with a conflict for `openssl` / CVE-2025-9230 because broad GA and
+  SP6 product contexts both match. More precise applicability remains a separate concern.
+- S18/S19 need common full-verdict manifests, and the CycloneDX-only cases lack SPDX counterparts.
+- No registered scenario manifest expects `under_investigation`. The harness invokes extraction
+  directly, so it does not verify worker scheduling, retries, or update/deprecation lifecycle behavior.
 
 ## Validation
 
@@ -47,6 +82,6 @@ cargo fmt --all -- --check
 ```
 
 A passing verdict does not alone prove every contributing evidence row is correctly scoped;
-the S12 control demonstrates that limitation. Existing focused PURL extractor tests retain
+the S12 control guards against that limitation. Existing focused PURL extractor tests retain
 assertions on chosen streams, ranges, statuses, and contexts. Product-scoping and qualifier fixes
-must add evidence-level regressions before enabling the blocked manifests.
+should retain evidence-level regressions alongside the verdict checks.

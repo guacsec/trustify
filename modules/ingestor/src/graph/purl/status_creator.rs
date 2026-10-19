@@ -178,7 +178,7 @@ impl PurlStatusCreator {
                     purl_status_id: Set(purl_status_id),
                 },
             );
-        for batch in &links.chunked() {
+        for batch in links.chunked() {
             remediation_purl_status::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()

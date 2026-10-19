@@ -76,6 +76,8 @@ impl TableEntryRenderer<Column> for OptionEntry {
 
 #[function_component(OptionsPage)]
 pub fn options_page() -> Html {
+    #[allow(clippy::expect_used)]
+    let backdrop = use_backdrop().expect("OptionsPage requires BackdropViewer");
     let options = use_state(Vec::<CorrelationOption>::new);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
@@ -149,16 +151,18 @@ pub fn options_page() -> Html {
         })
     };
 
-    let on_create = {
-        let change = change.clone();
-        let token = token.clone();
-        Callback::from(move |data: CorrelationOptionData| {
-            let token = token.clone();
-            change.emit(Box::pin(async move {
-                api::create_option(&data, token.as_deref())
-                    .await
-                    .map(|_| ())
-                    .map_err(|e| format!("Failed to create the option: {e}"))
+    let on_add = {
+        let generation = generation.clone();
+        let error = error.clone();
+        Callback::from(move |_: MouseEvent| {
+            let generation = generation.clone();
+            let error = error.clone();
+            let on_saved = Callback::from(move |()| {
+                error.set(None);
+                generation.set(generation.wrapping_add(1));
+            });
+            backdrop.open(Backdrop::new(html! {
+                <Bullseye><AddOption {on_saved} /></Bullseye>
             }));
         })
     };
@@ -217,20 +221,29 @@ pub fn options_page() -> Html {
             }
 
             <br />
-            <Title level={Level::H2}>{ "Add option" }</Title>
-            <AddOption {on_create} />
+            <Button variant={ButtonVariant::Primary} onclick={on_add}>{ "Add option" }</Button>
         </PageSection>
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct AddOptionProps {
-    on_create: Callback<CorrelationOptionData>,
+    on_saved: Callback<()>,
 }
 
-/// A form adding an option.
+/// A modal adding an option.
 #[function_component(AddOption)]
 fn add_option(props: &AddOptionProps) -> Html {
+    #[allow(clippy::expect_used)]
+    let backdrop = use_backdrop().expect("AddOption requires BackdropViewer");
+    let latest_token = use_latest_access_token();
+    let token = latest_token.as_ref().and_then(|t| t.access_token());
+    let error = use_state(|| None::<String>);
+    let saving = use_state(|| false);
+    let close = {
+        let backdrop = backdrop.clone();
+        Callback::from(move |_: MouseEvent| backdrop.close())
+    };
     let key = use_state(|| CorrelationOptionKey::VersionlessPurl);
     let namespace = use_state(String::new);
     let enabled = use_state(|| true);
@@ -243,22 +256,39 @@ fn add_option(props: &AddOptionProps) -> Html {
             enabled.clone(),
             reason.clone(),
         );
-        let on_create = props.on_create.clone();
+        let on_saved = props.on_saved.clone();
+        let error = error.clone();
+        let saving = saving.clone();
         Callback::from(move |e: SubmitEvent| {
             e.prevent_default();
             let publisher_namespace = namespace.trim().to_string();
-            if publisher_namespace.is_empty() {
+            if *saving || publisher_namespace.is_empty() {
                 return;
             }
             let reason_text = reason.trim();
-            on_create.emit(CorrelationOptionData {
+            let data = CorrelationOptionData {
                 key: *key,
                 publisher_namespace,
                 value: Value::Bool(*enabled),
                 reason: (!reason_text.is_empty()).then(|| reason_text.to_string()),
+            };
+            let token = token.clone();
+            let error = error.clone();
+            let saving = saving.clone();
+            let backdrop = backdrop.clone();
+            let on_saved = on_saved.clone();
+            saving.set(true);
+            error.set(None);
+            spawn_local(async move {
+                match api::create_option(&data, token.as_deref()).await {
+                    Ok(_) => {
+                        backdrop.close();
+                        on_saved.emit(());
+                    }
+                    Err(e) => error.set(Some(format!("Failed to create the option: {e}"))),
+                }
+                saving.set(false);
             });
-            namespace.set(String::new());
-            reason.set(String::new());
         })
     };
 
@@ -280,34 +310,43 @@ fn add_option(props: &AddOptionProps) -> Html {
     };
 
     html! {
-        <Form {onsubmit}>
-            <FormGroup label="Option">
-                <SimpleSelect<CorrelationOptionKey>
-                    entries={CorrelationOptionKey::ALL.to_vec()}
-                    selected={*key}
-                    {onselect}
-                />
-            </FormGroup>
-            <FormGroup label="Publisher namespace" required=true>
-                <TextInput
-                    placeholder="https://www.example.com"
-                    value={(*namespace).clone()}
-                    onchange={on_namespace}
-                />
-            </FormGroup>
-            <FormGroup label="Enabled">
-                <Switch checked={*enabled} onchange={on_enabled} aria_label="Enabled" />
-            </FormGroup>
-            <FormGroup label="Reason">
-                <TextInput
-                    placeholder="Why the option is set, shown with the evidence"
-                    value={(*reason).clone()}
-                    onchange={on_reason}
-                />
-            </FormGroup>
-            <ActionGroup>
-                <Button variant={ButtonVariant::Primary} label="Add" r#type={ButtonType::Submit} />
-            </ActionGroup>
-        </Form>
+        <Modal title="Add option" variant={ModalVariant::Medium}>
+            <Form {onsubmit}>
+                if let Some(err) = &*error {
+                    <Alert title="Unable to save" r#type={AlertType::Danger} inline=true>
+                        <p>{ err }</p>
+                    </Alert>
+                }
+                <FormGroup label="Option">
+                    <SimpleSelect<CorrelationOptionKey>
+                        entries={CorrelationOptionKey::ALL.to_vec()}
+                        selected={*key}
+                        {onselect}
+                    />
+                </FormGroup>
+                <FormGroup label="Publisher namespace" required=true>
+                    <TextInput
+                        placeholder="https://www.example.com"
+                        value={(*namespace).clone()}
+                        onchange={on_namespace}
+                    />
+                </FormGroup>
+                <FormGroup label="Enabled">
+                    <Switch checked={*enabled} onchange={on_enabled} aria_label="Enabled" />
+                </FormGroup>
+                <FormGroup label="Reason">
+                    <TextInput
+                        placeholder="Why the option is set, shown with the evidence"
+                        value={(*reason).clone()}
+                        onchange={on_reason}
+                    />
+                </FormGroup>
+                <ActionGroup>
+                    <Button variant={ButtonVariant::Primary} label="Add" r#type={ButtonType::Submit}
+                        disabled={*saving || namespace.trim().is_empty()} />
+                    <Button variant={ButtonVariant::Link} onclick={close} disabled={*saving}>{ "Cancel" }</Button>
+                </ActionGroup>
+            </Form>
+        </Modal>
     }
 }

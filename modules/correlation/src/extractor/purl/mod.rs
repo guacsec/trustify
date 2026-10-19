@@ -4,14 +4,17 @@
 //! matching requires version-range evaluation via the `version_matches()`
 //! PostgreSQL function.
 //!
-//! RPM matches are additionally scoped by the stream of the release (e.g. `el8_6` of
-//! `1.1.1k-9.el8_6`): the stream of the SBOM version must equal the stream of the matched range,
-//! or share its major (e.g. `el8`) with a lower confidence. Ranges of other streams (e.g. `el9_0`
-//! for an `el8` package) are dropped. Such matches are reported as `purl_stream` evidence.
+//! Matches are additionally scoped by the [`ecosystem`] of the package: the qualifiers of the
+//! advisory's PURL (e.g. the architecture of an RPM), and the stream of the release.
+//!
+//! RPMs are scoped by the stream of the release (e.g. `el8_6` of `1.1.1k-9.el8_6`): the stream of
+//! the SBOM version must equal the stream of the matched range, or share its major (e.g. `el8`)
+//! with a lower confidence. Ranges of other streams (e.g. `el9_0` for an `el8` package) are
+//! dropped. Such matches are reported as `purl_stream` evidence.
 //!
 //! SUSE packages (`pkg:rpm/suse/…`) carry no dist tag, but a codestream at the start of the release
 //! (e.g. `150600` of `3.1.4-150600.5.39.1` for SLE 15 SP6). They only match ranges of the same
-//! codestream (or both have none), see [`stream::suse_stream_match`].
+//! codestream (or both have none), see [`ecosystem::rpm::suse_stream_match`].
 //!
 //! All other matches (not RPM, or without a stream on either side) are reported as `purl`
 //! evidence.
@@ -28,15 +31,15 @@
 //! a correlation option of the advisory's publisher (e.g. versionless PURLs meaning all versions),
 //! which its evidence then records (`enabled_by`).
 
+pub mod ecosystem;
 pub mod rule;
-pub mod stream;
 
 #[cfg(test)]
 mod test;
 
 use self::{
+    ecosystem::{Ecosystem, StreamMatch},
     rule::{RangeRule, rules},
-    stream::StreamMatch,
 };
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
@@ -56,7 +59,7 @@ use std::{
     iter,
 };
 use tracing::{Instrument, info_span, instrument};
-use trustify_common::{db::VersionMatches, purl::Purl, rpm::Evr};
+use trustify_common::{db::VersionMatches, purl::Purl};
 use trustify_entity::{
     advisory, base_purl, correlation_evidence::AssertionStatus, purl_status, qualified_purl,
     sbom_node_purl_ref, status, version_range, version_scheme::VersionScheme, versioned_purl,
@@ -79,9 +82,6 @@ const DEFAULT: &str = "purl_default";
 const DEFAULT_CONFIDENCE: f64 = 0.9;
 
 const CONFIDENCE: f64 = 1.0;
-
-/// PURL namespace of SUSE packages, scoped by their codestream.
-const SUSE: &str = "suse";
 
 fn map_status(slug: &str) -> Option<AssertionStatus> {
     match slug {
@@ -218,7 +218,7 @@ struct PurlStatusRow {
     base_purl_name: String,
     source_purl: Option<qualified_purl::CanonicalPurl>,
     source_provider: Option<serde_json::Value>,
-    sbom_rpmmod: Option<String>,
+    sbom_qualifiers: qualified_purl::Qualifiers,
     publisher_namespace: Option<String>,
     assertion_context_id: Option<Uuid>,
     range_id: Uuid,
@@ -232,16 +232,12 @@ struct PurlStatusRow {
 }
 
 impl PurlStatusRow {
-    /// A module named by an RPM assertion must be present on the input package.
-    /// An omitted module is unspecified; other qualifiers keep their existing policies.
+    /// If the qualifiers of the SBOM package are compatible with the ones of the advisory PURL.
     fn qualifiers_match(&self) -> bool {
-        if self.base_purl_type != "rpm" {
-            return true;
-        }
-        self.source_purl
-            .as_ref()
-            .and_then(|purl| purl.qualifiers.get("rpmmod"))
-            .is_none_or(|module| self.sbom_rpmmod.as_ref() == Some(module))
+        self.source_purl.as_ref().is_none_or(|purl| {
+            self.ecosystem()
+                .qualifiers_match(&self.sbom_qualifiers.0, &purl.qualifiers)
+        })
     }
 
     /// The package a listed status shadows the default of.
@@ -255,32 +251,18 @@ impl PurlStatusRow {
         )
     }
 
-    /// Relation of the RPM streams of the SBOM version and the range.
-    ///
-    /// The range's stream is taken from its upper bound, falling back to the lower one. SUSE
-    /// packages (`pkg:rpm/suse/…`) are scoped by their codestream instead.
+    /// The ecosystem of the advisory's package.
+    fn ecosystem(&self) -> Ecosystem {
+        Ecosystem::of(&self.base_purl_type, self.base_purl_namespace.as_deref())
+    }
+
+    /// Relation of the streams of the SBOM version and the range.
     fn stream_match(&self) -> Option<StreamMatch> {
-        if self.range_scheme != VersionScheme::Rpm {
-            return Some(StreamMatch::Unscoped);
-        }
-        let range = self
-            .range_high_version
-            .as_deref()
-            .or(self.range_low_version.as_deref())
-            .map(Evr::parse);
-        let sbom = Evr::parse(&self.sbom_version);
-
-        if self.base_purl_namespace.as_deref() == Some(SUSE) {
-            let Some(range) = range else {
-                return Some(StreamMatch::Unscoped);
-            };
-            return stream::suse_stream_match(
-                sbom.release.and_then(stream::suse_codestream),
-                range.release.and_then(stream::suse_codestream),
-            );
-        }
-
-        stream::stream_match(sbom.stream(), range.and_then(|range| range.stream()))
+        self.ecosystem().stream_match(
+            &self.sbom_version,
+            self.range_low_version.as_deref(),
+            self.range_high_version.as_deref(),
+        )
     }
 
     /// The original advisory PURL (or legacy base identity), and the matched version range.
@@ -599,8 +581,8 @@ impl Extractor for PurlExtractor {
         identifiers: &[IdentifierRef],
         tx: &DatabaseTransaction,
     ) -> Result<Vec<IdentifierMatch>, Error> {
-        // Versions share candidate lookups, but each input retains its own module qualifier.
-        let mut vp_map = HashMap::<Uuid, Vec<(usize, Option<String>)>>::new();
+        // Versions share candidate lookups, but each input retains its own qualifiers.
+        let mut vp_map = HashMap::<Uuid, Vec<(usize, qualified_purl::Qualifiers)>>::new();
         for (idx, identifier) in identifiers.iter().enumerate() {
             if identifier.kind != IdentifierKind::Purl {
                 continue;
@@ -614,7 +596,7 @@ impl Extractor for PurlExtractor {
             vp_map
                 .entry(purl.version_uuid())
                 .or_default()
-                .push((idx, purl.qualifiers.get("rpmmod").cloned()));
+                .push((idx, qualified_purl::Qualifiers(purl.qualifiers)));
         }
 
         if vp_map.is_empty() {
@@ -640,9 +622,9 @@ impl Extractor for PurlExtractor {
                 .get(&row.versioned_purl_id)
                 .map(Vec::as_slice)
                 .unwrap_or_default();
-            indices.iter().map(move |(idx, module)| {
+            indices.iter().map(move |(idx, qualifiers)| {
                 let mut status = row.status.clone();
-                status.sbom_rpmmod = module.clone();
+                status.sbom_qualifiers = qualifiers.clone();
                 (*idx, source, status)
             })
         });
@@ -698,7 +680,8 @@ async fn load_purl_status_matches(
     Ok(candidates
         .select(versioned_purl::Entity::find().select_only())
         .column_as(versioned_purl::Column::Id, "versioned_purl_id")
-        .column_as(Expr::val(None::<String>), "sbom_rpmmod")
+        // replaced by the qualifiers of each input
+        .column_as(Expr::cust("'{}'::jsonb"), "sbom_qualifiers")
         .join(
             JoinType::InnerJoin,
             versioned_purl::Relation::BasePurl.def(),
@@ -736,10 +719,7 @@ async fn load_advisory_purl_matches(
         .select(purl_status::Entity::find().select_only())
         .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
         .column_as(sbom_node_purl_ref::Column::NodeId, "node_id")
-        .column_as(
-            Expr::cust("qualified_purl.qualifiers ->> 'rpmmod'"),
-            "sbom_rpmmod",
-        )
+        .column_as(qualified_purl::Column::Qualifiers, "sbom_qualifiers")
         .join(
             JoinType::InnerJoin,
             purl_status::Relation::VersionRange.def(),

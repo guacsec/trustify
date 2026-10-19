@@ -156,6 +156,8 @@ pub struct ContextLink {
     pub node_identifier: String,
     pub context_identifier: String,
     pub confidence: f64,
+    /// CPE wildcard multiplier, or 1.0 for an exact identifier match.
+    pub wildcard_factor: f64,
 }
 
 /// The outcome of scoping an assertion by context.
@@ -188,6 +190,8 @@ impl Scope {
                     ConfidenceReason::ProductConfirmed {
                         source: best.source.into(),
                         distance: best.distance,
+                        source_factor: Some(round(source_confidence(best.source, best.distance))),
+                        wildcard_factor: Some(best.wildcard_factor),
                     },
                     *confidence,
                 ))
@@ -240,6 +244,7 @@ pub fn scope(
                 node_identifier: format_cpe(&node_cpe.cpe),
                 context_identifier: format_cpe(context_cpe),
                 confidence: round(node_cpe.confidence() * factor),
+                wildcard_factor: factor,
             });
         }
     }
@@ -254,6 +259,7 @@ pub fn scope(
                     distance: node_identifier.distance,
                     node_identifier: format_identifier(*kind, &node_identifier.value),
                     context_identifier: format_identifier(*kind, value),
+                    wildcard_factor: 1.0,
                     confidence: round(source_confidence(
                         node_identifier.source,
                         node_identifier.distance,
@@ -308,6 +314,7 @@ fn unconfirmed(context: &AssertionContext) -> ContextLink {
         node_identifier: String::new(),
         context_identifier: expected.join(", "),
         confidence: UNCHECKED,
+        wildcard_factor: 1.0,
     }
 }
 
@@ -1054,6 +1061,18 @@ mod test {
             &[],
             true,
         );
+        assert_eq!(
+            result.factor(),
+            Some(ConfidenceFactor::new(
+                ConfidenceReason::ProductConfirmed {
+                    source: ContextSource::PurlQualifier.into(),
+                    distance: 0,
+                    source_factor: Some(0.85),
+                    wildcard_factor: Some(0.9),
+                },
+                0.77,
+            )),
+        );
         let Scope::Matched { confidence, links } = result else {
             panic!("must match: {result:?}");
         };
@@ -1116,6 +1135,7 @@ mod test {
                     node_identifier: identifier.clone(),
                     context_identifier: identifier,
                     confidence: expected,
+                    wildcard_factor: 1.0,
                 }],
             }
         );
@@ -1141,6 +1161,7 @@ mod test {
                     node_identifier: "sku:6925281924439".into(),
                     context_identifier: "sku:6925281*".into(),
                     confidence: 1.0,
+                    wildcard_factor: 1.0,
                 }],
             }
         );
@@ -1168,6 +1189,7 @@ mod test {
                         node_identifier: String::new(),
                         context_identifier: "sku:6925281924439".into(),
                         confidence: UNCHECKED,
+                        wildcard_factor: 1.0,
                     },
                 },
                 Scope::Dropped,

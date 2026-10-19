@@ -429,6 +429,8 @@ mod test {
             ConfidenceReason::ProductConfirmed {
                 source: ApiContextSource::AncestorNode,
                 distance: 1,
+                source_factor: Some(0.9),
+                wildcard_factor: Some(1.0),
             },
             0.9,
         ))

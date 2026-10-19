@@ -34,7 +34,7 @@ impl DeviceIdentifierCreator {
     }
 
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        for batch in &self.identifiers.into_iter().chunked() {
+        for batch in self.identifiers.into_iter().chunked() {
             sbom_node_product_identifier::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([

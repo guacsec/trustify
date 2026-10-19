@@ -13,7 +13,7 @@
 //!   that a GA product's CPE has no service pack (`sles:15`), so it matches any service pack of
 //!   its major version.
 
-use crate::extractor::purl::stream::suse_codestream;
+use crate::extractor::purl::ecosystem::rpm::suse_codestream;
 use trustify_common::{purl::Purl, rpm::Evr};
 use trustify_entity::{correlation_evidence_context::ContextSource, cpe};
 use uuid::Uuid;

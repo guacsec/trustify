@@ -118,7 +118,7 @@ impl CpeAssertionCreator {
 
         cpes.create(db).await?;
 
-        for batch in &version_ranges.into_values().chunked() {
+        for batch in version_ranges.into_values().chunked() {
             version_range::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .try_insert()
@@ -126,7 +126,7 @@ impl CpeAssertionCreator {
                 .await?;
         }
 
-        for batch in &rows.into_iter().chunked() {
+        for batch in rows.into_iter().chunked() {
             advisory_vulnerability_cpe::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(db)

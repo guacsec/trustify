@@ -1,5 +1,5 @@
 //! Verdict explanations and read-only context previews.
-use crate::{AppRoute, api};
+use crate::{AppRoute, api, correlation::status_color};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::*;
 use wasm_bindgen_futures::spawn_local;
@@ -243,14 +243,43 @@ fn factor_text(factor: &ConfidenceFactor, contexts: &[EvidenceContext]) -> Strin
         ConfidenceReason::DefaultStatus => {
             "The status is the advisory's default for versions it doesn't list.".into()
         }
-        ConfidenceReason::ProductConfirmed { source, distance } => format!(
-            "The SBOM confirms the product the statement is about, through the {}{}.",
-            source.label(),
-            match distance {
-                0 | 1 => String::new(),
-                hops => format!(" ({hops} hops away)"),
+        ConfidenceReason::ProductConfirmed {
+            source,
+            distance,
+            source_factor,
+            wildcard_factor,
+        } => {
+            let mut text = format!(
+                "The product identified by the {}{} matches the product named in the advisory.",
+                source.label(),
+                match distance {
+                    0 | 1 => String::new(),
+                    hops => format!(" ({hops} hops away)"),
+                }
+            );
+            match (source_factor, wildcard_factor) {
+                (Some(source_factor), Some(wildcard_factor)) => {
+                    text.push_str(&format!(
+                        " Source confidence: {}. {}: {}. Product factor: {} × {} = {} (rounded).",
+                        percent(*source_factor),
+                        if *wildcard_factor < 1.0 {
+                            "Wildcard CPE match"
+                        } else {
+                            "Exact identifier match"
+                        },
+                        percent(*wildcard_factor),
+                        percent(*source_factor),
+                        percent(*wildcard_factor),
+                        percent(factor.factor),
+                    ));
+                    if factor.factor < 1.0 {
+                        text.push_str(" Product confirmation establishes compatibility; the match method still reduces confidence.");
+                    }
+                }
+                _ => text.push_str(" The source and wildcard breakdown was not recorded for this evidence. Re-extract correlation evidence to record it."),
             }
-        ),
+            text
+        }
         ConfidenceReason::ProductNotConfirmed => {
             let names = contexts
                 .iter()
@@ -303,7 +332,7 @@ fn factor_label(factor: &ConfidenceFactor) -> &'static str {
         },
         ConfidenceReason::Rule { .. } => "Range derived by a rule",
         ConfidenceReason::DefaultStatus => "Default status",
-        ConfidenceReason::ProductConfirmed { .. } => "Product confirmed",
+        ConfidenceReason::ProductConfirmed { .. } => "Product match",
         ConfidenceReason::ProductNotConfirmed => "Product not confirmed",
     }
 }
@@ -331,6 +360,9 @@ pub(crate) fn confidence_breakdown(
             </StackItem>
             <StackItem>
                 <strong>{ format!("= {} match confidence", percent(confidence)) }</strong>
+                <p class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
+                    { "These percentages are matching heuristics, not the probability that the component is vulnerable." }
+                </p>
             </StackItem>
         </Stack>
     }
@@ -373,16 +405,6 @@ fn confidence_factors(e: &ResolutionEvidence) -> Html {
             <p>{ format!("Match confidence: {formula}") }</p>
             { confidence_breakdown(&e.confidence_factors, &e.contexts, e.match_confidence) }
         </>
-    }
-}
-
-fn verdict_color(status: VerdictStatus) -> Color {
-    match status {
-        VerdictStatus::Affected => Color::Red,
-        VerdictStatus::Fixed => Color::Green,
-        VerdictStatus::NotAffected => Color::Blue,
-        VerdictStatus::UnderInvestigation => Color::Orange,
-        VerdictStatus::None => Color::Grey,
     }
 }
 
@@ -477,9 +499,9 @@ fn explanation(props: &ExplanationProps) -> Html {
     html! {
         <Stack gutter=true>
             <StackItem>
-                <Label label={trace.status.label()} color={verdict_color(trace.status)}/>
+                <Label label={trace.status.label()} color={status_color(trace.status)}/>
                 <p>{&trace.reason}</p>
-                <p>{format!("Selected match confidence: {:.0}%", props.summary.confidence * 100.0)}</p>
+                <p>{format!("Confidence:\u{a0}{:.0}%", props.summary.confidence * 100.0)}</p>
                 if props.summary.has_conflict {
                     <Alert title="Conflicting evidence" r#type={AlertType::Warning} inline=true>
                         <p>{"Other applicable statements give a different status. Match confidence describes the selected match; it does not resolve this disagreement."}</p>
@@ -702,5 +724,66 @@ pub(crate) fn text_field(label: &'static str, value: UseStateHandle<String>) -> 
         <FormGroup label={label}>
             <TextInput value={(*value).clone()} {onchange}/>
         </FormGroup>
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn confirmed_product_explains_discounts() {
+        let product = ConfidenceFactor::new(
+            ConfidenceReason::ProductConfirmed {
+                source: ContextSource::PurlQualifier,
+                distance: 0,
+                source_factor: Some(0.85),
+                wildcard_factor: Some(0.9),
+            },
+            0.77,
+        );
+        let text = factor_text(&product, &[]);
+        assert!(text.contains("Source confidence: 85%"));
+        assert!(text.contains("Wildcard CPE match: 90%"));
+        assert!(text.contains("85% × 90% = 77% (rounded)"));
+        let factors = [
+            ConfidenceFactor::new(
+                ConfidenceReason::Rule {
+                    rule: "purl_fixed_as_first_fixed_before".into(),
+                },
+                0.9,
+            ),
+            product,
+        ];
+        assert_eq!(
+            factors_formula(&factors, combine(&factors)).as_deref(),
+            Some("90% × 77% = 69%")
+        );
+    }
+
+    #[test]
+    fn exact_product_match_has_no_discount() {
+        let factor = ConfidenceFactor::new(
+            ConfidenceReason::ProductConfirmed {
+                source: ContextSource::Node,
+                distance: 0,
+                source_factor: Some(1.0),
+                wildcard_factor: Some(1.0),
+            },
+            1.0,
+        );
+        let text = factor_text(&factor, &[]);
+        assert!(text.contains("Exact identifier match: 100%"));
+        assert!(!text.contains("still reduces confidence"));
+    }
+
+    #[test]
+    fn older_product_evidence_does_not_invent_discounts() {
+        let factor: ConfidenceFactor = serde_json::from_str(
+            r#"{"reason":{"kind":"product_confirmed","source":"purl_qualifier","distance":0},"factor":0.77}"#,
+        ).unwrap();
+        let text = factor_text(&factor, &[]);
+        assert!(text.contains("breakdown was not recorded"));
+        assert!(!text.contains("85%"));
     }
 }

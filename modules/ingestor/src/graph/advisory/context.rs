@@ -129,13 +129,13 @@ impl ContextCreator {
 
         cpes.create(db).await?;
 
-        for batch in &contexts.chunked() {
+        for batch in contexts.chunked() {
             assertion_context::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(db)
                 .await?;
         }
-        for batch in &identifiers.chunked() {
+        for batch in identifiers.chunked() {
             assertion_context_identifier::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(db)

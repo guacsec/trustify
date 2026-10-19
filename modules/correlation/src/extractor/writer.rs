@@ -144,14 +144,14 @@ impl EvidenceWriter {
             });
         }
 
-        for batch in &models.chunked() {
+        for batch in models.chunked() {
             correlation_evidence::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(connection)
                 .instrument(info_span!("inserting evidence"))
                 .await?;
         }
-        for batch in &links.chunked() {
+        for batch in links.chunked() {
             correlation_evidence_context::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(connection)
@@ -271,6 +271,7 @@ mod test {
             node_identifier: format!("cpe:{context}"),
             context_identifier: format!("cpe:{context}"),
             confidence,
+            wildcard_factor: 1.0,
         };
 
         let mut writer = EvidenceWriter::new();

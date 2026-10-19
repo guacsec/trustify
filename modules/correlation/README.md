@@ -54,6 +54,12 @@ Any eligible statement giving a different status sets the conflict flag, even in
 tier. Conflict does not reduce match confidence; confidence measures the match rather than agreement
 between sources.
 
+The UI explains the product-match multiplier using its source confidence and CPE wildcard
+multiplier, including intermediate rounding. A confirmed product can still reduce confidence:
+confirmation establishes compatibility, while the source and matching method determine the
+multiplier. These values are matching heuristics, not vulnerability probabilities. Older stored
+evidence lacks this breakdown; re-extract correlation evidence to record it. Scores are unchanged.
+
 ### Provider identity
 
 The provider is who supplied the SBOM component; document authors are not providers. An explicit
@@ -101,8 +107,8 @@ queries only). An explicit component provider overrides automatic supplier resol
 request only. Contextual queries retain the extraction product-compatibility rules.
 
 Counts use the same resolver with batched provider inputs. The UI retains **Why this verdict?**,
-provider alias editing, and temporary context previews. It labels confidence as **Selected match
-confidence** and displays conflicts separately. Explanations describe the current calculation;
+provider alias editing, and temporary context previews. It labels the selected match confidence as
+**Confidence** and displays conflicts separately. Explanations describe the current calculation;
 `resolution_revision` fingerprints the resolver version, aliases, and resolution context.
 
 ### Removal of weighting: breaking changes

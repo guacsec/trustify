@@ -31,6 +31,15 @@ Extended support of a minor (`enterprise_linux_eus:10.0`, "E2S") is a separate p
 | `openssl-libs` `1:3.5.8-1.el10_2` | CVE-2026-84782 affected (below the fix) |
 | OS component `rhel` `10.2` | — (no verdict) |
 
+## TODO
+
+- [ ] **Statements of another minor.** CVE-2026-0915 states nothing for 10.2, as 10.2 had the fix
+  from the beginning. Still, `glibc` `2.39-128.el10_2` gets `fixed` evidence (0.55) from the 10.1
+  fix `2.39-58.el10_1.7` (`purl_fixed_as_first_fixed`, stream relation `minor`), where no evidence
+  is expected. The same applies to CVE-2025-3576 (`krb5-libs`, a 10.0 fix used for 10.2). Decide
+  if and how a statement of another minor applies (never; only below its fix; only from a newer
+  minor), then update the expectations above and `expected.json`.
+
 ## Files
 
 - SBOM: `sbom/ubi10_syft.cdx.json` (syft 1.54.0, trimmed; syft properties removed).

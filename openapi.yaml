@@ -6243,6 +6243,18 @@ components:
             - product_confirmed
           source:
             $ref: '#/components/schemas/ContextSource'
+          source_factor:
+            type:
+            - number
+            - 'null'
+            format: double
+            description: Confidence assigned to the source and its distance; absent in older evidence.
+          wildcard_factor:
+            type:
+            - number
+            - 'null'
+            format: double
+            description: CPE wildcard multiplier, or 1.0 for an exact match; absent in older evidence.
       - type: object
         description: Nothing in the SBOM confirms the product the statement is about.
         required:

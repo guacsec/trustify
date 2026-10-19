@@ -231,7 +231,7 @@ impl<'g> OsvLoader<'g> {
         remediations.create(tx).await?;
         purl_status_creator.create(tx).await?;
 
-        for batch in &upstream_models.into_iter().chunked() {
+        for batch in upstream_models.into_iter().chunked() {
             advisory_vulnerability_upstream::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(tx)
@@ -371,7 +371,7 @@ impl FixedRemediations {
     }
 
     async fn create(self, connection: &impl ConnectionTrait) -> Result<(), DbErr> {
-        for batch in &self.0.into_values().chunked() {
+        for batch in self.0.into_values().chunked() {
             remediation::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(connection)

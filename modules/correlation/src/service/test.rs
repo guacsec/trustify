@@ -955,7 +955,9 @@ async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<(
             ConfidenceFactor::new(
                 ConfidenceReason::ProductConfirmed {
                     source: ContextSource::AncestorNode,
-                    distance: 1
+                    distance: 1,
+                    source_factor: Some(0.9),
+                    wildcard_factor: Some(1.0),
                 },
                 0.9
             ),

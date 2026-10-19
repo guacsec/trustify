@@ -58,7 +58,9 @@ pub async fn info(
     req: HttpRequest,
     auth: Option<web::Data<Authenticator>>,
     read_only: ReadOnlyState,
-    scope = scope.app_data(web::Data::new(frontend));
+    capabilities: web::Data<ActiveCapabilities>,
+    variants: web::Data<Variants>,
+    frontend: web::Data<FrontendInfo>,
 ) -> HttpResponse {
     let details = match auth {
         // authentication is disabled, enable details

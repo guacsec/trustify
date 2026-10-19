@@ -12,6 +12,7 @@ use crate::{
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
 use time::OffsetDateTime;
+use trustify_api::correlation::ResolutionSummary;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -145,8 +146,15 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             .into(),
             VerdictColumn::Status => html! {
                 <div>
-                    {status_label(self.0.status)}
-                    <p>{format!("Selected match confidence: {:.0}%{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                    <span style="display: inline-flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
+                        {status_label(self.0.status)}
+                        {confidence_label(&self.0.resolution)}
+                        if self.0.evidence.iter().any(|e| !e.remediations.is_empty()) {
+                            <Tooltip text="The advisories state a remediation, e.g. the version fixing the vulnerability">
+                                <i class="fas fa-wrench" aria-label="Remediation available"/>
+                            </Tooltip>
+                        }
+                    </span>
                 </div>
             }.into(),
             VerdictColumn::Evidence => {
@@ -175,6 +183,19 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             return vec![];
         }
 
+        // the remediations the advisories state for the evidence, each once per advisory
+        let mut remediations = Vec::<(&EvidenceRemediation, &EvidenceDetail)>::new();
+        for e in evidence {
+            for r in &e.remediations {
+                if !remediations
+                    .iter()
+                    .any(|(other, o)| *other == r && o.advisory_id == e.advisory_id)
+                {
+                    remediations.push((r, e));
+                }
+            }
+        }
+
         let content = html! {
             <Stack gutter=true>
                 <StackItem>
@@ -197,6 +218,23 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                     <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
                     <EvidenceTable evidence={evidence.clone()} />
                 </StackItem>
+                if !remediations.is_empty() {
+                    <StackItem>
+                        <Title level={Level::H4}>{ "Remediations" }</Title>
+                        <ul class="pf-v6-c-list pf-m-plain">
+                            { for remediations.iter().map(|(r, e)| html! {
+                                <li>
+                                    { remediation(r) }
+                                    <span class="pf-v6-u-text-color-subtle pf-v6-u-ml-sm">
+                                        { "(" }
+                                        { advisory_link(e.advisory_id, &e.advisory_identifier, e.advisory_type.as_deref()) }
+                                        { ")" }
+                                    </span>
+                                </li>
+                            }) }
+                        </ul>
+                    </StackItem>
+                }
             </Stack>
         };
 
@@ -670,13 +708,32 @@ pub(crate) fn timestamp(value: &OffsetDateTime) -> Html {
     }
 }
 
+/// The color of a verdict status, the same as of the statuses of advisories.
 pub(crate) fn status_color(status: VerdictStatus) -> Color {
     match status {
         VerdictStatus::Affected => Color::Red,
-        VerdictStatus::Fixed => Color::Green,
-        VerdictStatus::NotAffected => Color::Blue,
+        VerdictStatus::Fixed => Color::Blue,
+        VerdictStatus::NotAffected => Color::Green,
         VerdictStatus::UnderInvestigation => Color::Orange,
         VerdictStatus::None => Color::Grey,
+    }
+}
+
+/// The selected match confidence of a verdict as a label, e.g. "55%", explained on hover. A
+/// conflict among the evidence is shown as a label of its own.
+pub(crate) fn confidence_label(resolution: &ResolutionSummary) -> Html {
+    let percent = format!("{:.0}%", resolution.confidence * 100.0);
+    html! {
+        <>
+            <Tooltip text={format!("Confidence: {percent}")}>
+                <Label compact=true outline=true label={percent.clone()} />
+            </Tooltip>
+            if resolution.has_conflict {
+                <Tooltip text="Evidence states different statuses">
+                    <Label compact=true color={Color::Orange} label="Conflict" />
+                </Tooltip>
+            }
+        </>
     }
 }
 

@@ -285,7 +285,7 @@ impl ConfidenceFactor {
 }
 
 /// Why a factor applies to a match confidence.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConfidenceReason {
@@ -311,6 +311,12 @@ pub enum ConfidenceReason {
     ProductConfirmed {
         source: ContextSource,
         distance: u32,
+        /// Confidence assigned to the source and its distance; absent in older evidence.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_factor: Option<f64>,
+        /// CPE wildcard multiplier, or 1.0 for an exact match; absent in older evidence.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        wildcard_factor: Option<f64>,
     },
     /// Nothing in the SBOM confirms the product the statement is about.
     ProductNotConfirmed,

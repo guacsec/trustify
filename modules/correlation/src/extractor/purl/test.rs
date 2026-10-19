@@ -1214,6 +1214,113 @@ async fn rpm_module_identity(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A binary RPM only matches assertions of its own architecture or its source package, in either
+/// direction. A source package, or one without an architecture, matches all of them.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rpm_architecture(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use trustify_test_context::document_bytes;
+    let advisory = ctx.ingest_document(S5_VEX).await?;
+
+    let mut sbom: serde_json::Value = serde_json::from_slice(&document_bytes(S5_SBOM).await?)?;
+    let original = sbom["components"][0].clone();
+    let inputs = [
+        (
+            "x86_64",
+            "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1",
+        ),
+        (
+            "aarch64",
+            "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=aarch64&epoch=1",
+        ),
+        (
+            "src",
+            "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=src&epoch=1",
+        ),
+        ("none", "pkg:rpm/redhat/openssl@1.1.1k-7.el8?epoch=1"),
+    ];
+    sbom["components"] = inputs
+        .iter()
+        .map(|(node, purl)| {
+            let mut component = original.clone();
+            component["bom-ref"] = (*node).into();
+            component["purl"] = (*purl).into();
+            component
+        })
+        .collect::<Vec<_>>()
+        .into();
+    sbom["dependencies"][0]["dependsOn"] = json!(["x86_64", "aarch64", "src", "none"]);
+    let sbom_id = Uuid::parse_str(&ctx.ingest_json(sbom).await?.id)?;
+
+    /// The architecture of a matched advisory PURL.
+    fn arch(identifier: &str) -> anyhow::Result<Option<String>> {
+        Ok(identifier.parse::<Purl>()?.qualifiers.get("arch").cloned())
+    }
+
+    extract_for_sbom(ctx, sbom_id).await?;
+    let from_sbom = load_evidence(ctx, sbom_id).await?;
+    let mut archs = BTreeMap::<&str, BTreeSet<Option<String>>>::new();
+    for evidence in &from_sbom {
+        if let Some(value) = &evidence.5 {
+            archs
+                .entry(evidence.0.as_str())
+                .or_default()
+                .insert(arch(&value.identifier)?);
+        }
+    }
+    let all = BTreeSet::from([
+        Some("aarch64".to_string()),
+        Some("ppc64le".to_string()),
+        Some("s390x".to_string()),
+        Some("src".to_string()),
+        Some("x86_64".to_string()),
+    ]);
+    assert_eq!(
+        archs,
+        BTreeMap::from([
+            (
+                "aarch64",
+                BTreeSet::from([Some("aarch64".to_string()), Some("src".to_string())])
+            ),
+            ("none", all.clone()),
+            ("src", all),
+            (
+                "x86_64",
+                BTreeSet::from([Some("src".to_string()), Some("x86_64".to_string())])
+            ),
+        ])
+    );
+
+    correlation_evidence::Entity::delete_many()
+        .exec(&ctx.db)
+        .await?;
+    extract_for_advisory(ctx, Uuid::parse_str(&advisory.id)?).await?;
+    assert_eq!(load_evidence(ctx, sbom_id).await?, from_sbom);
+
+    let identifiers = inputs
+        .iter()
+        .map(|(_, value)| IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: (*value).into(),
+        })
+        .collect::<Vec<_>>();
+    let tx = ctx.db.begin().await?;
+    let matches = PurlExtractor.match_identifiers(&identifiers, &tx).await?;
+    let mut by_identifier = BTreeMap::<&str, BTreeSet<Option<String>>>::new();
+    // without context, the advisory's versionless PURLs (without an architecture) match too
+    for m in &matches {
+        if let Some(arch) = arch(&m.assertion.matched_value.identifier)? {
+            by_identifier
+                .entry(inputs[m.index].0)
+                .or_default()
+                .insert(Some(arch));
+        }
+    }
+    assert_eq!(by_identifier, archs);
+
+    Ok(())
+}
+
 /// The explicit S12 negative must not hide any cross-product below-fix evidence.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -1293,7 +1400,9 @@ async fn confidence_factors(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ConfidenceFactor::new(
                     ConfidenceReason::ProductConfirmed {
                         source: ApiContextSource::PurlQualifier,
-                        distance: 0
+                        distance: 0,
+                        source_factor: Some(0.85),
+                        wildcard_factor: Some(0.9),
                     },
                     0.77
                 ),
