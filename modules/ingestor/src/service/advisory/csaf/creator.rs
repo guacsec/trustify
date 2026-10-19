@@ -47,7 +47,7 @@ use trustify_entity::{
     organization, product, product_status, product_version_range, purl_status,
     remediation::{self, RemediationCategory},
     remediation_product_status, remediation_purl_status, version_range,
-    version_scheme::VersionScheme,
+    version_scheme::{PurlType, VersionScheme},
 };
 use uuid::Uuid;
 
@@ -152,7 +152,13 @@ impl<'a> StatusCreator<'a> {
             }
 
             if let Some(assertion) = assertion_status {
-                for (product_id, _) in &parts {
+                // Only the component carries the assertion, not the platform it relates to. A
+                // relationship's own hashes identify a file, which is the component's. Its SKUs,
+                // model and serial numbers identify hardware, which tells where the component is
+                // installed, not which version of it is (CSAF 2.0, 3.1.3.3.3 and 3.1.3.3.7), so
+                // those go into the context instead.
+                for (product_id, _) in parts.iter().filter(|(_, subject)| *subject) {
+                    let combination = self.cache.get_relationship(product_id).is_some();
                     for pih in self.cache.helpers(product_id) {
                         for hc in &pih.hashes {
                             for fh in &hc.file_hashes {
@@ -164,6 +170,9 @@ impl<'a> StatusCreator<'a> {
                                     context,
                                 ));
                             }
+                        }
+                        if combination {
+                            continue;
                         }
                         for mn in pih.model_numbers.iter().flatten() {
                             self.product_identifier_entries.insert((
@@ -449,7 +458,9 @@ impl<'a> StatusCreator<'a> {
                 } else {
                     let (scheme, spec) = match &purl.version {
                         Some(_) => (
-                            VersionScheme::from(purl.ty.as_str()),
+                            purl.ty
+                                .parse::<PurlType>()
+                                .map_or(VersionScheme::Generic, VersionScheme::from),
                             VersionSpec::Exact(purl.effective_version()),
                         ),
                         None => (VersionScheme::Generic, VersionSpec::Exact(String::new())),
@@ -646,7 +657,8 @@ impl<'a> StatusCreator<'a> {
     }
 
     /// The context a product is stated in: the platform parts of a relationship (not the
-    /// subject), with their identifiers and name. `None` for a product which isn't a
+    /// subject), with their identifiers and name, and the SKUs, model and serial numbers of the
+    /// relationships themselves, which identify the hardware of the combination. `None` for a product which isn't a
     /// relationship.
     fn context(
         &mut self,
@@ -677,17 +689,45 @@ impl<'a> StatusCreator<'a> {
         };
 
         let mut names = Vec::new();
-        for (platform, _) in parts.iter().filter(|(_, subject)| !subject) {
-            let name = match self.cache.trace_product(platform).last() {
-                Some(leaf) => leaf.product.as_ref().map(|name| name.name.as_str()),
-                None => self
-                    .cache
-                    .definition(platform)
-                    .map(|name| name.name.as_str()),
-            };
-            names.extend(name);
+        for (part, subject) in parts {
+            // a subject contributes only if it's a relationship, identifying the combination
+            if *subject && self.cache.get_relationship(part).is_none() {
+                continue;
+            }
+            if !subject {
+                let name = match self.cache.trace_product(part).last() {
+                    Some(leaf) => leaf.product.as_ref().map(|name| name.name.as_str()),
+                    None => self.cache.definition(part).map(|name| name.name.as_str()),
+                };
+                names.extend(name);
+            }
 
-            for helper in self.cache.helpers(platform) {
+            for helper in self.cache.helpers(part) {
+                let hardware =
+                    helper
+                        .model_numbers
+                        .iter()
+                        .flatten()
+                        .map(|value| (ContextIdentifierKind::ModelNumber, value.to_string()))
+                        .chain(
+                            helper.serial_numbers.iter().flatten().map(|value| {
+                                (ContextIdentifierKind::SerialNumber, value.to_string())
+                            }),
+                        )
+                        .chain(
+                            helper
+                                .skus
+                                .iter()
+                                .map(|value| (ContextIdentifierKind::Sku, value.to_string())),
+                        );
+                for (kind, value) in hardware {
+                    context.add(kind, value);
+                }
+                // of a combination, only the hardware identifies the platform
+                if *subject {
+                    continue;
+                }
+
                 if let Some(cpe) = helper.cpe.as_deref()
                     && let Some(cpe) = on_invalid.validate(value::cpe(cpe), report)?
                 {
@@ -705,26 +745,6 @@ impl<'a> StatusCreator<'a> {
                             format!("{}:{}", normalize_algorithm(&hash.algorithm), *hash.value),
                         );
                     }
-                }
-                let values =
-                    helper
-                        .model_numbers
-                        .iter()
-                        .flatten()
-                        .map(|value| (ContextIdentifierKind::ModelNumber, value.to_string()))
-                        .chain(
-                            helper.serial_numbers.iter().flatten().map(|value| {
-                                (ContextIdentifierKind::SerialNumber, value.to_string())
-                            }),
-                        )
-                        .chain(
-                            helper
-                                .skus
-                                .iter()
-                                .map(|value| (ContextIdentifierKind::Sku, value.to_string())),
-                        );
-                for (kind, value) in values {
-                    context.add(kind, value);
                 }
             }
         }

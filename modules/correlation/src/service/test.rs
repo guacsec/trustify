@@ -162,7 +162,6 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
         query,
         verdicts: vec![QueryVerdict {
             resolution: crate::model::ResolutionSummary {
-                decision_weight: 0.625,
                 confidence: 1.0,
                 has_conflict: false,
                 explanation: None,
@@ -209,10 +208,11 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The query re-uses the extractor matching, including CSAF wildcards.
+/// The query re-uses the extractor matching, including CSAF wildcards. Only the firmware is
+/// affected, not the device series it is installed on.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
+async fn query_wildcard_model_number(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let advisory = ctx
         .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
         .await?;
@@ -221,17 +221,16 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let service = CorrelationService::default();
     let tx = ctx.db.begin().await?;
 
-    let sku = IdentifierRef {
-        kind: IdentifierKind::Sku,
-        value: "6925281924439".into(),
+    let model_number = IdentifierRef {
+        kind: IdentifierKind::ModelNumber,
+        value: "Flip 5".into(),
     };
     assert_eq!(
-        service.query_identifier(sku.clone(), &tx).await?,
+        service.query_identifier(model_number.clone(), &tx).await?,
         QueryResult {
-            query: sku,
+            query: model_number,
             verdicts: vec![QueryVerdict {
                 resolution: crate::model::ResolutionSummary {
-                    decision_weight: 0.625,
                     confidence: 1.0,
                     has_conflict: false,
                     explanation: None
@@ -240,8 +239,8 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 vulnerability_title: None,
                 status: VerdictStatus::Affected,
                 matches: vec![QueryMatch {
-                    kind: IdentifierKind::Sku,
-                    value: MatchedValue::new("6925281*"),
+                    kind: IdentifierKind::ModelNumber,
+                    value: MatchedValue::new("Flip ?"),
                     advisory_id,
                     advisory_identifier: "https://www.harman.com/#HBSA-2025-0004".into(),
                     advisory_type: Some("csaf".into()),
@@ -253,15 +252,15 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
         }
     );
 
-    // the same value as a different kind doesn't match
-    let model_number = IdentifierRef {
-        kind: IdentifierKind::ModelNumber,
+    // the device series' SKU only names the product the firmware is installed on
+    let sku = IdentifierRef {
+        kind: IdentifierKind::Sku,
         value: "6925281924439".into(),
     };
     assert_eq!(
-        service.query_identifier(model_number.clone(), &tx).await?,
+        service.query_identifier(sku.clone(), &tx).await?,
         QueryResult {
-            query: model_number,
+            query: sku,
             verdicts: vec![],
         }
     );
@@ -368,7 +367,7 @@ struct Scenario {
 #[case::s15_combined("S15_versioncmp_rpm_openssh", "expected.json")]
 #[case::s16_combined("S16_crossscheme_purlquery_golang", "expected.json")]
 #[case::s17_combined("S17_crossproduct_ocp_kernel_go", "expected.json")]
-#[case::s18_combined("S18_crossproduct_curl_notaffected", "expected.json")]
+#[case::s30_combined("S30_crossproduct_curl_notaffected", "expected.json")]
 #[case::s20_combined("S20_cpe_range_wago", "expected.json")]
 #[case::s21_combined("S21_cpe_extended_attributes_beckhoff", "expected.json")]
 #[case::s22_combined("S22_cpe_third_party_openssl_phoenix", "expected.json")]
@@ -393,7 +392,7 @@ async fn scenario(
     if name == "S29_provider_weighting" {
         let tx = ctx.db.begin().await?;
         for provider in ["A", "B"] {
-            super::weighting::store::save_alias(
+            super::resolution::store::save_alias(
                 None,
                 crate::model::ProviderAliasData {
                     provider: provider.into(),
@@ -455,7 +454,15 @@ async fn scenario(
                 && verdict.vulnerability.id == "CVE-2025-9230"
             {
                 assert!(verdict.resolution.has_conflict);
-                assert!(verdict.resolution.explanation.as_ref().unwrap().tie_break);
+                assert_eq!(
+                    verdict
+                        .resolution
+                        .explanation
+                        .as_ref()
+                        .unwrap()
+                        .deciding_criterion,
+                    crate::model::SelectionReason::StatusPriority
+                );
             }
             actual
                 .entry(verdict.component.node_id)
@@ -613,16 +620,13 @@ async fn regression_evidence_and_query(
     Ok(())
 }
 
-/// Settings re-resolve existing evidence at every scope, without a re-extraction.
+/// Provider aliases and temporary context re-resolve evidence without re-extraction.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn provider_policy_inheritance_and_preview(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    use super::weighting::store;
-    use crate::model::{
-        PolicyScope, ProviderAliasData, ResolutionRequest, WeightOverrides, WeightPolicyData,
-    };
+async fn provider_aliases_and_context_preview(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use super::resolution::store;
+    use crate::model::{ProviderAliasData, ResolutionRequest, SelectionReason};
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-    use trustify_entity::{sbom_group, sbom_group_assignment};
     let tx = ctx.db.begin().await?;
     for provider in ["A", "B"] {
         store::save_alias(
@@ -676,8 +680,15 @@ async fn provider_policy_inheritance_and_preview(ctx: &TrustifyContext) -> anyho
             .count(),
         1
     );
-    assert!(verdict.resolution.confidence > 0.0 && verdict.resolution.confidence < 1.0);
-    let original_revision = trace.policy_revision;
+    assert_eq!(
+        verdict.resolution.confidence,
+        trace.evidence[0].match_confidence
+    );
+    assert_eq!(
+        trace.deciding_criterion,
+        SelectionReason::ProviderRelationship
+    );
+    let original_revision = trace.resolution_revision;
     let inherited = service
         .correlate_sbom_with(
             sbom_id,
@@ -699,85 +710,17 @@ async fn provider_policy_inheritance_and_preview(ctx: &TrustifyContext) -> anyho
     assert_eq!(inherited_provider.provider.as_deref(), Some("A"));
     assert_eq!(inherited_provider.source, "product supplier");
 
-    let root = Uuid::now_v7();
-    let child = Uuid::now_v7();
-    for (id, parent) in [(root, None), (child, Some(root))] {
-        sbom_group::ActiveModel {
-            id: Set(id),
-            parent: Set(parent),
-            name: Set(id.to_string()),
-            revision: Set(Uuid::now_v7()),
-            description: Set(None),
-            labels: Set(Default::default()),
-        }
-        .insert(&tx)
-        .await?;
-    }
-    sbom_group_assignment::ActiveModel {
-        sbom_id: Set(sbom_id),
-        group_id: Set(child),
-    }
-    .insert(&tx)
-    .await?;
-    for (scope, value) in [
-        (PolicyScope::Instance, 1.1),
-        (PolicyScope::Group { group_id: root }, 1.2),
-        (PolicyScope::Group { group_id: child }, 1.3),
-        (PolicyScope::Sbom { sbom_id }, 1.4),
-        (
-            PolicyScope::Component {
-                sbom_id,
-                node_id: "b-build".into(),
-            },
-            1.5,
-        ),
-    ] {
-        store::save_policy(
-            None,
-            WeightPolicyData {
-                scope,
-                priority: 0,
-                weights: WeightOverrides {
-                    matching_provider: Some(value),
-                    ..Default::default()
-                },
-            },
-            &tx,
-        )
-        .await?;
-        let read = service
-            .correlate_sbom_with(sbom_id, false, &request, &tx)
-            .await?;
-        let trace = read.verdicts[0].resolution.explanation.as_ref().unwrap();
-        assert_eq!(
-            trace.settings["matching_provider"].value,
-            serde_json::json!(value)
-        );
-        assert_ne!(trace.policy_revision, original_revision);
-    }
     let temporary = ResolutionRequest {
-        overrides: WeightOverrides {
-            providers: BTreeMap::from([("B".into(), 0.0)]),
-            matching_provider: Some(1.6),
-            ..Default::default()
-        },
+        component_provider: Some("A".into()),
         ..request.clone()
     };
     let preview = service
         .correlate_sbom_with(sbom_id, false, &temporary, &tx)
         .await?;
     assert_eq!(preview.verdicts[0].status, VerdictStatus::Affected);
-    assert_eq!(
-        preview.verdicts[0]
-            .resolution
-            .explanation
-            .as_ref()
-            .unwrap()
-            .settings["matching_provider"]
-            .origin
-            .source,
-        "request override"
-    );
+    let preview_trace = preview.verdicts[0].resolution.explanation.as_ref().unwrap();
+    assert_eq!(preview_trace.component_provider.source, "request context");
+    assert_ne!(preview_trace.resolution_revision, original_revision);
     let ordinary = service
         .correlate_sbom_with(sbom_id, false, &request, &tx)
         .await?;
@@ -800,10 +743,7 @@ async fn provider_policy_inheritance_and_preview(ctx: &TrustifyContext) -> anyho
             },
             &ResolutionRequest {
                 include_explanation: true,
-                overrides: WeightOverrides {
-                    component_provider: Some("B".into()),
-                    ..Default::default()
-                },
+                component_provider: Some("B".into()),
                 ..Default::default()
             },
             &tx,
@@ -811,6 +751,36 @@ async fn provider_policy_inheritance_and_preview(ctx: &TrustifyContext) -> anyho
         .await?;
     assert_eq!(query.verdicts[0].status, VerdictStatus::NotAffected);
     assert_eq!(query.verdicts[0].matches.len(), 3);
+    let aliases = store::list_aliases(&tx).await?;
+    let alias = aliases.iter().find(|a| a.data.provider == "B").unwrap();
+    let a = aliases.iter().find(|a| a.data.provider == "A").unwrap();
+    let mut data = a.data.clone();
+    data.aliases.extend(alias.data.aliases.clone());
+    store::delete_alias(alias.id, &tx).await?;
+    store::save_alias(Some(a.id), data, &tx).await?;
+    let changed = service
+        .correlate_sbom_with(sbom_id, false, &request, &tx)
+        .await?;
+    assert_eq!(changed.verdicts[0].status, VerdictStatus::Affected);
+    let changed_counts = service.count_verdicts(&[sbom_id], &tx).await?;
+    assert_eq!(
+        (changed_counts[0].affected, changed_counts[0].not_affected),
+        (3, 0)
+    );
+    assert_ne!(
+        changed.verdicts[0]
+            .resolution
+            .explanation
+            .as_ref()
+            .unwrap()
+            .resolution_revision,
+        original_revision
+    );
+    let evidence_after = correlation_evidence::Entity::find()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .all(&tx)
+        .await?;
+    assert_eq!(evidence_after, rows);
     Ok(())
 }
 
@@ -860,5 +830,70 @@ async fn evidence_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
         }]
     );
 
+    Ok(())
+}
+
+/// The explanation reports the products a statement was matched in, and the component
+/// identifiers confirming them.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn explanation_reports_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{ContextSource, ResolutionRequest};
+
+    let sbom = ctx
+        .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json")
+        .await?;
+    ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+
+    let tx = ctx.db.begin().await?;
+    let request = ResolutionRequest {
+        include_explanation: true,
+        node_id: Some("comp-flip4-fw".into()),
+        ..Default::default()
+    };
+    let read = CorrelationService::default()
+        .correlate_sbom_with(sbom_id, false, &request, &tx)
+        .await?;
+
+    let mut contexts = read.verdicts[0]
+        .resolution
+        .explanation
+        .as_ref()
+        .unwrap()
+        .evidence
+        .iter()
+        .flat_map(|e| &e.contexts)
+        .map(|c| {
+            (
+                c.name.clone(),
+                c.source,
+                c.node_identifier.clone(),
+                c.confidence,
+            )
+        })
+        .collect::<Vec<_>>();
+    contexts.sort_by(|a, b| a.2.cmp(&b.2));
+    assert_eq!(
+        contexts,
+        vec![
+            (
+                "JBL Flip 4".to_string(),
+                ContextSource::AncestorNode,
+                "sku:050036337366".to_string(),
+                0.9
+            ),
+            (
+                "JBL Flip 4".to_string(),
+                ContextSource::AncestorNode,
+                "sku:6925281924439".to_string(),
+                0.9
+            ),
+        ]
+    );
     Ok(())
 }

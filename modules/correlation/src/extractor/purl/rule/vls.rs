@@ -17,25 +17,14 @@ use crate::{
     extractor::purl::{Candidates, stated_scheme},
     model::AssertionOrigin,
 };
-use sea_orm::sea_query::{CaseStatement, Expr, ExprTrait, SimpleExpr};
-use trustify_entity::{base_purl, status, version_range, version_scheme::VersionScheme};
-
-/// The versioning scheme of PURL types, see
-/// <https://github.com/package-url/purl-spec/blob/main/PURL-TYPES.rst>.
-const PURL_TYPE_SCHEMES: &[(&str, VersionScheme)] = &[
-    ("cargo", VersionScheme::Cargo),
-    ("composer", VersionScheme::Packagist),
-    ("gem", VersionScheme::Gem),
-    ("golang", VersionScheme::Golang),
-    ("hex", VersionScheme::Hex),
-    ("maven", VersionScheme::Maven),
-    ("npm", VersionScheme::Npm),
-    ("nuget", VersionScheme::NuGet),
-    ("pub", VersionScheme::Pub),
-    ("pypi", VersionScheme::Python),
-    ("rpm", VersionScheme::Rpm),
-    ("swift", VersionScheme::Swift),
-];
+use sea_orm::{
+    Iterable,
+    sea_query::{CaseStatement, Expr, ExprTrait, SimpleExpr},
+};
+use trustify_entity::{
+    base_purl, status, version_range,
+    version_scheme::{PurlType, VersionScheme},
+};
 
 /// Evaluates ranges without a versioning scheme with the one of the PURL type.
 pub enum SchemelessRange {
@@ -74,12 +63,11 @@ impl RangeRule for SchemelessRange {
     }
 
     fn candidates(&self) -> Candidates {
-        let scheme = PURL_TYPE_SCHEMES
-            .iter()
-            .fold(CaseStatement::new(), |case, (ty, scheme)| {
+        let scheme = PurlType::iter()
+            .fold(CaseStatement::new(), |case, ty| {
                 case.case(
-                    Expr::col((base_purl::Entity, base_purl::Column::Type)).eq(*ty),
-                    Expr::val(scheme.to_string()),
+                    Expr::col((base_purl::Entity, base_purl::Column::Type)).eq(ty.as_ref()),
+                    Expr::val(VersionScheme::from(ty).to_string()),
                 )
             })
             .finally(Expr::cust("NULL"));

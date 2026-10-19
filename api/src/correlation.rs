@@ -3,8 +3,8 @@ use std::fmt;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-mod weighting;
-pub use weighting::*;
+mod resolution;
+pub use resolution::*;
 
 /// Top-level correlation result for an SBOM.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub struct VerdictSummary {
     pub status: VerdictStatus,
     #[serde(flatten, default)]
     pub resolution: ResolutionSummary,
-    /// The provider who supplied the component, as resolved by the weighting policy.
+    /// The provider who supplied the component, as resolved through provider aliases.
     #[serde(default)]
     pub component_provider: ProviderResolution,
     pub evidence: Vec<EvidenceDetail>,
@@ -140,7 +140,7 @@ pub struct EvidenceDetail {
     /// has no context, or the SBOM nothing to compare it with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contexts: Vec<EvidenceContext>,
-    /// The provider making the assertion, as resolved by the weighting policy.
+    /// The provider making the assertion, as resolved through provider aliases.
     #[serde(default)]
     pub provider: ProviderResolution,
     /// How the provider matches the provider of the component, if at all.
@@ -161,13 +161,13 @@ pub struct EvidenceContext {
     /// How the subject of the assertion relates to the product, if stated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<ContextCategory>,
-    /// Where the component got the matching CPE from.
+    /// Where the component got the matching identifier from.
     pub source: ContextSource,
     /// Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
     pub distance: i32,
-    /// The SBOM side CPE which matched.
+    /// The SBOM side identifier which matched: a CPE, or e.g. `sku:6925281924439`.
     pub node_identifier: String,
-    /// The product's CPE which matched.
+    /// The product's identifier which matched.
     pub context_identifier: String,
     /// The confidence of this context, applied to the evidence.
     pub confidence: f64,
@@ -202,6 +202,9 @@ pub enum ContextSource {
     PurlQualifier,
     /// The product of an RPM, by the release of its version.
     PurlRelease,
+    /// Nothing in the SBOM confirms the product, nor contradicts it. The context identifier lists
+    /// the identifiers which would have confirmed it.
+    Unconfirmed,
 }
 
 impl ContextSource {
@@ -213,6 +216,7 @@ impl ContextSource {
             Self::AncestorSbom => "ancestor SBOM",
             Self::PurlQualifier => "distro qualifier",
             Self::PurlRelease => "release",
+            Self::Unconfirmed => "nothing in the SBOM",
         }
     }
 }
@@ -600,6 +604,7 @@ mod entity_conversions {
                 EntityContextSource::AncestorSbom => Self::AncestorSbom,
                 EntityContextSource::PurlQualifier => Self::PurlQualifier,
                 EntityContextSource::PurlRelease => Self::PurlRelease,
+                EntityContextSource::Unconfirmed => Self::Unconfirmed,
             }
         }
     }

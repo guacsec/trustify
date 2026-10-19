@@ -1,0 +1,46 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "example-speaker",
+  "documentNamespace": "https://example.com/spdx/example-speaker-1",
+  "creationInfo": {
+    "created": "2025-06-01T12:00:00Z",
+    "creators": ["Tool: example"]
+  },
+  "documentDescribes": ["SPDXRef-device"],
+  "packages": [
+    {
+      "name": "example-speaker",
+      "SPDXID": "SPDXRef-device",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": true,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:h:example:speaker:1:*:*:*:*:*:*:*"
+        }
+      ],
+      "hasFiles": ["SPDXRef-firmware"]
+    }
+  ],
+  "files": [
+    {
+      "fileName": "./firmware.bin",
+      "SPDXID": "SPDXRef-firmware",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

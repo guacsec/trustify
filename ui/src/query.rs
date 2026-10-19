@@ -154,7 +154,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             VerdictColumn::Status => html! {
                 <div>
                     {status_label(self.0.status)}
-                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                    <p>{format!("Selected match confidence: {:.0}%{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
                 </div>
             }.into(),
             VerdictColumn::Evidence => {
@@ -166,7 +166,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn actions(&self) -> Vec<MenuChildVariant> {
         vec![html_nested! {
             <Raw>
-                <crate::weighting::ResolutionAction
+                <crate::resolution::ResolutionAction
                     target={trustify_api::correlation::PreviewTarget::Identifier{identifier:self.1.clone()}}
                     vulnerability_id={Some(self.0.vulnerability_id.clone())}/>
             </Raw>
@@ -183,7 +183,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 <StackItem>
                     <Flex>
                         <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
-                            <crate::weighting::ResolutionButton
+                            <crate::resolution::ResolutionButton
                                 target={trustify_api::correlation::PreviewTarget::Identifier{identifier:self.1.clone()}}
                                 vulnerability_id={Some(self.0.vulnerability_id.clone())}/>
                         </FlexItem>

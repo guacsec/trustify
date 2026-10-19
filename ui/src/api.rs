@@ -304,36 +304,10 @@ pub async fn preview(
 ) -> Result<trustify_api::correlation::PreviewResult, ApiError> {
     post_json("/api/v3/correlation/preview", body, token).await
 }
-pub async fn weight_policies(
-    token: Option<&str>,
-) -> Result<Vec<trustify_api::correlation::WeightPolicy>, ApiError> {
-    fetch_json("/api/v3/correlation/weight-policy", token).await
-}
 pub async fn provider_aliases(
     token: Option<&str>,
 ) -> Result<Vec<trustify_api::correlation::ProviderAlias>, ApiError> {
     fetch_json("/api/v3/correlation/provider-alias", token).await
-}
-pub async fn save_weight_policy(
-    id: Option<uuid::Uuid>,
-    data: &trustify_api::correlation::WeightPolicyData,
-    token: Option<&str>,
-) -> Result<(), ApiError> {
-    match id {
-        Some(id) => {
-            send(
-                Request::put(&format!("/api/v3/correlation/weight-policy/{id}")),
-                Some(json_body(data)?),
-                token,
-            )
-            .await?;
-        }
-        None => {
-            let _: trustify_api::correlation::WeightPolicy =
-                post_json("/api/v3/correlation/weight-policy", data, token).await?;
-        }
-    }
-    Ok(())
 }
 pub async fn save_provider_alias(
     id: Option<uuid::Uuid>,
@@ -356,13 +330,9 @@ pub async fn save_provider_alias(
     }
     Ok(())
 }
-pub async fn delete_weight_setting(
-    resource: &str,
-    id: uuid::Uuid,
-    token: Option<&str>,
-) -> Result<(), ApiError> {
+pub async fn delete_provider_alias(id: uuid::Uuid, token: Option<&str>) -> Result<(), ApiError> {
     send(
-        Request::delete(&format!("/api/v3/correlation/{resource}/{id}")),
+        Request::delete(&format!("/api/v3/correlation/provider-alias/{id}")),
         None,
         token,
     )

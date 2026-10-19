@@ -876,7 +876,7 @@ mod test {
             vec![
                 (
                     "example-app".to_string(),
-                    VersionScheme::Semver,
+                    VersionScheme::Npm,
                     None,
                     Some(false),
                     Some("2.0.0".to_string()),
@@ -922,7 +922,7 @@ mod test {
             stated_purl_statuses(ctx, &result.id).await?,
             vec![(
                 "example-app".to_string(),
-                VersionScheme::Semver,
+                VersionScheme::Npm,
                 None,
                 Some(false),
                 Some("2.0.0".to_string()),
@@ -995,6 +995,67 @@ mod test {
                 ContextIdentifierKind::Purl,
                 "pkg:npm/example-platform".to_string()
             )]
+        );
+
+        Ok(())
+    }
+
+    /// For a relationship of hardware and firmware, only the firmware's model number is stated
+    /// as affected. The SKUs of the platform and of the combination identify the hardware it is
+    /// installed on, and only go into the context.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn relationship_hardware_identifiers(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+        use trustify_entity::{
+            advisory_vulnerability_product_identifier::{self, ProductIdentifierType},
+            assertion_context::{self, AssertionContextCategory},
+            assertion_context_identifier::{self, ContextIdentifierKind},
+        };
+
+        let result = ctx
+            .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+            .await?;
+        let advisory_id = result.id.parse::<Uuid>()?;
+
+        let identifiers = advisory_vulnerability_product_identifier::Entity::find()
+            .filter(advisory_vulnerability_product_identifier::Column::AdvisoryId.eq(advisory_id))
+            .all(&ctx.db)
+            .await?;
+        let [identifier] = identifiers.as_slice() else {
+            panic!("unexpected identifiers: {identifiers:?}");
+        };
+        assert_eq!(
+            (identifier.identifier_type, identifier.value.as_str()),
+            (ProductIdentifierType::ModelNumber, "Flip 4")
+        );
+
+        let context_id = identifier
+            .assertion_context_id
+            .expect("stated in a context");
+        let context = assertion_context::Entity::find_by_id(context_id)
+            .one(&ctx.db)
+            .await?
+            .expect("context must exist");
+        assert_eq!(
+            (context.category, context.name.as_str()),
+            (Some(AssertionContextCategory::InstalledOn), "JBL Flip 4")
+        );
+
+        let identifiers = assertion_context_identifier::Entity::find()
+            .filter(assertion_context_identifier::Column::ContextId.eq(context_id))
+            .order_by_asc(assertion_context_identifier::Column::Value)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|identifier| (identifier.kind, identifier.value))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            identifiers,
+            [
+                (ContextIdentifierKind::Sku, "050036337366".to_string()),
+                (ContextIdentifierKind::Sku, "6925281924439".to_string()),
+            ]
         );
 
         Ok(())

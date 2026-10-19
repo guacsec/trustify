@@ -8,14 +8,15 @@ pub struct Model {
     pub evidence_id: Uuid,
     #[sea_orm(primary_key)]
     pub context_id: Uuid,
-    /// Where the SBOM node got the matching CPE from.
+    /// Where the SBOM node got the matching identifier from.
     pub source: ContextSource,
     /// Hops from the node (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
     pub distance: i32,
-    /// The SBOM side CPE which matched (2.3 formatted string).
+    /// The SBOM side identifier which matched: a CPE (2.3 formatted string), or an exact product
+    /// identifier as `<kind>:<value>` (e.g. `sku:6925281924439`).
     #[sea_orm(primary_key)]
     pub node_identifier: String,
-    /// The context's CPE which matched (2.3 formatted string).
+    /// The context's identifier which matched, in the same format.
     #[sea_orm(primary_key)]
     pub context_identifier: String,
     /// The confidence of this context: its source and distance, and the kind of match.
@@ -79,4 +80,8 @@ pub enum ContextSource {
     /// The product of an RPM, by the release (stream, codestream) of its version.
     #[sea_orm(string_value = "purl_release")]
     PurlRelease,
+    /// Nothing in the SBOM confirms the context, nor contradicts it. The context identifier lists
+    /// the identifiers which would have confirmed it.
+    #[sea_orm(string_value = "unconfirmed")]
+    Unconfirmed,
 }

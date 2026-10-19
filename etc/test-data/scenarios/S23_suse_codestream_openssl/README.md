@@ -85,8 +85,8 @@ CycloneDX and SPDX variant of each SBOM.
 - **`openssl` × CVE-2025-9230.** The meta package has versionless `known_not_affected`
   statements for SP6, and `known_affected` statements including SLE 15 GA. The RPM's broad
   product context matches GA's unspecified service pack as well as SP6. Both statuses remain
-  applicable with equal maximum weight. Weighted resolution chooses affected on a tie and
-  lowers confidence. SLE 12 SP2 evidence is still dropped by product compatibility. Selecting
+  applicable with equal provider relationship, origin, and match confidence. Status precedence
+  chooses affected and flags the conflict without reducing match confidence. SLE 12 SP2 evidence is still dropped by product compatibility. Selecting
   a narrower product context is an applicability concern; a status priority must not hide
   that ambiguity.
 

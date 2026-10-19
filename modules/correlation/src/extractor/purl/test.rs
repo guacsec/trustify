@@ -803,7 +803,7 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     source_provider: None,
                     origin: AssertionOrigin::Stated,
                     identifier: "pkg:npm/example-app".into(),
-                    ranges: below("semver", "2.0.0"),
+                    ranges: below("npm", "2.0.0"),
                     enabled_by: None,
                 }),
             ),

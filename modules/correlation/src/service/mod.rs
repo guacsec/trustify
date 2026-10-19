@@ -17,8 +17,8 @@ use trustify_entity::{
 use uuid::Uuid;
 
 pub mod option;
+pub mod resolution;
 pub mod statement;
-pub mod weighting;
 
 #[cfg(test)]
 mod test;
@@ -35,7 +35,7 @@ impl CorrelationService {
         Self { extractors }
     }
 
-    /// Count verdicts using the same weighted resolver, with compact batched provider inputs.
+    /// Count verdicts using the same precedence resolver, with compact batched provider inputs.
     ///
     /// Returns one entry per requested SBOM, in the requested order, with zero counts for SBOMs
     /// without evidence (or unknown SBOMs).
@@ -63,8 +63,9 @@ impl CorrelationService {
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        let snapshot = weighting::PolicySnapshot::load(connection, sbom_ids, &advisory_ids).await?;
-        let identifiers = weighting::store::provider_identifiers(connection, sbom_ids).await?;
+        let snapshot =
+            resolution::ProviderSnapshot::load(connection, sbom_ids, &advisory_ids).await?;
+        let identifiers = resolution::store::provider_identifiers(connection, sbom_ids).await?;
         let mut groups = BTreeMap::<(Uuid, &str, &str), Vec<&correlation_evidence::Model>>::new();
         for row in &evidence {
             groups
@@ -75,7 +76,7 @@ impl CorrelationService {
         let mut counts = HashMap::<Uuid, SbomVerdictCounts>::new();
         for ((sbom_id, node_id, _), rows) in groups {
             let request = ResolutionRequest::default();
-            let policy = snapshot.effective(Some(sbom_id), Some(node_id), &request)?;
+            let context = snapshot.context(&request)?;
             let node_identifiers = identifiers
                 .get(&(sbom_id, node_id.to_string()))
                 .map(Vec::as_slice)
@@ -84,13 +85,13 @@ impl CorrelationService {
                 Some(sbom_id),
                 Some(node_id),
                 node_identifiers,
-                &policy,
+                &context,
             );
             let inputs = rows
                 .iter()
                 .map(|row| decision_evidence(row, &snapshot))
                 .collect::<Result<Vec<_>, _>>()?;
-            let decision = weighting::resolve(&inputs, provider, &policy, false)?;
+            let decision = resolution::resolve(&inputs, provider, &context, false)?;
             let count = counts.entry(sbom_id).or_default();
             match decision.status {
                 VerdictStatus::Affected => count.affected += 1,
@@ -138,7 +139,7 @@ impl CorrelationService {
                 "Product context is only supported for identifier queries".into(),
             ));
         }
-        weighting::engine::validate_weights(&request.overrides)?;
+        resolution::provider::ResolutionContext::new(Vec::new(), request)?;
         let mut query = correlation_evidence::Entity::find()
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
         if let Some(node) = &request.node_id {
@@ -210,7 +211,7 @@ impl CorrelationService {
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
         let snapshot =
-            weighting::PolicySnapshot::load(connection, &[sbom_id], &advisory_ids).await?;
+            resolution::ProviderSnapshot::load(connection, &[sbom_id], &advisory_ids).await?;
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
         let mut contexts =
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
@@ -228,24 +229,29 @@ impl CorrelationService {
 
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
-            let policy = snapshot.effective(Some(sbom_id), Some(node_id), request)?;
+            let context = snapshot.context(request)?;
             let identifiers = node_identifiers
                 .get(*node_id)
                 .map(Vec::as_slice)
                 .unwrap_or_default();
             let component_provider =
-                snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &policy);
+                snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &context);
             let inputs = rows
                 .iter()
-                .map(|row| decision_evidence(row, &snapshot))
-                .collect::<Result<Vec<_>, _>>()?;
+                .map(|row| {
+                    Ok(resolution::DecisionEvidence {
+                        contexts: contexts.remove(&row.id).unwrap_or_default(),
+                        ..decision_evidence(row, &snapshot)?
+                    })
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
 
             let evidence: Vec<_> = rows
                 .iter()
                 .zip(&inputs)
                 .map(|(row, input)| {
                     let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
-                    let provider = policy.provider(&input.provider, "assertion source");
+                    let provider = context.provider(&input.provider, "assertion source");
 
                     EvidenceDetail {
                         id: row.id,
@@ -262,18 +268,18 @@ impl CorrelationService {
                                 })
                                 .ok()
                         }),
-                        contexts: contexts.remove(&row.id).unwrap_or_default(),
-                        provider_match: weighting::provider_match(&component_provider, &provider),
+                        contexts: input.contexts.clone(),
+                        provider_match: resolution::provider_match(&component_provider, &provider),
                         provider,
                         created_at: row.created_at,
                     }
                 })
                 .collect();
 
-            let decision = weighting::resolve(
+            let decision = resolution::resolve(
                 &inputs,
                 component_provider.clone(),
-                &policy,
+                &context,
                 request.include_explanation,
             )?;
             let status = decision.status;
@@ -350,12 +356,12 @@ impl CorrelationService {
         request: &ResolutionRequest,
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
-        if request.node_id.is_some() || request.group_id.is_some() {
+        if request.node_id.is_some() {
             return Err(Error::BadRequest(
-                "Node and group selection require an SBOM target".into(),
+                "Node selection requires an SBOM target".into(),
             ));
         }
-        weighting::engine::validate_weights(&request.overrides)?;
+        resolution::provider::ResolutionContext::new(Vec::new(), request)?;
         let mut matches = self
             .extractors
             .query_with_context(&identifier, &request.product_context, connection)
@@ -379,12 +385,12 @@ impl CorrelationService {
             .collect::<Vec<_>>();
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
-        let snapshot = weighting::PolicySnapshot::load(connection, &[], &advisory_ids).await?;
-        let policy = snapshot.effective(None, None, request)?;
+        let snapshot = resolution::ProviderSnapshot::load(connection, &[], &advisory_ids).await?;
+        let context = snapshot.context(request)?;
         let mut provider_identifiers = vec![identifier.clone()];
         provider_identifiers.extend(request.product_context.clone());
         let component_provider =
-            snapshot.component_provider(None, None, &provider_identifiers, &policy);
+            snapshot.component_provider(None, None, &provider_identifiers, &context);
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
 
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
@@ -414,7 +420,7 @@ impl CorrelationService {
         for (vuln_id, items) in groups {
             let inputs = items
                 .iter()
-                .map(|(status, m)| weighting::DecisionEvidence {
+                .map(|(status, m)| resolution::DecisionEvidence {
                     reference: Uuid::new_v5(
                         &m.advisory_id,
                         serde_json::json!([m.extractor, m.value, m.status])
@@ -425,7 +431,6 @@ impl CorrelationService {
                     advisory_id: m.advisory_id,
                     status: (*status).into(),
                     confidence: m.confidence,
-                    extractor: m.extractor.clone(),
                     value: Some(m.value.clone()),
                     provider: m
                         .value
@@ -433,12 +438,13 @@ impl CorrelationService {
                         .clone()
                         .or_else(|| snapshot.advisory_providers.get(&m.advisory_id).cloned())
                         .unwrap_or_default(),
+                    contexts: Vec::new(),
                 })
                 .collect::<Vec<_>>();
-            let decision = weighting::resolve(
+            let decision = resolution::resolve(
                 &inputs,
                 component_provider.clone(),
-                &policy,
+                &context,
                 request.include_explanation,
             )?;
             verdicts.push(QueryVerdict {
@@ -459,8 +465,8 @@ impl CorrelationService {
 
 fn decision_evidence(
     row: &correlation_evidence::Model,
-    snapshot: &weighting::PolicySnapshot,
-) -> Result<weighting::DecisionEvidence, Error> {
+    snapshot: &resolution::ProviderSnapshot,
+) -> Result<resolution::DecisionEvidence, Error> {
     let value = row
         .matched_value
         .clone()
@@ -472,14 +478,14 @@ fn decision_evidence(
         .and_then(|v| v.source_provider.clone())
         .or_else(|| snapshot.advisory_providers.get(&row.advisory_id).cloned())
         .unwrap_or_default();
-    Ok(weighting::DecisionEvidence {
+    Ok(resolution::DecisionEvidence {
         reference: row.id.to_string(),
         advisory_id: row.advisory_id,
         status: row.status.into(),
         confidence: row.confidence,
-        extractor: row.extractor.clone(),
         value,
         provider,
+        contexts: Vec::new(),
     })
 }
 

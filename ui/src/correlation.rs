@@ -3,13 +3,14 @@ use crate::{
     advisory::advisory_link,
     api,
     model::{
-        ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
-        IdentifierRef, MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
+        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef,
+        MatchedValue, ProviderMatch, VerdictStatus, VerdictSummary,
     },
-    weighting::provider_view,
+    resolution::{product_names, provider_view},
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
+use time::OffsetDateTime;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -137,7 +138,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             VerdictColumn::Status => html! {
                 <div>
                     {status_label(self.0.status)}
-                    <p>{format!("{:.0}% confidence{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
+                    <p>{format!("Selected match confidence: {:.0}%{}",self.0.resolution.confidence*100.0,if self.0.resolution.has_conflict {" · conflicting evidence"}else{""})}</p>
                 </div>
             }.into(),
             VerdictColumn::Evidence => {
@@ -150,7 +151,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         vec![
             html_nested! {
                 <Raw>
-                    <crate::weighting::ResolutionAction
+                    <crate::resolution::ResolutionAction
                         target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
                         node_id={Some(self.0.component.node_id.clone())}
                         vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
@@ -172,7 +173,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                     <Flex>
                         <FlexItem><Title level={Level::H4}>{ "Component in the SBOM" }</Title></FlexItem>
                         <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
-                            <crate::weighting::ResolutionButton
+                            <crate::resolution::ResolutionButton
                                 target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
                                 node_id={Some(self.0.component.node_id.clone())}
                                 vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
@@ -226,7 +227,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 Some(value) => matched_value(value).into(),
                 None => html!("\u{2014}").into(),
             },
-            EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
+            EvidenceColumn::Product => product_names(&self.0.contexts).into(),
             EvidenceColumn::Provider => {
                 let same = match self.0.provider_match {
                     Some(ProviderMatch::Provider) => Some(("Same as component", Color::Green)),
@@ -249,7 +250,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 self.0.advisory_type.as_deref(),
             )
             .into(),
-            EvidenceColumn::Created => html!(&self.0.created_at).into(),
+            EvidenceColumn::Created => timestamp(&self.0.created_at).into(),
         }
     }
 }
@@ -467,30 +468,6 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
 
 /// Render the advisory side of a match: the identifier, and each matched version range on a line
 /// of its own.
-/// The products (contexts) evidence was matched in, and how the component got into them.
-fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
-    if contexts.is_empty() {
-        return html!("\u{2014}");
-    }
-    html! {
-        <ul style="margin:0;padding-left:1em">
-            { for contexts.iter().map(|context| html! {
-                <li>
-                    { &context.name }
-                    <small>
-                        { " via " }{ context.source.label() }
-                        if context.distance > 1 {
-                            { format!(" ({} hops)", context.distance) }
-                        }
-                        { " " }<code>{ &context.node_identifier }</code>
-                        { format!(", ×{:.2}", context.confidence) }
-                    </small>
-                </li>
-            }) }
-        </ul>
-    }
-}
-
 pub(crate) fn matched_value(value: &MatchedValue) -> Html {
     html! {
         <>
@@ -518,6 +495,31 @@ pub(crate) fn matched_value(value: &MatchedValue) -> Html {
 }
 
 /// The label color of a verdict status.
+/// A timestamp to the second, without the offset when in UTC. The tooltip has the full value.
+pub(crate) fn timestamp(value: &OffsetDateTime) -> Html {
+    let offset = value.offset();
+    let mut short = format!(
+        "{} {:02}:{:02}:{:02}",
+        value.date(),
+        value.hour(),
+        value.minute(),
+        value.second()
+    );
+    if !offset.is_utc() {
+        let sign = if offset.is_negative() { '-' } else { '+' };
+        short.push_str(&format!(
+            " {sign}{:02}:{:02}",
+            offset.whole_hours().unsigned_abs(),
+            offset.minutes_past_hour().unsigned_abs()
+        ));
+    }
+    html! {
+        <Tooltip text={value.to_string()}>
+            <span>{ short }</span>
+        </Tooltip>
+    }
+}
+
 pub(crate) fn status_color(status: VerdictStatus) -> Color {
     match status {
         VerdictStatus::Affected => Color::Red,

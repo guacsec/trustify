@@ -1385,7 +1385,7 @@ async fn s17_crossproduct_ocp_kernel_go(
 }
 
 // ===========================================================================
-// S18: RHEL 8 curl not-affected overridden by cross-product match (TC-5171 + TC-5730)
+// S30: RHEL 8 curl not-affected overridden by cross-product match (TC-5171 + TC-5730)
 //
 // CVE-2022-32207 marks RHEL 8 curl known_not_affected, but the same CSAF fixes
 // curl under RHEL 9 (7.76.1-14.el9_0.5). When the CPE is on a child node the
@@ -1404,7 +1404,7 @@ async fn s18_crossproduct_curl_notaffected(
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
-        "S18_crossproduct_curl_notaffected",
+        "S30_crossproduct_curl_notaffected",
         &["vex/CVE-2022-32207.json"],
     )
     .await?;
@@ -1428,7 +1428,7 @@ async fn s18_crossproduct_curl_notaffected(
     for (base, expected_affected) in cases {
         let sbom = ctx
             .ingest_document(&format!(
-                "scenarios/S18_crossproduct_curl_notaffected/{base}.{fmt}.json"
+                "scenarios/S30_crossproduct_curl_notaffected/{base}.{fmt}.json"
             ))
             .await?;
         let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
@@ -1442,7 +1442,7 @@ async fn s18_crossproduct_curl_notaffected(
 
     assert!(
         mismatches.is_empty(),
-        "S18 CVE-2022-32207 correlation mismatches:\n{}",
+        "S30 CVE-2022-32207 correlation mismatches:\n{}",
         mismatches.join("\n")
     );
 

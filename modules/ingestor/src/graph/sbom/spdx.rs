@@ -152,7 +152,7 @@ impl SbomContext {
         );
 
         for described in &sbom_data.document_creation_information.document_describes {
-            log::debug!("Adding 'document_describes': {described}");
+            tracing::debug!("Adding 'document_describes': {described}");
             relationships.relate(
                 sbom_data
                     .document_creation_information
@@ -172,7 +172,7 @@ impl SbomContext {
         );
 
         for rel in &sbom_data.relationships {
-            log::debug!("Relationship: {rel:?}");
+            tracing::debug!("Relationship: {rel:?}");
 
             let Ok(SpdxRelationship(left, rel, right)) = rel.try_into() else {
                 continue;
@@ -182,6 +182,30 @@ impl SbomContext {
 
             if rel == Relationship::Describes {
                 product_packages.push(right.to_string());
+            }
+        }
+
+        // the files of a package (`hasFiles`) are contained in it, as long as they are part of
+        // the document, which wasn't required before
+        let files = sbom_data
+            .file_information
+            .iter()
+            .map(|file| file.file_spdx_identifier.as_str())
+            .collect::<HashSet<_>>();
+        for package in &sbom_data.package_information {
+            for file in &package.files {
+                if !files.contains(file.as_str()) {
+                    tracing::info!(
+                        "Ignoring unknown file {file} of package {}",
+                        package.package_spdx_identifier
+                    );
+                    continue;
+                }
+                relationships.relate(
+                    package.package_spdx_identifier.clone(),
+                    Relationship::Contains,
+                    file.clone(),
+                );
             }
         }
 
@@ -235,7 +259,7 @@ impl SbomContext {
                             purls.add(purl);
                         }
                         Err(err) => {
-                            log::info!("Failed to parse PURL ({}): {err}", r.reference_locator);
+                            tracing::info!("Failed to parse PURL ({}): {err}", r.reference_locator);
                         }
                     },
                     "cpe22Type" | "cpe23Type" => match Cpe::from_str(&r.reference_locator) {
@@ -249,7 +273,7 @@ impl SbomContext {
                             product_cpe = product_cpe.or(Some(cpe));
                         }
                         Err(err) => {
-                            log::info!("Failed to parse CPE ({}): {err}", r.reference_locator);
+                            tracing::info!("Failed to parse CPE ({}): {err}", r.reference_locator);
                         }
                     },
                     _ => {}

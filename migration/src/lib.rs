@@ -109,6 +109,8 @@ mod m0002590_default_status;
 mod m0002600_purl_status_qualified_purl;
 mod m0002610_correlation_assertion_origin;
 mod m0002620_correlation_weighting;
+mod m0002630_remove_correlation_weights;
+mod m0002640_context_source_unconfirmed;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -233,6 +235,8 @@ impl MigratorExt for Migrator {
             .normal(m0002600_purl_status_qualified_purl::Migration)
             .normal(m0002610_correlation_assertion_origin::Migration)
             .normal(m0002620_correlation_weighting::Migration)
+            .normal(m0002630_remove_correlation_weights::Migration)
+            .normal(m0002640_context_source_unconfirmed::Migration)
     }
 }
 

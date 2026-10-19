@@ -1380,7 +1380,7 @@ paths:
     post:
       tags:
       - correlation
-      summary: A preview changes resolution settings only; it cannot write policies or evidence.
+      summary: A preview changes request context only; it cannot write aliases or evidence.
       operationId: previewCorrelation
       requestBody:
         content:
@@ -1552,14 +1552,6 @@ paths:
           type:
           - string
           - 'null'
-      - name: group_id
-        in: query
-        required: false
-        schema:
-          type:
-          - string
-          - 'null'
-          format: uuid
       responses:
         '200':
           description: Correlation verdicts for the SBOM
@@ -1591,76 +1583,6 @@ paths:
                   $ref: '#/components/schemas/SbomVerdictCounts'
         '400':
           description: Too many SBOMs requested
-  /api/v3/correlation/weight-policy:
-    get:
-      tags:
-      - correlation
-      operationId: listWeightPolicies
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/WeightPolicy'
-    post:
-      tags:
-      - correlation
-      operationId: createWeightPolicy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WeightPolicyData'
-        required: true
-      responses:
-        '201':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WeightPolicy'
-  /api/v3/correlation/weight-policy/{id}:
-    put:
-      tags:
-      - correlation
-      operationId: updateWeightPolicy
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WeightPolicyData'
-        required: true
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WeightPolicy'
-    delete:
-      tags:
-      - correlation
-      operationId: deleteWeightPolicy
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '204':
-          description: ''
   /api/v3/crypto/algorithm:
     get:
       tags:
@@ -5842,20 +5764,6 @@ components:
         status:
           $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
-    AppliedWeight:
-      type: object
-      required:
-      - factor
-      - multiplier
-      - origin
-      properties:
-        factor:
-          type: string
-        multiplier:
-          type: number
-          format: double
-        origin:
-          $ref: '#/components/schemas/SettingOrigin'
     AssertionOrigin:
       type: string
       description: How the matching status was obtained from an advisory.
@@ -6234,6 +6142,7 @@ components:
       - ancestor_sbom
       - purl_qualifier
       - purl_release
+      - unconfirmed
     CorrelationOption:
       allOf:
       - $ref: '#/components/schemas/CorrelationOptionData'
@@ -6496,15 +6405,6 @@ components:
         properties:
           source:
             type: string
-    EffectiveSetting:
-      type: object
-      required:
-      - value
-      - origin
-      properties:
-        origin:
-          $ref: '#/components/schemas/SettingOrigin'
-        value: {}
     EnabledBy:
       type: object
       description: The correlation option which enabled a match, as it was when the evidence was extracted.
@@ -6568,7 +6468,7 @@ components:
           format: uuid
         context_identifier:
           type: string
-          description: The product's CPE which matched.
+          description: The product's identifier which matched.
         distance:
           type: integer
           format: int32
@@ -6578,10 +6478,10 @@ components:
           description: The name of the product, e.g. "Red Hat Storage 3".
         node_identifier:
           type: string
-          description: The SBOM side CPE which matched.
+          description: 'The SBOM side identifier which matched: a CPE, or e.g. `sku:6925281924439`.'
         source:
           $ref: '#/components/schemas/ContextSource'
-          description: Where the component got the matching CPE from.
+          description: Where the component got the matching identifier from.
     EvidenceDetail:
       type: object
       description: One piece of evidence from the correlation engine.
@@ -6630,45 +6530,19 @@ components:
           - $ref: '#/components/schemas/MatchedValue'
         provider:
           $ref: '#/components/schemas/ProviderResolution'
-          description: The provider making the assertion, as resolved by the weighting policy.
+          description: The provider making the assertion, as resolved through provider aliases.
         provider_match:
           oneOf:
           - type: 'null'
           - $ref: '#/components/schemas/ProviderMatch'
             description: How the provider matches the provider of the component, if at all.
-    EvidenceWeight:
-      type: object
-      required:
-      - evidence_ref
-      - advisory_id
-      - status
-      - match_confidence
-      - assertion_origin
-      - provider
-      - factors
-      - weight
-      properties:
-        advisory_id:
-          type: string
-          format: uuid
-        assertion_origin:
-          $ref: '#/components/schemas/AssertionOrigin'
-        evidence_ref:
-          type: string
-        factors:
-          type: array
-          items:
-            $ref: '#/components/schemas/AppliedWeight'
-        match_confidence:
-          type: number
-          format: double
-        provider:
-          $ref: '#/components/schemas/ProviderResolution'
-        status:
-          $ref: '#/components/schemas/AssertionStatus'
-        weight:
-          type: number
-          format: double
+    EvidenceOutcome:
+      type: string
+      enum:
+      - selected
+      - supporting
+      - conflicting
+      - non_voting
     Exploit:
       type: object
       description: |-
@@ -8550,55 +8424,6 @@ components:
             $ref: '#/components/schemas/AlgorithmPolicyResult'
         summary:
           $ref: '#/components/schemas/PolicySummaryResult'
-    PolicyScope:
-      oneOf:
-      - type: object
-        required:
-        - kind
-        properties:
-          kind:
-            type: string
-            enum:
-            - instance
-      - type: object
-        required:
-        - group_id
-        - kind
-        properties:
-          group_id:
-            type: string
-            format: uuid
-          kind:
-            type: string
-            enum:
-            - group
-      - type: object
-        required:
-        - sbom_id
-        - kind
-        properties:
-          kind:
-            type: string
-            enum:
-            - sbom
-          sbom_id:
-            type: string
-            format: uuid
-      - type: object
-        required:
-        - sbom_id
-        - node_id
-        - kind
-        properties:
-          kind:
-            type: string
-            enum:
-            - component
-          node_id:
-            type: string
-          sbom_id:
-            type: string
-            format: uuid
     PolicySummaryResult:
       type: object
       required:
@@ -8634,6 +8459,7 @@ components:
           $ref: '#/components/schemas/ResolutionRequest'
         target:
           $ref: '#/components/schemas/PreviewTarget'
+      additionalProperties: false
     PreviewResult:
       oneOf:
       - type: object
@@ -8855,6 +8681,14 @@ components:
       enum:
       - provider
       - name
+    ProviderRelationship:
+      type: string
+      description: Provider precedence, ordered from most to least preferred.
+      enum:
+      - matching_provider
+      - matching_name
+      - providerless
+      - other
     ProviderResolution:
       type: object
       required:
@@ -9433,57 +9267,77 @@ components:
       - type: 'null'
       - type: integer
         format: int64
+    ResolutionEvidence:
+      type: object
+      required:
+      - evidence_ref
+      - advisory_id
+      - status
+      - match_confidence
+      - assertion_origin
+      - provider
+      - provider_relationship
+      - outcome
+      - selection_reason
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        assertion_origin:
+          $ref: '#/components/schemas/AssertionOrigin'
+        contexts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceContext'
+          description: |-
+            The products (assertion contexts) the statement was matched in, and how the component got
+            into them.
+        evidence_ref:
+          type: string
+        match_confidence:
+          type: number
+          format: double
+        outcome:
+          $ref: '#/components/schemas/EvidenceOutcome'
+        provider:
+          $ref: '#/components/schemas/ProviderResolution'
+        provider_relationship:
+          $ref: '#/components/schemas/ProviderRelationship'
+        selection_reason:
+          $ref: '#/components/schemas/SelectionReason'
+        status:
+          $ref: '#/components/schemas/AssertionStatus'
     ResolutionExplanation:
       type: object
       required:
+      - status
       - component_provider
-      - policy_revision
-      - settings
+      - resolution_revision
       - evidence
-      - statuses
-      - opposing_weight
-      - base_confidence
-      - confidence_penalty
-      - tie_break
+      - deciding_criterion
       - reason
       properties:
-        base_confidence:
-          type: number
-          format: double
         component_provider:
           $ref: '#/components/schemas/ProviderResolution'
-        confidence_penalty:
-          type: number
-          format: double
+        deciding_criterion:
+          $ref: '#/components/schemas/SelectionReason'
         evidence:
           type: array
           items:
-            $ref: '#/components/schemas/EvidenceWeight'
+            $ref: '#/components/schemas/ResolutionEvidence'
+          description: Ordered by eligibility, then the fixed resolution precedence.
         opposing_evidence:
           type:
           - string
           - 'null'
-        opposing_weight:
-          type: number
-          format: double
-        policy_revision:
-          type: string
-          format: uuid
-          description: Revision of the complete effective policy, including provider aliases.
         reason:
           type: string
-        settings:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/EffectiveSetting'
-          propertyNames:
-            type: string
-        statuses:
-          type: array
-          items:
-            $ref: '#/components/schemas/StatusWeight'
-        tie_break:
-          type: boolean
+        resolution_revision:
+          type: string
+          format: uuid
+          description: Fingerprint of resolver version, aliases, and resolution context.
+        status:
+          $ref: '#/components/schemas/VerdictStatus'
         winning_evidence:
           type:
           - string
@@ -9492,19 +9346,17 @@ components:
       type: object
       description: Optional resolution context, shared by ordinary reads and temporary previews.
       properties:
-        group_id:
+        component_provider:
           type:
           - string
           - 'null'
-          format: uuid
+          description: Temporary installed-build provider; does not change stored supplier metadata.
         include_explanation:
           type: boolean
         node_id:
           type:
           - string
           - 'null'
-        overrides:
-          $ref: '#/components/schemas/WeightOverrides'
         product_context:
           type: array
           items:
@@ -9513,19 +9365,17 @@ components:
           type:
           - string
           - 'null'
+      additionalProperties: false
     ResolutionSummary:
       type: object
       required:
-      - decision_weight
       - confidence
       - has_conflict
       properties:
         confidence:
           type: number
           format: double
-        decision_weight:
-          type: number
-          format: double
+          description: Original match confidence of the selected evidence; conflicts do not reduce it.
         explanation:
           oneOf:
           - type: 'null'
@@ -9880,27 +9730,18 @@ components:
         value: 7.5
         severity: high
         vector: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
-    SettingOrigin:
-      type: object
-      required:
-      - source
-      properties:
-        policy_id:
-          type:
-          - string
-          - 'null'
-          format: uuid
-        revision:
-          type:
-          - string
-          - 'null'
-          format: uuid
-        scope:
-          oneOf:
-          - type: 'null'
-          - $ref: '#/components/schemas/PolicyScope'
-        source:
-          type: string
+    SelectionReason:
+      type: string
+      description: First criterion that distinguishes the selected statement from another statement.
+      enum:
+      - no_eligible_evidence
+      - only_eligible_evidence
+      - provider_relationship
+      - assertion_origin
+      - match_confidence
+      - status_priority
+      - evidence_reference
+      - non_voting
     Severity:
       type: string
       description: Severity rating derived from a CVSS score value.
@@ -10031,20 +9872,6 @@ components:
         properties:
           cpe:
             type: string
-    StatusWeight:
-      type: object
-      required:
-      - status
-      - weight
-      - evidence_ref
-      properties:
-        evidence_ref:
-          type: string
-        status:
-          $ref: '#/components/schemas/VerdictStatus'
-        weight:
-          type: number
-          format: double
     Update:
       type: object
       description: |
@@ -10122,7 +9949,7 @@ components:
             $ref: '#/components/schemas/ComponentRef'
           component_provider:
             $ref: '#/components/schemas/ProviderResolution'
-            description: The provider who supplied the component, as resolved by the weighting policy.
+            description: The provider who supplied the component, as resolved through provider aliases.
           evidence:
             type: array
             items:
@@ -10493,101 +10320,3 @@ components:
     VulnerabilitySummary:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
-    WeightOverrides:
-      type: object
-      description: A sparse override. Unset values inherit; entries in maps replace the same inherited key.
-      properties:
-        component_provider:
-          type:
-          - string
-          - 'null'
-          description: An explicit installed-build provider, not the author of the SBOM document.
-        conflict_sensitivity:
-          type:
-          - number
-          - 'null'
-          format: double
-        direct:
-          type:
-          - number
-          - 'null'
-          format: double
-        inferred:
-          type:
-          - number
-          - 'null'
-          format: double
-        match_methods:
-          type: object
-          description: 'Matching strategy IDs: digest, purl, cpe, product_identifier, or extension IDs.'
-          additionalProperties:
-            type: number
-            format: double
-          propertyNames:
-            type: string
-        matching_provider:
-          type:
-          - number
-          - 'null'
-          format: double
-        matching_provider_name:
-          type:
-          - number
-          - 'null'
-          format: double
-          description: 'Unverified match: both sides state the same provider name, but no alias maps it.'
-        other_provider:
-          type:
-          - number
-          - 'null'
-          format: double
-        providerless:
-          type:
-          - number
-          - 'null'
-          format: double
-        providerless_fallback:
-          type:
-          - number
-          - 'null'
-          format: double
-        providers:
-          type: object
-          additionalProperties:
-            type: number
-            format: double
-          propertyNames:
-            type: string
-        rules:
-          type: object
-          additionalProperties:
-            type: number
-            format: double
-          propertyNames:
-            type: string
-    WeightPolicy:
-      allOf:
-      - $ref: '#/components/schemas/WeightPolicyData'
-      - type: object
-        required:
-        - id
-        - revision
-        properties:
-          id:
-            type: string
-            format: uuid
-          revision:
-            type: string
-            format: uuid
-    WeightPolicyData:
-      type: object
-      required:
-      - scope
-      properties:
-        priority:
-          type: integer
-          format: int32
-        scope:
-          $ref: '#/components/schemas/PolicyScope'
-        weights:
-          $ref: '#/components/schemas/WeightOverrides'

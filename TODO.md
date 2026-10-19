@@ -12,8 +12,8 @@
     minor stream of `el8_2`), SLE 16, SUSE Linux Micro / `slfo`, and other distributions;
   - SUSE GA products are written without a service pack (`sles:15`), so they match the packages
     of every service pack of that version;
-  - PURL, model number, SKU and digest contexts: advisory contexts store them, but nothing on the
-    SBOM side is compared with them yet;
+  - PURL contexts: advisory contexts store them, but nothing on the SBOM side is compared with
+    them yet (SKUs, model and serial numbers, and digests are, on the node and its ancestors);
   - the fundamental APIs still use `product_status` and `purl_status.context_cpe_id`.
 - [ ] Correlation, RHEL minors: in the mainline, the minors are one line, so a statement of
   another minor (`el9_1` for an `el9_0` build, `el10_1` for `el10_2`) is used if the advisory
@@ -27,15 +27,14 @@
     another minor (`10.1`), only the RPM's product matches them. In syft's SBOMs, the
     operating-system component is no context of the RPMs, so it doesn't interfere there (scenario
     S24).
-- [x] Correlation, weighted verdicts: installed-build supplier and assertion provider influence
-  soft weights alongside direct/inferred provenance, matching method, and rule preferences.
-  Instance, hierarchical group, SBOM, component, and request overrides replace inherited knobs.
-  Maximum weight per status decides; affected breaks ties; conflicts reduce verdict confidence.
-  Opt-in API explanations and UI previews expose factors, origins, providers, and revisions.
+- [x] Correlation, explainable verdicts: fixed precedence compares provider relationship,
+  directness, original match confidence, status, then stable evidence reference. Conflicts remain
+  visible without reducing match confidence. Provider aliases, opt-in explanations, and temporary
+  context previews remain; weight policies and multipliers are removed by `m0002630`.
   [S28](etc/test-data/scenarios/S28_fixed_then_regression/README.md) and
   [S29](etc/test-data/scenarios/S29_provider_weighting/README.md) cover regressions, mixed
   suppliers, CNA/ADP sources, both SBOM formats, ingestion orders, and counts. Migrations
-  `m0002610`/`m0002620` backfill provenance and mark unrecoverable provider metadata.
+  `m0002610`/`m0002620` retain provenance and diagnose unrecoverable provider metadata.
 - [ ] CSAF `first_fixed`, `first_affected` and `last_affected` are only stored for PURLs
   (`purl_status`, `product_status`). CPE, hash and product identifier assertions
   (`assertion_status`) have no such values, so those statements are dropped for them, and the
@@ -55,9 +54,10 @@
 - [ ] Correlation: vls ranges (CSAF `product_version_range` without `vers:`, stored with the
   version scheme `vls`) only match PURLs (`purl_vls_range`, scheme by PURL type). A vls range of a
   CPE (`advisory_vulnerability_cpe`) yields no evidence, as nothing hints at a version scheme.
-- [ ] `VersionScheme::from(&str)` (vers schemes) maps neither `pypi` nor `cargo`, `gem`, `golang`,
-  `nuget`, … (only `python`, `npm`, `maven`, `rpm`, `semver`, `git`), so those fall back to
-  `generic`, which only matches exact versions.
+- [x] vers ranges and CSAF PURL versions take the versioning scheme of their PURL type
+  (`VersionScheme::from_purl_type`), e.g. `vers:pypi/…` is compared as Python versions.
+- [ ] No versioning scheme for Debian (`deb`), Alpine (`apk`) and other distributions: their vers
+  ranges and OSV `ECOSYSTEM` ranges are stored as `generic`, which only matches exact versions.
 - [x] `vers-rs` 0.1.3 builds with `default-features = false`, removing its `wasm-bindgen`
   and `tsify` dependencies. Updated the parser to the renamed `VersVersionRange` API.
 - [ ] Changing correlation options should trigger re-extraction of affected advisories and

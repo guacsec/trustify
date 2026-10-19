@@ -9,9 +9,9 @@ mod monaco;
 mod options;
 mod provider_alias;
 mod query;
+mod resolution;
 mod sbom_list;
 mod sort;
-mod weighting;
 
 use advisory::AdvisoryPage;
 use advisory_list::AdvisoryList;
@@ -49,7 +49,6 @@ pub enum AppRoute {
     Query,
     Ingest,
     Options,
-    Weighting,
     ProviderAliases,
 }
 
@@ -229,7 +228,6 @@ fn switch_route(target: AppRoute) -> Html {
                 <IngestPage />
             </AppPage>
         },
-        AppRoute::Weighting => html! { <AppPage><weighting::WeightingPage /></AppPage> },
         AppRoute::ProviderAliases => html! {
             <AppPage>
                 <provider_alias::ProviderAliasPage />
@@ -267,7 +265,6 @@ fn page(props: &PageProps) -> Html {
                         <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
-                        <NavRouterItem<AppRoute> to={AppRoute::Weighting}>{ "Verdict weighting" }</NavRouterItem<AppRoute>>
                         <NavRouterItem<AppRoute> to={AppRoute::ProviderAliases}>
                             { "Provider aliases" }
                         </NavRouterItem<AppRoute>>

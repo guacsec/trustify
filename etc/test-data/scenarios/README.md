@@ -21,7 +21,7 @@ in a scenario's review; they are not general CSAF rules.
 | [S12](S12_notaffected_ignored_thunderbird/README.md) | Original migrated; control blocked | Removing negative exposes an affected result from inapplicable statements |
 | [S15](S15_versioncmp_rpm_openssh/README.md) | Migrated | Mainline minor fallback is allowed; patched builds are fixed |
 | [S17](S17_crossproduct_ocp_kernel_go/README.md) | Migrated | Unrelated kernel has no verdict; patched Go builds are fixed |
-| [S18](S18_crossproduct_curl_notaffected/README.md) | Migrated | RHEL 8 explicit negative; RHEL 9 patched builds fixed |
+| [S30](S30_crossproduct_curl_notaffected/README.md) | Migrated | RHEL 8 explicit negative; RHEL 9 patched builds fixed |
 
 Nine additional scenarios are enabled. Together with the previous 15, the harness covers 24
 scenarios through 35 manifests (70 ingestion-order tests), with both SBOM formats for all newly

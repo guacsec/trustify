@@ -1,5 +1,5 @@
 use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
-use trustify_entity::version_scheme::VersionScheme;
+use trustify_entity::version_scheme::{PurlType, VersionScheme};
 use vers_like_specifier::{Comparator as VlsComparator, Vls, VlsError};
 use vers_rs::{Comparator, VersError, VersVersionRange};
 
@@ -17,10 +17,21 @@ pub enum RangeError {
     SingleVersion,
 }
 
+/// The version scheme of a vers type: the one of a PURL type, or `semver`. Other types (`generic`,
+/// `all`, or ones without a known scheme, like `deb`) only compare equal versions.
+fn vers_scheme(ty: &str) -> VersionScheme {
+    match ty {
+        "semver" => VersionScheme::Semver,
+        _ => ty
+            .parse::<PurlType>()
+            .map_or(VersionScheme::Generic, VersionScheme::from),
+    }
+}
+
 /// Parse a `vers:` URI and convert to one or more [`VersionInfo`] values.
 pub fn parse_vers(input: &str) -> Result<Vec<VersionInfo>, VersError> {
     let range: VersVersionRange<String> = input.parse()?;
-    let scheme = VersionScheme::from(range.versioning_scheme.as_str());
+    let scheme = vers_scheme(&range.versioning_scheme);
     let constraints = range
         .constraints
         .iter()
@@ -159,7 +170,7 @@ mod test {
     fn parse_range() {
         let result = parse_vers("vers:npm/>=1.0.0|<2.0.0").unwrap();
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].scheme, VersionScheme::Semver);
+        assert_eq!(result[0].scheme, VersionScheme::Npm);
         assert_eq!(
             result[0].spec,
             VersionSpec::Range(
@@ -218,6 +229,30 @@ mod test {
                 Version::Inclusive("1.0.0".to_string()),
                 Version::Inclusive("2.0.0".to_string()),
             )
+        );
+    }
+
+    /// A vers type is a PURL type, naming its versioning scheme.
+    #[rstest]
+    #[case::pypi("pypi", VersionScheme::Python)]
+    #[case::cargo("cargo", VersionScheme::Cargo)]
+    #[case::gem("gem", VersionScheme::Gem)]
+    #[case::golang("golang", VersionScheme::Golang)]
+    #[case::nuget("nuget", VersionScheme::NuGet)]
+    #[case::composer("composer", VersionScheme::Packagist)]
+    #[case::semver("semver", VersionScheme::Semver)]
+    #[case::generic("generic", VersionScheme::Generic)]
+    #[case::deb("deb", VersionScheme::Generic)]
+    fn parse_scheme(#[case] ty: &str, #[case] scheme: VersionScheme) {
+        assert_eq!(
+            parse_vers(&format!("vers:{ty}/>=1.0|<2.0")).unwrap(),
+            vec![VersionInfo {
+                scheme,
+                spec: VersionSpec::Range(
+                    Version::Inclusive("1.0".to_string()),
+                    Version::Exclusive("2.0".to_string()),
+                ),
+            }]
         );
     }
 

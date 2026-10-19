@@ -64,10 +64,10 @@ fn license_text(text: &Attachment) -> Option<String> {
     match text.encoding.as_deref() {
         Some("base64") => match BASE64_STANDARD.decode(&text.content) {
             Ok(decoded) => String::from_utf8(decoded)
-                .inspect_err(|err| log::info!("Skipping non-UTF-8 license text: {err}"))
+                .inspect_err(|err| tracing::info!("Skipping non-UTF-8 license text: {err}"))
                 .ok(),
             Err(err) => {
-                log::info!("Skipping license text which failed to base64-decode: {err}");
+                tracing::info!("Skipping license text which failed to base64-decode: {err}");
                 None
             }
         },
@@ -243,7 +243,7 @@ impl SbomContext {
 
         for left in sbom.dependencies.iter().flatten() {
             for target in left.depends_on.iter().flatten() {
-                log::debug!("Adding dependency - left: {}, right: {}", left.ref_, target);
+                tracing::debug!("Adding dependency - left: {}, right: {}", left.ref_, target);
                 creator.relate(left.ref_.clone(), Relationship::Dependency, target.clone());
             }
 
@@ -251,7 +251,7 @@ impl SbomContext {
             // Do we need to qualify this so that only "arch=src" refs
             // get the GeneratedFrom relationship?
             for target in left.provides.iter().flatten() {
-                log::debug!("Adding generates - left: {}, right: {}", left.ref_, target);
+                tracing::debug!("Adding generates - left: {}, right: {}", left.ref_, target);
                 creator.relate(left.ref_.clone(), Relationship::Generates, target.clone());
             }
         }
@@ -290,9 +290,17 @@ impl<'a> Creator<'a> {
         self.extend(components.iter().flatten())
     }
 
+    /// Add a component, and the components nested in it. Nesting is an assembly ("system →
+    /// subsystem → parts"), so the component contains them. Without a `bom-ref` on both sides,
+    /// there is nothing to relate.
     pub fn add(&mut self, component: &'a Component) {
         self.components.push(component);
-        self.extend(component.components.iter().flatten());
+        for nested in component.components.iter().flatten() {
+            if let (Some(parent), Some(child)) = (&component.bom_ref, &nested.bom_ref) {
+                self.relate(parent.clone(), Relationship::Contains, child.clone());
+            }
+            self.add(nested);
+        }
     }
 
     pub fn extend<I>(&mut self, i: I)
@@ -387,7 +395,7 @@ impl ComponentCreator {
                     self.add_cpe(node_id.clone(), cpe);
                 }
                 Err(err) => {
-                    log::info!("Skipping CPE due to parsing error: {err}");
+                    tracing::info!("Skipping CPE due to parsing error: {err}");
                 }
             }
         }
@@ -398,7 +406,7 @@ impl ComponentCreator {
                     self.add_purl(node_id.clone(), purl);
                 }
                 Err(err) => {
-                    log::info!("Skipping PURL due to parsing error: {err}");
+                    tracing::info!("Skipping PURL due to parsing error: {err}");
                 }
             }
         }
@@ -501,7 +509,7 @@ impl ComponentCreator {
                             identifiers,
                         );
                     }
-                    _ => log::error!("Unsupported component type: '{ty}'"),
+                    _ => tracing::error!("Unsupported component type: '{ty}'"),
                 }
             }
             Err(e) => {
@@ -732,9 +740,52 @@ pub enum ComponentType {
 #[cfg(test)]
 mod test {
     use super::*;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
     use serde_json::json;
     use std::str::FromStr;
+    use test_context::test_context;
     use test_log::test;
+    use trustify_entity::package_relates_to_package;
+    use trustify_test_context::TrustifyContext;
+
+    /// Nested components are contained in the component they are nested in.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn nested_components_are_contained(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let result = ctx
+            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json")
+            .await?;
+        let sbom_id = result.id.parse::<Uuid>()?;
+
+        let relationships = package_relates_to_package::Entity::find()
+            .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
+            .order_by_asc(package_relates_to_package::Column::Relationship)
+            .order_by_asc(package_relates_to_package::Column::LeftNodeId)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|rel| (rel.left_node_id, rel.relationship, rel.right_node_id))
+            .collect::<Vec<_>>();
+
+        let rel = |left: &str, relationship, right: &str| {
+            (left.to_string(), relationship, right.to_string())
+        };
+        assert_eq!(
+            relationships,
+            vec![
+                rel("comp-flip4-device", Relationship::Contains, "comp-flip4-fw"),
+                rel("comp-flip4-fw", Relationship::Contains, "comp-bt-lib"),
+                rel(
+                    "jbl-flip4-root",
+                    Relationship::Dependency,
+                    "comp-flip4-device"
+                ),
+                rel(CYCLONEDX_DOC_REF, Relationship::Describes, "jbl-flip4-root"),
+            ]
+        );
+
+        Ok(())
+    }
 
     #[test]
     fn component_types() {

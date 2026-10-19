@@ -1,4 +1,4 @@
-# S18 — RHEL 8 curl negative and RHEL 9 fix boundaries
+# S30 — RHEL 8 curl negative and RHEL 9 fix boundaries
 
 ## Reviewed expectations
 

@@ -282,10 +282,13 @@ async fn load_sbom_product_identifiers_by_values(
 mod test {
     use super::*;
     use crate::extractor::Extractors;
-    use sea_orm::TransactionTrait;
+    use sea_orm::{QueryOrder, TransactionTrait};
     use test_context::test_context;
     use test_log::test;
-    use trustify_entity::correlation_evidence;
+    use trustify_entity::{
+        correlation_evidence, correlation_evidence_context,
+        correlation_evidence_context::ContextSource,
+    };
     use trustify_test_context::TrustifyContext;
 
     const EXTRACTOR_ID: &str = "product_identifier";
@@ -311,48 +314,88 @@ mod test {
         Ok(count)
     }
 
+    /// The evidence of an SBOM, by node: its confidence and context links.
+    async fn evidence_of(
+        ctx: &TrustifyContext,
+        sbom_id: Uuid,
+    ) -> anyhow::Result<
+        Vec<(
+            String,
+            String,
+            f64,
+            Vec<(ContextSource, String, String, f64)>,
+        )>,
+    > {
+        let mut result = Vec::new();
+        for evidence in correlation_evidence::Entity::find()
+            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+            .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
+            .order_by_asc(correlation_evidence::Column::NodeId)
+            .all(&ctx.db)
+            .await?
+        {
+            let links = correlation_evidence_context::Entity::find()
+                .filter(correlation_evidence_context::Column::EvidenceId.eq(evidence.id))
+                .order_by_asc(correlation_evidence_context::Column::NodeIdentifier)
+                .order_by_asc(correlation_evidence_context::Column::ContextIdentifier)
+                .all(&ctx.db)
+                .await?
+                .into_iter()
+                .map(|link| {
+                    (
+                        link.source,
+                        link.node_identifier,
+                        link.context_identifier,
+                        link.confidence,
+                    )
+                })
+                .collect();
+            result.push((
+                evidence.node_id,
+                evidence.vulnerability_id,
+                evidence.confidence,
+                links,
+            ));
+        }
+        Ok(result)
+    }
+
+    /// Only the firmware is affected, not the device it is installed on. Contained in the device,
+    /// the device's SKUs confirm the product the statement is about.
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
-    async fn sku_match_from_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    async fn sku_confirms_firmware_in_assembly(ctx: &TrustifyContext) -> anyhow::Result<()> {
         let sbom = ctx
-            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
+            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json")
             .await?;
-        let advisory = ctx
-            .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+        ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
             .await?;
-
         let sbom_id = Uuid::parse_str(&sbom.id)?;
-        let advisory_id = Uuid::parse_str(&advisory.id)?;
 
-        let sbom_pids = sbom_node_product_identifier::Entity::find()
-            .filter(sbom_node_product_identifier::Column::SbomId.eq(sbom_id))
-            .all(&ctx.db)
-            .await?;
-        assert!(
-            !sbom_pids.is_empty(),
-            "SBOM product identifiers should have been ingested"
+        extract_for_sbom(ctx, sbom_id).await?;
+
+        let link = |sku: &str| {
+            (
+                ContextSource::AncestorNode,
+                format!("sku:{sku}"),
+                format!("sku:{sku}"),
+                0.9,
+            )
+        };
+        assert_eq!(
+            evidence_of(ctx, sbom_id).await?,
+            vec![(
+                "comp-flip4-fw".to_string(),
+                "CVE-2025-41725".to_string(),
+                0.9,
+                vec![link("050036337366"), link("6925281924439")]
+            )]
         );
-
-        let count = extract_for_sbom(ctx, sbom_id).await?;
-        assert!(count > 0, "should produce at least one evidence row");
-
-        let evidence = correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-            .filter(correlation_evidence::Column::AdvisoryId.eq(advisory_id))
-            .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
-            .all(&ctx.db)
-            .await?;
-        assert!(
-            !evidence.is_empty(),
-            "SKU-based evidence should exist between SBOM and advisory"
-        );
-        // stated for a product (a context), which the SBOM component can't be compared with
-        assert_eq!(evidence[0].confidence, 0.7);
-        assert_eq!(evidence[0].vulnerability_id, "CVE-2025-41725");
 
         Ok(())
     }
 
+    /// Next to the device, nothing confirms the product the firmware is stated in.
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
     async fn model_number_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -361,20 +404,23 @@ mod test {
             .await?;
         ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
             .await?;
-
         let sbom_id = Uuid::parse_str(&sbom.id)?;
 
         extract_for_sbom(ctx, sbom_id).await?;
 
-        let model_evidence = correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-            .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
-            .filter(correlation_evidence::Column::NodeId.eq("comp-flip4-fw"))
-            .all(&ctx.db)
-            .await?;
-        assert!(
-            !model_evidence.is_empty(),
-            "model number match should produce evidence for firmware component"
+        assert_eq!(
+            evidence_of(ctx, sbom_id).await?,
+            vec![(
+                "comp-flip4-fw".to_string(),
+                "CVE-2025-41725".to_string(),
+                0.7,
+                vec![(
+                    ContextSource::Unconfirmed,
+                    String::new(),
+                    "sku:050036337366, sku:6925281924439".to_string(),
+                    0.7
+                )]
+            )]
         );
 
         Ok(())
@@ -457,33 +503,34 @@ mod test {
         Ok(())
     }
 
+    /// The wildcard model number matches the firmware; the wildcard SKU of the device series is
+    /// what would have confirmed it.
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
-    async fn wildcard_sku_match_from_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    async fn wildcard_model_number_match_from_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
         let sbom = ctx
             .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
             .await?;
-        let advisory = ctx
-            .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
+        ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
             .await?;
-
         let sbom_id = Uuid::parse_str(&sbom.id)?;
-        let advisory_id = Uuid::parse_str(&advisory.id)?;
 
-        let count = extract_for_sbom(ctx, sbom_id).await?;
-        assert!(count > 0, "wildcard SKU pattern should match");
+        extract_for_sbom(ctx, sbom_id).await?;
 
-        let evidence = correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-            .filter(correlation_evidence::Column::AdvisoryId.eq(advisory_id))
-            .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
-            .all(&ctx.db)
-            .await?;
-        assert!(
-            !evidence.is_empty(),
-            "wildcard SKU-based evidence should exist"
+        assert_eq!(
+            evidence_of(ctx, sbom_id).await?,
+            vec![(
+                "comp-flip4-fw".to_string(),
+                "CVE-2026-50001".to_string(),
+                0.7,
+                vec![(
+                    ContextSource::Unconfirmed,
+                    String::new(),
+                    "sku:6925281*".to_string(),
+                    0.7
+                )]
+            )]
         );
-        assert_eq!(evidence[0].vulnerability_id, "CVE-2026-50001");
 
         Ok(())
     }

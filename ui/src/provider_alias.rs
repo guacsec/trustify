@@ -1,4 +1,4 @@
-use crate::{api, weighting::text_field};
+use crate::{api, resolution::text_field};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{ProviderAlias, ProviderAliasData};
 use uuid::Uuid;
@@ -242,7 +242,7 @@ pub fn provider_alias_page() -> Html {
             let generation = generation.clone();
             let error = error.clone();
             spawn_local(async move {
-                match api::delete_weight_setting("provider-alias", id, token.as_deref()).await {
+                match api::delete_provider_alias(id, token.as_deref()).await {
                     Ok(()) => {
                         error.set(None);
                         generation.set(generation.wrapping_add(1))
@@ -260,7 +260,7 @@ pub fn provider_alias_page() -> Html {
     html! {
         <PageSection><Stack gutter=true>
             <Title level={Level::H2}>{"Provider aliases"}</Title>
-            <p>{"Map the identifiers stated in SBOMs and advisories to a canonical provider. Verdict weighting prefers assertions from the same provider as the SBOM component. Exact identifiers only: name:Acme, namespace:https://acme.example, cve-org:UUID, purl:rpm/acme, distro:acme, cpe-vendor:acme."}</p>
+            <p>{"Map the identifiers stated in SBOMs and advisories to a canonical provider. Verdict resolution prefers assertions from the same provider as the SBOM component. Exact identifiers only: name:Acme, namespace:https://acme.example, cve-org:UUID, purl:rpm/acme, distro:acme, cpe-vendor:acme."}</p>
             if let Some(e)=&*error {<Alert title="Settings error" r#type={AlertType::Danger} inline=true><p>{e}</p></Alert>}
             <div><Button variant={ButtonVariant::Primary} onclick={add}>{"Add provider alias"}</Button></div>
             <ProviderAliasTable aliases={(*aliases).clone()} on_edit={edit} on_delete={delete}/>

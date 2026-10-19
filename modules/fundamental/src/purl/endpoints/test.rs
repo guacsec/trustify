@@ -174,9 +174,22 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
 
-    assert_eq!(1, response.items.len());
+    // The advisory's original versionless PURL is stored alongside the installed PURL.
+    let mut purls = response
+        .items
+        .iter()
+        .map(|item| item.head.purl.to_string())
+        .collect::<Vec<_>>();
+    purls.sort();
+    assert_eq!(purls, ["pkg:cargo/hyper", "pkg:cargo/hyper@0.14.1"]);
 
-    let uuid = response.items[0].head.uuid;
+    let uuid = response
+        .items
+        .iter()
+        .find(|item| item.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("installed hyper PURL must exist")
+        .head
+        .uuid;
 
     let uri = format!("/api/v3/purl/{uuid}");
 
