@@ -17,6 +17,7 @@ pub mod worker;
 pub mod writer;
 
 pub use registry::Extractors;
+pub use trustify_entity::correlation_evidence::SourceAssertionRef;
 
 use crate::{
     error::Error,
@@ -66,6 +67,8 @@ pub struct Assertion {
     /// The versions the node's own version must be in, when the matched identifier doesn't pin a
     /// version (e.g. the model number of a firmware). See [`version::retain_in_range`].
     pub version_range_id: Option<Uuid>,
+    /// The source statements which contributed this match, before evidence is merged.
+    pub source_assertions: std::collections::BTreeSet<SourceAssertionRef>,
 }
 
 impl Assertion {

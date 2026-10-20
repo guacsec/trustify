@@ -100,6 +100,7 @@ const MATCH_CONDITION: &str = r#"
 
 /// The assertion columns of a match, see [`AssertionRow`].
 const ASSERTION_COLUMNS: &str = r#"
+    a.id AS source_id,
     a.advisory_id,
     a.vulnerability_id,
     a.status::text AS status,
@@ -118,6 +119,7 @@ const ASSERTION_COLUMNS: &str = r#"
 /// The advisory side of a match.
 #[derive(FromQueryResult)]
 struct AssertionRow {
+    source_id: Uuid,
     advisory_id: Uuid,
     vulnerability_id: String,
     status: String,
@@ -410,6 +412,7 @@ fn assertion(
         false => check.factor(),
     };
     Ok(Assertion {
+        source_assertions: [super::SourceAssertionRef::Cpe(row.source_id)].into(),
         extractor: if row.is_default { DEFAULT } else { ID },
         status: AssertionStatus::try_from_value(&row.status)?,
         confidence: factor.factor,
@@ -831,12 +834,17 @@ mod test {
             )
             .await?;
         result.sort_by(|a, b| a.vulnerability_id.cmp(&b.vulnerability_id));
+        for assertion in &mut result {
+            assert!(!assertion.source_assertions.is_empty());
+            assertion.source_assertions.clear();
+        }
 
         assert_eq!(
             result,
             WAGO_CVES
                 .into_iter()
                 .map(|vuln| Assertion {
+                    source_assertions: Default::default(),
                     extractor: ID,
                     advisory_id: advisories[0],
                     vulnerability_id: vuln.to_string(),

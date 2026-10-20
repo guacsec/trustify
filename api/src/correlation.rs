@@ -618,6 +618,9 @@ pub struct QueryVerdict {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct QueryMatch {
+    /// Remediations of the matched source statements, scoped by the same product matching.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remediations: Vec<EvidenceRemediation>,
     pub kind: IdentifierKind,
     pub value: MatchedValue,
     pub advisory_id: Uuid,

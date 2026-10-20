@@ -24,6 +24,7 @@ use uuid::Uuid;
 
 pub mod freshness;
 pub mod option;
+mod remediation;
 pub mod resolution;
 pub mod statement;
 
@@ -440,6 +441,14 @@ impl CorrelationService {
             snapshot.component_provider(None, None, &provider_identifiers, &context);
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
 
+        let remediations = remediation::Remediations::load(
+            matches
+                .iter()
+                .flat_map(|assertion| assertion.source_assertions.iter().copied()),
+            connection,
+        )
+        .await?;
+
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
         let mut groups = BTreeMap::<&str, Vec<(AssertionStatus, QueryMatch)>>::new();
         for assertion in &matches {
@@ -451,6 +460,11 @@ impl CorrelationService {
                 .push((
                     assertion.status,
                     QueryMatch {
+                        remediations: remediations.for_sources(
+                            assertion.advisory_id,
+                            &assertion.vulnerability_id,
+                            &assertion.source_assertions,
+                        ),
                         kind: identifier.kind,
                         value: assertion.matched_value.clone(),
                         advisory_id: assertion.advisory_id,
@@ -487,7 +501,7 @@ impl CorrelationService {
                         .unwrap_or_default(),
                     contexts: Vec::new(),
                     factors: Vec::new(),
-                    remediations: Vec::new(),
+                    remediations: m.remediations.clone(),
                 })
                 .collect::<Vec<_>>();
             let decision = resolution::resolve(
@@ -692,10 +706,47 @@ struct RemediationRow {
     url: Option<String>,
 }
 
-/// The remediations of the statements of PURL evidence, keyed by evidence ID: those linked to a
-/// statement of the same advisory, vulnerability and status, of the matched PURL and one of the
-/// matched ranges.
+/// Remediations of the source assertions that survived matching, keyed by evidence ID.
+/// Older evidence without source references retains the legacy PURL lookup.
 async fn load_evidence_remediations(
+    evidence: &[correlation_evidence::Model],
+    connection: &impl ConnectionTrait,
+) -> Result<HashMap<Uuid, Vec<EvidenceRemediation>>, Error> {
+    let references = evidence
+        .iter()
+        .map(|row| {
+            serde_json::from_value::<BTreeSet<crate::extractor::SourceAssertionRef>>(
+                row.source_assertions.clone(),
+            )
+            .map(|sources| (row, sources))
+            .map_err(Error::MatchedValue)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let remediations = remediation::Remediations::load(
+        references
+            .iter()
+            .flat_map(|(_, sources)| sources.iter().copied()),
+        connection,
+    )
+    .await?;
+    let mut result = HashMap::new();
+    let mut legacy = Vec::new();
+    for (row, sources) in references {
+        if sources.is_empty() {
+            legacy.push(row.clone());
+        } else {
+            let values = remediations.for_sources(row.advisory_id, &row.vulnerability_id, &sources);
+            if !values.is_empty() {
+                result.insert(row.id, values);
+            }
+        }
+    }
+    result.extend(load_legacy_evidence_remediations(&legacy, connection).await?);
+    Ok(result)
+}
+
+/// Compatibility for evidence extracted before source provenance was recorded.
+async fn load_legacy_evidence_remediations(
     evidence: &[correlation_evidence::Model],
     connection: &impl ConnectionTrait,
 ) -> Result<HashMap<Uuid, Vec<EvidenceRemediation>>, Error> {

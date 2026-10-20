@@ -1,6 +1,11 @@
 use super::{Assertion, NodeRef, context::ContextLink};
 use crate::error::Error;
-use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
+use sea_orm::{
+    ActiveEnum,
+    ActiveValue::Set,
+    ConnectionTrait, EntityTrait,
+    sea_query::{Expr, OnConflict},
+};
 use std::collections::BTreeMap;
 use tracing::{Instrument, info_span};
 use trustify_common::db::chunk::EntityChunkedIter;
@@ -11,6 +16,18 @@ use uuid::Uuid;
 const EVIDENCE_NAMESPACE: Uuid = Uuid::from_bytes([
     0xd1, 0x9e, 0x57, 0xa3, 0x2b, 0x4c, 0x6d, 0x8e, 0x9f, 0xa0, 0xb1, 0xc2, 0xd3, 0xe4, 0xf5, 0x06,
 ]);
+
+// Partial/repeated extraction can find additional source statements for an existing evidence
+// ID. Union their references without changing the pre-existing match/confidence fields.
+const MERGE_SOURCE_ASSERTIONS: &str = r#"(
+    SELECT COALESCE(jsonb_agg(source ORDER BY source), '[]'::jsonb)
+    FROM (
+        SELECT DISTINCT source
+        FROM jsonb_array_elements(
+            correlation_evidence.source_assertions || EXCLUDED.source_assertions
+        ) AS sources(source)
+    ) AS distinct_sources
+)"#;
 
 /// A piece of evidence, with the contexts it was matched in.
 struct Pending {
@@ -61,6 +78,10 @@ impl EvidenceWriter {
                 ranges.sort();
                 ranges.dedup();
                 pending.links.extend(links);
+                pending
+                    .assertion
+                    .source_assertions
+                    .extend(assertion.source_assertions);
             }
             None => {
                 self.evidence.insert(
@@ -141,12 +162,21 @@ impl EvidenceWriter {
                 matched_value: Set(Some(matched_value)),
                 created_at: Set(time::OffsetDateTime::now_utc()),
                 confidence_factors: Set(confidence_factors),
+                source_assertions: Set(serde_json::to_value(&assertion.source_assertions)
+                    .map_err(Error::MatchedValue)?),
             });
         }
 
         for batch in models.chunked() {
             correlation_evidence::Entity::insert_many(batch)
-                .on_conflict_do_nothing()
+                .on_conflict(
+                    OnConflict::column(correlation_evidence::Column::Id)
+                        .value(
+                            correlation_evidence::Column::SourceAssertions,
+                            Expr::cust(MERGE_SOURCE_ASSERTIONS),
+                        )
+                        .to_owned(),
+                )
                 .exec(connection)
                 .instrument(info_span!("inserting evidence"))
                 .await?;
@@ -177,6 +207,7 @@ mod test {
             node_id: "node".into(),
         };
         let assertion = Assertion {
+            source_assertions: Default::default(),
             extractor: "digest",
             advisory_id: Uuid::nil(),
             vulnerability_id: "CVE-0000-0001".into(),
@@ -247,6 +278,10 @@ mod test {
             }),
         };
         let assertion = |context: u128, confidence: f64, version: &str| Assertion {
+            source_assertions: [super::super::SourceAssertionRef::Purl(Uuid::from_u128(
+                context,
+            ))]
+            .into(),
             extractor: "purl",
             advisory_id: Uuid::nil(),
             vulnerability_id: "CVE-0000-0001".into(),
@@ -290,6 +325,14 @@ mod test {
             .ok()
             .unwrap();
         assert_eq!(pending.assertion.confidence, 0.9);
+        assert_eq!(
+            pending.assertion.source_assertions,
+            [
+                super::super::SourceAssertionRef::Purl(Uuid::from_u128(1)),
+                super::super::SourceAssertionRef::Purl(Uuid::from_u128(2)),
+            ]
+            .into()
+        );
         assert_eq!(
             pending.assertion.matched_value.ranges,
             [range("1"), range("2")]

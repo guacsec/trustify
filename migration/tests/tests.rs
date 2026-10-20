@@ -110,6 +110,7 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             matched_value: Set(Some(serde_json::json!({"identifier": identifier}))),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
             confidence_factors: sea_orm::NotSet,
+            source_assertions: sea_orm::NotSet,
         }
         .insert(&ctx.db)
         .await?;
@@ -217,6 +218,7 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
             matched_value: Set(Some(value.clone())),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
             confidence_factors: sea_orm::NotSet,
+            source_assertions: sea_orm::NotSet,
         };
         if null_value {
             row.matched_value = Set(None);
@@ -227,6 +229,7 @@ async fn correlation_assertion_origin_upgrade_and_downgrade(
             .exec_without_returning(&ctx.db)
             .await?;
         row.confidence_factors = Set(serde_json::json!([]));
+        row.source_assertions = Set(serde_json::json!([]));
         let row = row.try_into_model()?;
         if let Some(origin) = origin {
             value["origin"] = origin.into();
@@ -285,7 +288,7 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
         ] {
             let row = ctx.db.query_one_raw(Statement::from_string(DbBackend::Postgres,
                 // without the columns of later migrations
-                format!("SELECT coalesce(jsonb_agg(to_jsonb(t) - 'confidence_factors' ORDER BY (to_jsonb(t) - 'confidence_factors')::text), '[]'::jsonb) AS data FROM {table} t")))
+                format!("SELECT coalesce(jsonb_agg(to_jsonb(t) - 'confidence_factors' - 'source_assertions' ORDER BY (to_jsonb(t) - 'confidence_factors' - 'source_assertions')::text), '[]'::jsonb) AS data FROM {table} t")))
                 .await?.unwrap();
             result.push(row.try_get("", "data")?);
         }
@@ -303,6 +306,7 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
             matched_value: Set(Some(serde_json::json!({"identifier":"pkg:generic/demo@1", "origin":"stated", "source_provider":{"identifiers":[format!("name:{provider}")]}}))),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
             confidence_factors: sea_orm::NotSet,
+            source_assertions: sea_orm::NotSet,
         }.insert(&ctx.db).await?;
     }
     let migrations = since(&migrator, &ctx.db, "m0002630_remove_correlation_weights").await?;
@@ -346,5 +350,114 @@ async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow
     assert_eq!(before, retained_data(ctx).await?);
     migrator.up(&ctx.db, Some(migrations)).await?;
     assert_eq!(before, retained_data(ctx).await?);
+    Ok(())
+}
+
+/// Upgrading preserves old associations and evidence; source applicability is populated only
+/// by fresh ingestion/extraction. Downgrading removes only the added links and provenance.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    use trustify_entity::{
+        advisory_vulnerability_product_identifier, correlation_evidence,
+        correlation_evidence::{AssertionStatus, SourceAssertionRef},
+        remediation_cpe_assertion, remediation_product_status, remediation_purl_status,
+    };
+    use uuid::Uuid;
+
+    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    let advisory = ctx
+        .ingest_document("scenarios/S20_cpe_range_wago/vex/vde-2025-081.json")
+        .await?;
+    let sbom = ctx.ingest_document("spdx/simple.json").await?;
+    let links = remediation_cpe_assertion::Entity::find()
+        .all(&ctx.db)
+        .await?;
+    assert!(!links.is_empty());
+    let evidence = correlation_evidence::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        sbom_id: Set(Uuid::parse_str(&sbom.id)?),
+        node_id: Set("SPDXRef-Package".into()),
+        advisory_id: Set(Uuid::parse_str(&advisory.id)?),
+        vulnerability_id: Set("CVE-2099-2738".into()),
+        status: Set(AssertionStatus::Affected),
+        confidence: Set(0.8),
+        extractor: Set("cpe".into()),
+        matched_value: Set(None),
+        created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
+        confidence_factors: Set(serde_json::json!([])),
+        source_assertions: Set(serde_json::to_value([SourceAssertionRef::Cpe(
+            links[0].assertion_id,
+        )])?),
+    }
+    .insert(&ctx.db)
+    .await?;
+
+    // The same identifier/status/context must retain distinct version ranges. Older schemas
+    // cannot represent both, so downgrade retains one deterministic representative.
+    ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+        .await?;
+    let identifiers = advisory_vulnerability_product_identifier::Entity::find()
+        .all(&ctx.db)
+        .await?;
+    let source = identifiers
+        .iter()
+        .find(|row| row.version_range_id.is_some())
+        .unwrap();
+    let mut duplicate: advisory_vulnerability_product_identifier::ActiveModel =
+        source.clone().into();
+    duplicate.id = Set(Uuid::new_v4());
+    duplicate.version_range_id = Set(None);
+    duplicate.insert(&ctx.db).await?;
+
+    let legacy_purls = remediation_purl_status::Entity::find().all(&ctx.db).await?;
+    let legacy_products = remediation_product_status::Entity::find()
+        .all(&ctx.db)
+        .await?;
+    assert!(!legacy_purls.is_empty());
+    assert!(!legacy_products.is_empty());
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrations = since(&migrator, &ctx.db, "m0002690_remediation_assertions").await?;
+    migrator.down(&ctx.db, Some(migrations)).await?;
+    assert_eq!(evidence_count(&ctx.db).await?, 1);
+    assert_eq!(
+        remediation_purl_status::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .len(),
+        legacy_purls.len()
+    );
+    assert_eq!(
+        remediation_product_status::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .len(),
+        legacy_products.len()
+    );
+    assert_eq!(
+        advisory_vulnerability_product_identifier::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .len(),
+        identifiers.len()
+    );
+    migrator.up(&ctx.db, Some(migrations)).await?;
+    assert!(
+        remediation_cpe_assertion::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .is_empty()
+    );
+    assert_eq!(
+        correlation_evidence::Entity::find_by_id(evidence.id)
+            .one(&ctx.db)
+            .await?
+            .unwrap(),
+        correlation_evidence::Model {
+            source_assertions: serde_json::json!([]),
+            ..evidence
+        }
+    );
     Ok(())
 }

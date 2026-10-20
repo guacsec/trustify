@@ -47,7 +47,9 @@ use trustify_entity::{
     correlation_evidence::AssertionStatus,
     organization, product, product_status, product_version_range, purl_status,
     remediation::{self, RemediationCategory},
-    remediation_product_status, remediation_purl_status, version_range,
+    remediation_cpe_assertion, remediation_hash_assertion,
+    remediation_product_identifier_assertion, remediation_product_status, remediation_purl_status,
+    version_range,
     version_scheme::{PurlType, VersionScheme},
 };
 use uuid::Uuid;
@@ -56,6 +58,9 @@ use uuid::Uuid;
 pub struct ProductIdStatusMapping {
     pub purl_status_ids: Vec<Uuid>,
     pub product_status_ids: Vec<Uuid>,
+    pub cpe_assertion_ids: Vec<Uuid>,
+    pub hash_assertion_ids: Vec<Uuid>,
+    pub product_identifier_assertion_ids: Vec<Uuid>,
 }
 
 /// Namespace of the IDs of `advisory_vulnerability_hash` rows.
@@ -98,6 +103,7 @@ pub struct StatusCreator<'a> {
     product_identifier_entries: HashSet<ProductIdentifierEntry>,
     cpe_entries: HashSet<CpeEntry>,
     contexts: ContextCreator,
+    source_mapping: HashMap<String, ProductIdStatusMapping>,
 }
 
 impl<'a> StatusCreator<'a> {
@@ -115,6 +121,7 @@ impl<'a> StatusCreator<'a> {
             product_identifier_entries: HashSet::new(),
             cpe_entries: HashSet::new(),
             contexts: ContextCreator::new(),
+            source_mapping: HashMap::new(),
         }
     }
 
@@ -172,6 +179,17 @@ impl<'a> StatusCreator<'a> {
                         for hc in &pih.hashes {
                             for fh in &hc.file_hashes {
                                 let algo = normalize_algorithm(&fh.algorithm);
+                                let id = self.entry_id(
+                                    ADVISORY_HASH_NAMESPACE,
+                                    &[&algo, fh.value.as_str()],
+                                    assertion,
+                                    context,
+                                );
+                                self.source_mapping
+                                    .entry(r.to_string())
+                                    .or_default()
+                                    .hash_assertion_ids
+                                    .push(id);
                                 self.hash_entries.insert((
                                     algo,
                                     fh.value.to_string(),
@@ -209,6 +227,22 @@ impl<'a> StatusCreator<'a> {
                     };
                     for (id_type, value) in identifiers {
                         for range in &ranges {
+                            let range_id = range
+                                .as_ref()
+                                .map(VersionInfo::uuid)
+                                .unwrap_or_default()
+                                .to_string();
+                            let id = self.entry_id(
+                                ADVISORY_PRODUCT_IDENTIFIER_NAMESPACE,
+                                &[&id_type.to_value(), &value, &range_id],
+                                assertion,
+                                context,
+                            );
+                            self.source_mapping
+                                .entry(r.to_string())
+                                .or_default()
+                                .product_identifier_assertion_ids
+                                .push(id);
                             self.product_identifier_entries.insert((
                                 id_type,
                                 value.clone(),
@@ -225,7 +259,9 @@ impl<'a> StatusCreator<'a> {
                 // both affected and fixed combinations.
                 for (product_id, subject) in &parts {
                     if *subject {
-                        self.add_cpe_entries(product_id, assertion, context, on_invalid, report)?;
+                        self.add_cpe_entries(
+                            r, product_id, assertion, context, on_invalid, report,
+                        )?;
                     }
                 }
             }
@@ -244,6 +280,7 @@ impl<'a> StatusCreator<'a> {
     /// range or version branch, which for a relationship is the one of its component.
     fn add_cpe_entries(
         &mut self,
+        source_product_id: &str,
         product_id: &str,
         assertion: AssertionStatus,
         context: Option<Uuid>,
@@ -292,6 +329,20 @@ impl<'a> StatusCreator<'a> {
         };
 
         for range in ranges {
+            let source = CpeAssertion {
+                vulnerability_id: self.vulnerability_id.clone(),
+                cpe: cpe.clone(),
+                range: range.clone(),
+                status: assertion,
+                context,
+                default: false,
+                source_provider: None,
+            };
+            self.source_mapping
+                .entry(source_product_id.to_string())
+                .or_default()
+                .cpe_assertion_ids
+                .push(source.uuid(self.advisory_id));
             self.cpe_entries
                 .insert((cpe.clone(), range, assertion, context));
         }
@@ -679,10 +730,14 @@ impl<'a> StatusCreator<'a> {
         }
         cpe_assertions.create(connection).await?;
 
-        let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
+        let mut result = self.source_mapping.clone();
         for (product_id, product) in &self.product_id_to_product {
             if let Some(mapping) = product_to_status_uuids.get(product) {
-                result.insert(product_id.clone(), mapping.clone());
+                let target = result.entry(product_id.clone()).or_default();
+                target.purl_status_ids.extend(&mapping.purl_status_ids);
+                target
+                    .product_status_ids
+                    .extend(&mapping.product_status_ids);
             }
         }
 
@@ -834,6 +889,7 @@ const REMEDIATION_NAMESPACE: Uuid = Uuid::from_bytes([
 
 #[derive(Debug)]
 pub struct RemediationCreator<'a> {
+    cache: ResolveProductIdCache<'a>,
     advisory_id: Uuid,
     vulnerability_id: String,
     product_id_mapping: HashMap<String, ProductIdStatusMapping>,
@@ -842,11 +898,13 @@ pub struct RemediationCreator<'a> {
 
 impl<'a> RemediationCreator<'a> {
     pub fn new(
+        csaf: &'a Csaf,
         advisory_id: Uuid,
         vulnerability_id: String,
         product_id_mapping: HashMap<String, ProductIdStatusMapping>,
     ) -> Self {
         Self {
+            cache: ResolveProductIdCache::new(csaf),
             advisory_id,
             vulnerability_id,
             product_id_mapping,
@@ -859,10 +917,17 @@ impl<'a> RemediationCreator<'a> {
     }
 
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
-    pub async fn create<C: ConnectionTrait>(&self, connection: &C) -> Result<(), Error> {
+    pub async fn create<C: ConnectionTrait>(
+        &self,
+        report: &dyn ReportSink,
+        connection: &C,
+    ) -> Result<(), Error> {
         let mut remediation_models = Vec::new();
         let mut remediation_purl_status_models = Vec::new();
         let mut remediation_product_status_models = Vec::new();
+        let mut cpe_links = std::collections::BTreeSet::new();
+        let mut hash_links = std::collections::BTreeSet::new();
+        let mut identifier_links = std::collections::BTreeSet::new();
 
         for rem in &self.remediations {
             let remediation_id = self.generate_remediation_uuid(rem);
@@ -878,25 +943,39 @@ impl<'a> RemediationCreator<'a> {
             };
             remediation_models.push(remediation_model);
 
-            if let Some(product_ids) = &rem.product_ids {
-                for product_id in &product_ids.0 {
-                    if let Some(mapping) = self.product_id_mapping.get(product_id.as_str()) {
-                        for purl_status_id in &mapping.purl_status_ids {
-                            remediation_purl_status_models.push(
-                                remediation_purl_status::ActiveModel {
-                                    remediation_id: Set(remediation_id),
-                                    purl_status_id: Set(*purl_status_id),
-                                },
-                            );
-                        }
-                        for product_status_id in &mapping.product_status_ids {
-                            remediation_product_status_models.push(
-                                remediation_product_status::ActiveModel {
-                                    remediation_id: Set(remediation_id),
-                                    product_status_id: Set(*product_status_id),
-                                },
-                            );
-                        }
+            for product_id in self.cache.remediation_products(rem, report) {
+                if let Some(mapping) = self.product_id_mapping.get(product_id) {
+                    cpe_links.extend(
+                        mapping
+                            .cpe_assertion_ids
+                            .iter()
+                            .map(|id| (remediation_id, *id)),
+                    );
+                    hash_links.extend(
+                        mapping
+                            .hash_assertion_ids
+                            .iter()
+                            .map(|id| (remediation_id, *id)),
+                    );
+                    identifier_links.extend(
+                        mapping
+                            .product_identifier_assertion_ids
+                            .iter()
+                            .map(|id| (remediation_id, *id)),
+                    );
+                    for purl_status_id in &mapping.purl_status_ids {
+                        remediation_purl_status_models.push(remediation_purl_status::ActiveModel {
+                            remediation_id: Set(remediation_id),
+                            purl_status_id: Set(*purl_status_id),
+                        });
+                    }
+                    for product_status_id in &mapping.product_status_ids {
+                        remediation_product_status_models.push(
+                            remediation_product_status::ActiveModel {
+                                remediation_id: Set(remediation_id),
+                                product_status_id: Set(*product_status_id),
+                            },
+                        );
                     }
                 }
             }
@@ -920,6 +999,52 @@ impl<'a> RemediationCreator<'a> {
 
         for batch in remediation_product_status_models.chunked() {
             remediation_product_status::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+
+        for batch in cpe_links
+            .into_iter()
+            .map(
+                |(remediation_id, assertion_id)| remediation_cpe_assertion::ActiveModel {
+                    remediation_id: Set(remediation_id),
+                    assertion_id: Set(assertion_id),
+                },
+            )
+            .chunked()
+        {
+            remediation_cpe_assertion::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+        for batch in hash_links
+            .into_iter()
+            .map(
+                |(remediation_id, assertion_id)| remediation_hash_assertion::ActiveModel {
+                    remediation_id: Set(remediation_id),
+                    assertion_id: Set(assertion_id),
+                },
+            )
+            .chunked()
+        {
+            remediation_hash_assertion::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+        for batch in identifier_links
+            .into_iter()
+            .map(|(remediation_id, assertion_id)| {
+                remediation_product_identifier_assertion::ActiveModel {
+                    remediation_id: Set(remediation_id),
+                    assertion_id: Set(assertion_id),
+                }
+            })
+            .chunked()
+        {
+            remediation_product_identifier_assertion::Entity::insert_many(batch)
                 .on_conflict_do_nothing()
                 .exec(connection)
                 .await?;

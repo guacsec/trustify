@@ -227,7 +227,15 @@ impl Extractors {
                 }
             }
             assertion.context_id = None;
-            if !result.contains(&assertion) {
+            let sources = std::mem::take(&mut assertion.source_assertions);
+            if let Some(existing) = result.iter_mut().find(|existing| {
+                let mut value = (*existing).clone();
+                value.source_assertions.clear();
+                value == assertion
+            }) {
+                existing.source_assertions.extend(sources);
+            } else {
+                assertion.source_assertions = sources;
                 result.push(assertion);
             }
         }

@@ -2,11 +2,11 @@ use super::value::{self, OnInvalidData};
 use crate::service::Error;
 use csaf::schema::csaf2_0::schema::{
     Branch, BranchesT, CommonSecurityAdvisoryFramework as Csaf, FullProductNameT,
-    HelperToIdentifyTheProduct, ProductTree, Relationship,
+    HelperToIdentifyTheProduct, ProductTree, Relationship, Remediation,
 };
 use packageurl::PackageUrl;
 use sbom_walker::report::ReportSink;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use trustify_common::cpe::Cpe;
 
 /// Extract and parse the purl of a branch, if it has one.
@@ -98,6 +98,7 @@ pub struct ResolveProductIdCache<'a> {
     product_id_to_definition: HashMap<&'a str, &'a FullProductNameT>,
     /// Lookup from product IDs to relationships
     product_id_to_relationship: HashMap<&'a str, &'a Relationship>,
+    product_groups: HashMap<&'a str, Vec<&'a str>>,
 }
 
 impl<'a> ResolveProductIdCache<'a> {
@@ -138,7 +139,50 @@ impl<'a> ResolveProductIdCache<'a> {
             full_product_name_to_backtrace: cache,
             product_id_to_definition: definitions,
             product_id_to_relationship: rels,
+            product_groups: csaf
+                .product_tree
+                .iter()
+                .flat_map(|tree| &tree.product_groups)
+                .map(|group| {
+                    (
+                        group.group_id.as_str(),
+                        group.product_ids.iter().map(|id| id.as_str()).collect(),
+                    )
+                })
+                .collect(),
         }
+    }
+
+    /// Resolve the union of direct and grouped remediation targets. Invalid references never
+    /// widen a restricted remediation to all products.
+    pub fn remediation_products<'r>(
+        &'r self,
+        remediation: &'r Remediation,
+        report: &dyn ReportSink,
+    ) -> BTreeSet<&'r str> {
+        let mut products = remediation
+            .product_ids
+            .iter()
+            .flat_map(|ids| ids.0.iter().map(|id| id.as_str()))
+            .collect::<BTreeSet<_>>();
+        for group in remediation.group_ids.iter().flat_map(|ids| &ids.0) {
+            match self.product_groups.get(group.as_str()) {
+                Some(members) => products.extend(members.iter().copied()),
+                None => report.error(format!(
+                    "unresolved remediation product group '{}'",
+                    group.as_str()
+                )),
+            }
+        }
+        products.retain(|id| {
+            let known = self.product_id_to_definition.contains_key(id)
+                || self.full_product_name_to_backtrace.contains_key(id);
+            if !known {
+                report.error(format!("unresolved remediation product '{id}'"));
+            }
+            known
+        });
+        products
     }
 
     /// Find the backtrace, branches leading to that product ID.

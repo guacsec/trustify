@@ -107,6 +107,7 @@ impl Extractor for DigestExtractor {
                     result.push(IdentifierMatch {
                         index: *idx,
                         assertion: Assertion {
+                            source_assertions: [super::SourceAssertionRef::Digest(ah.id)].into(),
                             extractor: ID,
                             advisory_id: ah.advisory_id,
                             vulnerability_id: ah.vulnerability_id.clone(),
@@ -174,6 +175,7 @@ impl Extractor for DigestExtractor {
                             node_id: cs.node_id.clone(),
                         },
                         assertion: Assertion {
+                            source_assertions: [super::SourceAssertionRef::Digest(ah.id)].into(),
                             extractor: ID,
                             advisory_id,
                             vulnerability_id: ah.vulnerability_id.clone(),

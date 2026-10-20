@@ -277,6 +277,7 @@ impl<'g> CsafLoader<'g> {
         let product_id_mapping = creator.create(self.graph, connection).await?;
 
         let mut remediation_creator = RemediationCreator::new(
+            csaf,
             advisory_vulnerability.advisory_vulnerability.advisory_id,
             advisory_vulnerability
                 .advisory_vulnerability
@@ -289,7 +290,7 @@ impl<'g> CsafLoader<'g> {
             remediation_creator.add(remediation);
         }
 
-        remediation_creator.create(connection).await?;
+        remediation_creator.create(report, connection).await?;
 
         Ok(())
     }
@@ -479,6 +480,129 @@ mod test {
         )
         .await?;
 
+        Ok(())
+    }
+
+    /// Product-group and direct references must produce the same legacy association sets,
+    /// for both product-version and PURL-based advisories.
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    #[case::products("csaf/cve-2023-0044.json")]
+    #[case::purls("csaf/rhsa-2024_3666.json")]
+    #[test_log::test(tokio::test)]
+    async fn remediation_group_associations(
+        ctx: &TrustifyContext,
+        #[case] fixture: &str,
+    ) -> anyhow::Result<()> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use std::collections::{BTreeMap, BTreeSet};
+        use trustify_entity::{
+            product_status, purl_status, remediation, remediation_product_status,
+            remediation_purl_status,
+        };
+
+        async fn associations(
+            ctx: &TrustifyContext,
+            advisory_id: Uuid,
+        ) -> anyhow::Result<BTreeMap<String, BTreeSet<String>>> {
+            let remediations = remediation::Entity::find()
+                .filter(remediation::Column::AdvisoryId.eq(advisory_id))
+                .all(&ctx.db)
+                .await?;
+            let mut result = BTreeMap::new();
+            for remediation in remediations {
+                let mut targets = BTreeSet::new();
+                let purls = remediation_purl_status::Entity::find()
+                    .filter(remediation_purl_status::Column::RemediationId.eq(remediation.id))
+                    .all(&ctx.db)
+                    .await?;
+                for link in purls {
+                    let status = purl_status::Entity::find_by_id(link.purl_status_id)
+                        .one(&ctx.db)
+                        .await?
+                        .unwrap();
+                    targets.insert(format!(
+                        "purl:{:?}",
+                        (
+                            status.vulnerability_id,
+                            status.status_id,
+                            status.base_purl_id,
+                            status.qualified_purl_id,
+                            status.version_range_id,
+                            status.context_cpe_id,
+                            status.assertion_context_id
+                        )
+                    ));
+                }
+                let products = remediation_product_status::Entity::find()
+                    .filter(remediation_product_status::Column::RemediationId.eq(remediation.id))
+                    .all(&ctx.db)
+                    .await?;
+                for link in products {
+                    let status = product_status::Entity::find_by_id(link.product_status_id)
+                        .one(&ctx.db)
+                        .await?
+                        .unwrap();
+                    targets.insert(format!(
+                        "product:{:?}",
+                        (
+                            status.vulnerability_id,
+                            status.status_id,
+                            status.product_version_range_id,
+                            status.package,
+                            status.context_cpe_id
+                        )
+                    ));
+                }
+                result.insert(
+                    format!(
+                        "{:?}",
+                        (
+                            remediation.vulnerability_id,
+                            remediation.category,
+                            remediation.details,
+                            remediation.url
+                        )
+                    ),
+                    targets,
+                );
+            }
+            Ok(result)
+        }
+
+        let direct = ctx.ingest_document(fixture).await?;
+        let expected = associations(ctx, Uuid::parse_str(&direct.id)?).await?;
+        assert!(expected.values().any(|targets| !targets.is_empty()));
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&document_bytes(fixture).await?)?;
+        let tracking = &mut document["document"]["tracking"]["id"];
+        *tracking = format!("{}-groups", tracking.as_str().unwrap()).into();
+        let mut groups = document["product_tree"]["product_groups"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        for vulnerability in document["vulnerabilities"].as_array_mut().unwrap() {
+            if let Some(remediations) = vulnerability["remediations"].as_array_mut() {
+                for remediation in remediations {
+                    if let Some(products) =
+                        remediation.as_object_mut().unwrap().remove("product_ids")
+                    {
+                        let group = format!("test-remediation-group-{}", groups.len());
+                        groups
+                            .push(serde_json::json!({"group_id": group, "product_ids": products}));
+                        remediation["group_ids"] = serde_json::json!([group]);
+                    }
+                }
+            }
+        }
+        document["product_tree"]["product_groups"] = groups.into();
+        let grouped = ctx
+            .ingest_read(serde_json::to_vec(&document)?.as_slice())
+            .await?;
+        assert_eq!(
+            associations(ctx, Uuid::parse_str(&grouped.id)?).await?,
+            expected
+        );
         Ok(())
     }
 

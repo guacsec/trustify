@@ -55,6 +55,7 @@ fn assertion(ap: &advisory_vulnerability_product_identifier::Model, ranges: &Ran
         .into_iter()
         .collect();
     Assertion {
+        source_assertions: [super::SourceAssertionRef::ProductIdentifier(ap.id)].into(),
         extractor: ID,
         advisory_id: ap.advisory_id,
         vulnerability_id: ap.vulnerability_id.clone(),

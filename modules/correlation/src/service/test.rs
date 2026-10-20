@@ -49,6 +49,7 @@ async fn evidence_produces_verdict(ctx: &TrustifyContext) -> anyhow::Result<()> 
         matched_value: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
         confidence_factors: Set(serde_json::json!([])),
+        source_assertions: Set(serde_json::json!([])),
     };
     evidence.insert(&ctx.db).await?;
 
@@ -91,6 +92,7 @@ async fn include_unmatched_returns_components_without_evidence(
         matched_value: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
         confidence_factors: Set(serde_json::json!([])),
+        source_assertions: Set(serde_json::json!([])),
     };
     evidence.insert(&ctx.db).await?;
 
@@ -172,6 +174,7 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
             vulnerability_title: None,
             status: VerdictStatus::Fixed,
             matches: vec![QueryMatch {
+                remediations: vec![],
                 kind: IdentifierKind::Digest,
                 value: MatchedValue::new(format!("sha256:{S18_DIGEST}")),
                 advisory_id,
@@ -241,6 +244,7 @@ async fn query_wildcard_model_number(ctx: &TrustifyContext) -> anyhow::Result<()
                 vulnerability_title: None,
                 status: VerdictStatus::Affected,
                 matches: vec![QueryMatch {
+                    remediations: vec![],
                     kind: IdentifierKind::ModelNumber,
                     value: MatchedValue {
                         ranges: vec![MatchedRange {

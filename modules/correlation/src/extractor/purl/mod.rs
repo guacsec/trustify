@@ -156,6 +156,7 @@ impl Candidates {
     /// Select the columns of [`PurlStatusRow`], and filter by the candidate's condition and range.
     fn select<S: QuerySelect + QueryFilter>(&self, query: S) -> S {
         query
+            .column_as(purl_status::Column::Id, "source_id")
             .column_as(purl_status::Column::AdvisoryId, "advisory_id")
             .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
             .column_as(self.status.clone(), "slug")
@@ -210,6 +211,7 @@ fn sources(rules: &[Box<dyn RangeRule>]) -> impl Iterator<Item = (Source<'_>, Ca
 /// The advisory side of a matched `purl_status`, plus the SBOM version it matched.
 #[derive(Clone, FromQueryResult)]
 struct PurlStatusRow {
+    source_id: Uuid,
     advisory_id: Uuid,
     vulnerability_id: String,
     slug: String,
@@ -325,6 +327,7 @@ fn group<'a, K: Ord + Clone>(
         ranges: BTreeSet<MatchedRange>,
         enabled_by: Option<EnabledBy>,
         requires_context: bool,
+        source_assertions: BTreeSet<super::SourceAssertionRef>,
     }
 
     let mut groups = BTreeMap::<
@@ -474,6 +477,7 @@ fn group<'a, K: Ord + Clone>(
                 ..Default::default()
             })
         });
+        let source_id = row.source_id;
         let (identifier, range) = row.into_match();
         let entry = groups
             .entry((
@@ -495,6 +499,7 @@ fn group<'a, K: Ord + Clone>(
                 ranges: BTreeSet::new(),
                 enabled_by,
                 requires_context,
+                source_assertions: BTreeSet::new(),
             });
         // the best range of the group decides its confidence
         if confidence > entry.confidence {
@@ -502,6 +507,9 @@ fn group<'a, K: Ord + Clone>(
             entry.factors = factors;
         }
         entry.ranges.insert(range);
+        entry
+            .source_assertions
+            .insert(super::SourceAssertionRef::Purl(source_id));
     }
 
     groups.into_iter().map(
@@ -528,6 +536,7 @@ fn group<'a, K: Ord + Clone>(
                     context_id,
                     requires_context: group.requires_context,
                     version_range_id: None,
+                    source_assertions: group.source_assertions,
                 },
             )
         },

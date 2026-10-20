@@ -115,6 +115,7 @@ mod m0002650_product_identifier_version_range;
 mod m0002660_evidence_confidence_factors;
 mod m0002670_vulnerability_upstream;
 mod m0002680_correlation_freshness;
+mod m0002690_remediation_assertions;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -245,6 +246,7 @@ impl MigratorExt for Migrator {
             .normal(m0002660_evidence_confidence_factors::Migration)
             .normal(m0002670_vulnerability_upstream::Migration)
             .normal(m0002680_correlation_freshness::Migration)
+            .normal(m0002690_remediation_assertions::Migration)
     }
 }
 

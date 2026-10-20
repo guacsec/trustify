@@ -22,6 +22,21 @@ pub struct Model {
     /// Empty for evidence extracted before they were recorded.
     #[sea_orm(column_type = "JsonBinary")]
     pub confidence_factors: serde_json::Value,
+    /// Source assertions which survived identity, version and product-context matching.
+    /// Empty for evidence extracted before source references were recorded.
+    #[sea_orm(column_type = "JsonBinary")]
+    pub source_assertions: serde_json::Value,
+}
+
+/// A source statement, independent of the extractor or rule which matched it.
+/// References retain the subject/version/context relationship when evidence is merged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "id", rename_all = "snake_case")]
+pub enum SourceAssertionRef {
+    Purl(Uuid),
+    Cpe(Uuid),
+    Digest(Uuid),
+    ProductIdentifier(Uuid),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, EnumIter, DeriveRelation)]
