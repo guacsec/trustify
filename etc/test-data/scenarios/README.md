@@ -9,11 +9,11 @@ in a scenario's review; they are not general CSAF rules.
 
 ## Scenario status
 
-This table records the review of `92ac7ba20` against local `main` at `eddf6345c` on
-2026-10-19. The correlation module test run passed 246 tests with no failures or ignored tests,
-including 78 common-harness tests. “Passing” refers to that run, not a fresh validation of every
-subsequent commit. S8's documentation was clarified on 2026-10-20: missing RPM epoch means zero;
-its remaining follow-up is additional regression coverage.
+This table was refreshed against `0f5374a1d` on 2026-10-20, retaining the comparison with local
+`main` at `eddf6345c`. The correlation module test run passed 274 tests with no failures or ignored
+tests, including all 78 common-harness tests. “Passing” refers to this run and the checked-in
+expectations; it does not settle the applicability questions listed below.
+Missing RPM epoch means zero; S8's remaining follow-up is additional regression coverage.
 
 These results describe the new correlation engine. Most legacy fundamental-API scenario tests
 remain ignored; `main` was compared through source and expectations, not executed separately.
@@ -24,7 +24,7 @@ remain ignored; `main` was compared through source and expectations, not execute
 | [S2 — golang product/scheme](S2_wrongscheme_golang_oci/README.md) | Passing | Official PURL-bearing VEX replaces synthetic bare-name input |
 | [S3 — curl wrong product](S3_wrongproduct_hummingbird_curl/README.md) | Passing | Product isolation and explicit statuses |
 | [S4 — Satellite/chardet](S4_wrongproduct_satellite_chardet/README.md) | Passing | Unrelated statements produce no verdict |
-| [S5 — OpenSSL baseline](S5_positive_baseline_openssl_el8/README.md) | Passing | At-fix correctly yields fixed |
+| [S5 — OpenSSL baseline](S5_positive_baseline_openssl_el8/README.md) | Passing | At-fix correctly yields fixed; focused RPM architecture controls also use these fixtures |
 | [S6 — urllib3 OSV](S6_positive_baseline_osv_urllib3/README.md) | Passing | Multiple affected intervals; outside ranges yields no verdict |
 | [S7 — Hummingbird package/CPE](S7_cpeonly_node_hummingbird/README.md) | Unresolved | Package identity versus product-context interpretation |
 | [S8 — OpenJDK epoch](S8_epoch_mismatch_openjdk/README.md) | Passing | Missing epoch means zero; additional boundary tests would strengthen coverage |
@@ -34,16 +34,16 @@ remain ignored; `main` was compared through source and expectations, not execute
 | [S12 — Thunderbird](S12_notaffected_ignored_thunderbird/README.md) | Passing | Negative-removal control also confirms no unrelated evidence |
 | [S13 — aliasless OSV](S13_aliasless_osv_drop/README.md) | Passing | Native GHSA ID preserved |
 | [S14 — Netty](S14_productstatus_versionfilter_netty/README.md) | Passing | Official VEX changes positive component to `netty-codec` |
-| [S15 — OpenSSH](S15_versioncmp_rpm_openssh/README.md) | Passing | Mainline-minor fallback changes below-fix `el8_10` to affected |
+| [S15 — OpenSSH](S15_versioncmp_rpm_openssh/README.md) | Passing | Mainline-minor fallback changes below-fix `el8_10` to affected; related policy question recorded in S24 |
 | [S16 — cross-scheme query](S16_crossscheme_purlquery_golang/README.md) | Passing | Official PURL-bearing VEX; no OCI/Maven leakage |
 | [S17 — OCP/kernel/Go](S17_crossproduct_ocp_kernel_go/README.md) | Passing | Unrelated kernel excluded; patched Go fixed |
-| [S18 — digests](S18_digest_correlation/README.md) | Focused tests passing | No common verdict manifest; architecture/range limitations noted in review |
+| [S18 — digests](S18_digest_correlation/README.md) | Focused tests passing | No common verdict manifest; Debian PURL architecture and Debian/BSD range limitations remain |
 | [S19 — hardware identifiers](S19_sku_correlation/README.md) | Focused tests passing | No common verdict manifest; wildcard advisory is synthetic |
 | [S20 — WAGO CPE ranges](S20_cpe_range_wago/README.md) | Passing | CycloneDX only |
 | [S21 — CPE extended attributes](S21_cpe_extended_attributes_beckhoff/README.md) | Passing fixtures | Missing CPE boundary-status handling; CycloneDX only |
 | [S22 — third-party OpenSSL CPE](S22_cpe_third_party_openssl_phoenix/README.md) | Passing fixtures | Generic-version range limitation; CycloneDX only |
 | [S23 — SUSE codestreams](S23_suse_codestream_openssl/README.md) | Passing with conflict | Broad GA/SP6 context overlap remains |
-| [S24 — RHEL 10 minors](S24_rhel10_minor_streams_ubi10/README.md) | Passing | CycloneDX only |
+| [S24 — RHEL 10 minors](S24_rhel10_minor_streams_ubi10/README.md) | Expectations under review | Current fixtures expect fixed evidence from older minors; scenario TODO questions that applicability. CycloneDX only |
 | [S25 — CVE packageURL](S25_cve_package_url/README.md) | Passing | CycloneDX only |
 | [S26 — CVE cpeApplicability](S26_cve_cpe_applicability_kernel/README.md) | Passing | CycloneDX only |
 | [S27 — identifier synonyms](S27_cve_identifier_synonyms_log4j/README.md) | Passing | CycloneDX only; relevant to resolving S7 |
@@ -84,7 +84,14 @@ S2, S14, and S16 use official PURL-bearing VEX documents in place of the synthet
 advisories used by the legacy tests. S14's positive component consequently changes from
 `netty-codec-http` to `netty-codec`. These cases do not establish support for the original bare-name
 matching path. S15 also changes the below-fix `el8_10` expectation to `affected` under the configured
-mainline-minor fallback policy.
+mainline-minor fallback policy. S24's current expectations also accept fixed evidence from older
+mainline minors, but its review now questions that applicability. Passing those expectations does
+not settle the policy.
+
+RPM architecture matching now rejects mismatched binary architectures while allowing source-package
+assertions and unspecified architectures. A focused test using S5 fixtures checks both extraction
+directions and identifier queries. This rule applies to RPM PURLs; it does not resolve the Debian
+PURL architecture limitation in S18.
 
 Most scenario tests of the deprecated fundamental APIs remain ignored. Passing the new service
 harness does not establish that those legacy endpoints satisfy the migrated expectations.
@@ -95,10 +102,15 @@ harness does not establish that those legacy endpoints satisfy the migrated expe
   identifier-synonym handling.
 - S8 has a regression-coverage follow-up: add at/above-fix controls with omitted, explicit zero,
   and nonzero epochs. RPM already defines missing epoch as zero; there is no unresolved policy.
-- S18 still exposes architecture-insensitive PURL matching and unsupported Debian/BSD range comparison.
+- S18 still exposes architecture-insensitive Debian PURL matching and unsupported Debian/BSD range
+  comparison; the RPM architecture rule does not cover these packages.
 - S21 lacks CPE `first_*`/`last_*` status handling; S22 retains a generic-version range limitation.
 - S23 accepts an affected verdict with a conflict for `openssl` / CVE-2025-9230 because broad GA and
   SP6 product contexts both match. More precise applicability remains a separate concern.
+- S24 needs a decision on statements from other mainline minors. Its current manifest accepts fixed
+  evidence for glibc / CVE-2026-0915 from 10.1 and krb5-libs / CVE-2025-3576 from 10.0 on a 10.2
+  system, while its TODO calls for no evidence in those cases. Reconcile the policy and expectations,
+  and review the related mainline-minor fallback in S15.
 - S18/S19 need common full-verdict manifests, and the CycloneDX-only cases lack SPDX counterparts.
 - No registered scenario manifest expects `under_investigation`. The harness invokes extraction
   directly, so it does not verify worker scheduling, retries, or update/deprecation lifecycle behavior.
