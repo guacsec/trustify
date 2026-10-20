@@ -9,6 +9,7 @@ use trustify_auth::{
     authenticator::user::{UserDetails, UserInformation},
     authorizer::{Authorizer, AuthorizerConfig},
 };
+use trustify_common::capability::{ActiveCapabilities, Capability};
 use trustify_common::db::{ReadOnly, ReadWrite, pagination_cache::PaginationCache};
 use trustify_test_context::TrustifyContext;
 use utoipa_actix_web::AppExt;
@@ -16,12 +17,108 @@ use uuid::Uuid;
 
 /// Configure the correlation endpoints on the test database.
 fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, ctx: &TrustifyContext) {
+    svc.app_data(web::Data::new(ActiveCapabilities::from_iter([
+        Capability::Correlation,
+    ])));
     super::configure(
         svc,
         ReadOnly::new(ctx.db.clone()),
         ReadWrite::new(ctx.db.clone()),
         PaginationCache::for_test(),
     );
+}
+
+/// Every correlation route rejects a disabled capability before accessing stored data.
+#[test_context(TrustifyContext)]
+#[rstest::rstest]
+#[case::disabled(true)]
+#[case::missing(false)]
+#[test_log::test(actix_web::test)]
+async fn correlation_capability_disabled(
+    ctx: &TrustifyContext,
+    #[case] register_capabilities: bool,
+) {
+    use actix_web::http::{Method, StatusCode};
+    use serde_json::{Value, json};
+
+    let mut app = App::new().app_data(web::Data::new(Authorizer::new(None)));
+    if register_capabilities {
+        app = app.app_data(web::Data::new(ActiveCapabilities::default()));
+    }
+    let app = actix_web::test::init_service(
+        app.into_utoipa_app()
+            .configure(|svc| {
+                super::configure(
+                    svc,
+                    ReadOnly::new(ctx.db.clone()),
+                    ReadWrite::new(ctx.db.clone()),
+                    PaginationCache::for_test(),
+                )
+            })
+            .into_app(),
+    )
+    .await;
+    let id = Uuid::new_v4();
+    let option = json!({"key":"versionless_purl", "publisher_namespace":"https://example.com", "value":true});
+    let alias = json!({"provider":"example", "aliases":["name:Example"]});
+    let cases = [
+        (Method::GET, format!("sbom/{id}"), None),
+        (
+            Method::POST,
+            "verdict-counts".into(),
+            Some(json!({"sbom_ids":[id]})),
+        ),
+        (
+            Method::GET,
+            "query?kind=purl&q=pkg:generic/example@1".into(),
+            None,
+        ),
+        (
+            Method::GET,
+            format!("advisory/{id}/statement?kind=purl"),
+            None,
+        ),
+        (Method::GET, "option".into(), None),
+        (Method::GET, format!("option/{id}"), None),
+        (Method::POST, "option".into(), Some(option.clone())),
+        (Method::PUT, format!("option/{id}"), Some(option)),
+        (Method::DELETE, format!("option/{id}"), None),
+        (Method::GET, "provider-alias".into(), None),
+        (Method::POST, "provider-alias".into(), Some(alias.clone())),
+        (Method::PUT, format!("provider-alias/{id}"), Some(alias)),
+        (Method::DELETE, format!("provider-alias/{id}"), None),
+        (
+            Method::POST,
+            "preview".into(),
+            Some(json!({
+                "target":{"kind":"sbom", "sbom_id":id}, "resolution":{}
+            })),
+        ),
+        (Method::GET, "freshness".into(), None),
+        (Method::GET, "freshness/sbom".into(), None),
+        (Method::POST, "refresh".into(), None),
+        (Method::GET, format!("refresh/{id}"), None),
+    ];
+    for (method, path, body) in cases {
+        let mut request = TestRequest::default()
+            .method(method.clone())
+            .uri(&format!("/v3/correlation/{path}"));
+        if let Some(body) = body {
+            request = request.set_json(body);
+        }
+        let response = call_service(&app, request.to_request()).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{method} {path}"
+        );
+        let body: Value = actix_web::test::read_body_json(response).await;
+        assert_eq!(body["error"], "CapabilityDisabled", "{method} {path}");
+        assert_eq!(
+            body["message"],
+            "The 'correlation' capability is not configured on this instance."
+        );
+    }
 }
 
 /// Readers must have access to every kind of document used by a correlation request.

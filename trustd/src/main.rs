@@ -126,6 +126,32 @@ mod tests {
         use clap::Parser;
         use temp_env::with_vars;
 
+        #[test]
+        fn correlation_configuration() {
+            for (value, args, disabled) in [
+                (None, vec!["trustd", "api"], false),
+                (None, vec!["trustd", "api", "--disable-correlation"], true),
+                (Some("true"), vec!["trustd", "api"], true),
+                (Some("false"), vec!["trustd", "api"], false),
+                (
+                    Some("false"),
+                    vec!["trustd", "api", "--disable-correlation"],
+                    true,
+                ),
+            ] {
+                with_vars([("TRUSTD_DISABLE_CORRELATION", value)], || {
+                    let Trustd {
+                        command: Some(Command::Api(run)),
+                        ..
+                    } = Trustd::try_parse_from(args).expect("valid API arguments")
+                    else {
+                        panic!("must parse into the api command");
+                    };
+                    assert_eq!(run.disable_correlation, disabled);
+                });
+            }
+        }
+
         /// test splitting the client ids via comma
         // We can only test this here as here we have the Trustd struct that clap can parse.
         #[test]

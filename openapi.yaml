@@ -1197,6 +1197,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/freshness:
     get:
       tags:
@@ -1213,6 +1215,8 @@ paths:
           description: Unauthenticated
         '403':
           description: Forbidden
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/freshness/sbom:
     get:
       tags:
@@ -1295,6 +1299,8 @@ paths:
           description: Unauthenticated
         '403':
           description: Forbidden
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/option:
     get:
       tags:
@@ -1366,6 +1372,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+        '422':
+          description: Correlation capability disabled
     post:
       tags:
       - correlation
@@ -1393,6 +1401,8 @@ paths:
           description: The user authenticated, but not authorized for this operation
         '409':
           description: The publisher already has an option of that key
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/option/{id}:
     get:
       tags:
@@ -1420,6 +1430,8 @@ paths:
           description: The user authenticated, but not authorized for this operation
         '404':
           description: The option doesn't exist
+        '422':
+          description: Correlation capability disabled
     put:
       tags:
       - correlation
@@ -1453,6 +1465,8 @@ paths:
           description: The option doesn't exist
         '409':
           description: The publisher already has an option of that key
+        '422':
+          description: Correlation capability disabled
     delete:
       tags:
       - correlation
@@ -1474,6 +1488,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/preview:
     post:
       tags:
@@ -1497,6 +1513,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: Insufficient permissions
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/provider-alias:
     get:
       tags:
@@ -1511,6 +1529,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProviderAlias'
+        '422':
+          description: Correlation capability disabled
     post:
       tags:
       - correlation
@@ -1528,6 +1548,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProviderAlias'
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/provider-alias/{id}:
     put:
       tags:
@@ -1553,6 +1575,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProviderAlias'
+        '422':
+          description: Correlation capability disabled
     delete:
       tags:
       - correlation
@@ -1567,6 +1591,8 @@ paths:
       responses:
         '204':
           description: ''
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/query:
     get:
       tags:
@@ -1619,6 +1645,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: Insufficient permissions
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/refresh:
     post:
       tags:
@@ -1635,6 +1663,8 @@ paths:
           description: Unauthenticated
         '403':
           description: Forbidden
+        '422':
+          description: Correlation capability disabled
         '503':
           description: Write database unavailable
   /api/v3/correlation/refresh/{id}:
@@ -1690,6 +1720,8 @@ paths:
           description: Forbidden
         '404':
           description: Unknown job
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/sbom/{id}:
     get:
       tags:
@@ -1740,6 +1772,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: Insufficient permissions
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/verdict-counts:
     post:
       tags:
@@ -1768,6 +1802,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: Insufficient permissions
+        '422':
+          description: Correlation capability disabled
   /api/v3/crypto/algorithm:
     get:
       tags:

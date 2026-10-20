@@ -5,6 +5,27 @@ then resolves the evidence into verdicts.
 
 See [ADR 00023](../../docs/adrs/00023-correlation-engine.md) for the design.
 
+## Runtime capability
+
+Correlation is compiled in and enabled by default. Start the API server with
+`--disable-correlation` or set `TRUSTD_DISABLE_CORRELATION=true` to disable it.
+Configuration is resolved at startup; restart the process to change it and configure
+API replicas consistently.
+
+When enabled, `/.well-known/trustify` includes `correlation` in its `capabilities`
+array. When disabled, it omits that entry, correlation handlers reject requests
+with HTTP 422 and `CapabilityDisabled`, and the extraction and refresh worker
+does not run. The correlation UI hides the corresponding controls and requests.
+A read-only instance can still advertise correlation and serve stored results;
+it never starts the worker.
+
+Disabling correlation preserves evidence, settings, and queued refresh jobs.
+Re-enabling resumes normal worker processing, including existing refresh jobs.
+Ingestion events missed while disabled are not replayed automatically; use
+`POST /api/v3/correlation/refresh` after re-enabling to refresh stored results.
+SBOM and advisory ingestion, browsing, and the existing fundamental APIs remain
+available independently of this capability.
+
 ## API
 
 ### Get correlation verdicts for an SBOM

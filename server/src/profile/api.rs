@@ -108,6 +108,10 @@ pub struct Run {
     #[arg(long, env = "TRUSTD_READ_ONLY")]
     pub read_only: bool,
 
+    /// Disable the correlation API and background extraction and refresh worker
+    #[arg(long, env = "TRUSTD_DISABLE_CORRELATION")]
+    pub disable_correlation: bool,
+
     /// Inject example importer configurations during startup
     #[arg(long, env)]
     pub sample_data: bool,
@@ -629,6 +633,9 @@ impl InitData {
         }
 
         let mut capabilities = ActiveCapabilities::default();
+        if !run.disable_correlation {
+            capabilities.insert(Capability::Correlation);
+        }
         if ei_config.is_some() {
             capabilities.insert(Capability::ExploitIntelligence);
         }
@@ -810,7 +817,7 @@ fn build_ei_worker_task(
 }
 
 fn build_correlation_worker_task(init: &InitData) -> Option<Task> {
-    if init.read_only {
+    if init.read_only || !init.capabilities.contains(&Capability::Correlation) {
         return None;
     }
     let broadcaster = init.broadcaster.clone();
@@ -977,19 +984,38 @@ mod test {
     use utoipa_actix_web::AppExt;
 
     #[test_context(TrustifyContext)]
-    #[test(tokio::test)]
-    async fn initialization(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    #[rstest]
+    #[case::enabled_writable(false, false)]
+    #[case::enabled_read_only(false, true)]
+    #[case::disabled_writable(true, false)]
+    #[case::disabled_read_only(true, true)]
+    #[test_log::test(tokio::test)]
+    async fn correlation_initialization(
+        ctx: &TrustifyContext,
+        #[case] disable_correlation: bool,
+        #[case] read_only: bool,
+    ) -> anyhow::Result<()> {
         let context = InitContext::default();
-        let run = Run::from_arg_matches(&Run::augment_args(Command::new("cmd")).get_matches_from(
-            vec![
-                "cmd",
-                "--db-name",
-                "test",
-                "--db-port",
-                &ctx.port.to_string(),
-            ],
-        ))?;
-        InitData::new(context, run).await.map(|_| ())
+        let port = ctx.port.to_string();
+        let mut args = vec!["cmd", "--db-name", "test", "--db-port", &port];
+        if disable_correlation {
+            args.push("--disable-correlation");
+        }
+        if read_only {
+            args.push("--read-only");
+        }
+        let run =
+            Run::from_arg_matches(&Run::augment_args(Command::new("cmd")).get_matches_from(args))?;
+        let init = InitData::new(context, run).await?;
+        assert_eq!(
+            init.capabilities.contains(&Capability::Correlation),
+            !disable_correlation
+        );
+        assert_eq!(
+            build_correlation_worker_task(&init).is_some(),
+            !disable_correlation && !read_only
+        );
+        Ok(())
     }
 
     #[test_context(TrustifyContext, skip_teardown)]

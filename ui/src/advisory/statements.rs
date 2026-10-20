@@ -19,6 +19,10 @@ pub struct VulnerabilityStatementsProps {
 /// The statements for a vulnerability, one table per kind of subject.
 #[function_component(VulnerabilityStatements)]
 pub fn vulnerability_statements(props: &VulnerabilityStatementsProps) -> Html {
+    let correlation_enabled = crate::use_correlation_enabled();
+    if !correlation_enabled {
+        return Html::default();
+    }
     html! {
         <Stack gutter=true>
             { for StatementKind::ALL.into_iter().map(|kind| html! {

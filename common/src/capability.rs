@@ -39,6 +39,8 @@ capability! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, strum::Display)]
     #[serde(rename_all = "camelCase")]
     pub enum Capability {
+        #[strum(serialize = "correlation")]
+        Correlation,
         #[strum(serialize = "exploitIntelligence")]
         ExploitIntelligence,
         #[strum(serialize = "recommendations")]

@@ -9,6 +9,7 @@ use crate::{
 use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Deserialize;
 use trustify_auth::{ReadAdvisory, ReadSbom, all, authorizer::Require};
+use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache},
     model::Paginated,
@@ -68,6 +69,7 @@ pub fn configure(
         SbomCorrelationParams,
     ),
     responses(
+        (status = 422, description = "Correlation capability disabled"),
         (status = 200, description = "Correlation verdicts for the SBOM", body = CorrelationResult),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "Insufficient permissions"),
@@ -75,6 +77,7 @@ pub fn configure(
 )]
 #[get("/v3/correlation/sbom/{id}")]
 async fn get_sbom_correlation(
+    _gate: RequireCapability<Correlation>,
     sbom_id: web::Path<Uuid>,
     params: web::Query<SbomCorrelationParams>,
     service: web::Data<CorrelationService>,
@@ -110,6 +113,7 @@ const MAX_VERDICT_COUNT_SBOMS: usize = 1000;
     operation_id = "countVerdicts",
     request_body = VerdictCountsRequest,
     responses(
+        (status = 422, description = "Correlation capability disabled"),
         (status = 200, description = "Verdict counts per SBOM", body = Vec<SbomVerdictCounts>),
         (status = 400, description = "Too many SBOMs requested"),
         (status = 401, description = "The user was not authenticated"),
@@ -118,6 +122,7 @@ const MAX_VERDICT_COUNT_SBOMS: usize = 1000;
 )]
 #[post("/v3/correlation/verdict-counts")]
 async fn count_verdicts(
+    _gate: RequireCapability<Correlation>,
     web::Json(request): web::Json<VerdictCountsRequest>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
@@ -158,6 +163,7 @@ struct IdentifierQuery {
     operation_id = "queryCorrelation",
     params(IdentifierQuery),
     responses(
+        (status = 422, description = "Correlation capability disabled"),
         (status = 200, description = "Matching advisories and vulnerabilities", body = QueryResult),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "Insufficient permissions"),
@@ -165,6 +171,7 @@ struct IdentifierQuery {
 )]
 #[get("/v3/correlation/query")]
 async fn query_correlation(
+    _gate: RequireCapability<Correlation>,
     params: web::Query<IdentifierQuery>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
@@ -216,6 +223,7 @@ struct StatementQuery {
         Paginated,
     ),
     responses(
+        (status = 422, description = "Correlation capability disabled"),
         (status = 200, description = "The statements", body = inline(trustify_common::model::PaginatedResults<AdvisoryStatement>)),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
@@ -223,6 +231,7 @@ struct StatementQuery {
 )]
 #[get("/v3/correlation/advisory/{id}/statement")]
 async fn list_advisory_statements(
+    _gate: RequireCapability<Correlation>,
     advisory_id: web::Path<Uuid>,
     web::Query(query): web::Query<StatementQuery>,
     web::Query(paginated): web::Query<Paginated>,

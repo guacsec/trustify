@@ -91,3 +91,51 @@ pub async fn info(
         frontend: frontend.get_ref().clone(),
     })
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use actix_web::{
+        App,
+        test::{TestRequest, call_and_read_body_json, init_service},
+    };
+    use rstest::rstest;
+    use utoipa_actix_web::AppExt;
+
+    #[rstest]
+    #[case::enabled_writable(true, false)]
+    #[case::enabled_read_only(true, true)]
+    #[case::disabled_writable(false, false)]
+    #[case::disabled_read_only(false, true)]
+    #[actix_web::test]
+    async fn correlation_discovery(#[case] enabled: bool, #[case] read_only: bool) {
+        let capabilities = if enabled {
+            ActiveCapabilities::from_iter([Capability::Correlation])
+        } else {
+            ActiveCapabilities::default()
+        };
+        let app = init_service(
+            App::new()
+                .app_data(web::Data::new(capabilities))
+                .app_data(web::Data::new(Variants::default()))
+                .into_utoipa_app()
+                .configure(|svc| configure(svc, None, read_only, FrontendInfo { oidc: None }))
+                .into_app(),
+        )
+        .await;
+        let response: serde_json::Value = call_and_read_body_json(
+            &app,
+            TestRequest::get().uri("/.well-known/trustify").to_request(),
+        )
+        .await;
+        assert_eq!(response["readOnly"], read_only);
+        assert_eq!(
+            response["capabilities"],
+            if enabled {
+                serde_json::json!(["correlation"])
+            } else {
+                serde_json::json!([])
+            }
+        );
+    }
+}

@@ -101,6 +101,7 @@ fn verdict_counts(counts: Option<&SbomVerdictCounts>) -> Html {
 
 #[function_component(SbomList)]
 pub fn sbom_list() -> Html {
+    let correlation_enabled = crate::use_correlation_enabled();
     let sboms = use_state(Vec::<SbomSummary>::new);
     // verdict counts by SBOM ID, `None` while loading
     let counts = use_state(|| Option::<HashMap<Uuid, SbomVerdictCounts>>::None);
@@ -124,8 +125,14 @@ pub fn sbom_list() -> Html {
         let total = total.clone();
         let token = token.clone();
         use_effect_with(
-            ((*search).clone(), pagination.control, ingested),
-            move |(query, control, _)| {
+            (
+                (*search).clone(),
+                pagination.control,
+                ingested,
+                correlation_enabled,
+            ),
+            move |(query, control, _, correlation_enabled)| {
+                let correlation_enabled = *correlation_enabled;
                 let query = query.clone();
                 let (offset, limit) = (control.page * control.per_page, control.per_page);
                 spawn_local(async move {
@@ -146,6 +153,10 @@ pub fn sbom_list() -> Html {
                     };
                     sboms.set(items.clone());
                     loading.set(false);
+
+                    if !correlation_enabled {
+                        return;
+                    }
 
                     // the counts are secondary, the list is shown without them on failure
                     let ids = items.iter().filter_map(sbom_uuid).collect();
@@ -187,18 +198,22 @@ pub fn sbom_list() -> Html {
             <TableColumn<Column> label="Document ID" index={Column::DocumentId} />
             <TableColumn<Column> label="Published" index={Column::Published} />
             <TableColumn<Column> label="Packages" index={Column::Packages} />
-            <TableColumn<Column> label="Verdicts" index={Column::Verdicts} />
-            <TableColumn<Column> label="Remediations" index={Column::Remediations} />
+            { for correlation_enabled.then_some([
+                (Column::Verdicts, "Verdicts"),
+                (Column::Remediations, "Remediations"),
+            ]).into_iter().flatten().map(|(index, label)| html_nested! {
+                <TableColumn<Column> {label} {index} />
+            }) }
         </TableHeader<Column>>
     };
 
-    let onrowclick = {
+    let onrowclick = correlation_enabled.then(|| {
         Callback::from(move |entry: SbomEntry| {
             if let Some(router) = &router {
                 router.push(AppRoute::Correlation { id: entry.0.id });
             }
         })
-    };
+    });
 
     html! {
         <PageSection>

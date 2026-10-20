@@ -11,21 +11,30 @@ use trustify_auth::{
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require, Requirement},
 };
+use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::db;
 use uuid::Uuid;
 
-#[utoipa::path(tag="correlation",operation_id="listProviderAliases",responses((status=200,body=Vec<ProviderAlias>)))]
+#[utoipa::path(tag="correlation",operation_id="listProviderAliases",responses(
+    (status=200,body=Vec<ProviderAlias>),
+    (status=422,description="Correlation capability disabled")
+))]
 #[get("/v3/correlation/provider-alias")]
 async fn aliases(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadOnly>,
     _: Require<ReadCorrelationOption>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(store::list_aliases(&tx).await?))
 }
-#[utoipa::path(tag="correlation",operation_id="createProviderAlias",request_body=ProviderAliasData,responses((status=201,body=ProviderAlias)))]
+#[utoipa::path(tag="correlation",operation_id="createProviderAlias",request_body=ProviderAliasData,responses(
+    (status=201,body=ProviderAlias),
+    (status=422,description="Correlation capability disabled")
+))]
 #[post("/v3/correlation/provider-alias")]
 async fn create_alias(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadWrite>,
     data: web::Json<ProviderAliasData>,
     _: Require<CreateCorrelationOption>,
@@ -35,9 +44,13 @@ async fn create_alias(
     tx.commit().await?;
     Ok(HttpResponse::Created().json(result))
 }
-#[utoipa::path(tag="correlation",operation_id="updateProviderAlias",params(("id"=Uuid,Path)),request_body=ProviderAliasData,responses((status=200,body=ProviderAlias)))]
+#[utoipa::path(tag="correlation",operation_id="updateProviderAlias",params(("id"=Uuid,Path)),request_body=ProviderAliasData,responses(
+    (status=200,body=ProviderAlias),
+    (status=422,description="Correlation capability disabled")
+))]
 #[put("/v3/correlation/provider-alias/{id}")]
 async fn update_alias(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadWrite>,
     id: web::Path<Uuid>,
     data: web::Json<ProviderAliasData>,
@@ -48,9 +61,13 @@ async fn update_alias(
     tx.commit().await?;
     Ok(HttpResponse::Ok().json(result))
 }
-#[utoipa::path(tag="correlation",operation_id="deleteProviderAlias",params(("id"=Uuid,Path)),responses((status=204)))]
+#[utoipa::path(tag="correlation",operation_id="deleteProviderAlias",params(("id"=Uuid,Path)),responses(
+    (status=204),
+    (status=422,description="Correlation capability disabled")
+))]
 #[delete("/v3/correlation/provider-alias/{id}")]
 async fn remove_alias(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadWrite>,
     id: web::Path<Uuid>,
     _: Require<DeleteCorrelationOption>,
@@ -62,12 +79,14 @@ async fn remove_alias(
 }
 /// A preview changes request context only; it cannot write aliases or evidence.
 #[utoipa::path(tag="correlation",operation_id="previewCorrelation",request_body=PreviewRequest,responses(
+    (status = 422, description = "Correlation capability disabled"),
     (status=200,body=PreviewResult),
     (status=401,description="The user was not authenticated"),
     (status=403,description="Insufficient permissions")
 ))]
 #[post("/v3/correlation/preview")]
 async fn preview(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadOnly>,
     service: web::Data<CorrelationService>,
     data: web::Json<PreviewRequest>,

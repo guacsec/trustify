@@ -28,8 +28,16 @@ trunk serve --port 8081
 
 and open <http://localhost:8081>. Trunk proxies `/api/` and `/.well-known/` to the server on
 port 8080 and `/realms/` to an OIDC server on port 8090 (see `Trunk.toml`). The UI reads the OIDC
-configuration from `/.well-known/trustify`, and works without authentication if the server has
-none.
+configuration and capabilities from `/.well-known/trustify`, and works without authentication
+if the server has none.
+
+Correlation is enabled by default on the backend. With `--disable-correlation` or
+`TRUSTD_DISABLE_CORRELATION=true`, the UI hides correlation queries, administration,
+SBOM verdict/remediation columns and links, and advisory statement sections. Direct
+correlation links show a disabled message without sending correlation requests.
+SBOM/advisory browsing and ingestion remain available. A missing `correlation`
+capability (including responses from older servers) is treated as unavailable.
+Restart the backend after changing the setting, then reload the UI to rediscover it.
 
 Trunk rebuilds on changes to `src`, `index.html`, `assets`, `Cargo.toml` and the workspace
 `Cargo.lock`.

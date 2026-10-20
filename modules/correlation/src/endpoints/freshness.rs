@@ -3,6 +3,7 @@ use actix_web::{HttpResponse, Responder, get, post, web};
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde::Deserialize;
 use trustify_auth::{ReadAdvisory, UpdateCorrelationOption, authorizer::Require};
+use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::{
     db,
     model::{Paginated, PaginatedResults},
@@ -25,11 +26,13 @@ pub(super) async fn snapshot(tx: &sea_orm::DatabaseTransaction) -> Result<(), Er
 }
 
 #[utoipa::path(tag="correlation", operation_id="getCorrelationFreshness", responses(
+    (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Freshness against matching settings", body=FreshnessOverview),
     (status=401, description="Unauthenticated"), (status=403, description="Forbidden")
 ))]
 #[get("/v3/correlation/freshness")]
 async fn overview(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadOnly>,
     _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
@@ -39,11 +42,13 @@ async fn overview(
 }
 
 #[utoipa::path(tag="correlation", operation_id="listCorrelationFreshnessSboms", params(Filter, Paginated), responses(
+    (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Documents by freshness", body=inline(PaginatedResults<FreshnessDocument>)),
     (status=401, description="Unauthenticated"), (status=403, description="Forbidden")
 ))]
 #[get("/v3/correlation/freshness/sbom")]
 async fn documents(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadOnly>,
     web::Query(filter): web::Query<Filter>,
     web::Query(page): web::Query<Paginated>,
@@ -55,12 +60,14 @@ async fn documents(
 }
 
 #[utoipa::path(tag="correlation", operation_id="startCorrelationRefresh", responses(
+    (status = 422, description = "Correlation capability disabled"),
     (status=202, description="Refresh queued, or existing active job", body=RefreshJob),
     (status=401, description="Unauthenticated"), (status=403, description="Forbidden"),
     (status=503, description="Write database unavailable")
 ))]
 #[post("/v3/correlation/refresh")]
 async fn start(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadWrite>,
     _: Require<UpdateCorrelationOption>,
 ) -> Result<impl Responder, Error> {
@@ -76,12 +83,14 @@ async fn start(
 }
 
 #[utoipa::path(tag="correlation", operation_id="getCorrelationRefresh", params(("id"=Uuid, Path), Paginated), responses(
+    (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Refresh progress and paginated failures", body=RefreshJobDetails),
     (status=401, description="Unauthenticated"), (status=403, description="Forbidden"),
     (status=404, description="Unknown job")
 ))]
 #[get("/v3/correlation/refresh/{id}")]
 async fn get_job(
+    _gate: RequireCapability<Correlation>,
     db: web::Data<db::ReadOnly>,
     id: web::Path<Uuid>,
     web::Query(page): web::Query<Paginated>,

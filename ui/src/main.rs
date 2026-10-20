@@ -21,11 +21,11 @@ use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
 use ingest::IngestPage;
 use ingest_drop::{IngestDropZone, IngestionProvider};
+use model::WellKnownInfo;
 use options::OptionsPage;
 use patternfly_yew::prelude::*;
 use query::QueryPage;
 use sbom_list::SbomList;
-use trustify_api::FrontendOidcInfo;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -53,6 +53,19 @@ pub enum AppRoute {
     Options,
     CorrelationStatus,
     ProviderAliases,
+}
+
+impl AppRoute {
+    fn requires_correlation(&self) -> bool {
+        matches!(
+            self,
+            Self::Correlation { .. }
+                | Self::Query
+                | Self::Options
+                | Self::CorrelationStatus
+                | Self::ProviderAliases
+        )
+    }
 }
 
 pub fn main() -> Result<(), JsValue> {
@@ -92,7 +105,7 @@ pub fn main() -> Result<(), JsValue> {
 #[derive(Clone, Debug, PartialEq)]
 enum DiscoveryState {
     Loading,
-    Ready(Option<FrontendOidcInfo>),
+    Ready(WellKnownInfo),
     Failed(String),
 }
 
@@ -105,7 +118,7 @@ fn app() -> Html {
         use_effect_with((), move |()| {
             spawn_local(async move {
                 match api::fetch_well_known().await {
-                    Ok(info) => state.set(DiscoveryState::Ready(info.frontend.oidc)),
+                    Ok(info) => state.set(DiscoveryState::Ready(info)),
                     Err(e) => state.set(DiscoveryState::Failed(e.to_string())),
                 }
             });
@@ -125,46 +138,54 @@ fn app() -> Html {
                 </Alert>
             </Bullseye>
         },
-        DiscoveryState::Ready(Some(oidc)) => {
-            let config = openid::Config::new(&oidc.client_id, &oidc.issuer_url);
-            let scopes = oidc
-                .scope
-                .split_whitespace()
-                .map(String::from)
-                .collect::<Vec<_>>();
-            let redirect_url = match redirect_url() {
-                Ok(url) => url,
-                Err(err) => {
-                    return html! {
-                        <Bullseye>
-                            <Alert title="Failed to configure login" r#type={AlertType::Danger} inline=true>
-                                <p>{ err }</p>
-                            </Alert>
-                        </Bullseye>
-                    };
+        DiscoveryState::Ready(info) => {
+            let content = if let Some(oidc) = &info.frontend.oidc {
+                let config = openid::Config::new(&oidc.client_id, &oidc.issuer_url);
+                let scopes = oidc
+                    .scope
+                    .split_whitespace()
+                    .map(String::from)
+                    .collect::<Vec<_>>();
+                let redirect_url = match redirect_url() {
+                    Ok(url) => url,
+                    Err(err) => {
+                        return html! {
+                            <Bullseye>
+                                <Alert title="Failed to configure login" r#type={AlertType::Danger} inline=true>
+                                    <p>{ err }</p>
+                                </Alert>
+                            </Bullseye>
+                        };
+                    }
+                };
+                let login_options = LoginOptions::new()
+                    .with_redirect_url(redirect_url)
+                    .with_nested_router_redirect();
+                html! {
+                    <Router<AppRoute> default={AppRoute::SbomList}>
+                        <openid::OAuth2 {config} {scopes} login_options={login_options}>
+                            <Failure>
+                                <AuthError />
+                            </Failure>
+                            <RouterRedirect<AppRoute> logout={AppRoute::SbomList}>
+                                <AppShell />
+                            </RouterRedirect<AppRoute>>
+                        </openid::OAuth2>
+                    </Router<AppRoute>>
+                }
+            } else {
+                html! {
+                    <Router<AppRoute> default={AppRoute::SbomList}>
+                        <AppShell />
+                    </Router<AppRoute>>
                 }
             };
-            let login_options = LoginOptions::new()
-                .with_redirect_url(redirect_url)
-                .with_nested_router_redirect();
             html! {
-                <Router<AppRoute> default={AppRoute::SbomList}>
-                    <openid::OAuth2 {config} {scopes} login_options={login_options}>
-                        <Failure>
-                            <AuthError />
-                        </Failure>
-                        <RouterRedirect<AppRoute> logout={AppRoute::SbomList}>
-                            <AppShell />
-                        </RouterRedirect<AppRoute>>
-                    </openid::OAuth2>
-                </Router<AppRoute>>
+                <ContextProvider<WellKnownInfo> context={info.clone()}>
+                    {content}
+                </ContextProvider<WellKnownInfo>>
             }
         }
-        DiscoveryState::Ready(None) => html! {
-            <Router<AppRoute> default={AppRoute::SbomList}>
-                <AppShell />
-            </Router<AppRoute>>
-        },
     }
 }
 
@@ -190,16 +211,32 @@ fn auth_error() -> Html {
 
 #[function_component(AppShell)]
 fn app_shell() -> Html {
+    let correlation_enabled = use_correlation_enabled();
     html! {
         <BackdropViewer>
             <IngestionProvider>
-                <RouterSwitch<AppRoute> render={switch_route} />
+                <RouterSwitch<AppRoute> render={move |target| switch_route(target, correlation_enabled)} />
             </IngestionProvider>
         </BackdropViewer>
     }
 }
 
-fn switch_route(target: AppRoute) -> Html {
+/// Read the instance capability before mounting components that call correlation APIs.
+#[hook]
+fn use_correlation_enabled() -> bool {
+    use_context::<WellKnownInfo>().is_some_and(|info| info.correlation_enabled())
+}
+
+fn switch_route(target: AppRoute, correlation_enabled: bool) -> Html {
+    if !correlation_enabled && target.requires_correlation() {
+        return html! {
+            <AppPage>
+                <PageSection>
+                    <EmptyState title="Correlation is disabled on this instance" icon={Icon::InfoCircle} />
+                </PageSection>
+            </AppPage>
+        };
+    }
     match target {
         AppRoute::CorrelationStatus => html! { <AppPage><freshness::FreshnessPage /></AppPage> },
         AppRoute::SbomList => html! {
@@ -252,6 +289,7 @@ struct PageProps {
 
 #[function_component(AppPage)]
 fn page(props: &PageProps) -> Html {
+    let correlation_enabled = use_correlation_enabled();
     let sidebar = html_nested! {
         <PageSidebar>
             <div class="trustify-sidebar-content">
@@ -263,23 +301,27 @@ fn page(props: &PageProps) -> Html {
                         <NavRouterItem<AppRoute> to={AppRoute::AdvisoryList}>
                             { "Advisories" }
                         </NavRouterItem<AppRoute>>
-                        <NavRouterItem<AppRoute> to={AppRoute::Query}>
-                            { "Query" }
-                        </NavRouterItem<AppRoute>>
+                        if correlation_enabled {
+                            <NavRouterItem<AppRoute> to={AppRoute::Query}>
+                                { "Query" }
+                            </NavRouterItem<AppRoute>>
+                        }
                         <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
-                        <NavExpandable title="Administration">
-                            <NavRouterItem<AppRoute> to={AppRoute::CorrelationStatus}>
-                                { "Correlation status" }
-                            </NavRouterItem<AppRoute>>
-                            <NavRouterItem<AppRoute> to={AppRoute::ProviderAliases}>
-                                { "Provider aliases" }
-                            </NavRouterItem<AppRoute>>
-                            <NavRouterItem<AppRoute> to={AppRoute::Options}>
-                                { "Options" }
-                            </NavRouterItem<AppRoute>>
-                        </NavExpandable>
+                        if correlation_enabled {
+                            <NavExpandable title="Administration">
+                                <NavRouterItem<AppRoute> to={AppRoute::CorrelationStatus}>
+                                    { "Correlation status" }
+                                </NavRouterItem<AppRoute>>
+                                <NavRouterItem<AppRoute> to={AppRoute::ProviderAliases}>
+                                    { "Provider aliases" }
+                                </NavRouterItem<AppRoute>>
+                                <NavRouterItem<AppRoute> to={AppRoute::Options}>
+                                    { "Options" }
+                                </NavRouterItem<AppRoute>>
+                            </NavExpandable>
+                        }
                     </NavList>
                 </Nav>
                 <IngestDropZone />
