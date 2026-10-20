@@ -257,9 +257,6 @@ fn page(props: &PageProps) -> Html {
             <div class="trustify-sidebar-content">
                 <Nav>
                     <NavList>
-                        <NavRouterItem<AppRoute> to={AppRoute::CorrelationStatus}>
-                            { "Correlation status" }
-                        </NavRouterItem<AppRoute>>
                         <NavRouterItem<AppRoute> to={AppRoute::SbomList}>
                             { "SBOMs" }
                         </NavRouterItem<AppRoute>>
@@ -272,12 +269,17 @@ fn page(props: &PageProps) -> Html {
                         <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
-                        <NavRouterItem<AppRoute> to={AppRoute::ProviderAliases}>
-                            { "Provider aliases" }
-                        </NavRouterItem<AppRoute>>
-                        <NavRouterItem<AppRoute> to={AppRoute::Options}>
-                            { "Options" }
-                        </NavRouterItem<AppRoute>>
+                        <NavExpandable title="Administration">
+                            <NavRouterItem<AppRoute> to={AppRoute::CorrelationStatus}>
+                                { "Correlation status" }
+                            </NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::ProviderAliases}>
+                                { "Provider aliases" }
+                            </NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::Options}>
+                                { "Options" }
+                            </NavRouterItem<AppRoute>>
+                        </NavExpandable>
                     </NavList>
                 </Nav>
                 <IngestDropZone />
