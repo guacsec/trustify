@@ -22,6 +22,7 @@ use trustify_entity::{
 };
 use uuid::Uuid;
 
+pub mod freshness;
 pub mod option;
 pub mod resolution;
 pub mod statement;
@@ -54,6 +55,7 @@ impl CorrelationService {
         if sbom_ids.is_empty() {
             return Ok(Vec::new());
         }
+        let freshness = freshness::for_sboms(connection, sbom_ids).await?;
         let mut evidence = Vec::new();
         for chunk in sbom_ids.chunks(1000) {
             evidence.extend(
@@ -128,6 +130,7 @@ impl CorrelationService {
             .iter()
             .map(|id| SbomVerdictCounts {
                 sbom_id: *id,
+                freshness: freshness.get(id).cloned().unwrap_or_default(),
                 ..counts.get(id).cloned().unwrap_or_default()
             })
             .collect())
@@ -163,6 +166,10 @@ impl CorrelationService {
             ));
         }
         resolution::provider::ResolutionContext::new(Vec::new(), request)?;
+        let freshness = freshness::for_sboms(connection, &[sbom_id])
+            .await?
+            .remove(&sbom_id)
+            .unwrap_or_default();
         let mut query = correlation_evidence::Entity::find()
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
         if let Some(node) = &request.node_id {
@@ -195,6 +202,7 @@ impl CorrelationService {
 
             return Ok(CorrelationResult {
                 sbom_id,
+                freshness,
                 verdicts: Vec::new(),
                 unmatched_components,
             });
@@ -368,6 +376,7 @@ impl CorrelationService {
 
         Ok(CorrelationResult {
             sbom_id,
+            freshness,
             verdicts,
             unmatched_components,
         })

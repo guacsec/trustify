@@ -68,6 +68,7 @@ async fn preview(
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let PreviewRequest { target, resolution } = data.into_inner();
+    super::freshness::snapshot(&tx).await?;
     let result = match target {
         PreviewTarget::Sbom { sbom_id } => PreviewResult::Sbom(
             service

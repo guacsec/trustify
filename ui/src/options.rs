@@ -1,7 +1,7 @@
 //! Correlation options: per publisher, e.g. whether versionless PURLs mean all versions.
 
 use crate::{
-    api,
+    AppRoute, api,
     model::{CorrelationOption, CorrelationOptionData, CorrelationOptionKey},
 };
 use patternfly_yew::prelude::*;
@@ -10,6 +10,7 @@ use std::{future::Future, pin::Pin};
 use uuid::Uuid;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 /// A change of the options, resolving to an error message on failure.
@@ -199,8 +200,9 @@ pub fn options_page() -> Html {
             <p>
                 { "Options enable an interpretation of the advisories of a publisher, e.g. that \
                    their versionless PURLs mean all versions. Evidence depending on an option names \
-                   it. A change applies to documents extracted afterwards." }
+                   it. Changing matching settings makes existing results outdated." }
             </p>
+            <p><Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View correlation status and refresh existing results" }</Link<AppRoute>></p>
             <br />
 
             if let Some(err) = &*error {

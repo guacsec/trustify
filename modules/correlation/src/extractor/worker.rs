@@ -16,8 +16,23 @@ pub async fn run_extraction_worker(
 ) -> anyhow::Result<()> {
     let extractors = Extractors::default();
     let mut rx = broadcaster.subscribe();
+    let mut refresh_pending = false;
     loop {
-        match rx.recv().await {
+        let received = tokio::select! {
+            entry = rx.recv() => Some(entry),
+            _ = tokio::time::sleep(if refresh_pending { std::time::Duration::ZERO } else { std::time::Duration::from_secs(1) }) => None,
+        };
+        let Some(received) = received else {
+            refresh_pending = match crate::service::freshness::run_step(&db, &extractors).await {
+                Ok(pending) => pending,
+                Err(err) => {
+                    tracing::warn!(error = %err, "correlation refresh worker failed");
+                    false
+                }
+            };
+            continue;
+        };
+        match received {
             Ok(entry) => {
                 if let Err(err) = handle_change(&entry, &extractors, &db).await {
                     tracing::warn!(
@@ -55,8 +70,12 @@ async fn handle_change(
 
     let tx = db.begin().await?;
     match entry.r#type {
-        ChangeEntity::Sbom => extractors.extract_for_sbom(entity_id, &tx).await?,
-        ChangeEntity::Advisory => extractors.extract_for_advisory(entity_id, &tx).await?,
+        ChangeEntity::Sbom => {
+            crate::service::freshness::refresh_sbom(extractors, entity_id, &tx).await?
+        }
+        ChangeEntity::Advisory => {
+            extractors.extract_for_advisory(entity_id, &tx).await?;
+        }
     };
     tx.commit().await?;
 

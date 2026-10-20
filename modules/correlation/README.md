@@ -28,6 +28,51 @@ http GET localhost:8080/api/v3/correlation/query kind==cpe q=='cpe:2.3:o:wago:wa
 CPEs are matched against the CPE patterns (and version ranges) of advisories.
 CPE 2.2 URIs (`cpe:/o:wago:wago_os_linux:4.8.9`) are accepted as well.
 
+## Freshness and background refresh
+
+The **Correlation status** page counts SBOMs as current, outdated, or not yet checked,
+and lists the documents needing refresh. Each SBOM counts once, including those with
+zero matching evidence. The overview reads revision counters rather than scanning evidence.
+Counters are spread across 64 buckets per revision to reduce contention during concurrent ingestion.
+
+Creating/deleting a matching option, or changing its key, publisher, or value, increments
+a global extraction revision. This conservatively makes all previously extracted SBOMs
+outdated, even for a publisher-specific change. Changing only the reason does not invalidate
+results. Provider aliases still take effect during verdict resolution without extraction.
+
+Select **Refresh outdated results** to process outdated and unchecked SBOMs in the background.
+This operation uses the stored document data; it does not download or ingest documents again.
+Each document's evidence and context links are replaced atomically, including when there are
+no remaining matches. Failures retain previous results and stay in the backlog. Start another
+refresh to retry them. Jobs resume after restart; repeated requests return the active job.
+If matching settings change during a job, it finishes the current document and becomes
+superseded. Start another refresh to apply the new settings to the remaining backlog.
+Documents added during traversal can remain in the backlog for the next refresh.
+
+Freshness describes matching settings, not completion of newly ingested advisory events.
+Partial advisory extraction does not mark an outdated SBOM current. A read of an SBOM result
+uses one database snapshot for evidence and freshness. Stored results remain visible with
+an outdated/unchecked indicator until a full extraction succeeds.
+
+The API exposes:
+
+- `GET /api/v3/correlation/freshness`: exact counts, settings revision, observation time,
+  and active/latest job summaries.
+- `GET /api/v3/correlation/freshness/sbom`: paginated SBOMs; optional `status=current|stale|unknown`,
+  defaulting to outdated and unchecked documents together.
+- `POST /api/v3/correlation/refresh`: HTTP 202 with the new or existing active job and its Location.
+- `GET /api/v3/correlation/refresh/{id}`: job progress and failures, paginated with `offset`/`limit`.
+
+Read endpoints require `read.advisory`; starting refresh requires `update.correlationOption`.
+Document lists use the usual `offset`, `limit`, and `total` parameters, with a maximum page size
+of 1000. Correlation results and batched verdict counts add `freshness` with `status`,
+`required_revision`, `completed_revision`, and `completed_at`. Absent completion is unknown.
+The UI polls every five seconds while visible and preserves previously loaded data on errors.
+
+Migration `m0002680` preserves evidence and initializes existing SBOMs as unchecked. No refresh
+is started automatically. Downgrading removes freshness metadata and jobs while retaining
+the evidence, including any changes made by completed refreshes. Deploy backend and UI together.
+
 ## Verdict resolution
 
 All applicable evidence remains visible. Eligible statements are compared in this fixed order:

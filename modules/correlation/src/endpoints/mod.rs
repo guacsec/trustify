@@ -29,6 +29,7 @@ struct SbomCorrelationParams {
     vulnerability_id: Option<String>,
 }
 
+mod freshness;
 mod option;
 mod resolution;
 #[cfg(test)]
@@ -52,6 +53,7 @@ pub fn configure(
         .service(count_verdicts)
         .service(query_correlation)
         .configure(option::configure)
+        .configure(freshness::configure)
         .configure(resolution::configure);
 }
 
@@ -75,6 +77,7 @@ async fn get_sbom_correlation(
     db: web::Data<db::ReadOnly>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
+    freshness::snapshot(&tx).await?;
     let result = service
         .correlate_sbom_with(
             *sbom_id,
@@ -119,6 +122,7 @@ async fn count_verdicts(
     }
 
     let tx = db.begin().await?;
+    freshness::snapshot(&tx).await?;
     let result = service.count_verdicts(&request.sbom_ids, &tx).await?;
     Ok(HttpResponse::Ok().json(result))
 }

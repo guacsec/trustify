@@ -5,12 +5,16 @@ use uuid::Uuid;
 
 mod resolution;
 pub use resolution::*;
+mod freshness;
+pub use freshness::*;
 
 /// Top-level correlation result for an SBOM.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct CorrelationResult {
     pub sbom_id: Uuid,
+    #[serde(default)]
+    pub freshness: ExtractionFreshness,
     pub verdicts: Vec<VerdictSummary>,
     /// Components in the SBOM that have no correlation evidence.
     ///
@@ -838,6 +842,8 @@ pub struct VerdictCountsRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SbomVerdictCounts {
     pub sbom_id: Uuid,
+    #[serde(default)]
+    pub freshness: ExtractionFreshness,
     pub affected: u64,
     pub fixed: u64,
     pub not_affected: u64,

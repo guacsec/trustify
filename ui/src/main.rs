@@ -2,6 +2,7 @@ mod advisory;
 mod advisory_list;
 mod api;
 mod correlation;
+mod freshness;
 mod ingest;
 mod ingest_drop;
 mod model;
@@ -50,6 +51,7 @@ pub enum AppRoute {
     Query,
     Ingest,
     Options,
+    CorrelationStatus,
     ProviderAliases,
 }
 
@@ -199,6 +201,7 @@ fn app_shell() -> Html {
 
 fn switch_route(target: AppRoute) -> Html {
     match target {
+        AppRoute::CorrelationStatus => html! { <AppPage><freshness::FreshnessPage /></AppPage> },
         AppRoute::SbomList => html! {
             <AppPage>
                 <SbomList />
@@ -254,6 +257,9 @@ fn page(props: &PageProps) -> Html {
             <div class="trustify-sidebar-content">
                 <Nav>
                     <NavList>
+                        <NavRouterItem<AppRoute> to={AppRoute::CorrelationStatus}>
+                            { "Correlation status" }
+                        </NavRouterItem<AppRoute>>
                         <NavRouterItem<AppRoute> to={AppRoute::SbomList}>
                             { "SBOMs" }
                         </NavRouterItem<AppRoute>>

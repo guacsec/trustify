@@ -6,6 +6,9 @@ use crate::model::{
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
+use trustify_api::correlation::{
+    FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob, RefreshJobDetails,
+};
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
 
@@ -48,6 +51,48 @@ async fn fetch_json<T: DeserializeOwned>(url: &str, token: Option<&str>) -> Resu
         .json::<T>()
         .await
         .map_err(|e| ApiError::Deserialize(e.to_string()))
+}
+
+pub async fn fetch_freshness(token: Option<&str>) -> Result<FreshnessOverview, ApiError> {
+    fetch_json("/api/v3/correlation/freshness", token).await
+}
+
+pub async fn fetch_freshness_documents(
+    status: Option<FreshnessStatus>,
+    offset: usize,
+    limit: usize,
+    token: Option<&str>,
+) -> Result<PaginatedResults<FreshnessDocument>, ApiError> {
+    let status = match status {
+        None => "",
+        Some(FreshnessStatus::Current) => "&status=current",
+        Some(FreshnessStatus::Stale) => "&status=stale",
+        Some(FreshnessStatus::Unknown) => "&status=unknown",
+    };
+    fetch_json(
+        &format!(
+            "/api/v3/correlation/freshness/sbom?offset={offset}&limit={limit}&total=true{status}"
+        ),
+        token,
+    )
+    .await
+}
+
+pub async fn start_refresh(token: Option<&str>) -> Result<RefreshJob, ApiError> {
+    post_json("/api/v3/correlation/refresh", &serde_json::json!({}), token).await
+}
+
+pub async fn fetch_refresh_job(
+    id: uuid::Uuid,
+    offset: usize,
+    limit: usize,
+    token: Option<&str>,
+) -> Result<RefreshJobDetails, ApiError> {
+    fetch_json(
+        &format!("/api/v3/correlation/refresh/{id}?offset={offset}&limit={limit}"),
+        token,
+    )
+    .await
 }
 
 /// Fetch a page of SBOMs matching a query, with the total.

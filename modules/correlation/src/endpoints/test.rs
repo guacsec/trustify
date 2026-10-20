@@ -21,6 +21,90 @@ fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, ctx: &Tr
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use actix_web::{HttpMessage, web};
+    use trustify_auth::{
+        authenticator::user::{UserDetails, UserInformation},
+        authorizer::{Authorizer, AuthorizerConfig},
+    };
+    let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    let app = App::new()
+        .app_data(web::Data::new(Authorizer::new(Some(
+            AuthorizerConfig::default(),
+        ))))
+        .into_utoipa_app()
+        .configure(|svc| configure(svc, ctx))
+        .into_app();
+    let app = actix_web::test::init_service(app).await;
+    let reader = UserInformation::Authenticated(UserDetails {
+        id: "reader".into(),
+        permissions: vec!["read.advisory".into()],
+    });
+    let writer = UserInformation::Authenticated(UserDetails {
+        id: "writer".into(),
+        permissions: vec!["read.advisory".into(), "update.correlationOption".into()],
+    });
+    let req = TestRequest::get()
+        .uri("/v3/correlation/freshness")
+        .to_request();
+    assert_eq!(call_service(&app, req).await.status(), 403);
+    let req = TestRequest::get()
+        .uri("/v3/correlation/freshness")
+        .to_request();
+    req.extensions_mut().insert(reader.clone());
+    let resp = call_service(&app, req).await;
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["unknown"], 1);
+    assert_eq!(body["needs_refresh"], 1);
+    let req = TestRequest::get()
+        .uri("/v3/correlation/freshness/sbom?status=unknown&limit=1&total=true")
+        .to_request();
+    req.extensions_mut().insert(reader.clone());
+    let resp = call_service(&app, req).await;
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["total"], 1);
+    assert_eq!(body["items"][0]["sbom_id"], id.to_string());
+    let req = TestRequest::post()
+        .uri("/v3/correlation/refresh")
+        .to_request();
+    req.extensions_mut().insert(reader.clone());
+    assert_eq!(call_service(&app, req).await.status(), 403);
+    let req = TestRequest::post()
+        .uri("/v3/correlation/refresh")
+        .to_request();
+    req.extensions_mut().insert(writer.clone());
+    let resp = call_service(&app, req).await;
+    assert_eq!(resp.status(), 202);
+    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let job_id = body["id"].as_str().unwrap();
+    let req = TestRequest::post()
+        .uri("/v3/correlation/refresh")
+        .to_request();
+    req.extensions_mut().insert(writer);
+    let resp = call_service(&app, req).await;
+    let again: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(again["id"], job_id);
+    let req = TestRequest::get()
+        .uri(&format!("/v3/correlation/refresh/{job_id}?limit=0"))
+        .to_request();
+    req.extensions_mut().insert(reader.clone());
+    let resp = call_service(&app, req).await;
+    assert_eq!(resp.status(), 200);
+    let details: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(details["job"]["id"], job_id);
+    assert_eq!(details["failures"], serde_json::json!([]));
+    let req = TestRequest::get()
+        .uri(&format!("/v3/correlation/refresh/{}", Uuid::new_v4()))
+        .to_request();
+    req.extensions_mut().insert(reader);
+    assert_eq!(call_service(&app, req).await.status(), 404);
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn empty_sbom_returns_empty_verdicts(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = App::new()
         .into_utoipa_app()
@@ -107,6 +191,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "under_investigation": 0,
             "none": 0,
             "remediations": 0,
+            "freshness": {"status":"unknown", "required_revision":1, "completed_revision":null, "completed_at":null},
         })
     };
     assert_eq!(body, serde_json::json!([zero(a), zero(b)]));

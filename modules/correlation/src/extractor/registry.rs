@@ -10,7 +10,10 @@ use super::{
 };
 use crate::{error::Error, model::IdentifierRef};
 use sea_orm::DatabaseTransaction;
-use std::{collections::HashMap, slice};
+use std::{
+    collections::{BTreeSet, HashMap},
+    slice,
+};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -44,6 +47,8 @@ impl Extractors {
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<usize, Error> {
+        crate::service::freshness::lock_revision(tx).await?;
+        crate::service::freshness::lock_sboms(tx, vec![sbom_id]).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
         for extractor in &self.0 {
@@ -85,10 +90,18 @@ impl Extractors {
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<usize, Error> {
-        let mut total = 0;
-        let mut scoper = Scoper::default();
+        crate::service::freshness::lock_revision(tx).await?;
+        let mut batches = Vec::new();
+        let mut sboms = BTreeSet::new();
         for extractor in &self.0 {
             let matches = extractor.match_advisory(advisory_id, tx).await?;
+            sboms.extend(matches.iter().map(|m| m.node.sbom_id));
+            batches.push((extractor.id(), matches));
+        }
+        crate::service::freshness::lock_sboms(tx, sboms.into_iter().collect()).await?;
+        let mut total = 0;
+        let mut scoper = Scoper::default();
+        for (extractor_id, matches) in batches {
             if matches.is_empty() {
                 continue;
             }
@@ -100,7 +113,7 @@ impl Extractors {
             let matches = retain_in_range(matches, tx).await?;
             let count = write_scoped(matches, &mut scoper, tx).await?;
 
-            tracing::info!(extractor = extractor.id(), %advisory_id, evidence_count = count, "extraction for advisory complete");
+            tracing::info!(extractor = extractor_id, %advisory_id, evidence_count = count, "extraction for advisory complete");
             total += count;
         }
         Ok(total)

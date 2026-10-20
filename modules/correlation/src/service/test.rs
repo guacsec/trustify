@@ -307,6 +307,10 @@ async fn components_list_identifiers(ctx: &TrustifyContext) -> anyhow::Result<()
     assert_eq!(
         service.correlate_sbom(sbom_id, true, &tx).await?,
         CorrelationResult {
+            freshness: super::freshness::for_sboms(&tx, &[sbom_id])
+                .await?
+                .remove(&sbom_id)
+                .unwrap(),
             sbom_id,
             verdicts: vec![],
             unmatched_components: Some(vec![
@@ -518,6 +522,10 @@ async fn scenario(
 
         // the counts must agree with the verdicts
         let mut counts = SbomVerdictCounts {
+            freshness: super::freshness::for_sboms(&tx, &[sbom_id])
+                .await?
+                .remove(&sbom_id)
+                .unwrap(),
             sbom_id,
             remediations: remediations.len() as u64,
             ..Default::default()
@@ -1031,6 +1039,10 @@ async fn osv_fixed_remediation(ctx: &TrustifyContext) -> anyhow::Result<()> {
             .count_verdicts(&[sbom_id], &tx)
             .await?,
         vec![SbomVerdictCounts {
+            freshness: super::freshness::for_sboms(&tx, &[sbom_id])
+                .await?
+                .remove(&sbom_id)
+                .unwrap(),
             sbom_id,
             affected: 1,
             remediations: 1,

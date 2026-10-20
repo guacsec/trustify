@@ -1,6 +1,7 @@
 //! Endpoints managing the options of the correlation engine.
 //!
-//! A changed option applies to documents extracted afterwards.
+//! Matching changes mark existing correlation results outdated. Refresh them through
+//! `/v3/correlation/refresh`; changing an option does not start a refresh automatically.
 
 use crate::{
     error::Error,
@@ -74,7 +75,7 @@ async fn read(
 
 /// Create a correlation option.
 ///
-/// It applies to documents extracted afterwards.
+/// Invalidates existing extraction results; refresh them to apply the new settings.
 #[utoipa::path(
     tag = "correlation",
     operation_id = "createCorrelationOption",
@@ -105,7 +106,7 @@ async fn create(
 
 /// Update a correlation option.
 ///
-/// It applies to documents extracted afterwards.
+/// Matching changes invalidate existing results; reason-only changes do not.
 #[utoipa::path(
     tag = "correlation",
     operation_id = "updateCorrelationOption",
@@ -137,7 +138,7 @@ async fn update(
 
 /// Delete a correlation option.
 ///
-/// It applies to documents extracted afterwards.
+/// Invalidates existing extraction results if the option existed.
 #[utoipa::path(
     tag = "correlation",
     operation_id = "deleteCorrelationOption",

@@ -73,6 +73,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                     <p>{ err.clone() }</p>
                 </Alert>
             } else if let Some(data) = &*result {
+                { crate::freshness::freshness_banner(&data.freshness) }
                 <CorrelationContent
                     sbom_id={data.sbom_id}
                     verdicts={data.verdicts.clone()}
@@ -489,7 +490,7 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
                 icon={Icon::CheckCircle}
                 size={Size::XXXXLarge}
             >
-                { "No correlation evidence found for this SBOM. Run the correlation engine first." }
+                { "No correlation matches found for this SBOM." }
             </EmptyState>
         };
     }

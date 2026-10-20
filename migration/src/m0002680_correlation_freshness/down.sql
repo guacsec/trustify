@@ -1,0 +1,10 @@
+DROP TRIGGER correlation_extraction_invalidate ON correlation_option;
+DROP FUNCTION correlation_extraction_invalidate();
+DROP TRIGGER correlation_extraction_state_insert ON sbom;
+DROP FUNCTION correlation_extraction_state_insert();
+DROP TABLE correlation_refresh_outcome;
+DROP TABLE correlation_refresh_job;
+DROP TABLE correlation_extraction_state;
+DROP FUNCTION correlation_extraction_count_update();
+DROP TABLE correlation_extraction_count;
+DROP TABLE correlation_extraction_revision;
