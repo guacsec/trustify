@@ -14,7 +14,7 @@ in a scenario's review; they are not general CSAF rules.
 | [S4](S4_wrongproduct_satellite_chardet/README.md) | Migrated | Unrelated Satellite statements yield no verdict, not an explicit negative |
 | [S5](S5_positive_baseline_openssl_el8/README.md) | Migrated | At-fix is fixed; upstream CVE and CSAF tested separately |
 | [S7](S7_cpeonly_node_hummingbird/README.md) | Interpretation unresolved | Product CPE plus package name needs an explicit publisher policy |
-| [S8](S8_epoch_mismatch_openjdk/README.md) | Migrated concrete cases | Below-fix examples do not prove general epoch invariance |
+| [S8](S8_epoch_mismatch_openjdk/README.md) | Migrated | Missing RPM epoch means zero; additional boundary controls would strengthen regression coverage |
 | [S9](S9_substream_openssl_el8/README.md) | Migrated | At-fix is fixed; own-stream rule is explicit |
 | [S10](S10_combined_describing_cpe/README.md) | Migrated | Assert each component; isolate CVE, CSAF, and OSV inputs |
 | [S11](S11_bareaffected_substream_firefox/README.md) | Migrated | Module qualifiers prevent the Flatpak negative from applying to base Firefox |
@@ -65,7 +65,8 @@ harness does not establish that those legacy endpoints satisfy the migrated expe
 
 - S7 needs an accepted interpretation of package-associated product CPEs, consistent with S27's
   identifier-synonym handling.
-- S8 needs at/above-fix and conflicting-epoch controls before specifying a general missing-epoch policy.
+- S8 has a regression-coverage follow-up: add at/above-fix controls with omitted, explicit zero,
+  and nonzero epochs. RPM already defines missing epoch as zero; there is no unresolved policy.
 - S18 still exposes architecture-insensitive PURL matching and unsupported Debian/BSD range comparison.
 - S21 lacks CPE `first_*`/`last_*` status handling; S22 retains a generic-version range limitation.
 - S23 accepts an affected verdict with a conflict for `openssl` / CVE-2025-9230 because broad GA and

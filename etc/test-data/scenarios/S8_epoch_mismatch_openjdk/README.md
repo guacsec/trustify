@@ -9,12 +9,21 @@ Under the configured Red Hat first-fix policy, all three CVEs are expected `affe
 CVE-only runs require no evidence: these upstream records provide no usable identifiers for the RPM.
 CSAF-only and combined runs independently check the affected results.
 
-The original claim that epoch is irrelevant metadata and must always be borrowed from an advisory
-is withdrawn. The [RPM PURL definition](https://github.com/package-url/purl-spec/blob/main/docs/types/definitions/rpm-definition.md)
-makes the qualifier optional, but that does not establish a general epoch-invariant comparison rule.
-These two below-fix samples alone cannot distinguish omitted-epoch comparison policies.
-A general missing-epoch policy needs separate at/above-fix and conflicting-epoch controls before
-it can be specified. This scenario only accepts the concrete below-fix results.
+RPM defines an omitted epoch as zero: “Non-existent epoch is exactly equal to zero epoch in all
+version comparisons.” See the [RPM spec-file documentation](https://rpm.org/docs/4.20.x/manual/spec.html#epoch).
+The implementation follows this rule. Epoch is compared before version and release, and must not
+be ignored or borrowed from the advisory. An SBOM that accidentally drops a nonzero epoch has
+lost package information; that does not change RPM's comparison semantics.
+
+The existing below-fix fixtures pass, but would also pass if epoch handling were broken because
+their version-release is already below the fix. Additional regression controls should cover
+at/above-fix version-releases with omitted, explicit zero, and nonzero epochs. Omitted epoch and
+explicit zero must behave identically: both compare below this epoch-1 fix even when their
+version-release is at or above its version-release. With epoch 1, the same boundary samples
+should be fixed under the configured first-fix policy. A higher-epoch sample with a lower
+version-release would additionally verify that epoch takes precedence.
+This is a test-coverage follow-up, not an unresolved missing-epoch policy or an identified
+implementation defect.
 Both SBOM formats are covered; advisory inputs are unmodified.
 
 ## Review basis

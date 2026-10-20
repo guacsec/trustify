@@ -85,9 +85,11 @@
   package mappings before migrating the scenario. Preserve CNA/ADP provenance; do not assume
   every package-browser entry identifies an RPM. See the
   [S7 review](etc/test-data/scenarios/S7_cpeonly_node_hummingbird/README.md).
-- [ ] **S8 — Follow-up; existing cases pass:** Define missing-epoch behavior and add at/above-fix
-  and conflicting-epoch controls; the current below-fix samples do not establish general epoch
-  invariance. See the [S8 review](etc/test-data/scenarios/S8_epoch_mismatch_openjdk/README.md).
+- [ ] **S8 — Additional regression coverage; existing cases pass:** RPM defines an omitted epoch
+  as zero, and the implementation follows that rule. Add at/above-fix controls with omitted,
+  explicit zero, and nonzero epochs to detect regressions in epoch comparison. No missing-epoch
+  policy decision is outstanding. See the
+  [S8 review](etc/test-data/scenarios/S8_epoch_mismatch_openjdk/README.md).
 - [ ] **S19:** no published advisory with wildcard SKUs or model numbers has been found;
   `hbsa-2025-0004.json` is synthetic.
 - [ ] **S20:** the WAGO devices are identified by wildcard model numbers (`750-821?-????-????`),
