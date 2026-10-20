@@ -195,7 +195,7 @@ pub fn options_page() -> Html {
     };
 
     html! {
-        <PageSection>
+        <PageSection><Stack gutter=true>
             <Title level={Level::H1}>{ "Correlation Options" }</Title>
             <p>
                 { "Options enable an interpretation of the advisories of a publisher, e.g. that \
@@ -203,17 +203,27 @@ pub fn options_page() -> Html {
                    it. Changing matching settings makes existing results outdated." }
             </p>
             <p><Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View correlation status and refresh existing results" }</Link<AppRoute>></p>
-            <br />
 
             if let Some(err) = &*error {
                 <Alert title="Error" r#type={AlertType::Danger} inline=true>
                     <p>{ err.clone() }</p>
                 </Alert>
-                <br />
             }
+
+            <Toolbar>
+                <ToolbarContent>
+                    <ToolbarItem>
+                        <Button variant={ButtonVariant::Primary} onclick={on_add}>{ "Add option" }</Button>
+                    </ToolbarItem>
+                </ToolbarContent>
+            </Toolbar>
 
             if *loading && options.is_empty() {
                 <Bullseye><Spinner /></Bullseye>
+            } else if options.is_empty() {
+                <EmptyState title="No options" icon={Icon::Cubes} size={Size::Large}>
+                    { "Advisories are interpreted as stated. Add an option to enable an interpretation for a publisher." }
+                </EmptyState>
             } else {
                 <Table<Column, UseTableData<Column, MemoizedTableModel<OptionEntry>>>
                     {header}
@@ -221,10 +231,7 @@ pub fn options_page() -> Html {
                     mode={TableMode::Compact}
                 />
             }
-
-            <br />
-            <Button variant={ButtonVariant::Primary} onclick={on_add}>{ "Add option" }</Button>
-        </PageSection>
+        </Stack></PageSection>
     }
 }
 

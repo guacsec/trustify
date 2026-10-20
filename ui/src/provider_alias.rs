@@ -92,7 +92,11 @@ fn provider_alias_table(props: &ProviderAliasTableProps) -> Html {
     });
     let (entries, _) = use_table_data(MemoizedTableModel::new(entries));
     if props.aliases.is_empty() {
-        return html! {<p>{"No provider aliases configured."}</p>};
+        return html! {
+            <EmptyState title="No provider aliases" icon={Icon::Cubes} size={Size::Large}>
+                { "Each stated identifier is its own provider. Add a provider alias to map identifiers to a canonical provider." }
+            </EmptyState>
+        };
     }
     let header = html_nested! {
         <TableHeader<AliasColumn>>
@@ -259,10 +263,16 @@ pub fn provider_alias_page() -> Html {
     let add = Callback::from(move |_: MouseEvent| open.emit(None));
     html! {
         <PageSection><Stack gutter=true>
-            <Title level={Level::H2}>{"Provider aliases"}</Title>
+            <Title level={Level::H1}>{"Provider aliases"}</Title>
             <p>{"Map the identifiers stated in SBOMs and advisories to a canonical provider. Verdict resolution prefers assertions from the same provider as the SBOM component. Exact identifiers only: name:Acme, namespace:https://acme.example, cve-org:UUID, purl:rpm/acme, distro:acme, cpe-vendor:acme."}</p>
             if let Some(e)=&*error {<Alert title="Settings error" r#type={AlertType::Danger} inline=true><p>{e}</p></Alert>}
-            <div><Button variant={ButtonVariant::Primary} onclick={add}>{"Add provider alias"}</Button></div>
+            <Toolbar>
+                <ToolbarContent>
+                    <ToolbarItem>
+                        <Button variant={ButtonVariant::Primary} onclick={add}>{"Add provider alias"}</Button>
+                    </ToolbarItem>
+                </ToolbarContent>
+            </Toolbar>
             <ProviderAliasTable aliases={(*aliases).clone()} on_edit={edit} on_delete={delete}/>
         </Stack></PageSection>
     }
