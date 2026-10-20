@@ -25,12 +25,7 @@ pub fn status_label(status: FreshnessStatus) -> &'static str {
 struct DocumentFilter(Option<FreshnessStatus>);
 
 impl DocumentFilter {
-    const ALL: [Self; 4] = [
-        Self(None),
-        Self(Some(FreshnessStatus::Stale)),
-        Self(Some(FreshnessStatus::Unknown)),
-        Self(Some(FreshnessStatus::Current)),
-    ];
+    const ALL: [Self; 2] = [Self(None), Self(Some(FreshnessStatus::Current))];
 }
 
 impl Display for DocumentFilter {
@@ -279,7 +274,7 @@ pub fn freshness_page() -> Html {
             }
             if let Some(data) = &*view {
                 <Gallery gutter=true>
-                    { for [("Total SBOMs", data.overview.total), ("Current", data.overview.current), ("Outdated", data.overview.stale), ("Not yet checked", data.overview.unknown), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {
+                    { for [("Current", data.overview.current), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {
                         <Card>
                             <CardBody>
                                 <Flex space_items={[SpaceItems::Small]} modifiers={[FlexModifier::Align(Alignment::Center)]}>
