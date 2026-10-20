@@ -18,6 +18,9 @@ concurrency:
   group: benchmark-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  POSTGRESQL_VERSION: "=17.2.1"
+
 jobs:
 
   bench:
@@ -55,6 +58,8 @@ jobs:
 
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: postgresql-${{ env.POSTGRESQL_VERSION }}
 
       - name: Setup cargo-binstall
         env:
