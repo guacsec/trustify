@@ -97,6 +97,13 @@ jobs:
       - run: df -h
 
       - uses: actions/checkout@v5
+
+      - name: Ensure PostgreSQL timezone data
+        run: |
+          # The embedded PostgreSQL binary reads timezone data from the host.
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall tzdata
+
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt
