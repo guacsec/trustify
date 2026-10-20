@@ -7,21 +7,49 @@ Empty maps mean no applicable evidence. Explicit `not_affected` and `fixed` rema
 Publisher conventions such as Red Hat `fixed_is_first_fixed` and `versionless_purl` must be named
 in a scenario's review; they are not general CSAF rules.
 
-## Migration review
+## Scenario status
 
-| Scenario | Disposition | Main correction or remaining question |
+This table records the review of `92ac7ba20` against local `main` at `eddf6345c` on
+2026-10-19. The correlation module test run passed 246 tests with no failures or ignored tests,
+including 78 common-harness tests. “Passing” refers to that run, not a fresh validation of every
+subsequent commit. S8's documentation was clarified on 2026-10-20: missing RPM epoch means zero;
+its remaining follow-up is additional regression coverage.
+
+These results describe the new correlation engine. Most legacy fundamental-API scenario tests
+remain ignored; `main` was compared through source and expectations, not executed separately.
+
+| Scenario | State | Remaining gap or notable change |
 |---|---|---|
-| [S4](S4_wrongproduct_satellite_chardet/README.md) | Migrated | Unrelated Satellite statements yield no verdict, not an explicit negative |
-| [S5](S5_positive_baseline_openssl_el8/README.md) | Migrated | At-fix is fixed; upstream CVE and CSAF tested separately |
-| [S7](S7_cpeonly_node_hummingbird/README.md) | Interpretation unresolved | Product CPE plus package name needs an explicit publisher policy |
-| [S8](S8_epoch_mismatch_openjdk/README.md) | Migrated | Missing RPM epoch means zero; additional boundary controls would strengthen regression coverage |
-| [S9](S9_substream_openssl_el8/README.md) | Migrated | At-fix is fixed; own-stream rule is explicit |
-| [S10](S10_combined_describing_cpe/README.md) | Migrated | Assert each component; isolate CVE, CSAF, and OSV inputs |
-| [S11](S11_bareaffected_substream_firefox/README.md) | Migrated | Module qualifiers prevent the Flatpak negative from applying to base Firefox |
-| [S12](S12_notaffected_ignored_thunderbird/README.md) | Original and control migrated | Removing the negative leaves no evidence; extended-support fixes do not apply to the mainline package |
-| [S15](S15_versioncmp_rpm_openssh/README.md) | Migrated | Mainline minor fallback is allowed; patched builds are fixed |
-| [S17](S17_crossproduct_ocp_kernel_go/README.md) | Migrated | Unrelated kernel has no verdict; patched Go builds are fixed |
-| [S30](S30_crossproduct_curl_notaffected/README.md) | Migrated | RHEL 8 explicit negative; RHEL 9 patched builds fixed |
+| [S1 — bind-libs streams](S1_crossstream_bind-libs/README.md) | Passing | Distinguishes fixed, explicit negative, and no verdict |
+| [S2 — golang product/scheme](S2_wrongscheme_golang_oci/README.md) | Passing | Official PURL-bearing VEX replaces synthetic bare-name input |
+| [S3 — curl wrong product](S3_wrongproduct_hummingbird_curl/README.md) | Passing | Product isolation and explicit statuses |
+| [S4 — Satellite/chardet](S4_wrongproduct_satellite_chardet/README.md) | Passing | Unrelated statements produce no verdict |
+| [S5 — OpenSSL baseline](S5_positive_baseline_openssl_el8/README.md) | Passing | At-fix correctly yields fixed |
+| [S6 — urllib3 OSV](S6_positive_baseline_osv_urllib3/README.md) | Passing | Multiple affected intervals; outside ranges yields no verdict |
+| [S7 — Hummingbird package/CPE](S7_cpeonly_node_hummingbird/README.md) | Unresolved | Package identity versus product-context interpretation |
+| [S8 — OpenJDK epoch](S8_epoch_mismatch_openjdk/README.md) | Passing | Missing epoch means zero; additional boundary tests would strengthen coverage |
+| [S9 — OpenSSL substream](S9_substream_openssl_el8/README.md) | Passing | Own-stream fix selection |
+| [S10 — combined SBOM](S10_combined_describing_cpe/README.md) | Passing | Component-level expectations and isolated advisory formats |
+| [S11 — Firefox](S11_bareaffected_substream_firefox/README.md) | Passing | Module qualifiers prevent Flatpak negatives leaking to base packages |
+| [S12 — Thunderbird](S12_notaffected_ignored_thunderbird/README.md) | Passing | Negative-removal control also confirms no unrelated evidence |
+| [S13 — aliasless OSV](S13_aliasless_osv_drop/README.md) | Passing | Native GHSA ID preserved |
+| [S14 — Netty](S14_productstatus_versionfilter_netty/README.md) | Passing | Official VEX changes positive component to `netty-codec` |
+| [S15 — OpenSSH](S15_versioncmp_rpm_openssh/README.md) | Passing | Mainline-minor fallback changes below-fix `el8_10` to affected |
+| [S16 — cross-scheme query](S16_crossscheme_purlquery_golang/README.md) | Passing | Official PURL-bearing VEX; no OCI/Maven leakage |
+| [S17 — OCP/kernel/Go](S17_crossproduct_ocp_kernel_go/README.md) | Passing | Unrelated kernel excluded; patched Go fixed |
+| [S18 — digests](S18_digest_correlation/README.md) | Focused tests passing | No common verdict manifest; architecture/range limitations noted in review |
+| [S19 — hardware identifiers](S19_sku_correlation/README.md) | Focused tests passing | No common verdict manifest; wildcard advisory is synthetic |
+| [S20 — WAGO CPE ranges](S20_cpe_range_wago/README.md) | Passing | CycloneDX only |
+| [S21 — CPE extended attributes](S21_cpe_extended_attributes_beckhoff/README.md) | Passing fixtures | Missing CPE boundary-status handling; CycloneDX only |
+| [S22 — third-party OpenSSL CPE](S22_cpe_third_party_openssl_phoenix/README.md) | Passing fixtures | Generic-version range limitation; CycloneDX only |
+| [S23 — SUSE codestreams](S23_suse_codestream_openssl/README.md) | Passing with conflict | Broad GA/SP6 context overlap remains |
+| [S24 — RHEL 10 minors](S24_rhel10_minor_streams_ubi10/README.md) | Passing | CycloneDX only |
+| [S25 — CVE packageURL](S25_cve_package_url/README.md) | Passing | CycloneDX only |
+| [S26 — CVE cpeApplicability](S26_cve_cpe_applicability_kernel/README.md) | Passing | CycloneDX only |
+| [S27 — identifier synonyms](S27_cve_identifier_synonyms_log4j/README.md) | Passing | CycloneDX only; relevant to resolving S7 |
+| [S28 — fixed then regression](S28_fixed_then_regression/README.md) | Passing | Explicit regression overrides inferred fix |
+| [S29 — provider precedence](S29_provider_weighting/README.md) | Passing | Provider aliases and temporary context covered |
+| [S30 — curl cross-product](S30_crossproduct_curl_notaffected/README.md) | Passing | Renamed from `main`'s original S18 |
 
 ## Current coverage
 
