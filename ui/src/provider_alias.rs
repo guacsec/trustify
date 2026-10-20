@@ -1,6 +1,6 @@
 use crate::{api, resolution::text_field};
 use patternfly_yew::prelude::*;
-use trustify_api::correlation::{ProviderAlias, ProviderAliasData};
+use trustify_api::correlation::{ProviderAlias, ProviderAliasData, ProviderAliasIdentifier};
 use uuid::Uuid;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -29,17 +29,8 @@ impl TableEntryRenderer<AliasColumn> for AliasEntry {
             AliasColumn::Identifiers => html! {
                 <Stack gutter=true>
                     {for self.alias.data.aliases.iter().map(|alias| {
-                        let (kind,value)=alias.split_once(':').unwrap_or(("",alias));
-                        let label=match kind {
-                            "name"=>"Name",
-                            "namespace"=>"Namespace",
-                            "cve-org"=>"CVE organization",
-                            "purl"=>"Package namespace",
-                            "distro"=>"Distribution",
-                            "cpe-vendor"=>"CPE vendor",
-                            _=>"Identifier",
-                        };
-                        let value=if label=="Identifier" {alias.as_str()} else {value};
+                        let label = alias.label();
+                        let value = alias.value();
                         html!{
                             <StackItem>
                                 <Flex space_items={[SpaceItems::Small]}>
@@ -132,7 +123,14 @@ fn alias_dialog(props: &AliasDialogProps) -> Html {
         props
             .alias
             .as_ref()
-            .map(|a| a.data.aliases.join("\n"))
+            .map(|a| {
+                a.data
+                    .aliases
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
             .unwrap_or_default()
     });
     let error = use_state(|| None::<String>);
@@ -151,13 +149,21 @@ fn alias_dialog(props: &AliasDialogProps) -> Html {
         let id = props.alias.as_ref().map(|a| a.id);
         let on_saved = props.on_saved.clone();
         Callback::from(move |_: MouseEvent| {
+            let aliases = alias_text
+                .lines()
+                .filter(|v| !v.trim().is_empty())
+                .map(str::parse::<ProviderAliasIdentifier>)
+                .collect::<Result<Vec<_>, _>>();
+            let aliases = match aliases {
+                Ok(aliases) => aliases,
+                Err(message) => {
+                    error.set(Some(message.into()));
+                    return;
+                }
+            };
             let data = ProviderAliasData {
                 provider: (*provider).clone(),
-                aliases: alias_text
-                    .lines()
-                    .filter(|v| !v.trim().is_empty())
-                    .map(str::to_string)
-                    .collect(),
+                aliases,
             };
             let token = token.clone();
             let error = error.clone();

@@ -289,7 +289,7 @@ fn fingerprint_tracks_aliases_and_context_but_not_explanation_flag() {
             revision: Uuid::nil(),
             data: ProviderAliasData {
                 provider: "A".into(),
-                aliases: vec!["name:acme".into()],
+                aliases: vec![ProviderAliasIdentifier::Name("acme".into())],
             },
         },
         ProviderAlias {
@@ -297,7 +297,7 @@ fn fingerprint_tracks_aliases_and_context_but_not_explanation_flag() {
             revision: Uuid::nil(),
             data: ProviderAliasData {
                 provider: "B".into(),
-                aliases: vec!["name:other".into()],
+                aliases: vec![ProviderAliasIdentifier::Name("other".into())],
             },
         },
     ];

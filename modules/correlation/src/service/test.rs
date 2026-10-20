@@ -416,7 +416,9 @@ async fn scenario(
                 None,
                 crate::model::ProviderAliasData {
                     provider: provider.into(),
-                    aliases: vec![format!("name:Provider {provider}")],
+                    aliases: vec![crate::model::ProviderAliasIdentifier::Name(format!(
+                        "Provider {provider}"
+                    ))],
                 },
                 &tx,
             )
@@ -687,7 +689,9 @@ async fn provider_aliases_and_context_preview(ctx: &TrustifyContext) -> anyhow::
             None,
             ProviderAliasData {
                 provider: provider.into(),
-                aliases: vec![format!("name:Provider {provider}")],
+                aliases: vec![crate::model::ProviderAliasIdentifier::Name(format!(
+                    "Provider {provider}"
+                ))],
             },
             &tx,
         )

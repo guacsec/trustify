@@ -29,12 +29,109 @@ pub struct ProviderIdentity {
     pub unavailable: bool,
 }
 
+/// An exact identifier mapped to a canonical provider.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+pub enum ProviderAliasIdentifier {
+    Name(String),
+    Namespace(String),
+    CveOrg(String),
+    /// Package type and namespace, for example `rpm/acme`.
+    Purl(String),
+    Distro(String),
+    CpeVendor(String),
+}
+
+impl ProviderAliasIdentifier {
+    pub fn value(&self) -> &str {
+        match self {
+            Self::Name(v)
+            | Self::Namespace(v)
+            | Self::CveOrg(v)
+            | Self::Purl(v)
+            | Self::Distro(v)
+            | Self::CpeVendor(v) => v,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Name(_) => "Name",
+            Self::Namespace(_) => "Namespace",
+            Self::CveOrg(_) => "CVE organization",
+            Self::Purl(_) => "Package namespace",
+            Self::Distro(_) => "Distribution",
+            Self::CpeVendor(_) => "CPE vendor",
+        }
+    }
+
+    /// Apply the same normalization as identifiers stated by ingested documents.
+    pub fn normalized(&self) -> Self {
+        let value = self.value().trim();
+        match self {
+            Self::Name(_) => Self::Name(
+                value
+                    .strip_prefix("Organization:")
+                    .unwrap_or(value)
+                    .trim()
+                    .to_lowercase(),
+            ),
+            Self::Namespace(_) => Self::Namespace(value.trim_end_matches('/').into()),
+            Self::CveOrg(_) => Self::CveOrg(value.trim_end_matches('/').into()),
+            Self::Purl(_) => Self::Purl(value.trim_end_matches('/').into()),
+            Self::Distro(_) => Self::Distro(value.trim_end_matches('/').into()),
+            Self::CpeVendor(_) => Self::CpeVendor(value.trim_end_matches('/').into()),
+        }
+    }
+}
+
+/// Prefix encoding used by ingested identities, stored aliases, and text input.
+impl std::fmt::Display for ProviderAliasIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match self {
+            Self::Name(_) => "name",
+            Self::Namespace(_) => "namespace",
+            Self::CveOrg(_) => "cve-org",
+            Self::Purl(_) => "purl",
+            Self::Distro(_) => "distro",
+            Self::CpeVendor(_) => "cpe-vendor",
+        };
+        write!(f, "{kind}:{}", self.value())
+    }
+}
+
+impl std::str::FromStr for ProviderAliasIdentifier {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (kind, value) = value.trim().split_once(':').ok_or("Expected kind:value")?;
+        if value.trim().is_empty() {
+            return Err("Alias value must not be empty");
+        }
+        Ok(match kind {
+            "name" => Self::Name(value.into()),
+            "namespace" => Self::Namespace(value.into()),
+            "cve-org" => Self::CveOrg(value.into()),
+            "purl" => Self::Purl(value.into()),
+            "distro" => Self::Distro(value.into()),
+            "cpe-vendor" => Self::CpeVendor(value.into()),
+            _ => return Err("Unknown provider alias kind"),
+        })
+    }
+}
+
 /// An explicit mapping of supplier names, namespaces, or build identifiers to one provider.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ProviderAliasData {
     pub provider: String,
-    pub aliases: Vec<String>,
+    pub aliases: Vec<ProviderAliasIdentifier>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -215,4 +312,90 @@ pub struct PreviewRequest {
 pub enum PreviewResult {
     Sbom(super::CorrelationResult),
     Identifier(super::QueryResult),
+}
+
+#[cfg(test)]
+mod provider_alias_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn identifiers_have_explicit_kinds_and_round_trip_storage_encoding() {
+        for (kind, encoded, identifier) in [
+            (
+                "name",
+                "name:Acme",
+                ProviderAliasIdentifier::Name("Acme".into()),
+            ),
+            (
+                "namespace",
+                "namespace:https://acme.example",
+                ProviderAliasIdentifier::Namespace("https://acme.example".into()),
+            ),
+            (
+                "cve_org",
+                "cve-org:example",
+                ProviderAliasIdentifier::CveOrg("example".into()),
+            ),
+            (
+                "purl",
+                "purl:rpm/acme",
+                ProviderAliasIdentifier::Purl("rpm/acme".into()),
+            ),
+            (
+                "distro",
+                "distro:acme",
+                ProviderAliasIdentifier::Distro("acme".into()),
+            ),
+            (
+                "cpe_vendor",
+                "cpe-vendor:acme",
+                ProviderAliasIdentifier::CpeVendor("acme".into()),
+            ),
+        ] {
+            let value = json!({"kind": kind, "value": identifier.value()});
+            assert_eq!(serde_json::to_value(&identifier).unwrap(), value);
+            assert_eq!(
+                serde_json::from_value::<ProviderAliasIdentifier>(value).unwrap(),
+                identifier
+            );
+            assert_eq!(
+                encoded.parse::<ProviderAliasIdentifier>().unwrap(),
+                identifier
+            );
+            assert_eq!(identifier.to_string(), encoded);
+        }
+    }
+
+    #[test]
+    fn rejects_untyped_and_malformed_identifiers() {
+        for value in [
+            json!("name:Acme"),
+            json!({"kind": "unknown", "value": "Acme"}),
+            json!({"kind": "name"}),
+            json!({"kind": "name", "value": 42}),
+            json!({"kind": "name", "value": "Acme", "typo": true}),
+        ] {
+            assert!(serde_json::from_value::<ProviderAliasIdentifier>(value).is_err());
+        }
+        for encoded in ["Acme", "unknown:Acme", "name:", "name:  "] {
+            assert!(encoded.parse::<ProviderAliasIdentifier>().is_err());
+        }
+    }
+
+    #[test]
+    fn normalization_preserves_identifier_kind() {
+        assert_eq!(
+            ProviderAliasIdentifier::Name(" Organization: ACME ".into()).normalized(),
+            ProviderAliasIdentifier::Name("acme".into())
+        );
+        assert_eq!(
+            ProviderAliasIdentifier::Namespace(" https://Acme.example/ ".into()).normalized(),
+            ProviderAliasIdentifier::Namespace("https://Acme.example".into())
+        );
+        assert_ne!(
+            ProviderAliasIdentifier::Name("acme".into()),
+            ProviderAliasIdentifier::Distro("acme".into())
+        );
+    }
 }

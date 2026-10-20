@@ -57,7 +57,7 @@ impl ResolutionContext {
                     a.data
                         .aliases
                         .iter()
-                        .any(|v| normalize_reference(v) == identifier)
+                        .any(|v| v.normalized().to_string() == identifier)
                 })
                 .map(|a| a.data.provider.trim_end_matches('/').to_string())
                 .collect::<Vec<_>>();
@@ -95,19 +95,10 @@ impl ResolutionContext {
 }
 
 pub fn normalize_reference(value: &str) -> String {
-    let value = value.trim();
-    if let Some(name) = value.strip_prefix("name:") {
-        format!(
-            "name:{}",
-            name.trim()
-                .strip_prefix("Organization:")
-                .unwrap_or(name)
-                .trim()
-                .to_lowercase()
-        )
-    } else {
-        value.trim_end_matches('/').to_string()
-    }
+    value
+        .parse::<ProviderAliasIdentifier>()
+        .map(|identifier| identifier.normalized().to_string())
+        .unwrap_or_else(|_| value.trim().trim_end_matches('/').to_string())
 }
 
 /// Matches the provider of an assertion against the provider of the component.

@@ -60,7 +60,7 @@ async fn correlation_capability_disabled(
     .await;
     let id = Uuid::new_v4();
     let option = json!({"key":"versionless_purl", "publisher_namespace":"https://example.com", "value":true});
-    let alias = json!({"provider":"example", "aliases":["name:Example"]});
+    let alias = json!({"provider":"example", "aliases":[{"kind":"name","value":"Example"}]});
     let cases = [
         (Method::GET, format!("sbom/{id}"), None),
         (
@@ -407,19 +407,39 @@ async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow:
         .call_service(
             TestRequest::post()
                 .uri(&format!("{base}/provider-alias"))
-                .set_json(json!({"provider":"A/","aliases":["name:Acme"]}))
+                .set_json(json!({"provider":"A/","aliases":[{"kind":"name","value":"Acme"}]}))
                 .to_request(),
         )
         .await;
     assert_eq!(response.status(), 201);
     let alias: Value = actix_web::test::read_body_json(response).await;
     assert_eq!(alias["provider"], "A");
+    assert_eq!(alias["aliases"], json!([{"kind":"name","value":"acme"}]));
     let id = alias["id"].as_str().unwrap();
+    for aliases in [
+        json!(["name:Acme"]),
+        json!([{"kind":"unknown","value":"Acme"}]),
+        json!([{"kind":"name"}]),
+        json!([{"kind":"name","value":"  "}]),
+        json!([{"kind":"namespace","value":" / "}]),
+        json!([{"kind":"name","value":"Organization: "}]),
+        json!([]),
+    ] {
+        let response = app
+            .call_service(
+                TestRequest::post()
+                    .uri(&format!("{base}/provider-alias"))
+                    .set_json(json!({"provider":"invalid","aliases":aliases}))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(response.status(), 400);
+    }
     let response = app
         .call_service(
             TestRequest::post()
                 .uri(&format!("{base}/provider-alias"))
-                .set_json(json!({"provider":"B","aliases":["name:ACME"]}))
+                .set_json(json!({"provider":"B","aliases":[{"kind":"name","value":"ACME"}]}))
                 .to_request(),
         )
         .await;
@@ -428,7 +448,7 @@ async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow:
         .call_service(
             TestRequest::put()
                 .uri(&format!("{base}/provider-alias/{id}"))
-                .set_json(json!({"provider":"A","aliases":["name:Acme", "name:Acme Inc."]}))
+                .set_json(json!({"provider":"A","aliases":[{"kind":"name","value":"Acme"}, {"kind":"name","value":"Acme Inc."}]}))
                 .to_request(),
         )
         .await;

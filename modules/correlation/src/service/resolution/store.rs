@@ -1,4 +1,4 @@
-use super::provider::{ResolutionContext, normalize_reference};
+use super::provider::ResolutionContext;
 use crate::{error::Error, extractor::context::format_cpe, model::*};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
@@ -267,7 +267,15 @@ pub async fn list_aliases(connection: &impl ConnectionTrait) -> Result<Vec<Provi
             revision: r.revision,
             data: ProviderAliasData {
                 provider: r.provider,
-                aliases: serde_json::from_value(r.aliases).map_err(Error::MatchedValue)?,
+                aliases: serde_json::from_value::<Vec<String>>(r.aliases)
+                    .map_err(Error::MatchedValue)?
+                    .into_iter()
+                    .map(|alias| {
+                        alias
+                            .parse()
+                            .map_err(|err: &str| Error::MatchedValue(serde::de::Error::custom(err)))
+                    })
+                    .collect::<Result<_, _>>()?,
             },
         })
     })
@@ -283,12 +291,12 @@ pub async fn save_alias(
     data.aliases = data
         .aliases
         .iter()
-        .map(|v| normalize_reference(v))
+        .map(ProviderAliasIdentifier::normalized)
         .collect();
     data.aliases.sort();
     data.aliases.dedup();
     if data.provider.is_empty()
-        || data.aliases.iter().any(String::is_empty)
+        || data.aliases.iter().any(|alias| alias.value().is_empty())
         || data.aliases.is_empty()
     {
         return Err(Error::BadRequest(
@@ -310,7 +318,7 @@ pub async fn save_alias(
                 || a.data
                     .aliases
                     .iter()
-                    .any(|alias| data.aliases.contains(&normalize_reference(alias))))
+                    .any(|alias| data.aliases.contains(&alias.normalized())))
     }) {
         return Err(Error::Conflict(
             "Provider or alias already belongs to another mapping".into(),
@@ -321,7 +329,13 @@ pub async fn save_alias(
         revision: Uuid::now_v7(),
         data,
     };
-    connection.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,"INSERT INTO correlation_provider_alias(id,revision,provider,aliases) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET revision=$2,provider=$3,aliases=$4",[result.id.into(),result.revision.into(),result.data.provider.clone().into(),serde_json::json!(result.data.aliases).into()])).await?;
+    let stored_aliases = result
+        .data
+        .aliases
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    connection.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,"INSERT INTO correlation_provider_alias(id,revision,provider,aliases) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET revision=$2,provider=$3,aliases=$4",[result.id.into(),result.revision.into(),result.data.provider.clone().into(),serde_json::json!(stored_aliases).into()])).await?;
     Ok(result)
 }
 
@@ -382,6 +396,7 @@ pub async fn provider_identifiers(
 
 #[cfg(test)]
 mod tests {
+    use super::super::provider::normalize_reference;
     use super::*;
 
     #[test]
@@ -408,7 +423,7 @@ mod tests {
                 revision: Uuid::nil(),
                 data: ProviderAliasData {
                     provider: "A".into(),
-                    aliases: vec!["name:Acme".into()],
+                    aliases: vec![ProviderAliasIdentifier::Name("Acme".into())],
                 },
             }],
             ..Default::default()
