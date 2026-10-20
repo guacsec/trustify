@@ -178,13 +178,26 @@ pub fn freshness_page() -> Html {
         })
     };
 
-    let filter_buttons = [(None, "Needs refreshing"), (Some(FreshnessStatus::Stale), "Outdated"), (Some(FreshnessStatus::Unknown), "Not yet checked"), (Some(FreshnessStatus::Current), "Current")].into_iter().map(|(value, label)| {
+    let selected_filter = match *filter {
+        None => "needs_refresh",
+        Some(FreshnessStatus::Stale) => "stale",
+        Some(FreshnessStatus::Unknown) => "unknown",
+        Some(FreshnessStatus::Current) => "current",
+    };
+    let onfilter = {
         let filter = filter.clone();
-        let selected = *filter == value;
         let pagination = pagination.clone();
-        let onclick = Callback::from(move |_: MouseEvent| { filter.set(value); pagination.onnavigation.emit(Navigation::First); });
-        html! { <Button {onclick} variant={if selected { ButtonVariant::Primary } else { ButtonVariant::Secondary }}>{ label }</Button> }
-    }).collect::<Html>();
+        Callback::from(move |value: Option<String>| {
+            let value = match value.as_deref() {
+                Some("stale") => Some(FreshnessStatus::Stale),
+                Some("unknown") => Some(FreshnessStatus::Unknown),
+                Some("current") => Some(FreshnessStatus::Current),
+                _ => None,
+            };
+            filter.set(value);
+            pagination.onnavigation.emit(Navigation::First);
+        })
+    };
 
     html! {
         <PageSection>
@@ -214,7 +227,30 @@ pub fn freshness_page() -> Html {
                     }
                 }
                 <Title level={Level::H2}>{ "Documents" }</Title>
-                <Toolbar><ToolbarContent><ToolbarItem>{filter_buttons}</ToolbarItem><ToolbarItem r#type={ToolbarItemType::Pagination}><SimplePagination pagination={pagination.clone()} {total} /></ToolbarItem></ToolbarContent></Toolbar>
+                <Toolbar>
+                    <ToolbarContent>
+                        <ToolbarGroup variant={GroupVariant::Filter}>
+                            <ToolbarItem>
+                                <label for="correlation-document-status">{ "Status" }</label>
+                            </ToolbarItem>
+                            <ToolbarItem>
+                                <FormSelect<String>
+                                    id="correlation-document-status"
+                                    value={selected_filter.to_string()}
+                                    onchange={onfilter}
+                                >
+                                    <FormSelectOption<String> value="needs_refresh" description="Needs refreshing" />
+                                    <FormSelectOption<String> value="stale" description="Outdated" />
+                                    <FormSelectOption<String> value="unknown" description="Not yet checked" />
+                                    <FormSelectOption<String> value="current" description="Current" />
+                                </FormSelect<String>>
+                            </ToolbarItem>
+                        </ToolbarGroup>
+                        <ToolbarItem r#type={ToolbarItemType::Pagination}>
+                            <SimplePagination pagination={pagination.clone()} {total} />
+                        </ToolbarItem>
+                    </ToolbarContent>
+                </Toolbar>
                 if data.documents.is_empty() {
                     <p>{ "No documents in this category." }</p>
                 } else {
