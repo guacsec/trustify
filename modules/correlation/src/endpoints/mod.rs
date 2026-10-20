@@ -8,7 +8,7 @@ use crate::{
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Deserialize;
-use trustify_auth::{ReadAdvisory, authorizer::Require};
+use trustify_auth::{ReadAdvisory, ReadSbom, all, authorizer::Require};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache},
     model::Paginated,
@@ -34,6 +34,8 @@ mod option;
 mod resolution;
 #[cfg(test)]
 mod test;
+
+all!(ReadSbomCorrelation -> ReadSbom, ReadAdvisory);
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
@@ -67,6 +69,8 @@ pub fn configure(
     ),
     responses(
         (status = 200, description = "Correlation verdicts for the SBOM", body = CorrelationResult),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "Insufficient permissions"),
     ),
 )]
 #[get("/v3/correlation/sbom/{id}")]
@@ -75,6 +79,7 @@ async fn get_sbom_correlation(
     params: web::Query<SbomCorrelationParams>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
+    _: Require<ReadSbomCorrelation>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     freshness::snapshot(&tx).await?;
@@ -107,6 +112,8 @@ const MAX_VERDICT_COUNT_SBOMS: usize = 1000;
     responses(
         (status = 200, description = "Verdict counts per SBOM", body = Vec<SbomVerdictCounts>),
         (status = 400, description = "Too many SBOMs requested"),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "Insufficient permissions"),
     ),
 )]
 #[post("/v3/correlation/verdict-counts")]
@@ -114,6 +121,7 @@ async fn count_verdicts(
     web::Json(request): web::Json<VerdictCountsRequest>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
+    _: Require<ReadSbomCorrelation>,
 ) -> Result<impl Responder, Error> {
     if request.sbom_ids.len() > MAX_VERDICT_COUNT_SBOMS {
         return Err(Error::BadRequest(format!(
@@ -151,6 +159,8 @@ struct IdentifierQuery {
     params(IdentifierQuery),
     responses(
         (status = 200, description = "Matching advisories and vulnerabilities", body = QueryResult),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "Insufficient permissions"),
     ),
 )]
 #[get("/v3/correlation/query")]
@@ -158,6 +168,7 @@ async fn query_correlation(
     params: web::Query<IdentifierQuery>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
+    _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let IdentifierQuery {

@@ -144,11 +144,12 @@ fn require_permission(
     authorizer: &Authorizer,
     user: &UserInformation,
 ) -> Result<(), Error> {
-    if let Some(permission) = format.required_permission() {
-        authorizer
-            .require(user, permission)
-            .map_err(|_| Error::Forbidden(format!("permission '{permission}' required")))?;
-    }
+    let permission = format.required_permission().ok_or_else(|| {
+        Error::UnsupportedFormat(format!("cannot authorize unresolved format '{format}'"))
+    })?;
+    authorizer
+        .require(user, permission)
+        .map_err(|_| Error::Forbidden(format!("permission '{permission}' required")))?;
     Ok(())
 }
 
@@ -160,6 +161,7 @@ fn require_permission(
     responses(
         (status = 201, description = "Document ingested successfully"),
         (status = 400, description = "The file could not be parsed"),
+        (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "Insufficient permissions for this document type"),
     )
 )]
@@ -213,6 +215,7 @@ pub async fn upload_document(
     responses(
         (status = 201, description = "Document fetched and ingested"),
         (status = 400, description = "The document could not be parsed"),
+        (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "Insufficient permissions for this document type"),
         (status = 502, description = "Failed to download the document from the given URL"),
     )
@@ -289,4 +292,20 @@ pub async fn upload_document_from_url(
     tracing::info!("Ingested document from URL {}: {}", body.url, result.id);
 
     Ok(HttpResponse::Created().json(result))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn unresolved_formats_cannot_skip_authorization() {
+        let authorizer = Authorizer::new(None);
+        for format in [Format::Unknown, Format::Advisory, Format::SBOM] {
+            assert!(matches!(
+                require_permission(format, &authorizer, &UserInformation::Anonymous),
+                Err(Error::UnsupportedFormat(_))
+            ));
+        }
+    }
 }

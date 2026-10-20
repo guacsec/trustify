@@ -1,9 +1,14 @@
 use actix_web::{
-    App,
+    App, HttpMessage,
     test::{TestRequest, call_service},
+    web,
 };
 use test_context::test_context;
 use test_log::test;
+use trustify_auth::{
+    authenticator::user::{UserDetails, UserInformation},
+    authorizer::{Authorizer, AuthorizerConfig},
+};
 use trustify_common::db::{ReadOnly, ReadWrite, pagination_cache::PaginationCache};
 use trustify_test_context::TrustifyContext;
 use utoipa_actix_web::AppExt;
@@ -19,14 +24,98 @@ fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, ctx: &Tr
     );
 }
 
+/// Readers must have access to every kind of document used by a correlation request.
+#[test_context(TrustifyContext)]
+#[rstest::rstest]
+#[case::enabled(true)]
+#[case::disabled(false)]
+#[test_log::test(actix_web::test)]
+async fn correlation_read_permissions(
+    ctx: &TrustifyContext,
+    #[case] authorization_enabled: bool,
+) -> anyhow::Result<()> {
+    use serde_json::json;
+
+    let app = actix_web::test::init_service(
+        App::new()
+            .app_data(web::Data::new(Authorizer::new(
+                authorization_enabled.then(AuthorizerConfig::default),
+            )))
+            .into_utoipa_app()
+            .configure(|svc| configure(svc, ctx))
+            .into_app(),
+    )
+    .await;
+    let id = Uuid::new_v4();
+    let cases = [
+        (format!("/v3/correlation/sbom/{id}"), None, true),
+        (
+            "/v3/correlation/verdict-counts".into(),
+            Some(json!({"sbom_ids": [id]})),
+            true,
+        ),
+        (
+            "/v3/correlation/query?kind=purl&q=pkg:generic/absent@1".into(),
+            None,
+            false,
+        ),
+        (
+            "/v3/correlation/preview".into(),
+            Some(json!({
+                "target": {"kind": "sbom", "sbom_id": id}, "resolution": {}
+            })),
+            true,
+        ),
+        (
+            "/v3/correlation/preview".into(),
+            Some(json!({
+                "target": {"kind": "identifier", "identifier": {"kind": "purl", "value": "pkg:generic/absent@1"}},
+                "resolution": {}
+            })),
+            false,
+        ),
+    ];
+    let permissions: &[Option<&[&str]>] = &[
+        None,
+        Some(&[]),
+        Some(&["read.correlationOption"]),
+        Some(&["read.sbom"]),
+        Some(&["read.advisory"]),
+        Some(&["read.sbom", "read.advisory"]),
+    ];
+    for (uri, body, needs_sbom) in cases {
+        for permissions in permissions {
+            let request = match &body {
+                Some(body) => TestRequest::post().uri(&uri).set_json(body),
+                None => TestRequest::get().uri(&uri),
+            }
+            .to_request();
+            if let Some(permissions) = permissions {
+                request
+                    .extensions_mut()
+                    .insert(UserInformation::Authenticated(UserDetails {
+                        id: "reader".into(),
+                        permissions: permissions.iter().map(|p| (*p).into()).collect(),
+                    }));
+            }
+            let granted = !authorization_enabled
+                || permissions.is_some_and(|p| {
+                    p.contains(&"read.advisory") && (!needs_sbom || p.contains(&"read.sbom"))
+                });
+            let response = call_service(&app, request).await;
+            assert_eq!(
+                response.status(),
+                if granted { 200 } else { 403 },
+                "{uri}: {permissions:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    use actix_web::{HttpMessage, web};
-    use trustify_auth::{
-        authenticator::user::{UserDetails, UserInformation},
-        authorizer::{Authorizer, AuthorizerConfig},
-    };
     let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
     let app = App::new()
         .app_data(web::Data::new(Authorizer::new(Some(
@@ -107,6 +196,7 @@ async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> an
 #[test(actix_web::test)]
 async fn empty_sbom_returns_empty_verdicts(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = App::new()
+        .app_data(web::Data::new(Authorizer::new(None)))
         .into_utoipa_app()
         .configure(|svc| {
             configure(svc, ctx);
@@ -132,6 +222,7 @@ async fn empty_sbom_returns_empty_verdicts(ctx: &TrustifyContext) -> anyhow::Res
 #[test(actix_web::test)]
 async fn query_requires_kind(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = App::new()
+        .app_data(web::Data::new(Authorizer::new(None)))
         .into_utoipa_app()
         .configure(|svc| {
             configure(svc, ctx);
@@ -166,6 +257,7 @@ async fn query_requires_kind(ctx: &TrustifyContext) -> anyhow::Result<()> {
 #[test(actix_web::test)]
 async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = App::new()
+        .app_data(web::Data::new(Authorizer::new(None)))
         .into_utoipa_app()
         .configure(|svc| {
             configure(svc, ctx);

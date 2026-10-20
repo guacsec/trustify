@@ -1197,6 +1197,104 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+  /api/v3/correlation/freshness:
+    get:
+      tags:
+      - correlation
+      operationId: getCorrelationFreshness
+      responses:
+        '200':
+          description: Freshness against matching settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreshnessOverview'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+  /api/v3/correlation/freshness/sbom:
+    get:
+      tags:
+      - correlation
+      operationId: listCorrelationFreshnessSboms
+      parameters:
+      - name: status
+        in: query
+        description: Omit to list all documents needing refresh.
+        required: false
+        schema:
+          oneOf:
+          - type: 'null'
+          - type: string
+            enum:
+            - current
+            - stale
+            - unknown
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Documents by freshness
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - sbom_id
+                      - name
+                      - freshness
+                      properties:
+                        freshness:
+                          $ref: '#/components/schemas/ExtractionFreshness'
+                        name:
+                          type: string
+                        sbom_id:
+                          type: string
+                          format: uuid
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
   /api/v3/correlation/option:
     get:
       tags:
@@ -1272,7 +1370,7 @@ paths:
       tags:
       - correlation
       summary: Create a correlation option.
-      description: It applies to documents extracted afterwards.
+      description: Invalidates existing extraction results; refresh them to apply the new settings.
       operationId: createCorrelationOption
       requestBody:
         content:
@@ -1326,7 +1424,7 @@ paths:
       tags:
       - correlation
       summary: Update a correlation option.
-      description: It applies to documents extracted afterwards.
+      description: Matching changes invalidate existing results; reason-only changes do not.
       operationId: updateCorrelationOption
       parameters:
       - name: id
@@ -1359,7 +1457,7 @@ paths:
       tags:
       - correlation
       summary: Delete a correlation option.
-      description: It applies to documents extracted afterwards.
+      description: Invalidates existing extraction results if the option existed.
       operationId: deleteCorrelationOption
       parameters:
       - name: id
@@ -1395,6 +1493,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PreviewResult'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
   /api/v3/correlation/provider-alias:
     get:
       tags:
@@ -1513,6 +1615,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QueryResult'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
+  /api/v3/correlation/refresh:
+    post:
+      tags:
+      - correlation
+      operationId: startCorrelationRefresh
+      responses:
+        '202':
+          description: Refresh queued, or existing active job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshJob'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '503':
+          description: Write database unavailable
+  /api/v3/correlation/refresh/{id}:
+    get:
+      tags:
+      - correlation
+      operationId: getCorrelationRefresh
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Refresh progress and paginated failures
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshJobDetails'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '404':
+          description: Unknown job
   /api/v3/correlation/sbom/{id}:
     get:
       tags:
@@ -1559,6 +1736,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CorrelationResult'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
   /api/v3/correlation/verdict-counts:
     post:
       tags:
@@ -1583,6 +1764,10 @@ paths:
                   $ref: '#/components/schemas/SbomVerdictCounts'
         '400':
           description: Too many SBOMs requested
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
   /api/v3/crypto/algorithm:
     get:
       tags:
@@ -5034,6 +5219,8 @@ paths:
           description: Document ingested successfully
         '400':
           description: The file could not be parsed
+        '401':
+          description: The user was not authenticated
         '403':
           description: Insufficient permissions for this document type
   /api/v3/upload/from-url:
@@ -5091,6 +5278,8 @@ paths:
           description: Document fetched and ingested
         '400':
           description: The document could not be parsed
+        '401':
+          description: The user was not authenticated
         '403':
           description: Insufficient permissions for this document type
         '502':
@@ -6335,6 +6524,8 @@ components:
       - sbom_id
       - verdicts
       properties:
+        freshness:
+          $ref: '#/components/schemas/ExtractionFreshness'
         sbom_id:
           type: string
           format: uuid
@@ -7003,6 +7194,27 @@ components:
           items:
             type: string
           description: warnings while parsing
+    ExtractionFreshness:
+      type: object
+      required:
+      - status
+      - required_revision
+      properties:
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_revision:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        required_revision:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/FreshnessStatus'
     Finding:
       type: object
       description: A single validation finding produced by a validator.
@@ -7041,6 +7253,57 @@ components:
       - cisakev
       - advisory
       - sbom
+      - unknown
+    FreshnessOverview:
+      type: object
+      required:
+      - revision
+      - checked_at
+      - total
+      - current
+      - stale
+      - unknown
+      - needs_refresh
+      properties:
+        active_job:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RefreshJob'
+        checked_at:
+          type: string
+          format: date-time
+        current:
+          type: integer
+          format: int64
+          minimum: 0
+        latest_job:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RefreshJob'
+        needs_refresh:
+          type: integer
+          format: int64
+          minimum: 0
+        revision:
+          type: integer
+          format: int64
+        stale:
+          type: integer
+          format: int64
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        unknown:
+          type: integer
+          format: int64
+          minimum: 0
+    FreshnessStatus:
+      type: string
+      enum:
+      - current
+      - stale
       - unknown
     FrontendInfo:
       type: object
@@ -9244,6 +9507,76 @@ components:
               $ref: '#/components/schemas/RecommendEntry'
           propertyNames:
             type: string
+    RefreshFailure:
+      type: object
+      required:
+      - sbom_id
+      - error
+      properties:
+        error:
+          type: string
+        sbom_id:
+          type: string
+          format: uuid
+    RefreshJob:
+      type: object
+      required:
+      - id
+      - revision
+      - status
+      - processed
+      - failed
+      - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        finished_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        processed:
+          type: integer
+          format: int64
+          description: Successfully processed documents. Failures are counted separately.
+          minimum: 0
+        revision:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/RefreshJobStatus'
+    RefreshJobDetails:
+      type: object
+      required:
+      - job
+      - failures
+      - failure_total
+      properties:
+        failure_total:
+          type: integer
+          format: int64
+          minimum: 0
+        failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefreshFailure'
+        job:
+          $ref: '#/components/schemas/RefreshJob'
+    RefreshJobStatus:
+      type: string
+      enum:
+      - queued
+      - running
+      - completed
+      - superseded
     Relationship:
       type: string
       enum:
@@ -9845,6 +10178,8 @@ components:
           type: integer
           format: int64
           minimum: 0
+        freshness:
+          $ref: '#/components/schemas/ExtractionFreshness'
         none:
           type: integer
           format: int64

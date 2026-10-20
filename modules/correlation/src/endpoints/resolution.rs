@@ -6,8 +6,10 @@ use crate::{
 use actix_web::{HttpResponse, Responder, delete, get, post, put, web};
 use sea_orm::TransactionTrait;
 use trustify_auth::{
-    CreateCorrelationOption, DeleteCorrelationOption, ReadCorrelationOption,
-    UpdateCorrelationOption, authorizer::Require,
+    CreateCorrelationOption, DeleteCorrelationOption, ReadAdvisory, ReadCorrelationOption,
+    UpdateCorrelationOption,
+    authenticator::user::UserInformation,
+    authorizer::{Authorizer, Require, Requirement},
 };
 use trustify_common::db;
 use uuid::Uuid;
@@ -59,15 +61,25 @@ async fn remove_alias(
     Ok(HttpResponse::NoContent().finish())
 }
 /// A preview changes request context only; it cannot write aliases or evidence.
-#[utoipa::path(tag="correlation",operation_id="previewCorrelation",request_body=PreviewRequest,responses((status=200,body=PreviewResult)))]
+#[utoipa::path(tag="correlation",operation_id="previewCorrelation",request_body=PreviewRequest,responses(
+    (status=200,body=PreviewResult),
+    (status=401,description="The user was not authenticated"),
+    (status=403,description="Insufficient permissions")
+))]
 #[post("/v3/correlation/preview")]
 async fn preview(
     db: web::Data<db::ReadOnly>,
     service: web::Data<CorrelationService>,
     data: web::Json<PreviewRequest>,
-) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
+    authorizer: web::Data<Authorizer>,
+    user: UserInformation,
+    _: Require<ReadAdvisory>,
+) -> Result<impl Responder, actix_web::Error> {
     let PreviewRequest { target, resolution } = data.into_inner();
+    if matches!(&target, PreviewTarget::Sbom { .. }) {
+        super::ReadSbomCorrelation::enforce(&authorizer, &user)?;
+    }
+    let tx = db.begin().await.map_err(Error::from)?;
     super::freshness::snapshot(&tx).await?;
     let result = match target {
         PreviewTarget::Sbom { sbom_id } => PreviewResult::Sbom(
