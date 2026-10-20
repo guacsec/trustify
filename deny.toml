@@ -11,6 +11,11 @@ ignore = [
     { id = "RUSTSEC-2026-0258", reason = "transitive dep via actix-http; h2 0.3.x EOL, no patch available" },
     # crypto-bigint: timing variability in constant-time ops (transitive via aws-sigv4/ecdsa)
     { id = "RUSTSEC-2026-0387", reason = "transitive dep via aws-sigv4/ecdsa; upstream crates not yet updated to >=0.7.6" },
+    # zip 3.0.0: build-only via utoipa-swagger-ui 9.0.2. Its latest published
+    # release still uses vulnerable zip 8.6; remove when it releases zip 9 support.
+    { id = "RUSTSEC-2026-0367", reason = "build-only zip 3.0.0 via utoipa-swagger-ui 9.0.2; awaiting a release with zip 9" },
+    { id = "RUSTSEC-2026-0368", reason = "build-only zip 3.0.0 via utoipa-swagger-ui 9.0.2; awaiting a release with zip 9" },
+    { id = "RUSTSEC-2026-0369", reason = "build-only zip 3.0.0 via utoipa-swagger-ui 9.0.2; awaiting a release with zip 9" },
     # Unmaintained, transitive via the yew stack of the correlation UI (wasm, not shipped
     # with the server)
     # bincode 1.3.3: via gloo-worker
