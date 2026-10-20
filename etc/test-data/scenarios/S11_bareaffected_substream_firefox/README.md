@@ -33,7 +33,7 @@ options are publisher policies, not universal CSAF rules. The advisory document 
 
 ## Existing data
 
-Migration `m0002600` adds the assertion's qualified PURL reference; older rows keep a null
+Migration `m0002560` adds the assertion's qualified PURL reference; older rows keep a null
 reference and their legacy matching behavior. It cannot reconstruct the original association
 from a base PURL alone. Remove affected advisories through the existing advisory deletion path
 and ingest their original documents afresh, then extract evidence again. Merely uploading an

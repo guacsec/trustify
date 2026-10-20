@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
             .execute_unprepared(
                 r#"
 DO $$ BEGIN
-    CREATE TYPE correlation_option_key AS ENUM ('versionless_purl');
+    CREATE TYPE correlation_option_key AS ENUM ('versionless_purl', 'fixed_is_first_fixed');
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
@@ -42,6 +42,15 @@ INSERT INTO correlation_option (id, key, publisher_namespace, value, reason) VAL
         'true',
         'SUSE states the status of a package in a product with a versionless PURL, meaning all versions.'
     )
+ON CONFLICT DO NOTHING;
+
+INSERT INTO correlation_option (id, key, publisher_namespace, value, reason) VALUES (
+    '019dc7a4-6a00-7000-8000-000000000003',
+    'fixed_is_first_fixed',
+    'https://www.redhat.com',
+    'true',
+    'Red Hat states `fixed` only for the build fixing a vulnerability in a product stream: earlier builds of the stream are affected, later ones are fixed.'
+)
 ON CONFLICT DO NOTHING;
 "#,
             )

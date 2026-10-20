@@ -1,3 +1,20 @@
+-- Preserve source identity and distinguish default statuses on existing data.
+ALTER TABLE purl_status ADD COLUMN is_default boolean NOT NULL DEFAULT false;
+ALTER TABLE purl_status ADD COLUMN qualified_purl_id uuid REFERENCES qualified_purl(id);
+CREATE INDEX purl_status_qualified_purl_idx ON purl_status(qualified_purl_id);
+ALTER TABLE purl_status ADD COLUMN source_provider jsonb;
+ALTER TABLE sbom_package ADD COLUMN supplier jsonb;
+
+CREATE TABLE correlation_provider_alias (
+    id uuid PRIMARY KEY, revision uuid NOT NULL,
+    provider text NOT NULL UNIQUE, aliases jsonb NOT NULL
+);
+INSERT INTO correlation_provider_alias VALUES
+    ('019dc7a4-6a00-7000-8000-000000000010', '019dc7a4-6a00-7000-8000-000000000010',
+     'https://www.redhat.com', '["namespace:https://www.redhat.com","name:Red Hat","name:Red Hat, Inc.","name:Red Hat Product Security","purl:rpm/redhat","distro:rhel","cpe-vendor:redhat"]'),
+    ('019dc7a4-6a00-7000-8000-000000000011', '019dc7a4-6a00-7000-8000-000000000011',
+     'https://www.suse.com', '["namespace:https://www.suse.com","name:SUSE","name:SUSE Linux Products GmbH","purl:rpm/suse","distro:sles","distro:sle","cpe-vendor:suse"]');
+
 -- A bridge for the fundamental APIs, until they use the verdicts of the correlation engine.
 --
 -- Ingestion only stores what advisories state. For a publisher enabling the correlation option
@@ -46,10 +63,13 @@ CREATE OR REPLACE VIEW purl_status_effective AS
         ps.context_cpe_id,
         ps.assertion_context_id,
         d.derived,
-        ps.id AS stated_id
+        ps.id AS stated_id,
+        ps.is_default,
+        ps.qualified_purl_id,
+        ps.source_provider
     FROM purl_status ps
     CROSS JOIN (VALUES (false), (true)) AS d (derived)
-    WHERE NOT d.derived
+    WHERE NOT ps.is_default AND (NOT d.derived
         OR (
             -- `slug` isn't unique: the initial data has two `fixed`
             ps.status_id IN (SELECT id FROM status WHERE slug = 'fixed')
@@ -62,7 +82,7 @@ CREATE OR REPLACE VIEW purl_status_effective AS
                     AND o.publisher_namespace = rtrim(a.publisher_namespace, '/')
                 WHERE a.id = ps.advisory_id
             )
-        );
+        ));
 
 -- Match a version against a range of `version_range_effective`, as `version_matches` does for
 -- `version_range`.

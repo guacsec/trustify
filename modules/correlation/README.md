@@ -193,13 +193,9 @@ its next read; this change requires no re-ingestion or re-extraction.
 
 ### Existing data
 
-`m0002610` backfills known historical extractor origins, leaving unknown future origins alone.
-`m0002620` adds supplier/source metadata and provider aliases.
-`m0002630` removes the obsolete weight-policy table and its data, preserving aliases and evidence.
-Downgrading `m0002630` recreates an empty policy table; discarded policies are not restored. Old merged CVE evidence is marked
-`unavailable`, uses the other/unresolved provider tier, and explains that source attribution
-was lost. Existing component suppliers cannot be reconstructed safely from document authors.
-Re-ingest the original documents through a path that actually replaces their stored assertions
-and packages, then re-extract evidence to recover metadata; a duplicate-upload response or
-re-extraction alone does not restore information ingestion discarded. Rolling back the older `m0002620` migration removes its
-metadata and merges evidence sources to restore the previous unique key.
+`m0002560` adds supplier/source metadata and provider aliases. Existing component suppliers
+cannot be reconstructed safely from document authors. Re-ingest the original documents through
+a path that actually replaces their stored assertions and packages, then re-extract evidence
+to recover metadata; a duplicate-upload response or re-extraction alone does not restore
+information ingestion discarded. Rolling back `m0002560` removes its metadata and bridge views,
+while preserving evidence and its distinct source providers.

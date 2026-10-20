@@ -70,7 +70,7 @@ async fn only_up_migration(_ctx: TrustifyContext) -> Result<(), anyhow::Error> {
 async fn qualified_purl_relationship_upgrade_and_downgrade(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
-    use sea_orm::{ActiveModelTrait, ConnectionTrait, DbBackend, EntityTrait, Set, Statement};
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
     use trustify_entity::{correlation_evidence, purl_status, qualified_purl};
     use uuid::Uuid;
 
@@ -94,9 +94,27 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             .is_err()
     );
     let sbom = ctx.ingest_document("spdx/simple.json").await?;
-    for identifier in [
-        "pkg:rpm/redhat/mediawiki",
-        "pkg:rpm/redhat/mediawiki?arch=src",
+    for (identifier, provider, status) in [
+        (
+            "pkg:rpm/redhat/mediawiki",
+            "A",
+            correlation_evidence::AssertionStatus::Affected,
+        ),
+        (
+            "pkg:rpm/redhat/mediawiki?arch=src",
+            "A",
+            correlation_evidence::AssertionStatus::Affected,
+        ),
+        (
+            "pkg:rpm/redhat/mediawiki",
+            "B",
+            correlation_evidence::AssertionStatus::Affected,
+        ),
+        (
+            "pkg:rpm/redhat/mediawiki",
+            "A",
+            correlation_evidence::AssertionStatus::NotAffected,
+        ),
     ] {
         correlation_evidence::ActiveModel {
             id: Set(Uuid::new_v4()),
@@ -104,10 +122,13 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             node_id: Set("SPDXRef-Package".into()),
             advisory_id: Set(rows[0].advisory_id),
             vulnerability_id: Set(rows[0].vulnerability_id.clone()),
-            status: Set(correlation_evidence::AssertionStatus::Affected),
+            status: Set(status),
             confidence: Set(1.0),
             extractor: Set("purl".into()),
-            matched_value: Set(Some(serde_json::json!({"identifier": identifier}))),
+            matched_value: Set(Some(serde_json::json!({
+                "identifier": identifier,
+                "source_provider": {"identifiers": [format!("name:{provider}")]}
+            }))),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
             confidence_factors: sea_orm::NotSet,
             source_assertions: sea_orm::NotSet,
@@ -120,18 +141,13 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             .all(&ctx.db)
             .await?
             .len(),
-        2
+        4
     );
-    // Also roll back the newer origin, provider metadata, and policy-removal migrations.
-    let migrations = since(&migrator, &ctx.db, "m0002600_purl_status_qualified_purl").await?;
+    let evidence = correlation_evidence::Entity::find().all(&ctx.db).await?;
+    // Roll back source columns and the bridge view, preserving distinct evidence rows.
+    let migrations = since(&migrator, &ctx.db, "m0002560_purl_status_effective").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
-    assert_eq!(evidence_count(&ctx.db).await?, 1);
-    ctx.db
-        .query_all_raw(Statement::from_string(
-            DbBackend::Postgres,
-            "SELECT id FROM purl_status_effective".to_string(),
-        ))
-        .await?;
+    assert_eq!(evidence_count(&ctx.db).await?, 4);
     migrator.up(&ctx.db, Some(migrations)).await?;
     let restored = purl_status::Entity::find().all(&ctx.db).await?;
     assert_eq!(
@@ -143,218 +159,74 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
     );
     assert!(restored.iter().all(|row| row.qualified_purl_id.is_none()));
     assert!(!purl_status::find_effective().all(&ctx.db).await?.is_empty());
-    Ok(())
-}
-
-/// Old rows get provenance without changing their identity, ranges, or policy metadata. Future
-/// extractors and rows already carrying provenance must not be reclassified by this migration.
-#[test_context(TrustifyContext)]
-#[test(tokio::test)]
-async fn correlation_assertion_origin_upgrade_and_downgrade(
-    ctx: &TrustifyContext,
-) -> anyhow::Result<()> {
-    use sea_orm::{EntityTrait, QuerySelect, Set, TryIntoModel};
-    use trustify_entity::correlation_evidence::{self, AssertionStatus};
-    use uuid::Uuid;
-
-    let sbom = ctx.ingest_document("spdx/simple.json").await?;
-    let advisory = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
-    let migrator = Migrator::new(ctx.storage.clone(), ());
-    let migrations = since(&migrator, &ctx.db, "m0002610_correlation_assertion_origin").await?;
-    migrator.down(&ctx.db, Some(migrations)).await?;
-    let mut expected = Vec::new();
-    for (extractor, origin, null_value) in [
-        ("purl", Some("stated"), false),
-        ("purl_stream", Some("stated"), false),
-        ("purl_vls_range", Some("stated"), false),
-        ("purl_custom_range", Some("stated"), false),
-        ("cpe", Some("stated"), false),
-        ("digest", Some("stated"), false),
-        ("product_identifier", Some("stated"), false),
-        ("purl_default", Some("default"), false),
-        ("cpe_default", Some("default"), false),
-        ("purl_fixed_as_first_fixed", Some("publisher_policy"), false),
-        (
-            "purl_fixed_as_first_fixed_before",
-            Some("publisher_policy"),
-            false,
-        ),
-        ("purl_any_version", Some("publisher_policy"), false),
-        ("purl_first_fixed", Some("stated"), false),
-        ("purl_first_fixed_before", Some("inferred"), false),
-        ("purl_first_affected", Some("stated"), false),
-        ("purl_last_affected", Some("stated"), false),
-        ("purl_suse_recommended", Some("inferred"), false),
-        ("purl_suse_recommended_before", Some("inferred"), false),
-        ("future_extractor", None, false),
-        // Already classified evidence must keep its origin, even for a historical ID.
-        ("purl", Some("publisher_policy"), false),
-        // An old row without matched-value JSON is still classifiable.
-        ("digest", Some("stated"), true),
-    ] {
-        let id = Uuid::new_v4();
-        let mut value = serde_json::json!({
-            "identifier": format!("demo-{id}"),
-            "ranges": [{"scheme": "rpm", "low": null, "high": null}],
-            "enabled_by": {"key": "fixed_is_first_fixed"}
-        });
-        if origin == Some("publisher_policy") && extractor == "purl" {
-            value["origin"] = "publisher_policy".into();
-        }
-        let mut row = correlation_evidence::ActiveModel {
-            id: Set(id),
-            sbom_id: Set(Uuid::parse_str(&sbom.id)?),
-            node_id: Set(if null_value {
-                "SPDXRef-A"
-            } else {
-                "SPDXRef-Package"
-            }
-            .into()),
-            advisory_id: Set(Uuid::parse_str(&advisory.id)?),
-            vulnerability_id: Set("CVE-2023-33201".into()),
-            status: Set(AssertionStatus::Affected),
-            confidence: Set(0.8),
-            extractor: Set(extractor.into()),
-            matched_value: Set(Some(value.clone())),
-            created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
-            confidence_factors: sea_orm::NotSet,
-            source_assertions: sea_orm::NotSet,
-        };
-        if null_value {
-            row.matched_value = Set(None);
-            value = serde_json::json!({"identifier": ""});
-        }
-        // inserted into the rolled back schema, without the columns of later migrations
-        correlation_evidence::Entity::insert(row.clone())
-            .exec_without_returning(&ctx.db)
-            .await?;
-        row.confidence_factors = Set(serde_json::json!([]));
-        row.source_assertions = Set(serde_json::json!([]));
-        let row = row.try_into_model()?;
-        if let Some(origin) = origin {
-            value["origin"] = origin.into();
-        }
-        expected.push((row, value));
-    }
-    migrator.up(&ctx.db, Some(migrations)).await?;
-    for (old, value) in &expected {
-        let row = correlation_evidence::Entity::find_by_id(old.id)
-            .one(&ctx.db)
-            .await?
-            .unwrap();
-        assert_eq!(row.matched_value.as_ref(), Some(value));
+    for row in evidence {
         assert_eq!(
-            row,
-            correlation_evidence::Model {
-                matched_value: Some(value.clone()),
-                ..old.clone()
-            }
+            correlation_evidence::Entity::find_by_id(row.id)
+                .one(&ctx.db)
+                .await?,
+            Some(row)
         );
     }
-    migrator.down(&ctx.db, Some(migrations)).await?;
-    for (old, value) in &expected {
-        // only the column which exists in the rolled back schema
-        let matched_value = correlation_evidence::Entity::find_by_id(old.id)
-            .select_only()
-            .column(correlation_evidence::Column::MatchedValue)
-            .into_tuple::<Option<serde_json::Value>>()
-            .one(&ctx.db)
-            .await?
-            .unwrap();
-        let mut value = value.clone();
-        value.as_object_mut().unwrap().remove("origin");
-        assert_eq!(matched_value, Some(value));
-    }
-    migrator.up(&ctx.db, Some(migrations)).await?;
     Ok(())
 }
 
-/// Removing policies must preserve aliases, source identity, and distinct evidence sources.
+/// Roll back the complete PR schema with populated assertions, then upgrade a database that
+/// already contains advisories and SBOMs. Both unspecified schemes can scope product identifiers.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
-async fn remove_weights_preserves_provider_data(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    use sea_orm::{ActiveModelTrait, ConnectionTrait, DbBackend, EntityTrait, Set, Statement};
-    use trustify_entity::correlation_evidence::{self, AssertionStatus};
-    use uuid::Uuid;
+async fn correlation_migrations_upgrade_and_downgrade(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use sea_orm::{ConnectionTrait, EntityTrait, PaginatorTrait, QuerySelect};
+    use trustify_entity::{advisory, advisory_vulnerability_product_identifier, sbom};
 
-    async fn retained_data(ctx: &TrustifyContext) -> anyhow::Result<Vec<serde_json::Value>> {
-        let mut result = Vec::new();
-        for table in [
-            "correlation_provider_alias",
-            "correlation_evidence",
-            "sbom_package",
-            "purl_status",
-            "advisory_vulnerability_cpe",
-        ] {
-            let row = ctx.db.query_one_raw(Statement::from_string(DbBackend::Postgres,
-                // without the columns of later migrations
-                format!("SELECT coalesce(jsonb_agg(to_jsonb(t) - 'confidence_factors' - 'source_assertions' ORDER BY (to_jsonb(t) - 'confidence_factors' - 'source_assertions')::text), '[]'::jsonb) AS data FROM {table} t")))
-                .await?.unwrap();
-            result.push(row.try_get("", "data")?);
-        }
-        Ok(result)
-    }
-    let migrator = Migrator::new(ctx.storage.clone(), ());
-    let sbom = ctx.ingest_document("spdx/simple.json").await?;
-    let advisory = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
-    for provider in ["A", "B"] {
-        correlation_evidence::ActiveModel {
-            id: Set(Uuid::new_v4()), sbom_id: Set(Uuid::parse_str(&sbom.id)?),
-            node_id: Set("SPDXRef-Package".into()), advisory_id: Set(Uuid::parse_str(&advisory.id)?),
-            vulnerability_id: Set("CVE-2023-33201".into()), status: Set(AssertionStatus::Affected),
-            confidence: Set(0.9), extractor: Set("purl".into()),
-            matched_value: Set(Some(serde_json::json!({"identifier":"pkg:generic/demo@1", "origin":"stated", "source_provider":{"identifiers":[format!("name:{provider}")]}}))),
-            created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
-            confidence_factors: sea_orm::NotSet,
-            source_assertions: sea_orm::NotSet,
-        }.insert(&ctx.db).await?;
-    }
-    let migrations = since(&migrator, &ctx.db, "m0002630_remove_correlation_weights").await?;
-    migrator.down(&ctx.db, Some(migrations)).await?;
-    ctx.db.execute_unprepared("INSERT INTO correlation_weight_policy(id, revision, scope, weights) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', '{\"kind\":\"instance\"}', '{\"direct\":2}');
-        INSERT INTO correlation_provider_alias(id, revision, provider, aliases) VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'A', '[\"name:A\"]');
-        UPDATE sbom_package SET supplier = '{\"identifiers\":[\"name:A\"]}';
-        UPDATE purl_status SET source_provider = '{\"identifiers\":[\"name:A\"]}';
-        UPDATE advisory_vulnerability_cpe SET source_provider = '{\"identifiers\":[\"name:A\"]}';").await?;
-    let before = retained_data(ctx).await?;
-    migrator.up(&ctx.db, Some(migrations)).await?;
-    let table: Option<String> = ctx
-        .db
-        .query_one_raw(Statement::from_string(
-            DbBackend::Postgres,
-            "SELECT to_regclass('correlation_weight_policy')::text AS name".to_string(),
-        ))
-        .await?
-        .unwrap()
-        .try_get("", "name")?;
-    assert!(table.is_none());
-    assert_eq!(before, retained_data(ctx).await?);
-    assert_eq!(
-        correlation_evidence::Entity::find()
-            .all(&ctx.db)
+    ctx.ingest_document("spdx/simple.json").await?;
+    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
+        .await?;
+    assert!(
+        advisory_vulnerability_product_identifier::Entity::find()
+            .count(&ctx.db)
             .await?
-            .len(),
-        2
+            > 0
     );
+    ctx.db
+        .execute_unprepared(
+            r#"
+INSERT INTO version_range (id, version_scheme_id) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'vls'),
+    ('00000000-0000-0000-0000-000000000002', 'custom');
+INSERT INTO advisory_vulnerability_product_identifier
+    (id, advisory_id, vulnerability_id, status, identifier_type, value, version_range_id)
+SELECT gen_random_uuid(), a.advisory_id, a.vulnerability_id, a.status, a.identifier_type,
+    a.value, vr.id
+FROM (SELECT * FROM advisory_vulnerability_product_identifier LIMIT 1) a
+CROSS JOIN version_range vr
+WHERE vr.id IN ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002');
+"#,
+        )
+        .await?;
+    let advisories = advisory::Entity::find().count(&ctx.db).await?;
+    let sboms = sbom::Entity::find().count(&ctx.db).await?;
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrations = since(&migrator, &ctx.db, "m0002390_create_correlation_evidence").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
-    let count: i64 = ctx
-        .db
-        .query_one_raw(Statement::from_string(
-            DbBackend::Postgres,
-            "SELECT count(*) AS count FROM correlation_weight_policy".to_string(),
-        ))
-        .await?
-        .unwrap()
-        .try_get("", "count")?;
-    assert_eq!(count, 0);
-    assert_eq!(before, retained_data(ctx).await?);
+    assert_eq!(
+        advisory::Entity::find()
+            .select_only()
+            .column(advisory::Column::Id)
+            .count(&ctx.db)
+            .await?,
+        advisories
+    );
+    assert_eq!(sbom::Entity::find().count(&ctx.db).await?, sboms);
     migrator.up(&ctx.db, Some(migrations)).await?;
-    assert_eq!(before, retained_data(ctx).await?);
+    assert_eq!(advisory::Entity::find().count(&ctx.db).await?, advisories);
+    assert_eq!(sbom::Entity::find().count(&ctx.db).await?, sboms);
+    assert_eq!(evidence_count(&ctx.db).await?, 0);
     Ok(())
 }
 
 /// Upgrading preserves old associations and evidence; source applicability is populated only
-/// by fresh ingestion/extraction. Downgrading removes only the added links and provenance.
+/// by fresh ingestion/extraction. Downgrading removes only the added links.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -394,8 +266,7 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
     .insert(&ctx.db)
     .await?;
 
-    // The same identifier/status/context must retain distinct version ranges. Older schemas
-    // cannot represent both, so downgrade retains one deterministic representative.
+    // The same identifier/status/context retains distinct version ranges across rollback.
     ctx.ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json")
         .await?;
     let identifiers = advisory_vulnerability_product_identifier::Entity::find()
@@ -440,7 +311,7 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
             .all(&ctx.db)
             .await?
             .len(),
-        identifiers.len()
+        identifiers.len() + 1
     );
     migrator.up(&ctx.db, Some(migrations)).await?;
     assert!(
@@ -454,10 +325,7 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
             .one(&ctx.db)
             .await?
             .unwrap(),
-        correlation_evidence::Model {
-            source_assertions: serde_json::json!([]),
-            ..evidence
-        }
+        evidence
     );
     Ok(())
 }

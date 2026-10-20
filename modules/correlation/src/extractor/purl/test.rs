@@ -160,7 +160,7 @@ async fn extract_both_directions(ctx: &TrustifyContext) -> anyhow::Result<()> {
 /// Red Hat's `fixed`, read as `first_fixed`: affected before.
 const FIXED_AS_FIRST_FIXED_BEFORE: &str = "purl_fixed_as_first_fixed_before";
 
-/// The default option reading Red Hat's `fixed` as `first_fixed` (see `m0002550`).
+/// The default option reading Red Hat's `fixed` as `first_fixed` (see `m0002500`).
 fn redhat_first_fixed() -> EnabledBy {
     EnabledBy {
         option_id: Uuid::parse_str("019dc7a4-6a00-7000-8000-000000000003").expect("valid UUID"),

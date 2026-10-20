@@ -14,7 +14,8 @@ impl MigrationTrait for Migration {
                 r#"
 DO $$ BEGIN
     CREATE TYPE correlation_context_source AS ENUM (
-        'node', 'ancestor_node', 'describing', 'ancestor_sbom'
+        'node', 'ancestor_node', 'describing', 'ancestor_sbom',
+        'purl_qualifier', 'purl_release', 'unconfirmed'
     );
 EXCEPTION
     WHEN duplicate_object THEN NULL;

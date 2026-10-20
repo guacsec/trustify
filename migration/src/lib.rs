@@ -85,34 +85,21 @@ mod m0002380_version_function_parallelism;
 mod m0002390_create_crypto_remediation;
 mod m0002391_add_crypto_remediation_updated_at;
 mod m0002390_create_correlation_evidence;
+mod m0002395_create_assertion_context;
 mod m0002400_base_purl_name_index;
 mod m0002400_create_advisory_vulnerability_hash;
 mod m0002410_create_advisory_vulnerability_product_identifier;
 mod m0002420_create_sbom_node_product_identifier;
-mod m0002430_add_correlation_evidence_matched_value;
 mod m0002440_create_advisory_vulnerability_cpe;
-mod m0002450_correlation_evidence_matched_value_jsonb;
 mod m0002460_advisory_publisher_namespace;
 mod m0002470_drop_redhat_derived_purl_status;
-mod m0002480_correlation_evidence_per_status;
 mod m0002490_add_vls_version_scheme;
 mod m0002500_create_correlation_option;
-mod m0002510_create_assertion_context;
 mod m0002520_create_correlation_evidence_context;
-mod m0002530_context_source_purl;
 mod m0002540_add_csaf_statuses;
-mod m0002550_fixed_is_first_fixed;
 mod m0002560_purl_status_effective;
 mod m0002570_add_custom_version_scheme;
 mod m0002580_version_matches_wildcard;
-mod m0002590_default_status;
-mod m0002600_purl_status_qualified_purl;
-mod m0002610_correlation_assertion_origin;
-mod m0002620_correlation_weighting;
-mod m0002630_remove_correlation_weights;
-mod m0002640_context_source_unconfirmed;
-mod m0002650_product_identifier_version_range;
-mod m0002660_evidence_confidence_factors;
 mod m0002670_vulnerability_upstream;
 mod m0002680_correlation_freshness;
 mod m0002690_remediation_assertions;
@@ -217,33 +204,20 @@ impl MigratorExt for Migrator {
             .normal(m0002391_add_crypto_remediation_updated_at::Migration)
             .normal(m0002400_base_purl_name_index::Migration)
             .normal(m0002390_create_correlation_evidence::Migration)
+            .normal(m0002395_create_assertion_context::Migration)
             .normal(m0002400_create_advisory_vulnerability_hash::Migration)
             .normal(m0002410_create_advisory_vulnerability_product_identifier::Migration)
             .normal(m0002420_create_sbom_node_product_identifier::Migration)
-            .normal(m0002430_add_correlation_evidence_matched_value::Migration)
             .normal(m0002440_create_advisory_vulnerability_cpe::Migration)
-            .normal(m0002450_correlation_evidence_matched_value_jsonb::Migration)
             .normal(m0002460_advisory_publisher_namespace::Migration)
             .data(m0002470_drop_redhat_derived_purl_status::Migration)
-            .normal(m0002480_correlation_evidence_per_status::Migration)
             .normal(m0002490_add_vls_version_scheme::Migration)
             .normal(m0002500_create_correlation_option::Migration)
-            .normal(m0002510_create_assertion_context::Migration)
             .normal(m0002520_create_correlation_evidence_context::Migration)
-            .normal(m0002530_context_source_purl::Migration)
             .normal(m0002540_add_csaf_statuses::Migration)
-            .normal(m0002550_fixed_is_first_fixed::Migration)
             .normal(m0002560_purl_status_effective::Migration)
             .normal(m0002570_add_custom_version_scheme::Migration)
             .normal(m0002580_version_matches_wildcard::Migration)
-            .normal(m0002590_default_status::Migration)
-            .normal(m0002600_purl_status_qualified_purl::Migration)
-            .normal(m0002610_correlation_assertion_origin::Migration)
-            .normal(m0002620_correlation_weighting::Migration)
-            .normal(m0002630_remove_correlation_weights::Migration)
-            .normal(m0002640_context_source_unconfirmed::Migration)
-            .normal(m0002650_product_identifier_version_range::Migration)
-            .normal(m0002660_evidence_confidence_factors::Migration)
             .normal(m0002670_vulnerability_upstream::Migration)
             .normal(m0002680_correlation_freshness::Migration)
             .normal(m0002690_remediation_assertions::Migration)

@@ -43,6 +43,9 @@ DELETE FROM public.cpe_status WHERE version_range_id IN (
 DELETE FROM public.advisory_vulnerability_cpe WHERE version_range_id IN (
     SELECT id FROM public.version_range WHERE version_scheme_id = 'custom'
 );
+DELETE FROM public.advisory_vulnerability_product_identifier WHERE version_range_id IN (
+    SELECT id FROM public.version_range WHERE version_scheme_id = 'custom'
+);
 DELETE FROM public.version_range WHERE version_scheme_id = 'custom';
 DELETE FROM public.version_scheme WHERE id = 'custom';
 "#,
