@@ -1,7 +1,11 @@
 //! Settings freshness and manually initiated, durable background refreshes.
 use crate::{AppRoute, api, stored::use_stored_pagination};
 use patternfly_yew::prelude::*;
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::Cell,
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 use trustify_api::correlation::*;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -13,6 +17,28 @@ pub fn status_label(status: FreshnessStatus) -> &'static str {
         FreshnessStatus::Current => "Current",
         FreshnessStatus::Stale => "Outdated",
         FreshnessStatus::Unknown => "Not yet checked",
+    }
+}
+
+/// Status filter of the documents table, where `None` selects all documents needing a refresh.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct DocumentFilter(Option<FreshnessStatus>);
+
+impl DocumentFilter {
+    const ALL: [Self; 4] = [
+        Self(None),
+        Self(Some(FreshnessStatus::Stale)),
+        Self(Some(FreshnessStatus::Unknown)),
+        Self(Some(FreshnessStatus::Current)),
+    ];
+}
+
+impl Display for DocumentFilter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            None => f.write_str("Needs refreshing"),
+            Some(status) => f.write_str(status_label(status)),
+        }
     }
 }
 
@@ -42,6 +68,13 @@ pub fn freshness_banner(freshness: &ExtractionFreshness) -> Html {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum Column {
+    Sbom,
+    Status,
+    LastRefresh,
+}
+
 #[derive(Clone, PartialEq)]
 struct View {
     overview: FreshnessOverview,
@@ -56,6 +89,48 @@ fn job_label(status: RefreshJobStatus) -> &'static str {
         RefreshJobStatus::Running => "Running",
         RefreshJobStatus::Completed => "Completed",
         RefreshJobStatus::Superseded => "Settings changed — start another refresh",
+    }
+}
+
+/// The progress of the active refresh job, or an empty bar when no refresh is running.
+///
+/// The job does not record how many documents it will refresh. Failed documents stay
+/// outdated, so the total is estimated as the processed documents plus those currently
+/// needing a refresh.
+fn job_progress(job: Option<&RefreshJob>, needs_refresh: u64) -> Html {
+    let Some(job) = job.filter(|job| {
+        matches!(
+            job.status,
+            RefreshJobStatus::Queued | RefreshJobStatus::Running
+        )
+    }) else {
+        return html! {
+            <Progress value={0.0} description="No refresh running" value_text="" size={ProgressSize::Small} />
+        };
+    };
+    let done = job.processed + job.failed;
+    let total = (job.processed + needs_refresh).max(done);
+    let value = if total == 0 {
+        1.0
+    } else {
+        done as f64 / total as f64
+    };
+    let variant = match job.failed {
+        0 => ProgressVariant::Default,
+        _ => ProgressVariant::Warning,
+    };
+    let value_text = match job.failed {
+        0 => format!("{done} of {total}"),
+        failed => format!("{done} of {total} ({failed} failed)"),
+    };
+    html! {
+        <Progress
+            {value}
+            description={job_label(job.status)}
+            {variant}
+            {value_text}
+            size={ProgressSize::Small}
+        />
     }
 }
 
@@ -178,25 +253,21 @@ pub fn freshness_page() -> Html {
         })
     };
 
-    let selected_filter = match *filter {
-        None => "needs_refresh",
-        Some(FreshnessStatus::Stale) => "stale",
-        Some(FreshnessStatus::Unknown) => "unknown",
-        Some(FreshnessStatus::Current) => "current",
-    };
     let onfilter = {
         let filter = filter.clone();
         let pagination = pagination.clone();
-        Callback::from(move |value: Option<String>| {
-            let value = match value.as_deref() {
-                Some("stale") => Some(FreshnessStatus::Stale),
-                Some("unknown") => Some(FreshnessStatus::Unknown),
-                Some("current") => Some(FreshnessStatus::Current),
-                _ => None,
-            };
-            filter.set(value);
+        Callback::from(move |value: DocumentFilter| {
+            filter.set(value.0);
             pagination.onnavigation.emit(Navigation::First);
         })
+    };
+
+    let header = html_nested! {
+        <TableHeader<Column>>
+            <TableColumn<Column> label="SBOM" index={Column::Sbom} />
+            <TableColumn<Column> label="Status" index={Column::Status} />
+            <TableColumn<Column> label="Last successful refresh" index={Column::LastRefresh} />
+        </TableHeader<Column>>
     };
 
     html! {
@@ -207,64 +278,89 @@ pub fn freshness_page() -> Html {
                 <Alert title="Could not update correlation status" r#type={AlertType::Danger} inline=true><p>{err}</p><p>{"Previously loaded data is retained."}</p></Alert>
             }
             if let Some(data) = &*view {
-                <div class="pf-v6-l-grid pf-m-gutter pf-v6-u-my-md">
+                <Gallery gutter=true>
                     { for [("Total SBOMs", data.overview.total), ("Current", data.overview.current), ("Outdated", data.overview.stale), ("Not yet checked", data.overview.unknown), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {
-                        <section class="pf-v6-c-card pf-m-2-col"><div class="pf-v6-c-card__title">{label}</div><div class="pf-v6-c-card__body"><strong>{count}</strong></div></section>
+                        <Card>
+                            <CardBody>
+                                <Flex space_items={[SpaceItems::Small]} modifiers={[FlexModifier::Align(Alignment::Center)]}>
+                                    <FlexItem>{ label }</FlexItem>
+                                    <FlexItem><Title level={Level::H3}>{ count.to_string() }</Title></FlexItem>
+                                </Flex>
+                            </CardBody>
+                        </Card>
                     }) }
-                </div>
-                <p>{ format!("Last checked: {}", data.overview.checked_at) }</p>
-                <Button onclick={start} disabled={*starting || data.overview.active_job.is_some() || data.overview.needs_refresh == 0}>{ "Refresh outdated results" }</Button>
+                </Gallery>
+                <Flex modifiers={[FlexModifier::Align(Alignment::Center)]}>
+                    <FlexItem><Title level={Level::H2}>{ "Refresh" }</Title></FlexItem>
+                    <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
+                        <Button
+                            variant={ButtonVariant::Primary}
+                            onclick={start}
+                            disabled={*starting || data.overview.active_job.is_some() || data.overview.needs_refresh == 0}
+                        >
+                            { "Refresh outdated results" }
+                        </Button>
+                    </FlexItem>
+                </Flex>
+                { job_progress(data.job.as_ref().map(|details| &details.job), data.overview.needs_refresh) }
                 if let Some(details) = &data.job {
-                    <Title level={Level::H2}>{ "Latest refresh" }</Title>
-                    <p role="status">{format!("{} · {} processed · {} failed · {} SBOMs currently need refreshing", job_label(details.job.status), details.job.processed, details.job.failed, data.overview.needs_refresh)}</p>
                     if details.failure_total > 0 {
                         <Alert title="Some documents could not be refreshed" r#type={AlertType::Warning} inline=true>{"Their previous results remain available. Start another refresh to retry documents still needing work."}</Alert>
                         <ul>{for details.failures.iter().map(|f| html! {
                             <li><Link<AppRoute> to={AppRoute::Correlation { id: f.sbom_id.to_string() }}>{ f.sbom_id.to_string() }</Link<AppRoute>>{format!(": {}", f.error)}</li>
                         })}</ul>
-                        <Button variant={ButtonVariant::Secondary} disabled={*failure_page == 0} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(page.saturating_sub(1))) }}>{"Previous failures"}</Button>
-                        <Button variant={ButtonVariant::Secondary} disabled={((*failure_page + 1) * 20) as u64 >= details.failure_total} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(*page + 1)) }}>{"Next failures"}</Button>
+                        <Flex>
+                            <FlexItem><Button variant={ButtonVariant::Secondary} disabled={*failure_page == 0} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(page.saturating_sub(1))) }}>{"Previous failures"}</Button></FlexItem>
+                            <FlexItem><Button variant={ButtonVariant::Secondary} disabled={((*failure_page + 1) * 20) as u64 >= details.failure_total} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(*page + 1)) }}>{"Next failures"}</Button></FlexItem>
+                        </Flex>
                     }
                 }
                 <Title level={Level::H2}>{ "Documents" }</Title>
                 <Toolbar>
                     <ToolbarContent>
-                        <ToolbarGroup variant={GroupVariant::Filter}>
-                            <ToolbarItem>
-                                <label for="correlation-document-status">{ "Status" }</label>
-                            </ToolbarItem>
-                            <ToolbarItem>
-                                <FormSelect<String>
-                                    id="correlation-document-status"
-                                    value={selected_filter.to_string()}
-                                    onchange={onfilter}
-                                >
-                                    <FormSelectOption<String> value="needs_refresh" description="Needs refreshing" />
-                                    <FormSelectOption<String> value="stale" description="Outdated" />
-                                    <FormSelectOption<String> value="unknown" description="Not yet checked" />
-                                    <FormSelectOption<String> value="current" description="Current" />
-                                </FormSelect<String>>
-                            </ToolbarItem>
-                        </ToolbarGroup>
+                        <ToolbarItem>
+                            <ToggleGroup>
+                                { for DocumentFilter::ALL.into_iter().map(|value| html_nested! {
+                                    <ToggleGroupItem
+                                        text={value.to_string()}
+                                        selected={value == DocumentFilter(*filter)}
+                                        onchange={onfilter.reform(move |()| value)}
+                                    />
+                                }) }
+                            </ToggleGroup>
+                        </ToolbarItem>
                         <ToolbarItem r#type={ToolbarItemType::Pagination}>
                             <SimplePagination pagination={pagination.clone()} {total} />
                         </ToolbarItem>
                     </ToolbarContent>
                 </Toolbar>
-                if data.documents.is_empty() {
-                    <p>{ "No documents in this category." }</p>
-                } else {
-                    <table class="pf-v6-c-table" aria-label="SBOM correlation freshness">
-                        <thead><tr><th scope="col">{"SBOM"}</th><th scope="col">{"Status"}</th><th scope="col">{"Last successful refresh"}</th></tr></thead>
-                        <tbody>{for data.documents.iter().map(|doc| html! {
-                            <tr key={doc.sbom_id.to_string()}>
-                                <td><Link<AppRoute> to={AppRoute::Correlation { id: doc.sbom_id.to_string() }}>{&doc.name}</Link<AppRoute>></td>
-                                <td>{freshness_badge(&doc.freshness)}</td>
-                                <td>{doc.freshness.completed_at.map(|t| t.to_string()).unwrap_or_else(|| "Never".into())}</td>
-                            </tr>
-                        })}</tbody>
-                    </table>
-                }
+                <ComposableTable>
+                    { header }
+                    <TableBody>
+                        if data.documents.is_empty() {
+                            <TableRow>
+                                <TableData colspan={3}>
+                                    <Bullseye>
+                                        <EmptyState title="No documents found" icon={Icon::Search} size={Size::Large}>
+                                            { "No SBOMs have this status. Select a different status to see other documents." }
+                                        </EmptyState>
+                                    </Bullseye>
+                                </TableData>
+                            </TableRow>
+                        }
+                        { for data.documents.iter().map(|doc| html! {
+                            <TableRow key={doc.sbom_id.to_string()}>
+                                <TableData data_label="SBOM">
+                                    <Link<AppRoute> to={AppRoute::Correlation { id: doc.sbom_id.to_string() }}>{ &doc.name }</Link<AppRoute>>
+                                </TableData>
+                                <TableData data_label="Status">{ freshness_badge(&doc.freshness) }</TableData>
+                                <TableData data_label="Last successful refresh">
+                                    { doc.freshness.completed_at.map(|t| t.to_string()).unwrap_or_else(|| "Never".into()) }
+                                </TableData>
+                            </TableRow>
+                        }) }
+                    </TableBody>
+                </ComposableTable>
             } else if error.is_none() { <Spinner /> }
         </PageSection>
     }
