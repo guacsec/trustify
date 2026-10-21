@@ -321,6 +321,11 @@ fn page(props: &PageProps) -> Html {
                                     { "Options" }
                                 </NavRouterItem<AppRoute>>
                             </NavExpandable>
+                        <NavLink href="/swagger-ui/" target="_blank">
+                            { "API documentation" }
+                            <i class="fas fa-external-link-alt pf-v6-u-ml-sm" aria-hidden="true" />
+                            <span class="pf-v6-screen-reader">{ "(opens in a new tab)" }</span>
+                        </NavLink>
                         }
                     </NavList>
                 </Nav>

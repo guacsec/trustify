@@ -15,3 +15,11 @@ backend = "http://localhost:8080/.well-known/"
 [[proxy]]
 rewrite = "/realms/"
 backend = "http://localhost:8090/realms/"
+
+[[proxy]]
+rewrite = "/swagger-ui/"
+backend = "http://localhost:8080/swagger-ui/"
+
+[[proxy]]
+rewrite = "/openapi.json"
+backend = "http://localhost:8080/openapi.json"
