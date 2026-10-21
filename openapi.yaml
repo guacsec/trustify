@@ -1229,12 +1229,12 @@ paths:
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - type: string
             enum:
             - current
             - stale
             - unknown
+          - type: 'null'
       - name: offset
         in: query
         description: |-
@@ -1504,7 +1504,6 @@ paths:
         required: true
       responses:
         '200':
-          description: ''
           content:
             application/json:
               schema:
@@ -1522,7 +1521,6 @@ paths:
       operationId: listProviderAliases
       responses:
         '200':
-          description: ''
           content:
             application/json:
               schema:
@@ -1543,7 +1541,6 @@ paths:
         required: true
       responses:
         '201':
-          description: ''
           content:
             application/json:
               schema:
@@ -1570,7 +1567,6 @@ paths:
         required: true
       responses:
         '200':
-          description: ''
           content:
             application/json:
               schema:
@@ -1589,8 +1585,7 @@ paths:
           type: string
           format: uuid
       responses:
-        '204':
-          description: ''
+        '204': {}
         '422':
           description: Correlation capability disabled
   /api/v3/correlation/query:
@@ -6825,9 +6820,9 @@ components:
       properties:
         category:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ContextCategory'
             description: How the subject of the assertion relates to the product, if stated.
+          - type: 'null'
         confidence:
           type: number
           format: double
@@ -6901,16 +6896,16 @@ components:
           format: uuid
         matched_value:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/MatchedValue'
+          - type: 'null'
         provider:
           $ref: '#/components/schemas/ProviderResolution'
           description: The provider making the assertion, as resolved through provider aliases.
         provider_match:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ProviderMatch'
             description: How the provider matches the provider of the component, if at all.
+          - type: 'null'
         remediations:
           type: array
           items:
@@ -7303,8 +7298,8 @@ components:
       properties:
         active_job:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/RefreshJob'
+          - type: 'null'
         checked_at:
           type: string
           format: date-time
@@ -7314,8 +7309,8 @@ components:
           minimum: 0
         latest_job:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/RefreshJob'
+          - type: 'null'
         needs_refresh:
           type: integer
           format: int64
@@ -7347,8 +7342,8 @@ components:
       properties:
         oidc:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/FrontendOidcInfo'
+          - type: 'null'
     FrontendOidcInfo:
       type: object
       description: OIDC configuration for frontend clients.
@@ -7779,12 +7774,12 @@ components:
       properties:
         high:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/RangeBound'
+          - type: 'null'
         low:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/RangeBound'
+          - type: 'null'
         scheme:
           type: string
           description: The version scheme, e.g. `rpm` or `semver`.
@@ -7796,9 +7791,9 @@ components:
       properties:
         enabled_by:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/EnabledBy'
             description: The option which enabled the match, if it depends on one.
+          - type: 'null'
         identifier:
           type: string
           description: |-
@@ -7817,9 +7812,9 @@ components:
             Empty when no version range was involved in the match.
         source_provider:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ProviderIdentity'
             description: The source of this assertion, when it differs from the document-level publisher.
+          - type: 'null'
     Message:
       type: object
       required:
@@ -9127,9 +9122,80 @@ components:
         aliases:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/ProviderAliasIdentifier'
         provider:
           type: string
+    ProviderAliasIdentifier:
+      oneOf:
+      - type: object
+        required:
+        - value
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - name
+          value:
+            type: string
+      - type: object
+        required:
+        - value
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - namespace
+          value:
+            type: string
+      - type: object
+        required:
+        - value
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - cve_org
+          value:
+            type: string
+      - type: object
+        description: Package type and namespace, for example `rpm/acme`.
+        required:
+        - value
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - purl
+          value:
+            type: string
+            description: Package type and namespace, for example `rpm/acme`.
+      - type: object
+        required:
+        - value
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - distro
+          value:
+            type: string
+      - type: object
+        required:
+        - value
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - cpe_vendor
+          value:
+            type: string
+      description: An exact identifier mapped to a canonical provider.
     ProviderIdentity:
       type: object
       description: Identifiers claimed by a supplier or assertion source, before applying provider aliases.
@@ -9355,6 +9421,11 @@ components:
           description: The type of evidence, i.e. how the match was established (e.g. `purl` or `purl_stream`).
         kind:
           $ref: '#/components/schemas/IdentifierKind'
+        remediations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceRemediation'
+          description: Remediations of the matched source statements, scoped by the same product matching.
         status:
           $ref: '#/components/schemas/AssertionStatus'
         value:
@@ -9931,8 +10002,8 @@ components:
           description: Original match confidence of the selected evidence; conflicts do not reduce it.
         explanation:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ResolutionExplanation'
+          - type: 'null'
         has_conflict:
           type: boolean
     Revisioned_Importer:
