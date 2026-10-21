@@ -1759,6 +1759,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
+name = "constant_time_eq"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "144e7f1de087984240b7816d47f698b414979faa6f40839c5b86d6bd47db57b7"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4678,12 +4687,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lzma-rust2"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7277c9742229dc25243236d578b6471a798c554512c6f6a04365ec2e87c2a3bb"
+dependencies = [
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "mac_address"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b367b50a9be9a5d3b5718c1da74e5d6b9c17647f89752ee2562a470cc3c4eb1a"
 dependencies = [
- "nix",
+ "nix 0.30.1",
  "serde",
  "windows-sys 0.61.2",
 ]
@@ -4854,6 +4872,18 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "memoffset",
+]
+
+[[package]]
+name = "nix"
+version = "0.31.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bc81ce8148d3b4f3274da811f11cdd824ae661ee4ef732cdb229825cf5be7f7"
+dependencies = [
+ "bitflags 2.13.2",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
 ]
 
 [[package]]
@@ -8965,7 +8995,7 @@ dependencies = [
  "jiff 1.0.3",
  "lenient_semver",
  "log",
- "lzma-rust2",
+ "lzma-rust2 0.16.5",
  "moka",
  "native-tls",
  "opentelemetry",
@@ -9158,7 +9188,7 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
- "zip 8.6.0",
+ "zip 9.0.5",
 ]
 
 [[package]]
@@ -9234,7 +9264,7 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "walkdir",
- "zip 8.6.0",
+ "zip 9.0.5",
 ]
 
 [[package]]
@@ -9286,7 +9316,7 @@ dependencies = [
  "walkdir",
  "walker-common",
  "wiremock",
- "zip 8.6.0",
+ "zip 9.0.5",
 ]
 
 [[package]]
@@ -9339,7 +9369,7 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
- "zip 8.6.0",
+ "zip 9.0.5",
 ]
 
 [[package]]
@@ -9517,7 +9547,7 @@ dependencies = [
  "uuid",
  "walkdir",
  "which",
- "zip 8.6.0",
+ "zip 9.0.5",
 ]
 
 [[package]]
@@ -9874,7 +9904,7 @@ dependencies = [
  "indicatif",
  "indicatif-log-bridge",
  "log",
- "lzma-rust2",
+ "lzma-rust2 0.16.5",
  "openid",
  "pem",
  "reqwest 0.13.5",
@@ -10635,21 +10665,22 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "8.6.0"
+version = "9.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
+checksum = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e"
 dependencies = [
  "aes",
  "bzip2",
- "constant_time_eq 0.4.2",
+ "constant_time_eq 0.6.2",
  "crc32fast",
  "deflate64",
  "flate2",
  "getrandom 0.4.3",
  "hmac 0.13.0",
  "indexmap 2.14.2",
- "lzma-rust2",
+ "lzma-rust2 0.22.0",
  "memchr",
+ "nix 0.31.4",
  "pbkdf2",
  "ppmd-rust",
  "sha1 0.11.0",
@@ -10657,7 +10688,7 @@ dependencies = [
  "typed-path",
  "zeroize",
  "zopfli",
- "zstd 0.13.3",
+ "zstd 0.14.0",
 ]
 
 [[package]]
