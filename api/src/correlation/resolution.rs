@@ -279,12 +279,17 @@ pub struct ResolutionExplanation {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ResolutionRequest {
+    /// When true, include an explanation of how each verdict was resolved.
     #[serde(default)]
     pub include_explanation: bool,
+    /// Only the verdicts of this SBOM node. Requires an SBOM target.
     pub node_id: Option<String>,
+    /// Only the verdicts for this vulnerability, e.g. `CVE-2024-1234`.
     pub vulnerability_id: Option<String>,
     /// Temporary installed-build provider; does not change stored supplier metadata.
     pub component_provider: Option<String>,
+    /// Identifiers of the product containing the component, e.g. its CPE, used to match
+    /// product-scoped advisory statements. Only supported for identifier targets.
     #[serde(default)]
     pub product_context: Vec<IdentifierRef>,
 }

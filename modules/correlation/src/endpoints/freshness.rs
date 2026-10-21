@@ -25,6 +25,10 @@ pub(super) async fn snapshot(tx: &sea_orm::DatabaseTransaction) -> Result<(), Er
     Ok(())
 }
 
+/// Get the correlation freshness overview
+///
+/// Counts SBOMs by whether their correlation evidence was extracted under the current
+/// matching settings, and reports the active and latest refresh jobs.
 #[utoipa::path(tag="correlation", operation_id="getCorrelationFreshness", responses(
     (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Freshness against matching settings", body=FreshnessOverview),
@@ -41,6 +45,10 @@ async fn overview(
     Ok(HttpResponse::Ok().json(freshness::overview(&tx).await?))
 }
 
+/// List SBOMs by correlation freshness
+///
+/// Without a status, lists all SBOMs needing a refresh: those which are outdated or not
+/// yet checked.
 #[utoipa::path(tag="correlation", operation_id="listCorrelationFreshnessSboms", params(Filter, Paginated), responses(
     (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Documents by freshness", body=inline(PaginatedResults<FreshnessDocument>)),
@@ -59,6 +67,11 @@ async fn documents(
     Ok(HttpResponse::Ok().json(freshness::documents(&tx, filter.status, page).await?))
 }
 
+/// Start a correlation refresh
+///
+/// Queues a background job re-extracting the correlation evidence of all SBOMs needing a
+/// refresh. Only one job is active at a time: if one is already queued or running, it is
+/// returned instead. The `Location` header points to the job.
 #[utoipa::path(tag="correlation", operation_id="startCorrelationRefresh", responses(
     (status = 422, description = "Correlation capability disabled"),
     (status=202, description="Refresh queued, or existing active job", body=RefreshJob),
@@ -82,7 +95,10 @@ async fn start(
         .json(job))
 }
 
-#[utoipa::path(tag="correlation", operation_id="getCorrelationRefresh", params(("id"=Uuid, Path), Paginated), responses(
+/// Get a correlation refresh job
+///
+/// Returns the progress of the job and a page of the SBOMs it failed to refresh.
+#[utoipa::path(tag="correlation", operation_id="getCorrelationRefresh", params(("id"=Uuid, Path, description="ID of the refresh job"), Paginated), responses(
     (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Refresh progress and paginated failures", body=RefreshJobDetails),
     (status=401, description="Unauthenticated"), (status=403, description="Forbidden"),

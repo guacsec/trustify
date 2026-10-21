@@ -1203,6 +1203,10 @@ paths:
     get:
       tags:
       - correlation
+      summary: Get the correlation freshness overview
+      description: |-
+        Counts SBOMs by whether their correlation evidence was extracted under the current
+        matching settings, and reports the active and latest refresh jobs.
       operationId: getCorrelationFreshness
       responses:
         '200':
@@ -1221,6 +1225,10 @@ paths:
     get:
       tags:
       - correlation
+      summary: List SBOMs by correlation freshness
+      description: |-
+        Without a status, lists all SBOMs needing a refresh: those which are outdated or not
+        yet checked.
       operationId: listCorrelationFreshnessSboms
       parameters:
       - name: status
@@ -1494,7 +1502,11 @@ paths:
     post:
       tags:
       - correlation
-      summary: A preview changes request context only; it cannot write aliases or evidence.
+      summary: Preview correlation verdicts with a temporary resolution context
+      description: |-
+        Resolves the verdicts of an SBOM or an identifier with the given request context, e.g. a
+        component provider or product context. A preview changes request context only; it cannot
+        write aliases or evidence.
       operationId: previewCorrelation
       requestBody:
         content:
@@ -1504,7 +1516,7 @@ paths:
         required: true
       responses:
         '200':
-          description: Correlation preview result
+          description: The verdicts resolved with the request context
           content:
             application/json:
               schema:
@@ -1519,21 +1531,30 @@ paths:
     get:
       tags:
       - correlation
+      summary: List provider aliases
+      description: |-
+        Provider aliases map the identifiers stated in SBOMs and advisories to a canonical
+        provider. They are applied when resolving verdicts, without re-extracting evidence.
       operationId: listProviderAliases
       responses:
         '200':
-          description: List of provider aliases
+          description: All provider aliases
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProviderAlias'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
         '422':
           description: Correlation capability disabled
     post:
       tags:
       - correlation
+      summary: Create a provider alias
       operationId: createProviderAlias
       requestBody:
         content:
@@ -1543,21 +1564,31 @@ paths:
         required: true
       responses:
         '201':
-          description: Provider alias created
+          description: The created provider alias
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProviderAlias'
+        '400':
+          description: The provider or an alias is empty
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
+        '409':
+          description: The provider or an alias already belongs to another provider alias
         '422':
           description: Correlation capability disabled
   /api/v3/correlation/provider-alias/{id}:
     put:
       tags:
       - correlation
+      summary: Replace a provider alias
       operationId: updateProviderAlias
       parameters:
       - name: id
         in: path
+        description: ID of the provider alias
         required: true
         schema:
           type: string
@@ -1570,27 +1601,44 @@ paths:
         required: true
       responses:
         '200':
-          description: Provider alias updated
+          description: The updated provider alias
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProviderAlias'
+        '400':
+          description: The provider or an alias is empty
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: The provider alias does not exist
+        '409':
+          description: The provider or an alias already belongs to another provider alias
         '422':
           description: Correlation capability disabled
     delete:
       tags:
       - correlation
+      summary: Delete a provider alias
+      description: Deleting an unknown provider alias succeeds as well.
       operationId: deleteProviderAlias
       parameters:
       - name: id
         in: path
+        description: ID of the provider alias
         required: true
         schema:
           type: string
           format: uuid
       responses:
         '204':
-          description: Provider alias deleted
+          description: The provider alias was deleted, or did not exist
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
         '422':
           description: Correlation capability disabled
   /api/v3/correlation/query:
@@ -1617,11 +1665,15 @@ paths:
           type: string
       - name: include_explanation
         in: query
+        description: When true, include an explanation of how each verdict was resolved.
         required: false
         schema:
           type: boolean
       - name: provider
         in: query
+        description: |-
+          The provider of the component, preferring assertions from the same provider when
+          resolving verdicts. It is only used for this query.
         required: false
         schema:
           type:
@@ -1629,6 +1681,7 @@ paths:
           - 'null'
       - name: vulnerability_id
         in: query
+        description: Only the matches for this vulnerability, e.g. `CVE-2024-1234`.
         required: false
         schema:
           type:
@@ -1651,6 +1704,11 @@ paths:
     post:
       tags:
       - correlation
+      summary: Start a correlation refresh
+      description: |-
+        Queues a background job re-extracting the correlation evidence of all SBOMs needing a
+        refresh. Only one job is active at a time: if one is already queued or running, it is
+        returned instead. The `Location` header points to the job.
       operationId: startCorrelationRefresh
       responses:
         '202':
@@ -1671,10 +1729,13 @@ paths:
     get:
       tags:
       - correlation
+      summary: Get a correlation refresh job
+      description: Returns the progress of the job and a page of the SBOMs it failed to refresh.
       operationId: getCorrelationRefresh
       parameters:
       - name: id
         in: path
+        description: ID of the refresh job
         required: true
         schema:
           type: string
@@ -1744,11 +1805,13 @@ paths:
           type: boolean
       - name: include_explanation
         in: query
+        description: When true, include an explanation of how each verdict was resolved.
         required: false
         schema:
           type: boolean
       - name: node_id
         in: query
+        description: Only the verdicts of this SBOM node.
         required: false
         schema:
           type:
@@ -1756,6 +1819,7 @@ paths:
           - 'null'
       - name: vulnerability_id
         in: query
+        description: Only the verdicts for this vulnerability, e.g. `CVE-2024-1234`.
         required: false
         schema:
           type:
@@ -9982,18 +10046,24 @@ components:
           description: Temporary installed-build provider; does not change stored supplier metadata.
         include_explanation:
           type: boolean
+          description: When true, include an explanation of how each verdict was resolved.
         node_id:
           type:
           - string
           - 'null'
+          description: Only the verdicts of this SBOM node. Requires an SBOM target.
         product_context:
           type: array
           items:
             $ref: '#/components/schemas/IdentifierRef'
+          description: |-
+            Identifiers of the product containing the component, e.g. its CPE, used to match
+            product-scoped advisory statements. Only supported for identifier targets.
         vulnerability_id:
           type:
           - string
           - 'null'
+          description: Only the verdicts for this vulnerability, e.g. `CVE-2024-1234`.
       additionalProperties: false
     ResolutionSummary:
       type: object

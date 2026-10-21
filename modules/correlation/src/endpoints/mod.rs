@@ -24,9 +24,12 @@ struct SbomCorrelationParams {
     /// When true, include components that have no correlation evidence.
     #[serde(default)]
     include_unmatched: bool,
+    /// When true, include an explanation of how each verdict was resolved.
     #[serde(default)]
     include_explanation: bool,
+    /// Only the verdicts of this SBOM node.
     node_id: Option<String>,
+    /// Only the verdicts for this vulnerability, e.g. `CVE-2024-1234`.
     vulnerability_id: Option<String>,
 }
 
@@ -148,9 +151,13 @@ struct IdentifierQuery {
     kind: IdentifierKind,
     /// The identifier value to search for. Digests use the format `[<algorithm>:]<value>`.
     q: String,
+    /// When true, include an explanation of how each verdict was resolved.
     #[serde(default)]
     include_explanation: bool,
+    /// The provider of the component, preferring assertions from the same provider when
+    /// resolving verdicts. It is only used for this query.
     provider: Option<String>,
+    /// Only the matches for this vulnerability, e.g. `CVE-2024-1234`.
     vulnerability_id: Option<String>,
 }
 
