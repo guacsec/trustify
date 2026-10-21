@@ -184,9 +184,9 @@ trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "pu
 # as well as build-dependencies. However, we can't control feature flags for build dependencies the way we do
 # it for normal dependencies. So enabling the vendor feature for openssl-sys doesn't work for the build-dependencies.
 # This will fail the build on targets where we need vendoring for openssl. Using rustls instead works around this issue.
-postgresql_archive = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
-postgresql_embedded = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
-postgresql_commands = { version = "0.20.0", default-features = false, features = ["tokio"] }
+postgresql_archive = { version = "0.22.0", default-features = false, features = ["theseus", "tls-rustls-ring"] }
+postgresql_embedded = { version = "0.22.0", default-features = false, features = ["theseus", "tls-rustls-ring"] }
+postgresql_commands = { version = "0.22.0", default-features = false, features = ["tokio"] }
 
 [patch.crates-io]
 #csaf-walker = { git = "https://github.com/ctron/csaf-walker", rev = "7b6e64dd56e4be79e184b053ef754a42e1496fe0" }
