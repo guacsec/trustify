@@ -16,7 +16,7 @@ use trustify_common::db;
 use uuid::Uuid;
 
 #[utoipa::path(tag="correlation",operation_id="listProviderAliases",responses(
-    (status=200,body=Vec<ProviderAlias>),
+    (status=200,description="List of provider aliases",body=Vec<ProviderAlias>),
     (status=422,description="Correlation capability disabled")
 ))]
 #[get("/v3/correlation/provider-alias")]
@@ -29,7 +29,7 @@ async fn aliases(
     Ok(HttpResponse::Ok().json(store::list_aliases(&tx).await?))
 }
 #[utoipa::path(tag="correlation",operation_id="createProviderAlias",request_body=ProviderAliasData,responses(
-    (status=201,body=ProviderAlias),
+    (status=201,description="Provider alias created",body=ProviderAlias),
     (status=422,description="Correlation capability disabled")
 ))]
 #[post("/v3/correlation/provider-alias")]
@@ -45,7 +45,7 @@ async fn create_alias(
     Ok(HttpResponse::Created().json(result))
 }
 #[utoipa::path(tag="correlation",operation_id="updateProviderAlias",params(("id"=Uuid,Path)),request_body=ProviderAliasData,responses(
-    (status=200,body=ProviderAlias),
+    (status=200,description="Provider alias updated",body=ProviderAlias),
     (status=422,description="Correlation capability disabled")
 ))]
 #[put("/v3/correlation/provider-alias/{id}")]
@@ -62,7 +62,7 @@ async fn update_alias(
     Ok(HttpResponse::Ok().json(result))
 }
 #[utoipa::path(tag="correlation",operation_id="deleteProviderAlias",params(("id"=Uuid,Path)),responses(
-    (status=204),
+    (status=204,description="Provider alias deleted"),
     (status=422,description="Correlation capability disabled")
 ))]
 #[delete("/v3/correlation/provider-alias/{id}")]
@@ -80,7 +80,7 @@ async fn remove_alias(
 /// A preview changes request context only; it cannot write aliases or evidence.
 #[utoipa::path(tag="correlation",operation_id="previewCorrelation",request_body=PreviewRequest,responses(
     (status = 422, description = "Correlation capability disabled"),
-    (status=200,body=PreviewResult),
+    (status=200,description="Correlation preview result",body=PreviewResult),
     (status=401,description="The user was not authenticated"),
     (status=403,description="Insufficient permissions")
 ))]

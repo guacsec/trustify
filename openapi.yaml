@@ -1504,6 +1504,7 @@ paths:
         required: true
       responses:
         '200':
+          description: Correlation preview result
           content:
             application/json:
               schema:
@@ -1521,6 +1522,7 @@ paths:
       operationId: listProviderAliases
       responses:
         '200':
+          description: List of provider aliases
           content:
             application/json:
               schema:
@@ -1541,6 +1543,7 @@ paths:
         required: true
       responses:
         '201':
+          description: Provider alias created
           content:
             application/json:
               schema:
@@ -1567,6 +1570,7 @@ paths:
         required: true
       responses:
         '200':
+          description: Provider alias updated
           content:
             application/json:
               schema:
@@ -1585,7 +1589,8 @@ paths:
           type: string
           format: uuid
       responses:
-        '204': {}
+        '204':
+          description: Provider alias deleted
         '422':
           description: Correlation capability disabled
   /api/v3/correlation/query:
