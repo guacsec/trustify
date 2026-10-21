@@ -159,7 +159,7 @@ walkdir = "2.5"
 walker-common = "0.17.0"
 which = "8"
 wiremock = "0.6"
-zip = "8"
+zip = "9"
 
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
