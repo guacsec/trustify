@@ -76,3 +76,77 @@ mod test {
         }
     }
 }
+
+/// An importer, as listed by the importer API.
+///
+/// The configuration is kept as JSON: it is edited as such, and only a few common fields are
+/// shown.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Importer {
+    pub name: String,
+    pub configuration: serde_json::Value,
+    pub state: ImporterState,
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub last_run: Option<time::OffsetDateTime>,
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub last_success: Option<time::OffsetDateTime>,
+    pub last_error: Option<String>,
+    #[serde(default)]
+    pub progress: ImporterProgress,
+}
+
+impl Importer {
+    /// The type of the importer, the single key of its configuration.
+    pub fn kind(&self) -> &str {
+        self.configuration
+            .as_object()
+            .and_then(|config| config.keys().next())
+            .map(String::as_str)
+            .unwrap_or_default()
+    }
+
+    /// A field of the type specific configuration.
+    pub fn field(&self, name: &str) -> Option<&serde_json::Value> {
+        self.configuration.as_object()?.values().next()?.get(name)
+    }
+
+    pub fn disabled(&self) -> bool {
+        self.field("disabled")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or_default()
+    }
+
+    pub fn text(&self, name: &str) -> &str {
+        self.field(name)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ImporterState {
+    Waiting,
+    Running,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct ImporterProgress {
+    pub message: Option<String>,
+    pub current: Option<u32>,
+    pub total: Option<u32>,
+    /// Progress in percent (0..=1)
+    pub percent: Option<f64>,
+}
+
+/// The report of an importer run.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct ImporterReport {
+    pub id: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub creation: time::OffsetDateTime,
+    pub error: Option<String>,
+    /// The details, kept as JSON as they are only shown.
+    pub report: Option<serde_json::Value>,
+}

@@ -1,7 +1,7 @@
 use crate::model::{
     AdvisoryStatement, CorrelationOption, CorrelationOptionData, CorrelationResult, Created,
-    IdentifierKind, IngestResult, PaginatedResults, QueryResult, SbomSummary, SbomVerdictCounts,
-    StatementKind, VerdictCountsRequest, WellKnownInfo,
+    IdentifierKind, Importer, ImporterReport, IngestResult, PaginatedResults, QueryResult,
+    SbomSummary, SbomVerdictCounts, StatementKind, VerdictCountsRequest, WellKnownInfo,
 };
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
@@ -387,5 +387,88 @@ pub async fn delete_provider_alias(id: uuid::Uuid, token: Option<&str>) -> Resul
         token,
     )
     .await?;
+    Ok(())
+}
+
+/// The URL of an importer, or of one of its sub-resources with `path` (e.g. `/force`).
+fn importer_url(name: &str, path: &str) -> String {
+    let name: String = js_sys::encode_uri_component(name).into();
+    format!("/api/v3/importer/{name}{path}")
+}
+
+pub async fn fetch_importers(token: Option<&str>) -> Result<Vec<Importer>, ApiError> {
+    fetch_json("/api/v3/importer", token).await
+}
+
+/// Fetch an importer with its revision, to update it with.
+pub async fn fetch_importer(
+    name: &str,
+    token: Option<&str>,
+) -> Result<(Importer, Option<String>), ApiError> {
+    let response = send(Request::get(&importer_url(name, "")), None, token).await?;
+    let revision = response.headers().get("etag");
+    let importer = response
+        .json()
+        .await
+        .map_err(|e| ApiError::Deserialize(e.to_string()))?;
+    Ok((importer, revision))
+}
+
+pub async fn fetch_importer_reports(
+    name: &str,
+    offset: usize,
+    limit: usize,
+    token: Option<&str>,
+) -> Result<PaginatedResults<ImporterReport>, ApiError> {
+    let url = importer_url(
+        name,
+        &format!("/report?offset={offset}&limit={limit}&total=true"),
+    );
+    fetch_json(&url, token).await
+}
+
+pub async fn create_importer(
+    name: &str,
+    configuration: &serde_json::Value,
+    token: Option<&str>,
+) -> Result<(), ApiError> {
+    let req = Request::post(&importer_url(name, ""));
+    send(req, Some(json_body(configuration)?), token).await?;
+    Ok(())
+}
+
+/// Update the configuration of an importer, failing if it changed since reading `revision`.
+pub async fn update_importer(
+    name: &str,
+    revision: Option<&str>,
+    configuration: &serde_json::Value,
+    token: Option<&str>,
+) -> Result<(), ApiError> {
+    let mut req = Request::put(&importer_url(name, ""));
+    if let Some(revision) = revision {
+        req = req.header("If-Match", revision);
+    }
+    send(req, Some(json_body(configuration)?), token).await?;
+    Ok(())
+}
+
+pub async fn set_importer_enabled(
+    name: &str,
+    enabled: bool,
+    token: Option<&str>,
+) -> Result<(), ApiError> {
+    let req = Request::put(&importer_url(name, "/enabled"));
+    send(req, Some(json_body(&enabled)?), token).await?;
+    Ok(())
+}
+
+/// Run an importer as soon as possible.
+pub async fn force_importer(name: &str, token: Option<&str>) -> Result<(), ApiError> {
+    send(Request::post(&importer_url(name, "/force")), None, token).await?;
+    Ok(())
+}
+
+pub async fn delete_importer(name: &str, token: Option<&str>) -> Result<(), ApiError> {
+    send(Request::delete(&importer_url(name, "")), None, token).await?;
     Ok(())
 }

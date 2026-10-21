@@ -55,6 +55,7 @@ The result is in `dist/`.
 * `src/main.rs`: application, routes, and navigation
 * `src/api.rs`, `src/model.rs`: client side of the REST API
 * `src/sbom_list.rs`, `src/correlation.rs`: SBOMs and their correlation
+* `src/importer.rs`: importers, their runs and configuration
 * `src/advisory_list.rs`, `src/advisory/`: the advisory explorer, format specific parts in
   sub-modules (`csaf/`, `cve/`, `osv/`)
 * `assets/`: styles, and the [Monaco](https://microsoft.github.io/monaco-editor/) workers used by
