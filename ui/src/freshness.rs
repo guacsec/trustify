@@ -37,7 +37,7 @@ impl Display for DocumentFilter {
     }
 }
 
-pub fn freshness_badge(freshness: &ExtractionFreshness) -> Html {
+fn freshness_badge(freshness: &ExtractionFreshness) -> Html {
     let color = match freshness.status {
         FreshnessStatus::Current => Color::Green,
         FreshnessStatus::Stale => Color::Orange,

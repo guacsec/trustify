@@ -93,7 +93,6 @@ fn verdict_counts(counts: Option<&SbomVerdictCounts>) -> Html {
 
     html! {
         <Flex space_items={[SpaceItems::Small]}>
-            <FlexItem>{crate::freshness::freshness_badge(&counts.freshness)}</FlexItem>
             { for labels }
         </Flex>
     }
