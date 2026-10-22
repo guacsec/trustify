@@ -18,6 +18,7 @@ use test_log::test;
 use trustify_common::{
     capability::{VariantDisabled, VariantFilter},
     db::{self, pagination_cache::PaginationCache},
+    model::PaginatedResults,
 };
 use trustify_test_context::{ReadOnly, TrustifyContext, app::TestApp};
 use utoipa_actix_web::AppExt;
@@ -564,4 +565,37 @@ async fn variant_disabled(ctx: TrustifyContext) {
     let result: Importer = actix::call_and_read_body_json(&app, req).await;
     assert_eq!(result.data.last_error, Some(err.to_string()));
     assert_eq!(result.data.last_run, None);
+}
+
+#[test_context(TrustifyContext, skip_teardown)]
+#[test(actix_web::test)]
+async fn list_paginated(ctx: TrustifyContext) {
+    let app = app(&ctx).await;
+
+    // create them out of order, the listing is ordered by name
+    for name in ["c", "a", "b"] {
+        let req = actix::TestRequest::post()
+            .uri(&format!("/api/v3/importer/{name}"))
+            .set_json(mock_configuration("bar"))
+            .to_request();
+        let resp = actix::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+    }
+
+    let req = actix::TestRequest::get()
+        .uri("/api/v4/importer?offset=1&limit=1&total=true")
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let result: PaginatedResults<Importer> = actix::read_body_json(resp).await;
+    assert_eq!(result.total, Some(3));
+    assert_eq!(
+        result
+            .items
+            .iter()
+            .map(|i| i.name.as_str())
+            .collect::<Vec<_>>(),
+        ["b"]
+    );
 }

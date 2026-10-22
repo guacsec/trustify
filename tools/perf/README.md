@@ -65,7 +65,7 @@ update permission.
 | `make test-purl` | v3 pURL list + detail + recommend |
 | `make test-product` | v3 product list + detail |
 | `make test-organization` | v3 organization list + detail |
-| `make test-importer` | v3 importer list + detail |
+| `make test-importer` | importer list (v4) + v3 detail |
 | `make test-license` | v3 license list + slow queries |
 | `make test-weakness` | v3 weakness list + detail |
 | `make test-group` | v3 SBOM group list + detail |

@@ -156,6 +156,29 @@ impl ImporterService {
         Ok(result)
     }
 
+    /// List a page of importers, ordered by name to keep pages stable while importers run.
+    pub async fn list_paginated(
+        &self,
+        search: Query,
+        paginated: impl Pagination,
+    ) -> Result<PaginatedResults<Importer>, Error> {
+        let limiting = importer::Entity::find()
+            .filtering(search)?
+            .order_by_asc(importer::Column::Name)
+            .limiting(&self.db, paginated, &self.cache)?;
+
+        let LimitedResult { items, total } = limiting.fetch().await?;
+        let total = total.requested(paginated.total()).await?;
+
+        Ok(PaginatedResults {
+            total,
+            items: items
+                .into_iter()
+                .map(Importer::try_from)
+                .collect::<Result<_, _>>()?,
+        })
+    }
+
     pub async fn create(
         &self,
         name: String,

@@ -29,7 +29,8 @@ pub fn configure(
         cache,
         importer_filter,
     )))
-    .service(list)
+    .service(v3::list)
+    .service(list_paginated)
     .service(create)
     .service(read)
     .service(update)
@@ -40,20 +41,49 @@ pub fn configure(
     .service(force);
 }
 
+mod v3 {
+    // the handler is deprecated, its registration and implementation aren't
+    #![allow(deprecated)]
+    use super::*;
+
+    #[utoipa::path(
+        tag = "importer",
+        operation_id = "listImporters",
+        responses(
+            (status = 200, description = "List importer configurations", body = [Importer])
+        )
+    )]
+    #[get("/v3/importer")]
+    #[deprecated = "Use the paginated version: GET /v4/importer"]
+    /// List importer configurations
+    async fn list(
+        service: web::Data<ImporterService>,
+        _: Require<ReadImporter>,
+    ) -> Result<impl Responder, Error> {
+        Ok(web::Json(service.list().await?))
+    }
+}
+
 #[utoipa::path(
     tag = "importer",
-    operation_id = "listImporters",
+    operation_id = "listImportersPaginated",
+    params(
+        Query,
+        Paginated,
+    ),
     responses(
-        (status = 200, description = "List importer configurations", body = [Importer])
+        (status = 200, description = "List importer configurations, ordered by name", body = PaginatedResults<Importer>)
     )
 )]
-#[get("/v3/importer")]
-/// List importer configurations
-async fn list(
+#[get("/v4/importer")]
+/// List importer configurations, paginated
+async fn list_paginated(
     service: web::Data<ImporterService>,
+    web::Query(search): web::Query<Query>,
+    web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadImporter>,
 ) -> Result<impl Responder, Error> {
-    Ok(web::Json(service.list().await?))
+    Ok(web::Json(service.list_paginated(search, paginated).await?))
 }
 
 #[utoipa::path(
