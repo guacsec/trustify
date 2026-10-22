@@ -51,7 +51,13 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
         });
     }
 
-    let sbom_id = &props.sbom_id;
+    let sbom_name = match &*result {
+        Some(CorrelationResult {
+            sbom_name: Some(name),
+            ..
+        }) => name.as_str(),
+        _ => props.sbom_id.as_str(),
+    };
 
     html! {
         <PageSection>
@@ -60,7 +66,10 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                     { "SBOMs" }
                 </BreadcrumbRouterItem<AppRoute>>
                 <BreadcrumbItem>
-                    { format!("Correlation: {sbom_id}") }
+                    { sbom_name }
+                </BreadcrumbItem>
+                <BreadcrumbItem>
+                    { "Correlation" }
                 </BreadcrumbItem>
             </Breadcrumb>
 
@@ -114,14 +123,15 @@ struct VerdictEntry(VerdictSummary, uuid::Uuid);
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
         match context.column {
-            VerdictColumn::Component => html! {
+            VerdictColumn::Component => Cell::new(html! {
                 <div>
                     { &self.0.component.name }
                     <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                        <code style="color: inherit; overflow-wrap: anywhere;">{ &self.0.component.node_id }</code>
+                        <code style="color: inherit;">{ &self.0.component.node_id }</code>
                     </div>
                 </div>
-            }.into(),
+            })
+            .text_modifier(TextModifier::NoWrap),
             VerdictColumn::Vulnerability => html! {
                 <>
                     <strong>{ &self.0.vulnerability.id }</strong>
@@ -392,15 +402,15 @@ struct RemediationEntry {
 impl TableEntryRenderer<RemediationColumn> for RemediationEntry {
     fn render_cell(&self, context: CellContext<'_, RemediationColumn>) -> Cell {
         match context.column {
-            RemediationColumn::Component => html! {
+            RemediationColumn::Component => Cell::new(html! {
                 <div>
                     { &self.component.name }
                     <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                        <code style="color: inherit; overflow-wrap: anywhere;">{ &self.component.node_id }</code>
+                        <code style="color: inherit;">{ &self.component.node_id }</code>
                     </div>
                 </div>
-            }
-            .into(),
+            })
+            .text_modifier(TextModifier::NoWrap),
             RemediationColumn::Vulnerability => html!(<strong>{ &self.vulnerability }</strong>).into(),
             RemediationColumn::Status => status_label(self.status).into(),
             RemediationColumn::Remediation => remediation(&self.remediation).into(),

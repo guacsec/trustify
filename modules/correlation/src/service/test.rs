@@ -316,6 +316,7 @@ async fn components_list_identifiers(ctx: &TrustifyContext) -> anyhow::Result<()
                 .remove(&sbom_id)
                 .unwrap(),
             sbom_id,
+            sbom_name: Some("JBL Flip 4".into()),
             verdicts: vec![],
             unmatched_components: Some(vec![
                 component(

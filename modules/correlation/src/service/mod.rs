@@ -171,6 +171,7 @@ impl CorrelationService {
             .await?
             .remove(&sbom_id)
             .unwrap_or_default();
+        let sbom_name = load_sbom_name(sbom_id, connection).await?;
         let mut query = correlation_evidence::Entity::find()
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
         if let Some(node) = &request.node_id {
@@ -203,6 +204,7 @@ impl CorrelationService {
 
             return Ok(CorrelationResult {
                 sbom_id,
+                sbom_name,
                 freshness,
                 verdicts: Vec::new(),
                 unmatched_components,
@@ -377,6 +379,7 @@ impl CorrelationService {
 
         Ok(CorrelationResult {
             sbom_id,
+            sbom_name,
             freshness,
             verdicts,
             unmatched_components,
@@ -625,6 +628,21 @@ fn build_component_ref(
         node_id,
         name,
     }
+}
+
+/// Load the name of an SBOM, which is the name of its root node.
+async fn load_sbom_name(
+    sbom_id: Uuid,
+    connection: &DatabaseTransaction,
+) -> Result<Option<String>, Error> {
+    let Some(sbom) = sbom::Entity::find_by_id(sbom_id).one(connection).await? else {
+        return Ok(None);
+    };
+
+    Ok(sbom_node::Entity::find_by_id((sbom_id, sbom.node_id))
+        .one(connection)
+        .await?
+        .map(|node| node.name))
 }
 
 /// Load all components for an SBOM, excluding those in the matched set.

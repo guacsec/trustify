@@ -13,6 +13,9 @@ pub use freshness::*;
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct CorrelationResult {
     pub sbom_id: Uuid,
+    /// The name of the SBOM. Absent if the SBOM doesn't exist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sbom_name: Option<String>,
     #[serde(default)]
     pub freshness: ExtractionFreshness,
     pub verdicts: Vec<VerdictSummary>,
