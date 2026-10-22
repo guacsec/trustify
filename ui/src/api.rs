@@ -396,8 +396,17 @@ fn importer_url(name: &str, path: &str) -> String {
     format!("/api/v3/importer/{name}{path}")
 }
 
-pub async fn fetch_importers(token: Option<&str>) -> Result<Vec<Importer>, ApiError> {
-    fetch_json("/api/v3/importer", token).await
+/// Fetch a page of importers, ordered by name, with the total.
+pub async fn fetch_importers(
+    offset: usize,
+    limit: usize,
+    token: Option<&str>,
+) -> Result<PaginatedResults<Importer>, ApiError> {
+    fetch_json(
+        &format!("/api/v4/importer?offset={offset}&limit={limit}&total=true"),
+        token,
+    )
+    .await
 }
 
 /// Fetch an importer with its revision, to update it with.

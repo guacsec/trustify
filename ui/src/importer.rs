@@ -199,9 +199,11 @@ enum Column {
 pub fn importer_list_page() -> Html {
     #[allow(clippy::expect_used)]
     let backdrop = use_backdrop().expect("ImporterListPage requires BackdropViewer");
-    let importers = use_state(|| None::<Vec<Importer>>);
+    let importers = use_state(|| None::<PaginatedResults<Importer>>);
     let error = use_state(|| None::<String>);
     let generation = use_state(|| 0u64);
+    let total = importers.as_ref().and_then(|r| r.total).map(|t| t as usize);
+    let pagination = use_stored_pagination("importers", total);
     let latest_token = use_latest_access_token();
     let token = latest_token.as_ref().and_then(|t| t.access_token());
 
@@ -209,18 +211,24 @@ pub fn importer_list_page() -> Html {
 
     {
         let (importers, error) = (importers.clone(), error.clone());
-        use_effect_with((*generation, token.clone()), move |(_, token)| {
-            let token = token.clone();
-            spawn_local(async move {
-                match api::fetch_importers(token.as_deref()).await {
-                    Ok(mut result) => {
-                        result.sort_by(|a, b| a.name.cmp(&b.name));
-                        importers.set(Some(result));
+        use_effect_with(
+            (*generation, pagination.control, token.clone()),
+            move |(_, control, token)| {
+                let (control, token) = (*control, token.clone());
+                spawn_local(async move {
+                    match api::fetch_importers(
+                        control.page * control.per_page,
+                        control.per_page,
+                        token.as_deref(),
+                    )
+                    .await
+                    {
+                        Ok(result) => importers.set(Some(result)),
+                        Err(e) => error.set(Some(format!("Failed to load the importers: {e}"))),
                     }
-                    Err(e) => error.set(Some(format!("Failed to load the importers: {e}"))),
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     let reload = {
@@ -270,10 +278,13 @@ pub fn importer_list_page() -> Html {
                     <ToolbarItem>
                         <Button variant={ButtonVariant::Primary} onclick={on_add}>{ "Add importer" }</Button>
                     </ToolbarItem>
+                    <ToolbarItem r#type={ToolbarItemType::Pagination}>
+                        <SimplePagination pagination={pagination.clone()} {total} />
+                    </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
-            if let Some(importers) = &*importers {
-                if importers.is_empty() {
+            if let Some(PaginatedResults { items: importers, total }) = &*importers {
+                if *total == Some(0) {
                     <EmptyState title="No importers" icon={Icon::Cubes} size={Size::Large}>
                         { "Documents are only ingested when uploaded. Add an importer to fetch them from a source." }
                     </EmptyState>
