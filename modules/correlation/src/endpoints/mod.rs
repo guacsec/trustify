@@ -1,10 +1,10 @@
 use crate::{
     error::Error,
     model::{
-        AdvisoryStatement, CorrelationResult, IdentifierKind, IdentifierRef, QueryResult,
-        SbomVerdictCounts, StatementKind, VerdictCountsRequest,
+        AdvisoryStatement, ConfidenceCatalog, CorrelationResult, IdentifierKind, IdentifierRef,
+        QueryResult, SbomVerdictCounts, StatementKind, VerdictCountsRequest,
     },
-    service::{CorrelationService, option::OptionService, statement::StatementService},
+    service::{CorrelationService, confidence, option::OptionService, statement::StatementService},
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Deserialize;
@@ -58,6 +58,7 @@ pub fn configure(
         .service(list_advisory_statements)
         .service(count_verdicts)
         .service(query_correlation)
+        .service(get_confidence_catalog)
         .configure(option::configure)
         .configure(freshness::configure)
         .configure(resolution::configure);
@@ -103,6 +104,30 @@ async fn get_sbom_correlation(
         )
         .await?;
     Ok(HttpResponse::Ok().json(result))
+}
+
+/// Get the factors of a match confidence
+///
+/// Lists all factors a match confidence can be made of, with the version range rules as
+/// currently configured. A match confidence is the product of its factors.
+#[utoipa::path(
+    tag = "correlation",
+    operation_id = "getCorrelationConfidence",
+    responses(
+        (status = 422, description = "Correlation capability disabled"),
+        (status = 200, description = "The factors of a match confidence", body = ConfidenceCatalog),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "Insufficient permissions"),
+    ),
+)]
+#[get("/v3/correlation/confidence")]
+async fn get_confidence_catalog(
+    _gate: RequireCapability<Correlation>,
+    db: web::Data<db::ReadOnly>,
+    _: Require<ReadSbomCorrelation>,
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    Ok(HttpResponse::Ok().json(confidence::catalog(&tx).await?))
 }
 
 /// Maximum number of SBOMs per verdict count request.

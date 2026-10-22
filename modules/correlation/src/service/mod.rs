@@ -22,6 +22,7 @@ use trustify_entity::{
 };
 use uuid::Uuid;
 
+pub mod confidence;
 pub mod freshness;
 pub mod option;
 mod remediation;

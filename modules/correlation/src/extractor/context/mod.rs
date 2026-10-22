@@ -18,7 +18,7 @@
 use crate::{
     error::Error,
     extractor::{Assertion, NodeRef, product_identifier::wildcard::csaf_glob_matches},
-    model::{ConfidenceFactor, ConfidenceReason},
+    model::{ConfidenceFactor, ConfidenceFactorInfo, ConfidenceReason, PerHop},
 };
 use sea_orm::{
     ActiveEnum, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter,
@@ -52,7 +52,7 @@ const PURL_RELEASE: f64 = 0.75;
 /// Factor of an assertion stated in a product, on a node whose product can't be compared.
 const UNCHECKED: f64 = 0.7;
 /// Factor of a match through an ANY attribute (instead of equal values).
-const ANY_MATCH: f64 = 0.9;
+pub(crate) const ANY_MATCH: f64 = 0.9;
 
 /// Number of values per query.
 const CHUNK: usize = 5000;
@@ -102,6 +102,40 @@ fn source_confidence(source: ContextSource, distance: u32) -> f64 {
         ContextSource::PurlRelease => PURL_RELEASE,
         ContextSource::Unconfirmed => UNCHECKED,
     }
+}
+
+/// The factors of a confirmed product per source, the one of an ancestor at distance 1, and the
+/// factor of an unconfirmed product.
+pub(crate) fn catalog() -> Vec<ConfidenceFactorInfo> {
+    let per_hop = |(_, step, min): (f64, f64, f64)| Some(PerHop { step, min });
+    [
+        (ContextSource::Node, 0, None),
+        (ContextSource::AncestorNode, 1, per_hop(ANCESTOR_NODE)),
+        (ContextSource::Describing, 0, None),
+        (ContextSource::AncestorSbom, 1, per_hop(ANCESTOR_SBOM)),
+        (ContextSource::PurlQualifier, 0, None),
+        (ContextSource::PurlRelease, 0, None),
+    ]
+    .into_iter()
+    .map(|(source, distance, per_hop)| {
+        let factor = source_confidence(source, distance);
+        ConfidenceFactorInfo {
+            reason: ConfidenceReason::ProductConfirmed {
+                source: source.into(),
+                distance,
+                source_factor: Some(factor),
+                wildcard_factor: Some(1.0),
+            },
+            factor,
+            per_hop,
+        }
+    })
+    .chain([ConfidenceFactorInfo {
+        reason: ConfidenceReason::ProductNotConfirmed,
+        factor: UNCHECKED,
+        per_hop: None,
+    }])
+    .collect()
 }
 
 /// The kinds of context identifiers which identify a product exactly, compared for equality.

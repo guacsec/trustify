@@ -21,7 +21,7 @@ pub struct DigestExtractor;
 /// ID of the extractor, and type of its evidence.
 const ID: &str = "digest";
 
-const CONFIDENCE: f64 = 1.0;
+pub(crate) const CONFIDENCE: f64 = 1.0;
 
 fn format_digest(algorithm: &str, value: &str) -> String {
     format!("{algorithm}:{value}")

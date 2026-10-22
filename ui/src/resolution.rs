@@ -214,12 +214,12 @@ fn factors_formula(factors: &[ConfidenceFactor], confidence: f64) -> Option<Stri
     })
 }
 
-fn percent(value: f64) -> String {
+pub(crate) fn percent(value: f64) -> String {
     format!("{:.0}%", value * 100.0)
 }
 
 /// Why a factor applies to a match confidence.
-fn factor_text(factor: &ConfidenceFactor, contexts: &[EvidenceContext]) -> String {
+pub(crate) fn factor_text(factor: &ConfidenceFactor, contexts: &[EvidenceContext]) -> String {
     match &factor.reason {
         ConfidenceReason::Digest => "The file digest is equal.".into(),
         ConfidenceReason::ProductIdentifier => {
@@ -298,7 +298,7 @@ fn factor_text(factor: &ConfidenceFactor, contexts: &[EvidenceContext]) -> Strin
 }
 
 /// Why a rule derived the range of a statement, by its evidence type.
-fn rule_text(rule: &str) -> String {
+pub(crate) fn rule_text(rule: &str) -> String {
     match rule {
         "purl_first_fixed" => "The advisory states the first fixed version: it and later versions are fixed.",
         "purl_first_fixed_before" => "The advisory states the first fixed version: earlier versions are affected.",
@@ -317,7 +317,7 @@ fn rule_text(rule: &str) -> String {
 }
 
 /// A short name of the reason of a factor.
-fn factor_label(factor: &ConfidenceFactor) -> &'static str {
+pub(crate) fn factor_label(factor: &ConfidenceFactor) -> &'static str {
     match &factor.reason {
         ConfidenceReason::Digest => "File digest",
         ConfidenceReason::ProductIdentifier => "Product identifier",
@@ -363,6 +363,7 @@ pub(crate) fn confidence_breakdown(
                 <p class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
                     { "These percentages are matching heuristics, not the probability that the component is vulnerable." }
                 </p>
+                <Link<AppRoute> to={AppRoute::Confidence}>{ "How match confidence works" }</Link<AppRoute>>
             </StackItem>
         </Stack>
     }

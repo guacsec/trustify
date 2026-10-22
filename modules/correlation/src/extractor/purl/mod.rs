@@ -79,7 +79,7 @@ const DEFAULT: &str = "purl_default";
 
 /// Confidence of a default status: it covers all versions not listed, which is less specific than a
 /// listed version or range.
-const DEFAULT_CONFIDENCE: f64 = 0.9;
+pub(crate) const DEFAULT_CONFIDENCE: f64 = 0.9;
 
 const CONFIDENCE: f64 = 1.0;
 

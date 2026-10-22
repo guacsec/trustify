@@ -1199,6 +1199,28 @@ paths:
           description: The user authenticated, but not authorized for this operation
         '422':
           description: Correlation capability disabled
+  /api/v3/correlation/confidence:
+    get:
+      tags:
+      - correlation
+      summary: Get the factors of a match confidence
+      description: |-
+        Lists all factors a match confidence can be made of, with the version range rules as
+        currently configured. A match confidence is the product of its factors.
+      operationId: getCorrelationConfidence
+      responses:
+        '200':
+          description: The factors of a match confidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfidenceCatalog'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: Insufficient permissions
+        '422':
+          description: Correlation capability disabled
   /api/v3/correlation/freshness:
     get:
       tags:
@@ -6412,6 +6434,21 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    ConfidenceCatalog:
+      type: object
+      description: All factors a match confidence can be made of, as currently configured.
+      required:
+      - factors
+      - wildcard_cpe
+      properties:
+        factors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfidenceFactorInfo'
+        wildcard_cpe:
+          type: number
+          format: double
+          description: Multiplier of a product confirmed through a CPE attribute of ANY, instead of equal values.
     ConfidenceFactor:
       type: object
       description: |-
@@ -6424,6 +6461,24 @@ components:
         factor:
           type: number
           format: double
+        reason:
+          $ref: '#/components/schemas/ConfidenceReason'
+    ConfidenceFactorInfo:
+      type: object
+      description: A factor a match confidence can have.
+      required:
+      - reason
+      - factor
+      properties:
+        factor:
+          type: number
+          format: double
+          description: The factor, for an ancestor at distance 1.
+        per_hop:
+          oneOf:
+          - $ref: '#/components/schemas/PerHop'
+            description: How the factor decreases with each further hop to an ancestor.
+          - type: 'null'
         reason:
           $ref: '#/components/schemas/ConfidenceReason'
     ConfidenceReason:
@@ -8943,6 +8998,19 @@ components:
           items:
             type: string
           description: The IDs of the SBOMs to update.
+    PerHop:
+      type: object
+      description: A factor decreasing with each further hop, down to a minimum.
+      required:
+      - step
+      - min
+      properties:
+        min:
+          type: number
+          format: double
+        step:
+          type: number
+          format: double
     PolicyEvaluationRequest:
       type: object
       properties:

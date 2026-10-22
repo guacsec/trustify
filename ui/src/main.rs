@@ -1,6 +1,7 @@
 mod advisory;
 mod advisory_list;
 mod api;
+mod confidence;
 mod correlation;
 mod freshness;
 mod ingest;
@@ -53,6 +54,7 @@ pub enum AppRoute {
     Options,
     CorrelationStatus,
     ProviderAliases,
+    Confidence,
 }
 
 impl AppRoute {
@@ -64,6 +66,7 @@ impl AppRoute {
                 | Self::Options
                 | Self::CorrelationStatus
                 | Self::ProviderAliases
+                | Self::Confidence
         )
     }
 }
@@ -239,6 +242,7 @@ fn switch_route(target: AppRoute, correlation_enabled: bool) -> Html {
     }
     match target {
         AppRoute::CorrelationStatus => html! { <AppPage><freshness::FreshnessPage /></AppPage> },
+        AppRoute::Confidence => html! { <AppPage><confidence::ConfidencePage /></AppPage> },
         AppRoute::SbomList => html! {
             <AppPage>
                 <SbomList />
@@ -321,11 +325,16 @@ fn page(props: &PageProps) -> Html {
                                     { "Options" }
                                 </NavRouterItem<AppRoute>>
                             </NavExpandable>
-                        <NavLink href="/swagger-ui/" target="_blank">
-                            { "API documentation" }
-                            <i class="fas fa-external-link-alt pf-v6-u-ml-sm" aria-hidden="true" />
-                            <span class="pf-v6-screen-reader">{ "(opens in a new tab)" }</span>
-                        </NavLink>
+                            <NavExpandable title="Documentation">
+                                <NavRouterItem<AppRoute> to={AppRoute::Confidence}>
+                                    { "Match confidence" }
+                                </NavRouterItem<AppRoute>>
+                                <NavLink href="/swagger-ui/" target="_blank">
+                                    { "API documentation" }
+                                    <i class="fas fa-external-link-alt pf-v6-u-ml-sm" aria-hidden="true" />
+                                    <span class="pf-v6-screen-reader">{ "(opens in a new tab)" }</span>
+                                </NavLink>
+                            </NavExpandable>
                         }
                     </NavList>
                 </Nav>

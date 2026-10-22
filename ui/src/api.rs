@@ -7,7 +7,8 @@ use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
-    FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob, RefreshJobDetails,
+    ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob,
+    RefreshJobDetails,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -55,6 +56,10 @@ async fn fetch_json<T: DeserializeOwned>(url: &str, token: Option<&str>) -> Resu
 
 pub async fn fetch_freshness(token: Option<&str>) -> Result<FreshnessOverview, ApiError> {
     fetch_json("/api/v3/correlation/freshness", token).await
+}
+
+pub async fn fetch_confidence_catalog(token: Option<&str>) -> Result<ConfidenceCatalog, ApiError> {
+    fetch_json("/api/v3/correlation/confidence", token).await
 }
 
 pub async fn fetch_freshness_documents(

@@ -29,7 +29,7 @@ pub struct ProductIdentifierExtractor;
 /// ID of the extractor, and type of its evidence.
 const ID: &str = "product_identifier";
 
-const CONFIDENCE: f64 = 1.0;
+pub(crate) const CONFIDENCE: f64 = 1.0;
 
 /// Map an identifier kind to a product identifier type, if it is one.
 fn identifier_type(kind: IdentifierKind) -> Option<ProductIdentifierType> {

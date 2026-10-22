@@ -342,6 +342,35 @@ pub enum StreamRelation {
     Minor,
 }
 
+/// All factors a match confidence can be made of, as currently configured.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ConfidenceCatalog {
+    pub factors: Vec<ConfidenceFactorInfo>,
+    /// Multiplier of a product confirmed through a CPE attribute of ANY, instead of equal values.
+    pub wildcard_cpe: f64,
+}
+
+/// A factor a match confidence can have.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ConfidenceFactorInfo {
+    pub reason: ConfidenceReason,
+    /// The factor, for an ancestor at distance 1.
+    pub factor: f64,
+    /// How the factor decreases with each further hop to an ancestor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub per_hop: Option<PerHop>,
+}
+
+/// A factor decreasing with each further hop, down to a minimum.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PerHop {
+    pub step: f64,
+    pub min: f64,
+}
+
 /// The confidence of factors: their product, rounded to two digits.
 pub fn combine<'a>(factors: impl IntoIterator<Item = &'a ConfidenceFactor>) -> f64 {
     let product = factors.into_iter().map(|f| f.factor).product::<f64>();
