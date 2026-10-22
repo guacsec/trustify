@@ -32,6 +32,10 @@ fn parse_importer_name(s: &str) -> Result<String, String> {
 /// Run the importer server
 #[derive(clap::Args, Debug)]
 pub struct Run {
+    /// Development mode: create the storage directory and apply database migrations
+    #[arg(long, env)]
+    pub devmode: bool,
+
     /// Enable read-only mode, suspending all importer runs
     #[arg(long, env = "TRUSTD_READ_ONLY")]
     pub read_only: bool,
@@ -128,13 +132,18 @@ impl InitData {
     async fn new(context: InitContext, run: Run) -> anyhow::Result<Self> {
         let db = db::Database::new(&run.database).await?;
 
+        let storage = run.storage.into_storage(run.devmode).await?;
+
+        if run.devmode {
+            let migrator = trustify_db::Migrator::new(storage.clone(), ());
+            trustify_db::Database(&db).migrate(&migrator).await?;
+        }
+
         context
             .health
             .readiness
             .register("database", spawn_db_check(db.clone())?)
             .await;
-
-        let storage = run.storage.into_storage(false).await?;
 
         use strum::VariantNames;
         let importer_filter = VariantFilter::new(
