@@ -1,7 +1,6 @@
-use crate::{api, resolution::text_field};
+use crate::{api, confirm::ConfirmDialog, resolution::text_field};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{ProviderAlias, ProviderAliasData, ProviderAliasIdentifier};
-use uuid::Uuid;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -17,7 +16,8 @@ enum AliasColumn {
 struct AliasEntry {
     alias: ProviderAlias,
     on_edit: Callback<ProviderAlias>,
-    on_delete: Callback<Uuid>,
+    /// Delete an alias, after confirmation.
+    on_delete: Callback<ProviderAlias>,
 }
 
 impl TableEntryRenderer<AliasColumn> for AliasEntry {
@@ -44,7 +44,7 @@ impl TableEntryRenderer<AliasColumn> for AliasEntry {
             }.into(),
             AliasColumn::Actions => {
                 let edit=self.on_edit.clone();let alias=self.alias.clone();
-                let delete=self.on_delete.clone();let id=self.alias.id;
+                let delete=self.on_delete.clone();let deleted=self.alias.clone();
                 html!{
                     <Flex space_items={[SpaceItems::Small]}>
                         <FlexItem><Button variant={ButtonVariant::Link}
@@ -52,7 +52,7 @@ impl TableEntryRenderer<AliasColumn> for AliasEntry {
                             onclick={Callback::from(move|_:MouseEvent|edit.emit(alias.clone()))}>{"Edit"}</Button></FlexItem>
                         <FlexItem><Button variant={ButtonVariant::Link}
                             aria_label={format!("Delete aliases for {}",self.alias.data.provider)}
-                            onclick={Callback::from(move|_:MouseEvent|delete.emit(id))}>{"Delete"}</Button></FlexItem>
+                            onclick={Callback::from(move|_:MouseEvent|delete.emit(deleted.clone()))}>{"Delete"}</Button></FlexItem>
                     </Flex>
                 }.into()
             }
@@ -64,7 +64,7 @@ impl TableEntryRenderer<AliasColumn> for AliasEntry {
 struct ProviderAliasTableProps {
     aliases: Vec<ProviderAlias>,
     on_edit: Callback<ProviderAlias>,
-    on_delete: Callback<Uuid>,
+    on_delete: Callback<ProviderAlias>,
 }
 
 #[function_component(ProviderAliasTable)]
@@ -229,6 +229,7 @@ pub fn provider_alias_page() -> Html {
         });
     }
     let open = {
+        let backdrop = backdrop.clone();
         let generation = generation.clone();
         let error = error.clone();
         Callback::from(move |alias: Option<ProviderAlias>| {
@@ -247,19 +248,36 @@ pub fn provider_alias_page() -> Html {
         let token = token.clone();
         let generation = generation.clone();
         let error = error.clone();
-        Callback::from(move |id: Uuid| {
-            let token = token.clone();
-            let generation = generation.clone();
-            let error = error.clone();
-            spawn_local(async move {
-                match api::delete_provider_alias(id, token.as_deref()).await {
-                    Ok(()) => {
-                        error.set(None);
-                        generation.set(generation.wrapping_add(1))
-                    }
-                    Err(e) => error.set(Some(e.to_string())),
-                }
-            })
+        let backdrop = backdrop.clone();
+        Callback::from(move |alias: ProviderAlias| {
+            let on_confirm = {
+                let (token, generation, error) = (token.clone(), generation.clone(), error.clone());
+                let id = alias.id;
+                Callback::from(move |()| {
+                    let token = token.clone();
+                    let generation = generation.clone();
+                    let error = error.clone();
+                    spawn_local(async move {
+                        match api::delete_provider_alias(id, token.as_deref()).await {
+                            Ok(()) => {
+                                error.set(None);
+                                generation.set(generation.wrapping_add(1))
+                            }
+                            Err(e) => error.set(Some(e.to_string())),
+                        }
+                    })
+                })
+            };
+            backdrop.open(Backdrop::new(html! {
+                <Bullseye>
+                    <ConfirmDialog title="Delete provider alias?" confirm="Delete" danger=true {on_confirm}>
+                        <p>
+                            { "The aliases of " }<strong>{ &alias.data.provider }</strong>
+                            { " will be deleted. Existing results become outdated." }
+                        </p>
+                    </ConfirmDialog>
+                </Bullseye>
+            }));
         })
     };
     let edit = {

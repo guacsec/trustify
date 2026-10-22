@@ -2,12 +2,12 @@
 
 use crate::{
     AppRoute, api,
+    confirm::ConfirmDialog,
     model::{CorrelationOption, CorrelationOptionData, CorrelationOptionKey},
 };
 use patternfly_yew::prelude::*;
 use serde_json::Value;
 use std::{future::Future, pin::Pin};
-use uuid::Uuid;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_nested_router::components::Link;
@@ -31,8 +31,8 @@ struct OptionEntry {
     option: CorrelationOption,
     /// Set the value of an option.
     on_value: Callback<(CorrelationOption, Value)>,
-    /// Delete an option.
-    on_delete: Callback<Uuid>,
+    /// Delete an option, after confirmation.
+    on_delete: Callback<CorrelationOption>,
 }
 
 impl TableEntryRenderer<Column> for OptionEntry {
@@ -57,9 +57,9 @@ impl TableEntryRenderer<Column> for OptionEntry {
             Column::Reason => html!(data.reason.as_deref().unwrap_or("-")).into(),
             Column::Actions => {
                 let onclick = {
-                    let id = self.option.id;
+                    let option = self.option.clone();
                     let on_delete = self.on_delete.clone();
-                    Callback::from(move |_: MouseEvent| on_delete.emit(id))
+                    Callback::from(move |_: MouseEvent| on_delete.emit(option.clone()))
                 };
                 html!(
                     <Button
@@ -142,12 +142,29 @@ pub fn options_page() -> Html {
     let on_delete = {
         let change = change.clone();
         let token = token.clone();
-        Callback::from(move |id: Uuid| {
-            let token = token.clone();
-            change.emit(Box::pin(async move {
-                api::delete_option(id, token.as_deref())
-                    .await
-                    .map_err(|e| format!("Failed to delete the option: {e}"))
+        let backdrop = backdrop.clone();
+        Callback::from(move |option: CorrelationOption| {
+            let on_confirm = {
+                let (change, token) = (change.clone(), token.clone());
+                Callback::from(move |()| {
+                    let token = token.clone();
+                    change.emit(Box::pin(async move {
+                        api::delete_option(option.id, token.as_deref())
+                            .await
+                            .map_err(|e| format!("Failed to delete the option: {e}"))
+                    }));
+                })
+            };
+            backdrop.open(Backdrop::new(html! {
+                <Bullseye>
+                    <ConfirmDialog title="Delete option?" confirm="Delete" danger=true {on_confirm}>
+                        <p>
+                            { "The option " }<code>{ option.data.key.as_str() }</code>
+                            { " for " }<strong>{ &option.data.publisher_namespace }</strong>
+                            { " will be deleted. Existing results become outdated." }
+                        </p>
+                    </ConfirmDialog>
+                </Bullseye>
             }));
         })
     };
