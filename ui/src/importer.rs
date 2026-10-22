@@ -2,6 +2,7 @@
 
 use crate::{
     AppRoute, api,
+    confirm::ConfirmDialog,
     correlation::timestamp,
     model::{Importer, ImporterReport, ImporterState, PaginatedResults},
     monaco::ensure_environment,
@@ -85,18 +86,25 @@ struct ActionsProps {
     on_done: Callback<Result<(), String>>,
     /// Called after the importer was deleted.
     on_deleted: Callback<()>,
+    /// Show the menu as a kebab, for table rows, instead of an "Actions" toggle.
+    #[prop_or_default]
+    kebab: bool,
 }
 
-/// Enable, run, and delete an importer.
+/// A menu to enable, run, and delete an importer.
 #[function_component(ImporterActions)]
 fn importer_actions(props: &ActionsProps) -> Html {
+    #[allow(clippy::expect_used)]
+    let backdrop = use_backdrop().expect("ImporterActions requires BackdropViewer");
     let latest_token = use_latest_access_token();
     let token = latest_token.as_ref().and_then(|t| t.access_token());
     let name = props.importer.name.clone();
 
+    let enabled = !props.importer.disabled();
     let on_enabled = {
         let (name, token, on_done) = (name.clone(), token.clone(), props.on_done.clone());
-        Callback::from(move |enabled: bool| {
+        Callback::from(move |()| {
+            let enabled = !enabled;
             let (name, token) = (name.clone(), token.clone());
             run(
                 Box::pin(async move {
@@ -111,7 +119,7 @@ fn importer_actions(props: &ActionsProps) -> Html {
 
     let on_run = {
         let (name, token, on_done) = (name.clone(), token.clone(), props.on_done.clone());
-        Callback::from(move |_: MouseEvent| {
+        Callback::from(move |()| {
             let (name, token) = (name.clone(), token.clone());
             run(
                 Box::pin(async move {
@@ -126,15 +134,10 @@ fn importer_actions(props: &ActionsProps) -> Html {
 
     let on_delete = {
         let (on_done, on_deleted) = (props.on_done.clone(), props.on_deleted.clone());
-        Callback::from(move |_: MouseEvent| {
-            let confirmed = gloo_utils::window()
-                .confirm_with_message(&format!("Delete importer {name}?"))
-                .unwrap_or_default();
-            if !confirmed {
-                return;
-            }
+        let deleted = name.clone();
+        let on_confirm = Callback::from(move |()| {
             let (name, token, on_done, on_deleted) = (
-                name.clone(),
+                deleted.clone(),
                 token.clone(),
                 on_done.clone(),
                 on_deleted.clone(),
@@ -145,27 +148,38 @@ fn importer_actions(props: &ActionsProps) -> Html {
                     Err(e) => on_done.emit(Err(format!("Failed to delete importer {name}: {e}"))),
                 }
             });
+        });
+        Callback::from(move |()| {
+            backdrop.open(Backdrop::new(html! {
+                <Bullseye>
+                    <ConfirmDialog title="Delete importer?" confirm="Delete" danger=true on_confirm={on_confirm.clone()}>
+                        <p>
+                            { "The importer " }<strong>{ &name }</strong>
+                            { " and its reports will be deleted. Documents it already ingested are kept." }
+                        </p>
+                    </ConfirmDialog>
+                </Bullseye>
+            }));
         })
     };
 
+    let (variant, icon, text) = match props.kebab {
+        true => (MenuToggleVariant::Plain, Some(html!(Icon::EllipsisV)), None),
+        false => (MenuToggleVariant::Default, None, Some(html!("Actions"))),
+    };
+
     html! {
-        <Flex modifiers={[FlexModifier::Align(Alignment::Center)]}>
-            <FlexItem>
-                <Switch checked={!props.importer.disabled()} onchange={on_enabled} aria_label="Enabled" />
-            </FlexItem>
-            <FlexItem>
-                <Button
-                    variant={ButtonVariant::Secondary}
-                    onclick={on_run}
-                    disabled={props.importer.disabled() || props.importer.state == ImporterState::Running}
-                >
-                    { "Run now" }
-                </Button>
-            </FlexItem>
-            <FlexItem>
-                <Button variant={ButtonVariant::Plain} icon={Icon::Trash} aria_label="Delete" onclick={on_delete} />
-            </FlexItem>
-        </Flex>
+        <Dropdown {variant} {icon} {text} aria_label="Actions" position={Position::Right}>
+            <MenuAction onclick={on_enabled}>{ if enabled { "Disable" } else { "Enable" } }</MenuAction>
+            <MenuAction
+                onclick={on_run}
+                disabled={!enabled || props.importer.state == ImporterState::Running}
+            >
+                { "Run now" }
+            </MenuAction>
+            <ListDivider />
+            <MenuAction onclick={on_delete} danger=true>{ "Delete" }</MenuAction>
+        </Dropdown>
     }
 }
 
@@ -283,8 +297,8 @@ pub fn importer_list_page() -> Html {
                                         }
                                     </TableData>
                                     <TableData data_label="Last success">{ optional_timestamp(importer.last_success.as_ref()) }</TableData>
-                                    <TableData data_label="Actions">
-                                        <ImporterActions importer={importer.clone()} on_done={on_done.clone()} on_deleted={reload.clone()} />
+                                    <TableData action=true>
+                                        <ImporterActions importer={importer.clone()} on_done={on_done.clone()} on_deleted={reload.clone()} kebab=true />
                                     </TableData>
                                 </TableRow>
                             }) }
@@ -488,7 +502,14 @@ pub fn importer_page(props: &ImporterPageProps) -> Html {
             <Content>
                 <Link<AppRoute> to={AppRoute::Importers}>{ "Importers" }</Link<AppRoute>>
             </Content>
-            <Title level={Level::H1}>{ &props.name }</Title>
+            <Flex modifiers={[FlexModifier::Align(Alignment::Center)]}>
+                <FlexItem><Title level={Level::H1}>{ &props.name }</Title></FlexItem>
+                { for importer.as_ref().map(|importer| html_nested! {
+                    <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
+                        <ImporterActions importer={importer.clone()} {on_done} {on_deleted} />
+                    </FlexItem>
+                }) }
+            </Flex>
             if let Some(err) = &*error {
                 <Alert title="Error" r#type={AlertType::Danger} inline=true><p>{ err }</p></Alert>
             }
@@ -503,7 +524,6 @@ pub fn importer_page(props: &ImporterPageProps) -> Html {
                         <DescriptionGroup term="Last error">{ err }</DescriptionGroup>
                     }
                 </DescriptionList>
-                <ImporterActions importer={importer.clone()} {on_done} {on_deleted} />
                 <Tabs<ImporterTab> detached=true selected={*tab} {onselect}>
                     <Tab<ImporterTab> index={ImporterTab::Reports} title="Reports" />
                     <Tab<ImporterTab> index={ImporterTab::Configuration} title="Configuration" />

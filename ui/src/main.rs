@@ -2,6 +2,7 @@ mod advisory;
 mod advisory_list;
 mod api;
 mod confidence;
+mod confirm;
 mod correlation;
 mod freshness;
 mod importer;
