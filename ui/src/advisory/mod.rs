@@ -149,7 +149,7 @@ fn none() -> Html {
 }
 
 /// A card of fields, each a [`DescriptionGroup`], with the term next to the value.
-fn field_card(title: &'static str, fields: Html) -> Html {
+pub(crate) fn field_card(title: &'static str, fields: Html) -> Html {
     html! {
         <Card size={CardSize::Compact} full_height=true>
             <CardTitle>{ title }</CardTitle>
@@ -163,7 +163,7 @@ fn field_card(title: &'static str, fields: Html) -> Html {
 }
 
 /// Cards next to each other: one per row on small screens, up to three on wide ones.
-fn card_grid(cards: impl IntoIterator<Item = Html>) -> Html {
+pub(crate) fn card_grid(cards: impl IntoIterator<Item = Html>) -> Html {
     html! {
         <Grid gutter=true>
             { for cards.into_iter().map(|card| html_nested! {

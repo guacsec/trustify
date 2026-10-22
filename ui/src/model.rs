@@ -147,6 +147,41 @@ pub struct ImporterReport {
     #[serde(with = "time::serde::rfc3339")]
     pub creation: time::OffsetDateTime,
     pub error: Option<String>,
-    /// The details, kept as JSON as they are only shown.
-    pub report: Option<serde_json::Value>,
+    pub report: Option<RunReport>,
+}
+
+/// The details of an importer run.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RunReport {
+    #[serde(with = "time::serde::rfc3339")]
+    pub start_date: time::OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub end_date: time::OffsetDateTime,
+    #[serde(default)]
+    pub number_of_items: u64,
+    /// The messages by phase (e.g. `retrieval`), then by file.
+    #[serde(default)]
+    pub messages:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<RunMessage>>>,
+}
+
+impl RunReport {
+    /// The messages as `(phase, file, message)`.
+    pub fn messages(&self) -> impl Iterator<Item = (&str, &str, &RunMessage)> {
+        self.messages.iter().flat_map(|(phase, files)| {
+            files.iter().flat_map(move |(file, messages)| {
+                messages
+                    .iter()
+                    .map(move |m| (phase.as_str(), file.as_str(), m))
+            })
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct RunMessage {
+    /// `error` or `warning`
+    pub severity: String,
+    pub message: String,
 }

@@ -1,10 +1,12 @@
 //! Importers: their state, their runs, and their configuration.
 
 use crate::{
-    AppRoute, api,
+    AppRoute,
+    advisory::{card_grid, field_card},
+    api,
     confirm::ConfirmDialog,
     correlation::timestamp,
-    model::{Importer, ImporterReport, ImporterState, PaginatedResults},
+    model::{Importer, ImporterReport, ImporterState, PaginatedResults, RunReport},
     monaco::ensure_environment,
     stored::use_stored_pagination,
 };
@@ -454,6 +456,7 @@ fn create_importer(props: &CreateImporterProps) -> Html {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum ImporterTab {
+    LastRun,
     Reports,
     Configuration,
 }
@@ -468,7 +471,7 @@ pub fn importer_page(props: &ImporterPageProps) -> Html {
     let importer = use_state(|| None::<Importer>);
     let error = use_state(|| None::<String>);
     let generation = use_state(|| 0u64);
-    let tab = use_state_eq(|| ImporterTab::Reports);
+    let tab = use_state_eq(|| ImporterTab::LastRun);
     let router = use_router::<AppRoute>();
     let latest_token = use_latest_access_token();
     let token = latest_token.as_ref().and_then(|t| t.access_token());
@@ -525,22 +528,40 @@ pub fn importer_page(props: &ImporterPageProps) -> Html {
                 <Alert title="Error" r#type={AlertType::Danger} inline=true><p>{ err }</p></Alert>
             }
             if let Some(importer) = &*importer {
-                <DescriptionList>
-                    <DescriptionGroup term="Type">{ importer.kind() }</DescriptionGroup>
-                    <DescriptionGroup term="Description">{ importer.text("description") }</DescriptionGroup>
-                    <DescriptionGroup term="State">{ state_cell(importer) }</DescriptionGroup>
-                    <DescriptionGroup term="Last run">{ optional_timestamp(importer.last_run.as_ref()) }</DescriptionGroup>
-                    <DescriptionGroup term="Last success">{ optional_timestamp(importer.last_success.as_ref()) }</DescriptionGroup>
-                    if let Some(err) = &importer.last_error {
-                        <DescriptionGroup term="Last error">{ err }</DescriptionGroup>
-                    }
-                </DescriptionList>
+                { card_grid([
+                    field_card("Importer", html! {
+                        <>
+                            <DescriptionGroup term="Type">{ importer.kind() }</DescriptionGroup>
+                            <DescriptionGroup term="Source">
+                                <span class="trustify-break-all">{ importer.text("source") }</span>
+                            </DescriptionGroup>
+                            <DescriptionGroup term="Period">{ importer.text("period") }</DescriptionGroup>
+                            if !importer.text("description").is_empty() {
+                                <DescriptionGroup term="Description">{ importer.text("description") }</DescriptionGroup>
+                            }
+                        </>
+                    }),
+                    field_card("Status", html! {
+                        <>
+                            <DescriptionGroup term="State">{ state_cell(importer) }</DescriptionGroup>
+                            <DescriptionGroup term="Last run">{ optional_timestamp(importer.last_run.as_ref()) }</DescriptionGroup>
+                            <DescriptionGroup term="Last success">{ optional_timestamp(importer.last_success.as_ref()) }</DescriptionGroup>
+                        </>
+                    }),
+                ]) }
+                if let Some(err) = &importer.last_error {
+                    <Alert title="The last run failed" r#type={AlertType::Danger} inline=true>
+                        <p class="trustify-break-all">{ err }</p>
+                    </Alert>
+                }
                 <Tabs<ImporterTab> detached=true selected={*tab} {onselect}>
+                    <Tab<ImporterTab> index={ImporterTab::LastRun} title="Last run" />
                     <Tab<ImporterTab> index={ImporterTab::Reports} title="Reports" />
                     <Tab<ImporterTab> index={ImporterTab::Configuration} title="Configuration" />
                 </Tabs<ImporterTab>>
                 <div>
                     { match *tab {
+                        ImporterTab::LastRun => html! { <LastRun name={props.name.clone()} generation={*generation} /> },
                         ImporterTab::Reports => html! { <Reports name={props.name.clone()} generation={*generation} /> },
                         ImporterTab::Configuration => html! { <Configuration name={props.name.clone()} /> },
                     } }
@@ -566,33 +587,169 @@ struct ReportsProps {
     generation: u64,
 }
 
-/// The messages of a report, as `phase / file: severity: message` lines.
-fn report_messages(report: &ImporterReport) -> Vec<String> {
-    let Some(phases) = report
-        .report
-        .as_ref()
-        .and_then(|r| r.get("messages"))
-        .and_then(Value::as_object)
-    else {
-        return vec![];
+#[derive(Clone, PartialEq, Properties)]
+struct RunMessagesProps {
+    report: RunReport,
+}
+
+/// The messages of a run, as a table.
+#[function_component(RunMessages)]
+fn run_messages(props: &RunMessagesProps) -> Html {
+    let total = props.report.messages().count();
+    let pagination = use_pagination(Some(total), Default::default);
+    let offset = pagination.control.page * pagination.control.per_page;
+
+    if total == 0 {
+        return html! {
+            <EmptyState title="No messages" icon={Icon::CheckCircle} size={Size::Small}>
+                { "The run reported no errors or warnings." }
+            </EmptyState>
+        };
+    }
+
+    let header = html_nested! {
+        <TableHeader<MessageColumn>>
+            <TableColumn<MessageColumn> label="Severity" index={MessageColumn::Severity} />
+            <TableColumn<MessageColumn> label="Phase" index={MessageColumn::Phase} />
+            <TableColumn<MessageColumn> label="File" index={MessageColumn::File} />
+            <TableColumn<MessageColumn> label="Message" index={MessageColumn::Message} />
+        </TableHeader<MessageColumn>>
     };
-    phases
-        .iter()
-        .filter_map(|(phase, files)| Some((phase, files.as_object()?)))
-        .flat_map(|(phase, files)| {
-            files.iter().flat_map(move |(file, messages)| {
-                messages.as_array().into_iter().flatten().map(move |m| {
-                    format!(
-                        "{phase} / {file}: {}: {}",
-                        m.get("severity")
-                            .and_then(Value::as_str)
-                            .unwrap_or_default(),
-                        m.get("message").and_then(Value::as_str).unwrap_or_default(),
-                    )
-                })
-            })
+
+    html! {
+        <>
+            <Toolbar>
+                <ToolbarContent>
+                    <ToolbarItem r#type={ToolbarItemType::Pagination}>
+                        <SimplePagination pagination={pagination.clone()} total={Some(total)} />
+                    </ToolbarItem>
+                </ToolbarContent>
+            </Toolbar>
+            <ComposableTable mode={TableMode::Compact}>
+                { header }
+                <TableBody>
+                    { for props.report.messages().skip(offset).take(pagination.control.per_page).map(|(phase, file, m)| {
+                        let color = match m.severity.as_str() {
+                            "error" => Color::Red,
+                            _ => Color::Orange,
+                        };
+                        html! {
+                            <TableRow>
+                                <TableData data_label="Severity"><Label label={m.severity.clone()} {color} compact=true /></TableData>
+                                <TableData data_label="Phase">{ phase }</TableData>
+                                <TableData data_label="File"><span class="trustify-break-all">{ file }</span></TableData>
+                                <TableData data_label="Message">{ &m.message }</TableData>
+                            </TableRow>
+                        }
+                    }) }
+                </TableBody>
+            </ComposableTable>
+        </>
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum MessageColumn {
+    Severity,
+    Phase,
+    File,
+    Message,
+}
+
+#[derive(Clone, PartialEq, Properties)]
+struct LastRunProps {
+    name: String,
+    /// Reloads the run when it changes.
+    generation: u64,
+}
+
+/// The report of the most recent run.
+#[function_component(LastRun)]
+fn last_run(props: &LastRunProps) -> Html {
+    let report = use_state(|| None::<Option<ImporterReport>>);
+    let error = use_state(|| None::<String>);
+    let latest_token = use_latest_access_token();
+    let token = latest_token.as_ref().and_then(|t| t.access_token());
+
+    {
+        let (report, error) = (report.clone(), error.clone());
+        use_effect_with(
+            (props.name.clone(), props.generation, token.clone()),
+            move |(name, _, token)| {
+                let (name, token) = (name.clone(), token.clone());
+                spawn_local(async move {
+                    match api::fetch_importer_reports(&name, 0, 1, token.as_deref()).await {
+                        Ok(result) => {
+                            report.set(Some(result.items.into_iter().next()));
+                            error.set(None);
+                        }
+                        Err(e) => error.set(Some(format!("Failed to load the last run: {e}"))),
+                    }
+                });
+            },
+        );
+    }
+
+    html! {
+        <Stack gutter=true>
+            if let Some(err) = &*error {
+                <Alert title="Error" r#type={AlertType::Danger} inline=true><p>{ err }</p></Alert>
+            }
+            { match &*report {
+                None if error.is_none() => html! { <Bullseye><Spinner /></Bullseye> },
+                None => html!(),
+                Some(None) => html! {
+                    <EmptyState title="No runs" icon={Icon::Search} size={Size::Large}>
+                        { "The importer has not completed a run yet." }
+                    </EmptyState>
+                },
+                Some(Some(report)) => run_details(report),
+            } }
+        </Stack>
+    }
+}
+
+fn run_details(report: &ImporterReport) -> Html {
+    let run = report.report.as_ref();
+    let count = |severity: &str| {
+        run.map(|r| {
+            r.messages()
+                .filter(|(_, _, m)| m.severity == severity)
+                .count()
         })
-        .collect()
+        .unwrap_or_default()
+        .to_string()
+    };
+    html! {
+        <>
+            { card_grid([
+                field_card("Run", html! {
+                    <>
+                        <DescriptionGroup term="Finished">{ timestamp(&report.creation) }</DescriptionGroup>
+                        if let Some(run) = run {
+                            <DescriptionGroup term="Started">{ timestamp(&run.start_date) }</DescriptionGroup>
+                            <DescriptionGroup term="Duration">{ format!("{:.1}", run.end_date - run.start_date) }</DescriptionGroup>
+                        }
+                    </>
+                }),
+                field_card("Results", html! {
+                    <>
+                        <DescriptionGroup term="Items">{ run.map(|r| r.number_of_items.to_string()).unwrap_or("-".into()) }</DescriptionGroup>
+                        <DescriptionGroup term="Errors">{ count("error") }</DescriptionGroup>
+                        <DescriptionGroup term="Warnings">{ count("warning") }</DescriptionGroup>
+                    </>
+                }),
+            ]) }
+            if let Some(err) = &report.error {
+                <Alert title="The run failed" r#type={AlertType::Danger} inline=true>
+                    <p class="trustify-break-all">{ err }</p>
+                </Alert>
+            }
+            if let Some(run) = run {
+                <RunMessages report={run.clone()} />
+            }
+        </>
+    }
 }
 
 #[function_component(Reports)]
@@ -658,13 +815,11 @@ fn reports(props: &ReportsProps) -> Html {
             <ComposableTable mode={TableMode::Compact}>
                 { header }
                 { for reports.iter().flat_map(|r| &r.items).map(|report| {
-                    let messages = report_messages(report);
+                    let messages = report.report.as_ref().filter(|r| r.messages().next().is_some());
                     let items = report
                         .report
                         .as_ref()
-                        .and_then(|r| r.get("numberOfItems"))
-                        .and_then(Value::as_u64)
-                        .map(|n| n.to_string())
+                        .map(|r| r.number_of_items.to_string())
                         .unwrap_or("-".into());
                     html! {
                         <TableBody key={report.id.clone()}>
@@ -673,11 +828,11 @@ fn reports(props: &ReportsProps) -> Html {
                                 <TableData data_label="Items">{ items }</TableData>
                                 <TableData data_label="Error">{ report.error.clone().unwrap_or_default() }</TableData>
                             </TableRow>
-                            if !messages.is_empty() {
+                            if let Some(run) = messages {
                                 <TableRow>
                                     <TableData colspan={3}>
-                                        <ExpandableSection toggle_text_hidden={format!("Show {} messages", messages.len())} toggle_text_expanded="Hide messages">
-                                            <ul>{ for messages.iter().map(|m| html! { <li>{ m }</li> }) }</ul>
+                                        <ExpandableSection toggle_text_hidden={format!("Show {} messages", run.messages().count())} toggle_text_expanded="Hide messages">
+                                            <RunMessages report={run.clone()} />
                                         </ExpandableSection>
                                     </TableData>
                                 </TableRow>
