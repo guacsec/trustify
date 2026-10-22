@@ -380,7 +380,8 @@ fn into_progress_details(
     let current = current? as u32;
     let total = total? as u32;
 
-    if current > total || total == 0 {
+    // without any processed item, there is no rate to estimate the completion from
+    if current == 0 || current > total {
         return None;
     }
 
@@ -485,6 +486,17 @@ mod test {
         );
         assert_eq!(
             into_progress(start, now, Some(0), Some(0), None),
+            Progress::default()
+        );
+    }
+
+    #[test]
+    fn progress_not_started() {
+        let start = datetime!(2024-01-01 00:00:00 UTC);
+        let now = datetime!(2024-01-01 00:00:10 UTC);
+        // nothing processed yet, so there is no rate to estimate the completion from
+        assert_eq!(
+            into_progress(start, now, Some(0), Some(100), None),
             Progress::default()
         );
     }
