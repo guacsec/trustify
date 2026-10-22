@@ -15,7 +15,7 @@ use ::monaco::{
 };
 use patternfly_yew::prelude::*;
 use serde_json::Value;
-use std::{future::Future, pin::Pin};
+use std::{collections::HashSet, future::Future, pin::Pin};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_nested_router::{components::Link, prelude::use_router};
@@ -67,7 +67,10 @@ fn state_cell(importer: &Importer) -> Html {
                     <Progress
                         {value}
                         {description}
-                        value_text={format!("{current} of {total}")}
+                        value_text={match progress.remaining() {
+                            Some(remaining) => format!("{current} of {total}, {remaining} left"),
+                            None => format!("{current} of {total}"),
+                        }}
                         size={ProgressSize::Small}
                     />
                 },
@@ -544,6 +547,11 @@ pub fn importer_page(props: &ImporterPageProps) -> Html {
                     field_card("Status", html! {
                         <>
                             <DescriptionGroup term="State">{ state_cell(importer) }</DescriptionGroup>
+                            if importer.state == ImporterState::Running {
+                                if let Some(eta) = &importer.progress.estimated_completion {
+                                    <DescriptionGroup term="Estimated completion">{ timestamp(eta) }</DescriptionGroup>
+                                }
+                            }
                             <DescriptionGroup term="Last run">{ optional_timestamp(importer.last_run.as_ref()) }</DescriptionGroup>
                             <DescriptionGroup term="Last success">{ optional_timestamp(importer.last_success.as_ref()) }</DescriptionGroup>
                         </>
@@ -575,9 +583,12 @@ pub fn importer_page(props: &ImporterPageProps) -> Html {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum ReportColumn {
+    Toggle,
     Created,
+    Result,
     Items,
-    Error,
+    Errors,
+    Warnings,
 }
 
 #[derive(Clone, PartialEq, Properties)]
@@ -709,17 +720,20 @@ fn last_run(props: &LastRunProps) -> Html {
     }
 }
 
+/// The number of messages of a severity (e.g. `error`) in a run.
+fn message_count(run: Option<&RunReport>, severity: &str) -> String {
+    run.map(|r| {
+        r.messages()
+            .filter(|(_, _, m)| m.severity == severity)
+            .count()
+    })
+    .unwrap_or_default()
+    .to_string()
+}
+
 fn run_details(report: &ImporterReport) -> Html {
     let run = report.report.as_ref();
-    let count = |severity: &str| {
-        run.map(|r| {
-            r.messages()
-                .filter(|(_, _, m)| m.severity == severity)
-                .count()
-        })
-        .unwrap_or_default()
-        .to_string()
-    };
+    let count = |severity| message_count(run, severity);
     html! {
         <>
             { card_grid([
@@ -755,6 +769,7 @@ fn run_details(report: &ImporterReport) -> Html {
 #[function_component(Reports)]
 fn reports(props: &ReportsProps) -> Html {
     let reports = use_state(|| None::<PaginatedResults<ImporterReport>>);
+    let expanded_ids = use_state(HashSet::<String>::new);
     let error = use_state(|| None::<String>);
     let total = reports.as_ref().and_then(|r| r.total).map(|t| t as usize);
     let pagination = use_stored_pagination("importer-reports", total);
@@ -794,9 +809,13 @@ fn reports(props: &ReportsProps) -> Html {
 
     let header = html_nested! {
         <TableHeader<ReportColumn>>
+            // the expand toggles
+            <TableColumn<ReportColumn> label="" index={ReportColumn::Toggle} />
             <TableColumn<ReportColumn> label="Created" index={ReportColumn::Created} />
+            <TableColumn<ReportColumn> label="Result" index={ReportColumn::Result} />
             <TableColumn<ReportColumn> label="Items" index={ReportColumn::Items} />
-            <TableColumn<ReportColumn> label="Error" index={ReportColumn::Error} />
+            <TableColumn<ReportColumn> label="Errors" index={ReportColumn::Errors} />
+            <TableColumn<ReportColumn> label="Warnings" index={ReportColumn::Warnings} />
         </TableHeader<ReportColumn>>
     };
 
@@ -815,28 +834,42 @@ fn reports(props: &ReportsProps) -> Html {
             <ComposableTable mode={TableMode::Compact}>
                 { header }
                 { for reports.iter().flat_map(|r| &r.items).map(|report| {
-                    let messages = report.report.as_ref().filter(|r| r.messages().next().is_some());
-                    let items = report
-                        .report
-                        .as_ref()
-                        .map(|r| r.number_of_items.to_string())
-                        .unwrap_or("-".into());
-                    html! {
-                        <TableBody key={report.id.clone()}>
-                            <TableRow>
-                                <TableData data_label="Created">{ timestamp(&report.creation) }</TableData>
-                                <TableData data_label="Items">{ items }</TableData>
-                                <TableData data_label="Error">{ report.error.clone().unwrap_or_default() }</TableData>
-                            </TableRow>
-                            if let Some(run) = messages {
-                                <TableRow>
-                                    <TableData colspan={3}>
-                                        <ExpandableSection toggle_text_hidden={format!("Show {} messages", run.messages().count())} toggle_text_expanded="Hide messages">
-                                            <RunMessages report={run.clone()} />
-                                        </ExpandableSection>
-                                    </TableData>
-                                </TableRow>
+                    let run = report.report.as_ref();
+                    let expanded = expanded_ids.contains(&report.id);
+                    let ontoggle = {
+                        let (expanded_ids, id) = (expanded_ids.clone(), report.id.clone());
+                        Callback::from(move |()| {
+                            let mut ids = (*expanded_ids).clone();
+                            if !ids.remove(&id) {
+                                ids.insert(id.clone());
                             }
+                            expanded_ids.set(ids);
+                        })
+                    };
+                    let (result, color) = match report.error {
+                        Some(_) => ("Failed", Color::Red),
+                        None => ("Succeeded", Color::Green),
+                    };
+                    html! {
+                        <TableBody key={report.id.clone()} {expanded}>
+                            <TableRow>
+                                <TableData expandable={ExpandParams { r#type: ExpandType::Row, expanded, ontoggle }} />
+                                <TableData data_label="Created">{ timestamp(&report.creation) }</TableData>
+                                <TableData data_label="Result"><Label label={result} {color} compact=true /></TableData>
+                                <TableData data_label="Items">{ run.map(|r| r.number_of_items.to_string()).unwrap_or("-".into()) }</TableData>
+                                <TableData data_label="Errors">{ message_count(run, "error") }</TableData>
+                                <TableData data_label="Warnings">{ message_count(run, "warning") }</TableData>
+                            </TableRow>
+                            <TableRow expandable=true {expanded}>
+                                <TableData colspan={6}>
+                                    <ExpandableRowContent>
+                                        // only rendered when expanded, as a run can have many messages
+                                        if expanded {
+                                            <Stack gutter=true>{ run_details(report) }</Stack>
+                                        }
+                                    </ExpandableRowContent>
+                                </TableData>
+                            </TableRow>
                         </TableBody>
                     }
                 }) }

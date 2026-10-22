@@ -132,12 +132,24 @@ pub enum ImporterState {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ImporterProgress {
     pub message: Option<String>,
     pub current: Option<u32>,
     pub total: Option<u32>,
     /// Progress in percent (0..=1)
     pub percent: Option<f64>,
+    pub estimated_seconds_remaining: Option<i64>,
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub estimated_completion: Option<time::OffsetDateTime>,
+}
+
+impl ImporterProgress {
+    /// The estimated remaining time, e.g. `3.2m`.
+    pub fn remaining(&self) -> Option<String> {
+        self.estimated_seconds_remaining
+            .map(|seconds| format!("{:.1}", time::Duration::seconds(seconds)))
+    }
 }
 
 /// The report of an importer run.
