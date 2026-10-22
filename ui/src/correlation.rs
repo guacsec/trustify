@@ -12,7 +12,7 @@ use crate::{
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
 use time::OffsetDateTime;
-use trustify_api::correlation::ResolutionSummary;
+use trustify_api::correlation::{RefreshJob, ResolutionSummary};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -27,6 +27,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
     let result = use_state(|| Option::<CorrelationResult>::None);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
+    let active_job = use_state(|| Option::<RefreshJob>::None);
 
     let latest_token = use_latest_access_token();
     let token: Option<String> = latest_token.as_ref().and_then(|t| t.access_token());
@@ -36,9 +37,22 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
         let result = result.clone();
         let loading = loading.clone();
         let error = error.clone();
+        let active_job = active_job.clone();
         let token = token.clone();
         use_effect_with(sbom_id.clone(), move |id| {
             let id = id.clone();
+            {
+                let token = token.clone();
+                spawn_local(async move {
+                    // only refines the freshness alert, ignore failures
+                    active_job.set(
+                        api::fetch_freshness(token.as_deref())
+                            .await
+                            .ok()
+                            .and_then(|overview| overview.active_job),
+                    );
+                });
+            }
             spawn_local(async move {
                 loading.set(true);
                 error.set(None);
@@ -82,7 +96,10 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                     <p>{ err.clone() }</p>
                 </Alert>
             } else if let Some(data) = &*result {
-                { crate::freshness::freshness_banner(&data.freshness) }
+                { crate::freshness::freshness_banner(
+                    &data.freshness,
+                    crate::freshness::is_refreshing(active_job.as_ref(), &data.freshness),
+                ) }
                 <CorrelationContent
                     sbom_id={data.sbom_id}
                     verdicts={data.verdicts.clone()}
@@ -411,7 +428,9 @@ impl TableEntryRenderer<RemediationColumn> for RemediationEntry {
                 </div>
             })
             .text_modifier(TextModifier::NoWrap),
-            RemediationColumn::Vulnerability => html!(<strong>{ &self.vulnerability }</strong>).into(),
+            RemediationColumn::Vulnerability => {
+                html!(<strong>{ &self.vulnerability }</strong>).into()
+            }
             RemediationColumn::Status => status_label(self.status).into(),
             RemediationColumn::Remediation => remediation(&self.remediation).into(),
             RemediationColumn::Advisory => advisory_link(

@@ -46,7 +46,17 @@ fn freshness_badge(freshness: &ExtractionFreshness) -> Html {
     html! { <Label label={status_label(freshness.status)} {color} compact=true /> }
 }
 
-pub fn freshness_banner(freshness: &ExtractionFreshness) -> Html {
+/// Whether `job` is refreshing results up to the revision `freshness` requires.
+pub fn is_refreshing(job: Option<&RefreshJob>, freshness: &ExtractionFreshness) -> bool {
+    job.is_some_and(|job| {
+        matches!(
+            job.status,
+            RefreshJobStatus::Queued | RefreshJobStatus::Running
+        ) && job.revision >= freshness.required_revision
+    })
+}
+
+pub fn freshness_banner(freshness: &ExtractionFreshness, refreshing: bool) -> Html {
     let message = match freshness.status {
         FreshnessStatus::Current => return Html::default(),
         FreshnessStatus::Stale => {
@@ -56,6 +66,15 @@ pub fn freshness_banner(freshness: &ExtractionFreshness) -> Html {
             "These results have not been checked against current matching settings."
         }
     };
+
+    if refreshing {
+        return html! {
+            <Alert title="These results are being refreshed. They will be updated once the refresh has finished." r#type={AlertType::Info} inline=true>
+                <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View refresh progress" }</Link<AppRoute>>
+            </Alert>
+        };
+    }
+
     html! {
         <Alert title={message} r#type={AlertType::Warning} inline=true>
             <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View correlation status and refresh results" }</Link<AppRoute>>
