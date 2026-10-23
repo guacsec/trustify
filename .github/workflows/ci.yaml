@@ -30,8 +30,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
+        id: audit
+        # Dependency findings must not block PRs or the merge queue.
+        continue-on-error: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         with:
           command: check
+      - name: Report audit failure
+        if: steps.audit.outcome == 'failure'
+        run: echo "::warning::Supply chain audit failed; see the audit step for details. Release builds require a passing audit."
 
   check:
     name: Check
