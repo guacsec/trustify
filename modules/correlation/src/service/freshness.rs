@@ -183,6 +183,7 @@ pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Err
         stale: counts.stale as u64,
         unknown: counts.unknown as u64,
         needs_refresh: (counts.stale + counts.unknown) as u64,
+        extraction_lag: Some(super::extraction::lag(tx).await?),
         active_job: None,
         latest_job: None,
     };

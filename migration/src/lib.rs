@@ -82,9 +82,9 @@ mod m0002350_drop_purl_status_gist_index;
 mod m0002360_pythonver_cmp_parallel_restricted;
 mod m0002370_importer_quay_auth;
 mod m0002380_version_function_parallelism;
+mod m0002390_create_correlation_evidence;
 mod m0002390_create_crypto_remediation;
 mod m0002391_add_crypto_remediation_updated_at;
-mod m0002390_create_correlation_evidence;
 mod m0002395_create_assertion_context;
 mod m0002400_base_purl_name_index;
 mod m0002400_create_advisory_vulnerability_hash;
@@ -103,6 +103,7 @@ mod m0002580_version_matches_wildcard;
 mod m0002670_vulnerability_upstream;
 mod m0002680_correlation_freshness;
 mod m0002690_remediation_assertions;
+mod m0002700_correlation_extraction_queue;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -221,6 +222,7 @@ impl MigratorExt for Migrator {
             .normal(m0002670_vulnerability_upstream::Migration)
             .normal(m0002680_correlation_freshness::Migration)
             .normal(m0002690_remediation_assertions::Migration)
+            .normal(m0002700_correlation_extraction_queue::Migration)
     }
 }
 

@@ -243,6 +243,18 @@ async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> an
     let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
     assert_eq!(body["unknown"], 1);
     assert_eq!(body["needs_refresh"], 1);
+    let lag: crate::model::ExtractionLag = serde_json::from_value(body["extraction_lag"].clone())?;
+    assert_eq!(
+        lag,
+        crate::model::ExtractionLag {
+            pending_sboms: 1,
+            oldest_pending_at: Some(
+                lag.oldest_pending_at
+                    .expect("pending work has an enqueue time")
+            ),
+            ..Default::default()
+        }
+    );
     let req = TestRequest::get()
         .uri("/v3/correlation/freshness/sbom?status=unknown&limit=1&total=true")
         .to_request();

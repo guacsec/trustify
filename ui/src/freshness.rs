@@ -287,11 +287,41 @@ pub fn freshness_page() -> Html {
     html! {
         <PageSection>
             <Title level={Level::H1}>{ "Correlation status" }</Title>
-            <p>{ "Freshness against matching settings. Each SBOM is counted once, including documents with no matches. This status does not indicate whether newly ingested advisories have finished processing." }</p>
+            <p>{ "Track background processing of ingested documents and freshness against matching settings. Documents with no matches are included." }</p>
             if let Some(err) = &*error {
                 <Alert title="Could not update correlation status" r#type={AlertType::Danger} inline=true><p>{err}</p><p>{"Previously loaded data is retained."}</p></Alert>
             }
             if let Some(data) = &*view {
+                <Title level={Level::H2}>{ "Background extraction" }</Title>
+                if let Some(lag) = &data.overview.extraction_lag {
+                    <Gallery gutter=true>
+                        { for [("Advisory changes pending", lag.pending_advisories), ("SBOM changes pending", lag.pending_sboms)].into_iter().map(|(label, count)| html! {
+                            <Card><CardBody>
+                                <Flex space_items={[SpaceItems::Small]} modifiers={[FlexModifier::Align(Alignment::Center)]}>
+                                    <FlexItem>{ label }</FlexItem>
+                                    <FlexItem><Title level={Level::H3}>{ count.to_string() }</Title></FlexItem>
+                                </Flex>
+                            </CardBody></Card>
+                        }) }
+                    </Gallery>
+                    if lag == &ExtractionLag::default() {
+                        <Alert title="Background extraction is caught up" r#type={AlertType::Success} inline=true>
+                            { "All queued ingestion changes have finished processing as of the last status check." }
+                        </Alert>
+                    }
+                    if let Some(oldest) = lag.oldest_pending_at {
+                        <p>{ format!("Oldest pending change: {oldest}") }</p>
+                    }
+                    if lag.failed > 0 {
+                        <Alert title={format!("{} pending changes are waiting for retry", lag.failed)} r#type={AlertType::Warning} inline=true>
+                            { "Failed changes remain pending and are retried automatically. See server logs for details." }
+                        </Alert>
+                    }
+                } else {
+                    <Alert title="Background extraction lag is unavailable" r#type={AlertType::Info} inline=true />
+                }
+                <p>{ format!("Status checked at {}", data.overview.checked_at) }</p>
+                <Title level={Level::H2}>{ "Matching settings" }</Title>
                 <Gallery gutter=true>
                     { for [("Current", data.overview.current), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {
                         <Card>

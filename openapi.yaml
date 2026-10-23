@@ -1228,11 +1228,11 @@ paths:
       summary: Get the correlation freshness overview
       description: |-
         Counts SBOMs by whether their correlation evidence was extracted under the current
-        matching settings, and reports the active and latest refresh jobs.
+        matching settings, reports ingestion extraction lag, and shows refresh jobs.
       operationId: getCorrelationFreshness
       responses:
         '200':
-          description: Freshness against matching settings
+          description: Matching-settings freshness and background extraction lag
           content:
             application/json:
               schema:
@@ -7492,6 +7492,34 @@ components:
           format: int64
         status:
           $ref: '#/components/schemas/FreshnessStatus'
+    ExtractionLag:
+      type: object
+      required:
+      - pending_advisories
+      - pending_sboms
+      - failed
+      properties:
+        failed:
+          type: integer
+          format: int64
+          description: Pending events that have failed at least once and will be retried.
+          minimum: 0
+        oldest_pending_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Enqueue time of the oldest pending event; null when caught up.
+        pending_advisories:
+          type: integer
+          format: int64
+          description: Pending advisory ingestion events, including failures awaiting retry.
+          minimum: 0
+        pending_sboms:
+          type: integer
+          format: int64
+          description: Pending SBOM ingestion events, including failures awaiting retry.
+          minimum: 0
     Finding:
       type: object
       description: A single validation finding produced by a validator.
@@ -7553,6 +7581,13 @@ components:
           type: integer
           format: int64
           minimum: 0
+        extraction_lag:
+          oneOf:
+          - $ref: '#/components/schemas/ExtractionLag'
+            description: |-
+              Ingestion changes whose background extraction has not committed yet.
+              Absent when talking to a server without durable extraction tracking.
+          - type: 'null'
         latest_job:
           oneOf:
           - $ref: '#/components/schemas/RefreshJob'

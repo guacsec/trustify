@@ -28,10 +28,10 @@ pub(super) async fn snapshot(tx: &sea_orm::DatabaseTransaction) -> Result<(), Er
 /// Get the correlation freshness overview
 ///
 /// Counts SBOMs by whether their correlation evidence was extracted under the current
-/// matching settings, and reports the active and latest refresh jobs.
+/// matching settings, reports ingestion extraction lag, and shows refresh jobs.
 #[utoipa::path(tag="correlation-operations", operation_id="getCorrelationFreshness", responses(
     (status = 422, description = "Correlation capability disabled"),
-    (status=200, description="Freshness against matching settings", body=FreshnessOverview),
+    (status=200, description="Matching-settings freshness and background extraction lag", body=FreshnessOverview),
     (status=401, description="Unauthenticated"), (status=403, description="Forbidden")
 ))]
 #[get("/v3/correlation/freshness")]

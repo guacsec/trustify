@@ -32,8 +32,25 @@ pub struct FreshnessOverview {
     pub stale: u64,
     pub unknown: u64,
     pub needs_refresh: u64,
+    /// Ingestion changes whose background extraction has not committed yet.
+    /// Absent when talking to a server without durable extraction tracking.
+    #[serde(default)]
+    pub extraction_lag: Option<ExtractionLag>,
     pub active_job: Option<RefreshJob>,
     pub latest_job: Option<RefreshJob>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ExtractionLag {
+    /// Pending advisory ingestion events, including failures awaiting retry.
+    pub pending_advisories: u64,
+    /// Pending SBOM ingestion events, including failures awaiting retry.
+    pub pending_sboms: u64,
+    /// Pending events that have failed at least once and will be retried.
+    pub failed: u64,
+    /// Enqueue time of the oldest pending event; null when caught up.
+    pub oldest_pending_at: Option<OffsetDateTime>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

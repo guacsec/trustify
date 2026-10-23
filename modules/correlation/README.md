@@ -19,10 +19,9 @@ does not run. The correlation UI hides the corresponding controls and requests.
 A read-only instance can still advertise correlation and serve stored results;
 it never starts the worker.
 
-Disabling correlation preserves evidence, settings, and queued refresh jobs.
-Re-enabling resumes normal worker processing, including existing refresh jobs.
-Ingestion events missed while disabled are not replayed automatically; use
-`POST /api/v3/correlation/refresh` after re-enabling to refresh stored results.
+Disabling correlation preserves evidence, settings, queued ingestion work, and refresh jobs.
+Ingestion continues to enqueue extraction work while correlation is disabled.
+Re-enabling resumes processing both ingestion work and existing refresh jobs.
 SBOM and advisory ingestion, browsing, and the existing fundamental APIs remain
 available independently of this capability.
 
@@ -51,6 +50,25 @@ CPE 2.2 URIs (`cpe:/o:wago:wago_os_linux:4.8.9`) are accepted as well.
 
 ## Freshness and background refresh
 
+The **Background extraction** section of the **Correlation status** page shows pending
+advisory and SBOM ingestion changes, the oldest pending enqueue time, and changes waiting
+for retry. For example, ingesting 2000 advisories queues 2000 changes; the advisory count
+reaches zero only after every extraction has committed, including those with no matches.
+Counts include work currently running and failures. They count ingestion events, so
+re-ingesting a document can queue another change. Deleted documents are acknowledged
+without extraction because they no longer need results.
+
+Ingestion and queue insertion commit together. Workers claim events with PostgreSQL row
+locks and acknowledge them in the same transaction as evidence updates. Restarting,
+missed notifications, and change-log retention cannot discard work. Multiple API instances
+can process different events; failures roll back evidence and retry after 30 seconds
+without blocking other events. Notifications wake the worker, with a one-second polling
+fallback. Manually requested refresh jobs also get a turn during continuous ingestion.
+
+Zero ingestion lag means all committed ingestion work visible at `checked_at` has been
+handled. It does not mean matching settings are current or that external advisory feeds
+are up to date. Both ingestion lag and the matching-settings status below must be checked.
+
 The **Correlation status** page counts SBOMs as current, outdated, or not yet checked,
 and lists the documents needing refresh. Each SBOM counts once, including those with
 zero matching evidence. The overview reads revision counters rather than scanning evidence.
@@ -78,7 +96,9 @@ an outdated/unchecked indicator until a full extraction succeeds.
 The API exposes:
 
 - `GET /api/v3/correlation/freshness`: exact counts, settings revision, observation time,
-  and active/latest job summaries.
+  active/latest job summaries, and `extraction_lag` with `pending_advisories`, `pending_sboms`,
+  `failed`, and `oldest_pending_at`. `failed` is a subset of pending changes. A missing
+  `extraction_lag` from an older server means unavailable, rather than caught up.
 - `GET /api/v3/correlation/freshness/sbom`: paginated SBOMs; optional `status=current|stale|unknown`,
   defaulting to outdated and unchecked documents together.
 - `POST /api/v3/correlation/refresh`: HTTP 202 with the new or existing active job and its Location.
@@ -93,6 +113,10 @@ The UI polls every five seconds while visible and preserves previously loaded da
 Migration `m0002680` preserves evidence and initializes existing SBOMs as unchecked. No refresh
 is started automatically. Downgrading removes freshness metadata and jobs while retaining
 the evidence, including any changes made by completed refreshes. Deploy backend and UI together.
+
+Migration `m0002700` installs durable ingestion tracking and queues all existing SBOMs and
+advisories once, because earlier processing had no durable acknowledgement. Expect an initial
+backlog after upgrading. Downgrading removes the ingestion queue while preserving evidence.
 
 ## Verdict resolution
 
