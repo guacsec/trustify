@@ -8,7 +8,7 @@ use sea_orm::{
 };
 use sea_query::{
     Alias, ColumnName, ColumnRef, Expr, ExprTrait, Func, IntoColumnRef, IntoIden, SimpleExpr,
-    extension::postgres::PgExpr,
+    extension::postgres::{PgBinOper, PgExpr},
 };
 use time::{
     Date, OffsetDateTime, format_description::well_known::Rfc3339, macros::format_description,
@@ -146,21 +146,24 @@ impl Columns {
             .iter()
             .filter_map(move |(col_ref, col_type)| match col_type {
                 ColumnType::String(_) | ColumnType::Text => {
-                    Some(Expr::col(col_ref.clone()).ilike(like(v)))
+                    Some(Expr::col(col_ref.clone()).binary(PgBinOper::ILike, like(v)))
                 }
-                ColumnType::Array(_) => {
-                    Some(array_to_string(SimpleExpr::Column(col_ref.clone())).ilike(like(v)))
-                }
+                ColumnType::Array(_) => Some(
+                    array_to_string(SimpleExpr::Column(col_ref.clone()))
+                        .binary(PgBinOper::ILike, like(v)),
+                ),
                 _ => None,
             })
             .chain(self.exprs.iter().filter_map(|(_, (ex, ty))| match ty {
-                ColumnType::String(_) | ColumnType::Text => Some(ex.clone().ilike(like(v))),
+                ColumnType::String(_) | ColumnType::Text => {
+                    Some(ex.clone().binary(PgBinOper::ILike, like(v)))
+                }
                 _ => None,
             }))
             .chain(self.json_keys.iter().map(|(field, column)| {
                 Expr::col(column.clone())
-                    .cast_json_field(*field)
-                    .ilike(like(v))
+                    .cast_json_field(Expr::Constant((*field).into()))
+                    .binary(PgBinOper::ILike, like(v))
             }))
     }
 
@@ -185,15 +188,15 @@ impl Columns {
             } else if let ColumnType::Array(_) = ct {
                 // Special expressions for arrays
                 match operator {
-                    Like => Ok(array_to_string(lhs).ilike(like(value))),
-                    NotLike => Ok(array_to_string(lhs).not_ilike(like(value))),
+                    Like => Ok(array_to_string(lhs).binary(PgBinOper::ILike, like(value))),
+                    NotLike => Ok(array_to_string(lhs).binary(PgBinOper::NotILike, like(value))),
                     NotEqual => Ok(Expr::val(value).binary(operator, all(lhs))),
                     _ => Ok(Expr::val(value).binary(operator, any(lhs))),
                 }
             } else {
                 match (operator, &ct) {
-                    (Like, _) => Ok(lhs.ilike(like(value))),
-                    (NotLike, _) => Ok(lhs.not_ilike(like(value))),
+                    (Like, _) => Ok(lhs.binary(PgBinOper::ILike, like(value))),
+                    (NotLike, _) => Ok(lhs.binary(PgBinOper::NotILike, like(value))),
                     (_, ct) => parse(value, ct).map(|rhs| lhs.binary(operator, rhs)),
                 }
             }
@@ -213,7 +216,14 @@ impl Columns {
                         self.json_keys
                             .get(field)
                             .cloned()
-                            .map(|col| (Expr::col(col).cast_json_field(field), ColumnType::Text))
+                            // Literal keys let generic plans match JSON expression indexes.
+                            // SeaQuery escapes them; equality values remain bound parameters.
+                            .map(|col| {
+                                (
+                                    Expr::col(col).cast_json_field(Expr::Constant(field.into())),
+                                    ColumnType::Text,
+                                )
+                            })
                     })
                     .or_else(|| {
                         // Check field for json object syntax, e.g. {column}:{key}:...
@@ -225,11 +235,13 @@ impl Columns {
                                 .map(|ex| {
                                     (
                                         match key.rsplit_once(':') {
-                                            None => ex.cast_json_field(key),
+                                            None => ex.cast_json_field(Expr::Constant(key.into())),
                                             Some((ks, key)) => ks
                                                 .split_terminator(':')
-                                                .fold(ex, |ex, k| ex.get_json_field(k))
-                                                .cast_json_field(key),
+                                                .fold(ex, |ex, k| {
+                                                    ex.get_json_field(Expr::Constant(k.into()))
+                                                })
+                                                .cast_json_field(Expr::Constant(key.into())),
                                         },
                                         ColumnType::Text,
                                     )
@@ -285,8 +297,9 @@ impl Columns {
     }
 }
 
-fn like(s: &str) -> String {
-    format!("%{}%", s.replace('%', r"\%").replace('_', r"\_"))
+fn like(s: &str) -> SimpleExpr {
+    // Generic plans need the pattern to estimate selectivity and use trigram indexes.
+    SimpleExpr::Constant(format!("%{}%", s.replace('%', r"\%").replace('_', r"\_")).into())
 }
 
 fn array_to_string(expr: SimpleExpr) -> SimpleExpr {
@@ -531,6 +544,59 @@ mod tests {
         assert!(clause(q("").sort("nope")).is_err());
         assert!(clause(q("q=x")).is_err());
 
+        Ok(())
+    }
+
+    #[test]
+    fn json_keys_are_literals_in_prepared_queries() -> Result<(), Error> {
+        for (field, expression) in [
+            ("name", r#""advisory"."purl" ->> 'name'"#),
+            ("purl:name", r#""advisory"."purl" ->> 'name'"#),
+            (
+                "purl:parent:name",
+                r#"("advisory"."purl" -> 'parent') ->> 'name'"#,
+            ),
+            ("purl:na'me", r#""advisory"."purl" ->> E'na\'me'"#),
+        ] {
+            let stmt = advisory::Entity::find()
+                .select_only()
+                .column(advisory::Column::Id)
+                .filtering_with(
+                    q(&format!("{field}=log'4j")).sort(field),
+                    advisory::Entity.columns().json_keys("purl", &["name"]),
+                )?
+                .build(sea_orm::DatabaseBackend::Postgres);
+            assert_eq!(
+                stmt.sql,
+                format!(
+                    r#"SELECT "advisory"."id" FROM "advisory" WHERE ({expression}) = $1 ORDER BY {expression} ASC"#
+                ),
+            );
+            assert_eq!(stmt.values, Some(sea_query::Values(vec!["log'4j".into()])));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn free_text_json_keys_are_literals_in_prepared_queries() -> Result<(), Error> {
+        let stmt = advisory::Entity::find()
+            .filtering_with(
+                q("log4j"),
+                advisory::Entity
+                    .columns()
+                    .json_keys("purl", &["name", "version"]),
+            )?
+            .build(sea_orm::DatabaseBackend::Postgres);
+        assert!(stmt.sql.as_str().contains(r#""purl" ->> 'name'"#));
+        assert!(stmt.sql.as_str().contains(r#""purl" ->> 'version'"#));
+        assert!(stmt.sql.as_str().contains("ILIKE '%log4j%'"));
+        assert_eq!(stmt.values, Some(sea_query::Values(vec!["|".into()])));
+
+        let escaped = advisory::Entity::find()
+            .filtering(q("purl:name~log'4j_%"))?
+            .build(sea_orm::DatabaseBackend::Postgres);
+        assert!(escaped.sql.as_str().contains(r#"ILIKE E'%log\'4j\\_\\%%'"#));
+        assert_eq!(escaped.values, Some(sea_query::Values(vec![])));
         Ok(())
     }
 
