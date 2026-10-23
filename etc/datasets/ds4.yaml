@@ -2,7 +2,7 @@ $schema: ../../xtask/schema/generate-dump.json
 import:
   - sbom:
       description: Red Hat SBOMs
-      source: https://access.redhat.com/security/data/sbom/beta/
+      source: https://security.access.redhat.com/data/sbom/v1/
       period: 1s
       fetchRetries: 50
       ignoreMissing: true
