@@ -7,6 +7,9 @@ use std::{env, io::BufReader, path::PathBuf, time::Duration};
 use tar::Builder;
 use tokio::fs;
 use trustify_common::{db::ReadWrite, model::BinaryByteSize};
+use trustify_module_correlation::{
+    extractor::Extractors, model::ExtractionLag, service::extraction,
+};
 use trustify_module_importer::{
     model::{
         CommonImporter, CsafImporter, CveImporter, ImporterConfiguration, SbomImporter,
@@ -50,6 +53,10 @@ pub struct GenerateDump {
     /// Number of times to retry fetching a document.
     #[arg(long, conflicts_with = "input")]
     fetch_retries: Option<usize>,
+
+    /// Skip correlation extraction before writing the dump.
+    #[arg(long)]
+    no_correlation: bool,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
@@ -147,6 +154,27 @@ impl GenerateDump {
         // ingest documents
 
         self.ingest(importer).await?;
+
+        if !self.no_correlation {
+            log::info!("Extracting correlation evidence before dumping");
+            let db_rw = ReadWrite::new(db.clone());
+            let extractors = Extractors::default();
+            while extraction::run_step(&db_rw, &extractors).await? {}
+
+            // Failed extractions stay queued for retry. Do not export a dump
+            // advertised as correlated while some ingestion work is unfinished.
+            let lag = db_rw
+                .transaction(async |tx| extraction::lag(tx).await)
+                .await?;
+            anyhow::ensure!(
+                lag == ExtractionLag::default(),
+                "Correlation extraction is incomplete: {} advisory changes and {} SBOM changes pending ({} failed)",
+                lag.pending_advisories,
+                lag.pending_sboms,
+                lag.failed,
+            );
+            log::info!("Correlation extraction complete");
+        }
 
         // create DB dump
 

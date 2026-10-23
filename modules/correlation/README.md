@@ -118,6 +118,12 @@ Migration `m0002700` installs durable ingestion tracking and queues all existing
 advisories once, because earlier processing had no durable acknowledgement. Expect an initial
 backlog after upgrading. Downgrading removes the ingestion queue while preserving evidence.
 
+`cargo xtask generate-dump` drains correlation extraction after ingestion and before writing
+the database dump. The dump includes correlation evidence and completion metadata. If any
+extraction remains pending or has failed, generation fails before exporting the dump.
+Use `cargo xtask generate-dump --no-correlation` to skip extraction and retain queued work
+for processing after the dump is restored.
+
 ## Verdict resolution
 
 All applicable evidence remains visible. Eligible statements are compared in this fixed order:
