@@ -11481,6 +11481,7 @@ dependencies = [
  "serde_json",
  "tar",
  "tokio",
+ "tracing",
  "tracing-subscriber",
  "trustify-auth",
  "trustify-common",

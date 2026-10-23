@@ -3,7 +3,12 @@ use bytes::Bytes;
 use clap::Parser;
 use postgresql_commands::{CommandBuilder, CommandExecutor, pg_dump::PgDumpBuilder};
 use serde_json::Value;
-use std::{env, io::BufReader, path::PathBuf, time::Duration};
+use std::{
+    env,
+    io::BufReader,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 use tar::Builder;
 use tokio::fs;
 use trustify_common::{db::ReadWrite, model::BinaryByteSize};
@@ -153,13 +158,22 @@ impl GenerateDump {
 
         // ingest documents
 
+        let start = Instant::now();
         self.ingest(importer).await?;
+        let ingestion = start.elapsed();
 
-        if !self.no_correlation {
-            log::info!("Extracting correlation evidence before dumping");
+        let extraction = if self.no_correlation {
+            None
+        } else {
+            tracing::info!("Extracting correlation evidence before dumping");
+            let start = Instant::now();
             let db_rw = ReadWrite::new(db.clone());
             let extractors = Extractors::default();
-            while extraction::run_step(&db_rw, &extractors).await? {}
+            let mut events = 0u64;
+            while extraction::run_step(&db_rw, &extractors).await? {
+                events += 1;
+            }
+            let elapsed = start.elapsed();
 
             // Failed extractions stay queued for retry. Do not export a dump
             // advertised as correlated while some ingestion work is unfinished.
@@ -173,10 +187,19 @@ impl GenerateDump {
                 lag.pending_sboms,
                 lag.failed,
             );
-            log::info!("Correlation extraction complete");
-        }
+            let rate = match elapsed.as_secs_f64() {
+                secs if secs > 0.0 => events as f64 / secs,
+                _ => 0.0,
+            };
+            tracing::info!(
+                "Correlation extraction complete: {events} events in {elapsed:?} ({rate:.1} events/s)"
+            );
+            Some(elapsed)
+        };
 
         // create DB dump
+
+        let start = Instant::now();
 
         let settings = postgres.settings();
         let mut pg_dump = PgDumpBuilder::from(settings)
@@ -185,9 +208,9 @@ impl GenerateDump {
             .build();
         let (stdout, stderr) = pg_dump.execute()?;
 
-        log::debug!("stdout: {stdout}");
-        log::debug!("stderr: {stderr}");
-        log::info!("Dumped to: {}", self.output.display());
+        tracing::debug!("stdout: {stdout}");
+        tracing::debug!("stderr: {stderr}");
+        tracing::info!("Dumped to: {}", self.output.display());
 
         // create storage dump
 
@@ -197,10 +220,19 @@ impl GenerateDump {
             tar.append_dir_all(".", storage_path)?;
             drop(tar);
 
-            log::info!("Dumped storage to: {}", file.display());
+            tracing::info!("Dumped storage to: {}", file.display());
         }
 
+        let dump = start.elapsed();
+
         // done
+
+        let extraction = extraction
+            .map(|elapsed| format!("{elapsed:?}"))
+            .unwrap_or_else(|| "skipped".into());
+        tracing::info!(
+            "Timings: ingestion {ingestion:?}, correlation extraction {extraction}, dump {dump:?}"
+        );
 
         Ok(())
     }
@@ -211,24 +243,29 @@ impl GenerateDump {
         // run importers
 
         for run in config.import {
-            log::info!(
-                "Ingesting: {}",
-                run.description.as_deref().unwrap_or("<unnamed>")
-            );
+            let description = run
+                .description
+                .clone()
+                .unwrap_or_else(|| "<unnamed>".into());
+            tracing::info!("Ingesting: {description}");
 
+            let start = Instant::now();
             self.ingest_one(&runner, run).await?;
+            tracing::info!("Ingested {description} in {:?}", start.elapsed());
         }
 
         // ingest files
 
         let service = IngestorService::new(Graph::new(), runner.storage.clone(), None);
         for path in config.paths {
-            log::info!("Ingesting: {}", path.display());
+            let name = path.display().to_string();
+            tracing::info!("Ingesting: {name}");
+            let start = Instant::now();
             let path = wd.join(path);
             let path = path
                 .canonicalize()
                 .with_context(|| format!("failed to canonicalize '{}'", path.display()))?;
-            log::info!(" Resolved: {}", path.display());
+            tracing::info!(" Resolved: {}", path.display());
 
             let mut files = vec![];
 
@@ -250,7 +287,7 @@ impl GenerateDump {
             for file in files {
                 let name = file.as_os_str().to_string_lossy().to_string();
 
-                log::info!("Loading: {name}");
+                tracing::info!("Loading: {name}");
                 let data: Bytes = fs::read(file).await?.into();
 
                 let detector = Detector {
@@ -270,19 +307,21 @@ impl GenerateDump {
                             .await
                     })
                     .await?;
-                log::info!("  id: {}", result.id);
+                tracing::info!("  id: {}", result.id);
                 if !result.warnings.is_empty() {
-                    log::warn!("  warnings:");
+                    tracing::warn!("  warnings:");
                     for warning in result.warnings {
-                        log::warn!("    - {}", warning);
+                        tracing::warn!("    - {}", warning);
                     }
                 }
             }
+
+            tracing::info!("Ingested {name} in {:?}", start.elapsed());
         }
 
         // done
 
-        log::info!("Done ingesting");
+        tracing::info!("Done ingesting");
 
         Ok(())
     }
