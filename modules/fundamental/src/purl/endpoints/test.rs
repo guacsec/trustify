@@ -25,9 +25,14 @@ fn vendor_config() -> Config {
     }
 }
 use serde_json::{Value, json};
-use std::str::FromStr;
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 use test_context::test_context;
 use test_log::test;
+use tracing::instrument::WithSubscriber;
+use tracing_subscriber::{Layer, layer::Context, prelude::*};
 use trustify_common::{
     db::Database, db::pagination_cache::PaginationCache, model::PaginatedResults, purl::Purl,
 };
@@ -35,6 +40,21 @@ use trustify_module_ingestor::graph::Graph;
 use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
 use urlencoding::encode;
 use uuid::Uuid;
+
+/// Captures span names so recommendation tests can assert which query paths ran.
+#[derive(Clone)]
+struct SpanNameRecorder(Arc<Mutex<Vec<&'static str>>>);
+
+impl<S: tracing::Subscriber> Layer<S> for SpanNameRecorder {
+    fn on_new_span(
+        &self,
+        attrs: &tracing::span::Attributes<'_>,
+        _id: &tracing::span::Id,
+        _ctx: Context<'_, S>,
+    ) {
+        self.0.lock().unwrap().push(attrs.metadata().name());
+    }
+}
 
 async fn recommend(app: &impl CallService, purls: &[&str]) -> Value {
     app.call_and_read_body_json(
@@ -664,7 +684,7 @@ async fn get_recommendations_no_match(
     Ok(())
 }
 
-/// Verifies that recommendations work for PURLs without a namespace (e.g., cargo packages).
+/// Verifies persisted winners without statuses skip the advisory-only status fallback.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -676,11 +696,15 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
         )
         .await?;
 
-    // When requesting recommendations
+    // When requesting recommendations, record the service's query spans
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
-    let recommendations = recommend(&app, &["pkg:cargo/serde@1.0.0"]).await;
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(spans.clone()));
+    let recommendations = recommend(&app, &["pkg:cargo/serde@1.0.0"])
+        .with_subscriber(subscriber)
+        .await;
 
-    // Then the recommendation returns the Red Hat package
+    // Then the recommendation returns the Red Hat package without the advisory-only fallback
     assert_eq!(
         recommendations["recommendations"],
         json!({
@@ -689,6 +713,13 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
                 "vulnerabilities": []
             }]
         })
+    );
+    assert!(
+        !spans
+            .lock()
+            .unwrap()
+            .contains(&"querying purl statuses for synthetic winner"),
+        "persisted winners with no matching statuses should not run the advisory-only fallback"
     );
 
     Ok(())
