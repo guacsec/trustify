@@ -1224,7 +1224,7 @@ paths:
   /api/v3/correlation/freshness:
     get:
       tags:
-      - correlation
+      - correlation-operations
       summary: Get the correlation freshness overview
       description: |-
         Counts SBOMs by whether their correlation evidence was extracted under the current
@@ -1246,7 +1246,7 @@ paths:
   /api/v3/correlation/freshness/sbom:
     get:
       tags:
-      - correlation
+      - correlation-operations
       summary: List SBOMs by correlation freshness
       description: |-
         Without a status, lists all SBOMs needing a refresh: those which are outdated or not
@@ -1334,7 +1334,7 @@ paths:
   /api/v3/correlation/option:
     get:
       tags:
-      - correlation
+      - correlation-configuration
       summary: List the correlation options.
       operationId: listCorrelationOptions
       parameters:
@@ -1406,7 +1406,7 @@ paths:
           description: Correlation capability disabled
     post:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Create a correlation option.
       description: Invalidates existing extraction results; refresh them to apply the new settings.
       operationId: createCorrelationOption
@@ -1436,7 +1436,7 @@ paths:
   /api/v3/correlation/option/{id}:
     get:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Get a correlation option.
       operationId: getCorrelationOption
       parameters:
@@ -1464,7 +1464,7 @@ paths:
           description: Correlation capability disabled
     put:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Update a correlation option.
       description: Matching changes invalidate existing results; reason-only changes do not.
       operationId: updateCorrelationOption
@@ -1499,7 +1499,7 @@ paths:
           description: Correlation capability disabled
     delete:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Delete a correlation option.
       description: Invalidates existing extraction results if the option existed.
       operationId: deleteCorrelationOption
@@ -1552,7 +1552,7 @@ paths:
   /api/v3/correlation/provider-alias:
     get:
       tags:
-      - correlation
+      - correlation-configuration
       summary: List provider aliases
       description: |-
         Provider aliases map the identifiers stated in SBOMs and advisories to a canonical
@@ -1575,7 +1575,7 @@ paths:
           description: Correlation capability disabled
     post:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Create a provider alias
       operationId: createProviderAlias
       requestBody:
@@ -1604,7 +1604,7 @@ paths:
   /api/v3/correlation/provider-alias/{id}:
     put:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Replace a provider alias
       operationId: updateProviderAlias
       parameters:
@@ -1642,7 +1642,7 @@ paths:
           description: Correlation capability disabled
     delete:
       tags:
-      - correlation
+      - correlation-configuration
       summary: Delete a provider alias
       description: Deleting an unknown provider alias succeeds as well.
       operationId: deleteProviderAlias
@@ -1725,7 +1725,7 @@ paths:
   /api/v3/correlation/refresh:
     post:
       tags:
-      - correlation
+      - correlation-operations
       summary: Start a correlation refresh
       description: |-
         Queues a background job re-extracting the correlation evidence of all SBOMs needing a
@@ -1750,7 +1750,7 @@ paths:
   /api/v3/correlation/refresh/{id}:
     get:
       tags:
-      - correlation
+      - correlation-operations
       summary: Get a correlation refresh job
       description: Returns the progress of the job and a page of the SBOMs it failed to refresh.
       operationId: getCorrelationRefresh

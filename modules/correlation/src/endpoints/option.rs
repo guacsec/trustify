@@ -28,7 +28,7 @@ struct CreateResponse {
 
 /// List the correlation options.
 #[utoipa::path(
-    tag = "correlation",
+    tag = "correlation-configuration",
     operation_id = "listCorrelationOptions",
     params(Paginated),
     responses(
@@ -52,7 +52,7 @@ async fn list(
 
 /// Get a correlation option.
 #[utoipa::path(
-    tag = "correlation",
+    tag = "correlation-configuration",
     operation_id = "getCorrelationOption",
     params(("id" = Uuid, Path, description = "The ID of the option")),
     responses(
@@ -82,7 +82,7 @@ async fn read(
 ///
 /// Invalidates existing extraction results; refresh them to apply the new settings.
 #[utoipa::path(
-    tag = "correlation",
+    tag = "correlation-configuration",
     operation_id = "createCorrelationOption",
     request_body = CorrelationOptionData,
     responses(
@@ -115,7 +115,7 @@ async fn create(
 ///
 /// Matching changes invalidate existing results; reason-only changes do not.
 #[utoipa::path(
-    tag = "correlation",
+    tag = "correlation-configuration",
     operation_id = "updateCorrelationOption",
     request_body = CorrelationOptionData,
     params(("id" = Uuid, Path, description = "The ID of the option")),
@@ -149,7 +149,7 @@ async fn update(
 ///
 /// Invalidates existing extraction results if the option existed.
 #[utoipa::path(
-    tag = "correlation",
+    tag = "correlation-configuration",
     operation_id = "deleteCorrelationOption",
     params(("id" = Uuid, Path, description = "The ID of the option")),
     responses(

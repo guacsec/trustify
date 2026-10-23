@@ -19,7 +19,7 @@ use uuid::Uuid;
 ///
 /// Provider aliases map the identifiers stated in SBOMs and advisories to a canonical
 /// provider. They are applied when resolving verdicts, without re-extracting evidence.
-#[utoipa::path(tag="correlation",operation_id="listProviderAliases",responses(
+#[utoipa::path(tag="correlation-configuration",operation_id="listProviderAliases",responses(
     (status=200,description="All provider aliases",body=Vec<ProviderAlias>),
     (status=401,description="The user was not authenticated"),
     (status=403,description="Insufficient permissions"),
@@ -35,7 +35,7 @@ async fn aliases(
     Ok(HttpResponse::Ok().json(store::list_aliases(&tx).await?))
 }
 /// Create a provider alias
-#[utoipa::path(tag="correlation",operation_id="createProviderAlias",request_body=ProviderAliasData,responses(
+#[utoipa::path(tag="correlation-configuration",operation_id="createProviderAlias",request_body=ProviderAliasData,responses(
     (status=201,description="The created provider alias",body=ProviderAlias),
     (status=400,description="The provider or an alias is empty"),
     (status=409,description="The provider or an alias already belongs to another provider alias"),
@@ -56,7 +56,7 @@ async fn create_alias(
     Ok(HttpResponse::Created().json(result))
 }
 /// Replace a provider alias
-#[utoipa::path(tag="correlation",operation_id="updateProviderAlias",params(("id"=Uuid,Path,description="ID of the provider alias")),request_body=ProviderAliasData,responses(
+#[utoipa::path(tag="correlation-configuration",operation_id="updateProviderAlias",params(("id"=Uuid,Path,description="ID of the provider alias")),request_body=ProviderAliasData,responses(
     (status=200,description="The updated provider alias",body=ProviderAlias),
     (status=400,description="The provider or an alias is empty"),
     (status=404,description="The provider alias does not exist"),
@@ -81,7 +81,7 @@ async fn update_alias(
 /// Delete a provider alias
 ///
 /// Deleting an unknown provider alias succeeds as well.
-#[utoipa::path(tag="correlation",operation_id="deleteProviderAlias",params(("id"=Uuid,Path,description="ID of the provider alias")),responses(
+#[utoipa::path(tag="correlation-configuration",operation_id="deleteProviderAlias",params(("id"=Uuid,Path,description="ID of the provider alias")),responses(
     (status=204,description="The provider alias was deleted, or did not exist"),
     (status=401,description="The user was not authenticated"),
     (status=403,description="Insufficient permissions"),
