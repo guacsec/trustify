@@ -83,6 +83,7 @@ mod m0002360_pythonver_cmp_parallel_restricted;
 mod m0002370_importer_quay_auth;
 mod m0002380_version_function_parallelism;
 mod m0002390_create_crypto_remediation;
+mod m0002391_add_crypto_remediation_updated_at;
 mod m0002400_base_purl_name_index;
 
 pub trait MigratorExt: Send {
@@ -182,6 +183,7 @@ impl MigratorExt for Migrator {
             .normal(m0002370_importer_quay_auth::Migration)
             .normal(m0002380_version_function_parallelism::Migration)
             .normal(m0002390_create_crypto_remediation::Migration)
+            .normal(m0002391_add_crypto_remediation_updated_at::Migration)
             .normal(m0002400_base_purl_name_index::Migration)
     }
 }

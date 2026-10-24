@@ -11,7 +11,7 @@ use crate::{
 };
 use actix_web::{HttpResponse, Responder, get, http::header, post, web};
 use sea_orm::TransactionTrait;
-use trustify_auth::{CreateSbom, ReadSbom, authorizer::Require};
+use trustify_auth::{CreateMetadata, ReadSbom, authorizer::Require};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache, query::Query},
     model::{Paginated, PaginatedResults},
@@ -175,6 +175,7 @@ fn normalize_optional_strings(mut item: RemediationImportItem) -> RemediationImp
     ),
     responses(
         (status = 200, description = "Import result", body = RemediationImportResult),
+        (status = 400, description = "The request body could not be parsed as valid JSON or CSV"),
     ),
 )]
 #[post("/v3/crypto/remediation/import")]
@@ -183,7 +184,7 @@ pub async fn import_remediations(
     db_rw: web::Data<db::ReadWrite>,
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
-    _: Require<CreateSbom>,
+    _: Require<CreateMetadata>,
 ) -> Result<impl Responder, Error> {
     let is_csv = content_type
         .as_ref()
@@ -196,7 +197,8 @@ pub async fn import_remediations(
             .from_reader(bytes.as_ref());
         reader
             .deserialize::<RemediationImportItem>()
-            .collect::<Result<Vec<_>, _>>()?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| Error::BadRequest(e.to_string().into(), None))?
             .into_iter()
             .map(normalize_optional_strings)
             .collect()
