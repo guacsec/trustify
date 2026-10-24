@@ -1,4 +1,5 @@
 use sea_orm::entity::prelude::*;
+use time::OffsetDateTime;
 
 /// SeaORM entity for PQC algorithm-to-NIST-replacement mappings.
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
@@ -11,6 +12,7 @@ pub struct Model {
     pub replacement_name: String,
     pub replacement_standard: Option<String>,
     pub replacement_primitive: Option<String>,
+    pub updated_at: OffsetDateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
