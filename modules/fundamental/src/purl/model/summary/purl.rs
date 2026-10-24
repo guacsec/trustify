@@ -20,9 +20,7 @@ pub struct PurlSummary {
 impl From<Purl> for PurlSummary {
     #[allow(deprecated)]
     fn from(purl: Purl) -> Self {
-        let base_purl_id = purl.package_uuid();
-        let versioned_purl_id = purl.version_uuid();
-        let qualified_purl_id = purl.qualifier_uuid();
+        let (base_purl_id, versioned_purl_id, qualified_purl_id) = purl.uuids();
 
         PurlSummary {
             head: PurlHead {
