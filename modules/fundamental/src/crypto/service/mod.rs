@@ -84,7 +84,19 @@ impl CryptoService {
             .filter_map(|(_, n)| n.as_ref().map(|n| n.name.clone()))
             .collect();
         let sbom_counts = self.batch_sboms_count(&names, connection).await?;
-        let recommendations = self.batch_recommendations(&names, connection).await?;
+
+        let algo_names: Vec<String> = items
+            .iter()
+            .zip(&nodes)
+            .filter_map(|(crypto, n)| {
+                if crypto.asset_type == CryptoAssetType::Algorithm {
+                    n.as_ref().map(|n| n.name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let recommendations = self.batch_recommendations(&algo_names, connection).await?;
 
         let algorithms = items
             .into_iter()
@@ -103,7 +115,14 @@ impl CryptoService {
                     .copied()
                     .unwrap_or(0);
                 let sc = sbom_counts.get(&node.name).copied().unwrap_or(0);
-                let recommendation = recommendations.get(&node.name).cloned();
+                let recommendation = if crypto.asset_type == CryptoAssetType::Algorithm {
+                    recommendations
+                        .get(&(node.name.clone(), primitive.clone()))
+                        .or_else(|| recommendations.get(&(node.name.clone(), None)))
+                        .cloned()
+                } else {
+                    None
+                };
                 Some(CryptoAlgorithmSummary {
                     sbom_id: crypto.sbom_id,
                     node_id: crypto.node_id,
@@ -152,8 +171,19 @@ impl CryptoService {
             }
         }
 
-        let count = mappings.len();
-        let models: Vec<crypto_remediation::ActiveModel> = mappings
+        let mut deduped: HashMap<(String, Option<String>), RemediationImportItem> = HashMap::new();
+        for m in mappings {
+            deduped.insert((m.algorithm_name.clone(), m.algorithm_primitive.clone()), m);
+        }
+
+        let mut unique: Vec<RemediationImportItem> = deduped.into_values().collect();
+        unique.sort_by(|a, b| {
+            a.algorithm_name
+                .cmp(&b.algorithm_name)
+                .then(a.algorithm_primitive.cmp(&b.algorithm_primitive))
+        });
+
+        let models: Vec<crypto_remediation::ActiveModel> = unique
             .into_iter()
             .map(|m| crypto_remediation::ActiveModel {
                 id: Set(Uuid::now_v7()),
@@ -162,24 +192,30 @@ impl CryptoService {
                 replacement_name: Set(m.replacement_name),
                 replacement_standard: Set(m.replacement_standard),
                 replacement_primitive: Set(m.replacement_primitive),
+                updated_at: sea_orm::ActiveValue::NotSet,
             })
             .collect();
 
-        crypto_remediation::Entity::insert_many(models)
-            .on_conflict(
-                OnConflict::columns([
-                    crypto_remediation::Column::AlgorithmName,
-                    crypto_remediation::Column::AlgorithmPrimitive,
-                ])
-                .update_columns([
-                    crypto_remediation::Column::ReplacementName,
-                    crypto_remediation::Column::ReplacementStandard,
-                    crypto_remediation::Column::ReplacementPrimitive,
-                ])
-                .to_owned(),
-            )
-            .exec(connection)
-            .await?;
+        let mut count: usize = 0;
+        const CHUNK_SIZE: usize = 500;
+        for chunk in models.chunks(CHUNK_SIZE) {
+            let n = crypto_remediation::Entity::insert_many(chunk.to_vec())
+                .on_conflict(
+                    OnConflict::columns([
+                        crypto_remediation::Column::AlgorithmName,
+                        crypto_remediation::Column::AlgorithmPrimitive,
+                    ])
+                    .update_columns([
+                        crypto_remediation::Column::ReplacementName,
+                        crypto_remediation::Column::ReplacementStandard,
+                        crypto_remediation::Column::ReplacementPrimitive,
+                    ])
+                    .to_owned(),
+                )
+                .exec_without_returning(connection)
+                .await?;
+            count += n as usize;
+        }
 
         Ok(count)
     }
@@ -334,11 +370,13 @@ impl CryptoService {
     }
 
     /// Look up NIST replacement recommendations for the given algorithm names.
+    /// Returns a map keyed by `(algorithm_name, algorithm_primitive)` so that
+    /// distinct primitives of the same algorithm name receive distinct recommendations.
     async fn batch_recommendations<C: ConnectionTrait>(
         &self,
         names: &[String],
         connection: &C,
-    ) -> Result<HashMap<String, String>, Error> {
+    ) -> Result<HashMap<(String, Option<String>), String>, Error> {
         if names.is_empty() {
             return Ok(HashMap::new());
         }
@@ -362,7 +400,7 @@ impl CryptoService {
                     Some(std) => format!("{} ({})", r.replacement_name, std),
                     None => r.replacement_name.clone(),
                 };
-                (r.algorithm_name, text)
+                ((r.algorithm_name, r.algorithm_primitive), text)
             })
             .collect())
     }

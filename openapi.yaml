@@ -1214,6 +1214,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RemediationImportResult'
+        '400':
+          description: The request body could not be parsed as valid JSON or CSV
   /api/v3/crypto/summary:
     get:
       tags:
