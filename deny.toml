@@ -5,13 +5,12 @@ all-features = true
 # Advisory IDs to ignore. Entries here must include a reason and should be
 # reviewed periodically. Remove entries once the underlying crate is updated.
 ignore = [
-    # Pre-existing transitive vulnerabilities — tracked for resolution.
-    # proc-macro-error2: unmaintained (transitive via derive macros)
-    { id = "RUSTSEC-2026-0173", reason = "transitive dep; no direct replacement yet" },
     # rsa: Marvin Attack timing side-channel (transitive via sequoia-openpgp)
     { id = "RUSTSEC-2023-0071", reason = "transitive dep via sequoia-openpgp; no fix available" },
-    # h2 0.3.x: unbounded empty DATA frames (dev-only via actix-http; no 0.3.x patch)
-    { id = "RUSTSEC-2026-0258", reason = "dev-dep only via actix-http; h2 0.3.x EOL, no patch available" },
+    # h2 0.3.x: unbounded empty DATA frames (via actix-http; no 0.3.x patch)
+    { id = "RUSTSEC-2026-0258", reason = "transitive dep via actix-http; h2 0.3.x EOL, no patch available" },
+    # crypto-bigint: timing variability in constant-time ops (transitive via aws-sigv4/ecdsa)
+    { id = "RUSTSEC-2026-0387", reason = "transitive dep via aws-sigv4/ecdsa; upstream crates not yet updated to >=0.7.6" },
 ]
 
 [licenses]
