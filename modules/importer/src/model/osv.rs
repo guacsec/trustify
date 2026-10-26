@@ -4,7 +4,8 @@ use serde::{Deserialize, Deserializer, Serialize, de::Error as _};
 use std::collections::HashSet;
 
 /// How OSV documents are retrieved. Defaults to Git when omitted.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, ToSchema, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
+#[schemars(transform = default_git_transport)]
 #[serde(
     tag = "transport",
     rename_all = "lowercase",
@@ -24,6 +25,64 @@ pub enum OsvTransport {
         #[serde(rename = "baseUrl", default, skip_serializing_if = "Option::is_none")]
         base_url: Option<Url>,
     },
+}
+
+// Serde cannot express a default for an internally tagged enum. Keep the
+// schema in sync with the legacy-Git fallback in our custom deserializer.
+fn default_git_transport(schema: &mut schemars::Schema) {
+    if let Some(required) = schema
+        .get_mut("oneOf")
+        .and_then(|variants| variants.get_mut(0))
+        .and_then(|git| git.get_mut("required"))
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        required.retain(|field| field != "transport");
+    }
+}
+
+impl ToSchema for OsvTransport {}
+
+impl utoipa::PartialSchema for OsvTransport {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        use utoipa::openapi::schema::{
+            KnownFormat, ObjectBuilder, OneOfBuilder, SchemaFormat, SchemaType, Type,
+        };
+
+        let discriminator = |value| {
+            ObjectBuilder::new()
+                .schema_type(Type::String)
+                .enum_values(Some([value]))
+        };
+        let optional_string =
+            || ObjectBuilder::new().schema_type(SchemaType::from_iter([Type::String, Type::Null]));
+        OneOfBuilder::new()
+            .description(Some("How OSV documents are retrieved. Defaults to Git when omitted."))
+            .item(
+                ObjectBuilder::new()
+                    .property("transport", discriminator("git"))
+                    .property(
+                        "branch",
+                        optional_string()
+                            .description(Some("An optional branch. Will use the default branch otherwise.")),
+                    )
+                    .property(
+                        "path",
+                        optional_string()
+                            .description(Some("An optional path to start searching for documents. Defaults to the repository root.")),
+                    ),
+            )
+            .item(
+                ObjectBuilder::new()
+                    .property("transport", discriminator("http"))
+                    .required("transport")
+                    .property(
+                        "baseUrl",
+                        optional_string().format(Some(SchemaFormat::KnownFormat(KnownFormat::Uri)))
+                            .description(Some("Base URL for REST records (`<id>.json`). Defaults to the index directory.")),
+                    ),
+            )
+            .into()
+    }
 }
 
 impl<'de> Deserialize<'de> for OsvTransport {
@@ -177,6 +236,68 @@ mod tests {
             from_value::<ImporterConfiguration>(serialized).unwrap(),
             config
         );
+    }
+
+    #[rstest]
+    #[case::legacy(json!({}))]
+    #[case::legacy_options(json!({"branch": "main", "path": "advisories"}))]
+    #[case::git(json!({"transport": "git"}))]
+    #[case::git_options(json!({"transport": "git", "branch": "main", "path": "advisories"}))]
+    #[case::http(json!({"transport": "http"}))]
+    #[case::http_options(json!({"transport": "http", "baseUrl": "https://example.com/records/"}))]
+    fn schemas_accept_legacy_and_explicit_transports(#[case] mut config: Value) {
+        config["source"] = json!("https://example.com/source");
+        config["period"] = json!("1h");
+        let importer: OsvImporter = from_value(config.clone()).unwrap();
+        let json_schema = to_value(schemars::schema_for!(OsvImporter)).unwrap();
+        let openapi = json!({
+            "components": {"schemas": {"CommonImporter": CommonImporter::schema(), "OsvTransport": OsvTransport::schema(), "Labels": Labels::schema()}},
+            "allOf": [OsvImporter::schema()],
+        });
+        for schema in [json_schema, openapi] {
+            let validator = jsonschema::validator_for(&schema).unwrap();
+            validator.validate(&config).unwrap();
+            validator.validate(&to_value(&importer).unwrap()).unwrap();
+        }
+    }
+
+    #[rstest]
+    #[case::unknown(json!("unsupported"))]
+    #[case::wrong_type(json!(false))]
+    fn schemas_reject_invalid_transports(#[case] transport: Value) {
+        let config = json!({"transport": transport});
+        for schema in [
+            to_value(schemars::schema_for!(OsvTransport)).unwrap(),
+            to_value(OsvTransport::schema()).unwrap(),
+        ] {
+            let validator = jsonschema::validator_for(&schema).unwrap();
+            assert!(!validator.is_valid(&config));
+        }
+    }
+
+    #[test]
+    fn schemas_default_only_the_git_variant() {
+        for schema in [
+            to_value(schemars::schema_for!(OsvTransport)).unwrap(),
+            to_value(OsvTransport::schema()).unwrap(),
+        ] {
+            let variants = schema["oneOf"].as_array().unwrap();
+            assert_eq!(variants.len(), 2);
+            assert!(
+                !variants[0]["required"]
+                    .as_array()
+                    .is_some_and(|required| required.contains(&json!("transport")))
+            );
+            assert_eq!(variants[1]["required"], json!(["transport"]));
+            let git = jsonschema::validator_for(&variants[0]).unwrap();
+            let http = jsonschema::validator_for(&variants[1]).unwrap();
+            assert!(git.is_valid(&json!({})));
+            assert!(git.is_valid(&json!({"transport": "git"})));
+            assert!(!git.is_valid(&json!({"transport": "http"})));
+            assert!(!http.is_valid(&json!({})));
+            assert!(http.is_valid(&json!({"transport": "http"})));
+            assert!(!http.is_valid(&json!({"transport": "git"})));
+        }
     }
 
     #[test]

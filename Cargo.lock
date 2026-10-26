@@ -9591,6 +9591,7 @@ dependencies = [
  "humantime",
  "humantime-serde",
  "json-merge-patch",
+ "jsonschema",
  "liblzma",
  "log",
  "num-traits",

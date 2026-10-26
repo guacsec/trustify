@@ -6464,8 +6464,6 @@ components:
     OsvTransport:
       oneOf:
       - type: object
-        required:
-        - transport
         properties:
           branch:
             type:

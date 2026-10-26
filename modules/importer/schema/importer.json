@@ -349,9 +349,7 @@
               ]
             }
           },
-          "required": [
-            "transport"
-          ]
+          "required": []
         },
         {
           "type": "object",
