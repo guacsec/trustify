@@ -2,16 +2,20 @@ use anyhow::{Context as _, anyhow};
 use bytes::Bytes;
 use clap::Parser;
 use postgresql_commands::{CommandBuilder, CommandExecutor, pg_dump::PgDumpBuilder};
+use postgresql_embedded::Settings;
 use serde_json::Value;
 use std::{
     env,
+    fs::create_dir_all,
     io::BufReader,
     path::PathBuf,
     time::{Duration, Instant},
 };
 use tar::Builder;
+use tempfile::TempDir;
 use tokio::fs;
 use trustify_common::{db::ReadWrite, model::BinaryByteSize};
+use trustify_db::embedded;
 use trustify_module_correlation::{
     extractor::Extractors, model::ExtractionLag, service::extraction,
 };
@@ -47,8 +51,11 @@ pub struct GenerateDump {
     #[arg(short, long)]
     input: Option<PathBuf>,
 
-    /// An optional specified working directory
-    #[arg(short, long)]
+    /// An optional specified working directory, which is kept after the run.
+    ///
+    /// Defaults to a temporary directory in Cargo's target directory, or the system's
+    /// temporary directory when not running through Cargo.
+    #[arg(short, long, env = "GENERATE_DUMP_WORKING_DIR")]
     working_dir: Option<PathBuf>,
 
     /// Files greater than this limit will be ignored.
@@ -128,29 +135,41 @@ impl GenerateDump {
     }
 
     pub async fn run(self) -> anyhow::Result<()> {
-        let (storage, storage_path, _tmp) = match &self.working_dir {
-            Some(wd) => (
-                FileSystemBackend::new(wd.join("storage"), Compression::Zstd).await?,
-                wd.clone(),
-                None,
-            ),
+        // Without a working directory, prefer a temporary one below the target directory
+        // over /tmp, which may be a size-limited tmpfs.
+        let (wd, _tmp) = match &self.working_dir {
+            Some(wd) => (wd.clone(), None),
             None => {
-                let (storage, tmp) = FileSystemBackend::for_test_with(Compression::Zstd).await?;
-                (storage, tmp.path().to_owned(), Some(tmp))
+                let tmp = temp_working_dir()?;
+                tracing::info!(
+                    "Using temporary working directory: {}",
+                    tmp.path().display()
+                );
+                (tmp.path().to_owned(), Some(tmp))
             }
         };
+
+        let storage_path = wd.join("storage");
+        let storage = FileSystemBackend::new(&storage_path, Compression::Zstd).await?;
 
         let migrator = trustify_db::Migrator::new(storage.clone(), ());
 
         let (db, postgres) = match &self.working_dir {
-            Some(wd) => trustify_db::embedded::create_in(wd.join("db"), &migrator).await?,
-            None => trustify_db::embedded::create(&migrator).await?,
+            Some(wd) => embedded::create_in(wd.join("db"), &migrator).await?,
+            // Keep using the shared PostgreSQL installation, only move the data.
+            None => {
+                let settings = Settings {
+                    data_dir: wd.join("db"),
+                    ..embedded::default_settings()?
+                };
+                embedded::create_for(settings, Default::default(), &migrator).await?
+            }
         };
 
         let importer = ImportRunner {
             db: ReadWrite::new(db.clone()),
             storage: storage.into(),
-            working_dir: self.working_dir.as_ref().map(|wd| wd.join("wd")),
+            working_dir: Some(wd.join("wd")),
             // The xtask doesn't need the analysis graph
             analysis: None,
             credential_config: CredentialConfig::default(),
@@ -344,6 +363,34 @@ impl GenerateDump {
 
         Ok(())
     }
+}
+
+/// Create a temporary working directory in Cargo's target directory, or the system's
+/// temporary directory when not running through Cargo.
+fn temp_working_dir() -> anyhow::Result<TempDir> {
+    let mut builder = tempfile::Builder::new();
+    builder.prefix("generate-dump-");
+
+    Ok(match target_dir() {
+        Some(target) => {
+            create_dir_all(&target)?;
+            builder.tempdir_in(target)?
+        }
+        None => builder.tempdir()?,
+    })
+}
+
+/// Cargo's target directory, if running through Cargo.
+///
+/// Cargo doesn't pass the target directory to the binaries it runs, so this uses an
+/// explicit `CARGO_TARGET_DIR`, or the default one in the workspace root, which
+/// `.cargo/config.toml` provides as `CARGO_WORKSPACE_ROOT`.
+fn target_dir() -> Option<PathBuf> {
+    env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .or_else(|| {
+            env::var_os("CARGO_WORKSPACE_ROOT").map(|root| PathBuf::from(root).join("target"))
+        })
 }
 
 fn default_common(description: impl Into<String>) -> CommonImporter {
