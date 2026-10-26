@@ -1,6 +1,25 @@
 use super::*;
 use std::collections::HashSet;
 
+/// How OSV documents are retrieved. When omitted, HTTP(S) `all.json` URLs use
+/// REST and all other sources use Git.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum OsvTransport {
+    Git,
+    Http,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -16,8 +35,15 @@ pub struct OsvImporter {
     #[serde(flatten)]
     pub common: CommonImporter,
 
-    /// The URL to the git repository of the OSV data
+    /// A Git repository URL or an OSV REST index URL.
     pub source: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport: Option<OsvTransport>,
+
+    /// Base URL for REST records (`<id>.json`). Defaults to the index directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<Url>,
 
     /// An optional branch. Will use the default branch otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]

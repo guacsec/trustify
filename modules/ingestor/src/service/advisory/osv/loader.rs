@@ -53,17 +53,7 @@ impl<'g> OsvLoader<'g> {
 
         let issuer = issuer.or(detect_organization(&osv));
 
-        let cve_ids: Vec<String> = osv
-            .aliases
-            .iter()
-            .flat_map(|aliases| {
-                aliases
-                    .iter()
-                    .filter(|e| e.starts_with("CVE-"))
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let cve_ids: Vec<_> = extract_vulnerability_ids(&osv).map(str::to_owned).collect();
 
         let information = AdvisoryInformation {
             id: osv.id.clone(),

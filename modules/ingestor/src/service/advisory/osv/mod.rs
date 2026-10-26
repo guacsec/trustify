@@ -6,7 +6,7 @@ pub mod translate;
 use crate::{graph::cvss::ScoreCreator, service::Error};
 use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use osv::schema::{SeverityType, Vulnerability};
-use std::str::FromStr;
+use std::{collections::BTreeSet, str::FromStr};
 
 /// Load a [`Vulnerability`] from YAML.
 pub fn from_yaml(data: &[u8]) -> Result<Vulnerability, serde_saphyr::Error> {
@@ -27,12 +27,18 @@ pub fn parse(buffer: &[u8]) -> Result<Vulnerability, Error> {
     Ok(osv)
 }
 
-/// extract vulnerability IDs
+/// Extract CVEs described by this advisory, including upstream vulnerabilities
+/// referenced by distribution advisories. This links advisory/package status to
+/// the CVE; it does not treat upstream IDs as symmetric aliases.
 pub fn extract_vulnerability_ids(osv: &Vulnerability) -> impl Iterator<Item = &str> {
     osv.aliases
         .iter()
-        .flat_map(|aliases| aliases.iter().filter(|e| e.starts_with("CVE-")))
+        .chain(osv.upstream.iter())
+        .flatten()
+        .filter(|id| id.starts_with("CVE-"))
         .map(|s| s.as_str())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
 }
 
 /// extract scores from OSV
@@ -97,5 +103,39 @@ pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
                 // Unknown severity type, skip
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upstream_cves_are_linked_without_duplicate_aliases() {
+        let osv = parse(br#"{
+            "id":"CGA-2222-2222-2222", "modified":"2026-01-01T00:00:00Z",
+            "aliases":["CVE-2025-1234", "GHSA-example"],
+            "upstream":["CVE-2025-1234", "CVE-2025-5678"],
+            "related":["CVE-2025-9999"],
+            "schema_version":"1.7.5", "severity":null, "references":null,
+            "affected":[{
+                "package": {"ecosystem":"Chainguard", "name":"curl", "purl":"pkg:apk/chainguard/curl?arch=x86_64"},
+                "ranges":[{"type":"ECOSYSTEM", "events":[{"introduced":"0"},{"fixed":"8.4.0-r0"}]}],
+                "ecosystem_specific":{"components":[{"latest_event_status":"fixed", "component_name":"curl"}]}
+            }]
+        }"#).unwrap();
+        assert_eq!(
+            extract_vulnerability_ids(&osv).collect::<Vec<_>>(),
+            ["CVE-2025-1234", "CVE-2025-5678"]
+        );
+        assert_eq!(
+            osv.affected.as_ref().unwrap()[0]
+                .package
+                .as_ref()
+                .unwrap()
+                .purl
+                .as_deref(),
+            Some("pkg:apk/chainguard/curl?arch=x86_64")
+        );
     }
 }
