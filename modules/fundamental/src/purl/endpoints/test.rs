@@ -536,10 +536,14 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
         rec[0]["package"],
         "pkg:maven/com.example/advlib@1.0.0.redhat-00001"
     );
-    assert!(
-        !rec[0]["vulnerabilities"].as_array().unwrap().is_empty(),
-        "advisory-only winners should have vulnerability metadata"
+    let vulnerabilities = rec[0]["vulnerabilities"].as_array().unwrap();
+    assert_eq!(
+        vulnerabilities.len(),
+        1,
+        "the advisory-only winner should return exactly its fixture vulnerability"
     );
+    assert_eq!(vulnerabilities[0]["id"], "CVE-2099-20001");
+    assert_eq!(vulnerabilities[0]["status"], "Fixed");
 
     Ok(())
 }
