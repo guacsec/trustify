@@ -60,6 +60,7 @@ zip = { workspace = true }
 actix-http = { workspace = true }
 bytesize = { workspace = true }
 liblzma = { workspace = true }
+rstest = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 test-context = { workspace = true }
 trustify-test-context = { workspace = true }

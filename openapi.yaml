@@ -6440,23 +6440,14 @@ components:
     OsvImporter:
       allOf:
       - $ref: '#/components/schemas/CommonImporter'
+      - $ref: '#/components/schemas/OsvTransport'
       - type: object
         required:
         - source
         properties:
-          branch:
-            type:
-            - string
-            - 'null'
-            description: An optional branch. Will use the default branch otherwise.
-          path:
-            type:
-            - string
-            - 'null'
-            description: An optional path to start searching for documents. Will use the root of the repository otherwise.
           source:
             type: string
-            description: The URL to the git repository of the OSV data
+            description: A Git repository URL or an OSV REST index URL.
           startYear:
             type:
             - integer
@@ -6470,6 +6461,41 @@ components:
               format: int32
               minimum: 0
             uniqueItems: true
+    OsvTransport:
+      oneOf:
+      - type: object
+        required:
+        - transport
+        properties:
+          branch:
+            type:
+            - string
+            - 'null'
+            description: An optional branch. Will use the default branch otherwise.
+          path:
+            type:
+            - string
+            - 'null'
+            description: An optional path to start searching for documents. Defaults to the repository root.
+          transport:
+            type: string
+            enum:
+            - git
+      - type: object
+        required:
+        - transport
+        properties:
+          baseUrl:
+            type:
+            - string
+            - 'null'
+            format: uri
+            description: Base URL for REST records (`<id>.json`). Defaults to the index directory.
+          transport:
+            type: string
+            enum:
+            - http
+      description: How OSV documents are retrieved. Defaults to Git when omitted.
     PaginatedResults_AdvisorySummary:
       type: object
       required:

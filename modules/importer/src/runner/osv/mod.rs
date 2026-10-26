@@ -2,7 +2,7 @@ mod handler;
 mod http;
 
 use crate::{
-    model::OsvImporter,
+    model::{OsvImporter, OsvTransport},
     runner::{
         RunOutput,
         common::walker::{CallbackError, Callbacks, GitWalker},
@@ -13,9 +13,12 @@ use crate::{
 use chrono::Datelike;
 use handler::OsvHandler;
 use parking_lot::Mutex;
-use serde_json::Value;
-use std::collections::HashSet;
-use std::{path::Path, path::PathBuf, sync::Arc};
+use serde_json::{Value, from_value, to_value};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::runtime::Handle;
 use tracing::instrument;
 use trustify_common::db::ReadWrite;
@@ -117,7 +120,6 @@ impl super::ImportRunner {
         osv: OsvImporter,
         continuation: Value,
     ) -> Result<RunOutput, ScannerError> {
-        let http = http::feed_urls(&osv)?;
         let ingestor =
             IngestorService::new(Graph::new(), self.storage.clone(), self.analysis.clone());
 
@@ -140,25 +142,28 @@ impl super::ImportRunner {
             db: self.db.clone(),
         };
 
-        let (continuation, error) = if let Some((index, base)) = http {
-            http::HttpWalker::new(shared, self.storage.clone(), index, base, continuation)
-                .await?
-                .run()
-                .await?
-        } else {
-            let working_dir = self.create_working_dir("osv", &osv.source).await?;
-            let walker = GitWalker::new(osv.source, OsvHandler(shared))
-                .continuation(serde_json::from_value(continuation).unwrap_or_default())
-                .branch(osv.branch)
-                .path(osv.path)
-                .progress(progress);
-
-            let continuation = match working_dir {
-                Some(working_dir) => walker.working_dir(working_dir).run().await,
-                None => walker.run().await,
+        let (continuation, error) = match osv.transport {
+            OsvTransport::Http { base_url } => {
+                let (index, base) = http::feed_urls(&osv.source, base_url.as_ref())?;
+                http::HttpWalker::new(shared, index, base, continuation)?
+                    .run()
+                    .await?
             }
-            .map_err(|err| ScannerError::Critical(err.into()))?;
-            (serde_json::to_value(continuation).ok(), None)
+            OsvTransport::Git { branch, path } => {
+                let working_dir = self.create_working_dir("osv", &osv.source).await?;
+                let walker = GitWalker::new(osv.source, OsvHandler(shared))
+                    .continuation(from_value(continuation).unwrap_or_default())
+                    .branch(branch)
+                    .path(path)
+                    .progress(progress);
+
+                let continuation = match working_dir {
+                    Some(working_dir) => walker.working_dir(working_dir).run().await,
+                    None => walker.run().await,
+                }
+                .map_err(|err| ScannerError::Critical(err.into()))?;
+                (to_value(continuation).ok(), None)
+            }
         };
 
         // extract the report

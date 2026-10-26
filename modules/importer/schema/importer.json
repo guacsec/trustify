@@ -275,6 +275,7 @@
       ]
     },
     "OsvImporter": {
+      "description": "How OSV documents are retrieved. Defaults to Git when omitted.",
       "type": "object",
       "properties": {
         "disabled": {
@@ -298,22 +299,8 @@
           "$ref": "#/$defs/Labels"
         },
         "source": {
-          "description": "The URL to the git repository of the OSV data",
+          "description": "A Git repository URL or an OSV REST index URL.",
           "type": "string"
-        },
-        "branch": {
-          "description": "An optional branch. Will use the default branch otherwise.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "path": {
-          "description": "An optional path to start searching for documents. Will use the root of the repository otherwise.",
-          "type": [
-            "string",
-            "null"
-          ]
         },
         "years": {
           "type": "array",
@@ -338,6 +325,54 @@
       "required": [
         "period",
         "source"
+      ],
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "transport": {
+              "type": "string",
+              "const": "git"
+            },
+            "branch": {
+              "description": "An optional branch. Will use the default branch otherwise.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "path": {
+              "description": "An optional path to start searching for documents. Defaults to the repository root.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "transport"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "transport": {
+              "type": "string",
+              "const": "http"
+            },
+            "baseUrl": {
+              "description": "Base URL for REST records (`<id>.json`). Defaults to the index directory.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            }
+          },
+          "required": [
+            "transport"
+          ]
+        }
       ]
     },
     "CveImporter": {

@@ -13,7 +13,8 @@ use trustify_module_importer::model::{
 use trustify_module_importer::{
     model::{
         ClearlyDefinedCurationImporter, CommonImporter, CsafImporter,
-        DEFAULT_SOURCE_CLEARLY_DEFINED, ImporterConfiguration, OsvImporter, SbomImporter,
+        DEFAULT_SOURCE_CLEARLY_DEFINED, ImporterConfiguration, OsvImporter, OsvTransport,
+        SbomImporter,
     },
     service::{Error, ImporterService},
 };
@@ -46,8 +47,10 @@ async fn add_osv(
         importer,
         name,
         ImporterConfiguration::Osv(OsvImporter {
-            transport: None,
-            base_url: None,
+            transport: OsvTransport::Git {
+                branch: branch.map(ToString::to_string),
+                path: base.map(|s| s.into()),
+            },
             common: CommonImporter {
                 disabled: true,
                 period: Duration::from_secs(300),
@@ -55,8 +58,6 @@ async fn add_osv(
                 labels: Default::default(),
             },
             source: source.to_string(),
-            branch: branch.map(ToString::to_string),
-            path: base.map(|s| s.into()),
             years: Default::default(),
             start_year,
         }),
