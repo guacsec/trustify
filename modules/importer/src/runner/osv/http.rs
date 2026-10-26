@@ -9,13 +9,12 @@ use crate::runner::{
 use anyhow::{Context as _, anyhow, bail, ensure};
 use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream};
-use reqwest::{Error as ReqwestError, Response};
+use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_slice, from_value, to_value, to_vec};
 use sha2::{Digest as _, Sha256};
 use std::{collections::HashSet, time::Duration};
-use tokio::{pin, select, time::sleep};
-use trustify_common::reqwest::ClientFactory;
+use tokio::{select, time::sleep};
 use trustify_module_ingestor::service::advisory::osv::parse;
 use url::Url;
 use walker_common::{
@@ -92,11 +91,10 @@ struct HttpFetcher {
 impl HttpFetcher {
     fn new(index: Url, base: Url) -> anyhow::Result<Self> {
         Ok(Self {
-            // Use the shared TLS trust setup (including the OpenShift service
-            // CA), walker user agent, and Fetcher's retry/rate-limit policy.
+            // Use default TLS trust, the walker user agent, and Fetcher's
+            // retry/rate-limit policy.
             fetcher: Fetcher::from(
-                ClientFactory::new()
-                    .new_builder()?
+                Client::builder()
                     .user_agent(USER_AGENT)
                     .connect_timeout(Duration::from_secs(10))
                     .timeout(Duration::from_secs(30))
@@ -130,7 +128,7 @@ struct LimitedBytes(usize);
 impl DataProcessor for LimitedBytes {
     type Type = anyhow::Result<Vec<u8>>;
 
-    async fn process(&self, response: Response) -> Result<Self::Type, ReqwestError> {
+    async fn process(&self, response: Response) -> Result<Self::Type, reqwest::Error> {
         let mut response = response.error_for_status()?;
         let limit = self.0;
         if response.content_length().is_some_and(|n| n > limit as u64) {
@@ -151,6 +149,15 @@ pub(super) struct HttpWalker<C: RunContext + 'static> {
     context: Context<C>,
     fetcher: HttpFetcher,
     continuation: Option<Continuation>,
+}
+
+async fn wait_for_cancellation(context: &impl RunContext) {
+    loop {
+        if context.is_canceled().await {
+            return;
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
 }
 
 impl<C: RunContext> HttpWalker<C> {
@@ -193,22 +200,15 @@ impl<C: RunContext> HttpWalker<C> {
             .context
             .check_canceled(|| anyhow!("OSV import canceled"))
             .await?;
-        let canceled = async {
-            loop {
-                if context.context.is_canceled().await {
-                    break;
-                }
-                sleep(Duration::from_secs(1)).await;
-            }
-        };
-        pin!(canceled);
+        // Scope each cancellation future to its select: a pending check can hold
+        // the context's mutex, which later direct checks must be able to acquire.
         // Capture before requesting the index, not after finishing ingestion:
         // records published during this scan must remain eligible next time.
         // Backdated records still require a full rescan to discover.
         let started = Utc::now();
         let entries = select! {
             entries = fetcher.index() => entries?,
-            () = &mut canceled => bail!("OSV import canceled"),
+            () = wait_for_cancellation(&context.context) => bail!("OSV import canceled"),
         };
         // Validate the entire index before processing anything. Duplicate IDs make
         // checkpoint semantics ambiguous, even if their timestamps happen to agree.
@@ -245,7 +245,7 @@ impl<C: RunContext> HttpWalker<C> {
                     Some(result) => result,
                     None => break,
                 },
-                () = &mut canceled => {
+                () = wait_for_cancellation(&context.context) => {
                     error = Some(anyhow!("OSV import canceled"));
                     break;
                 }
@@ -267,9 +267,11 @@ impl<C: RunContext> HttpWalker<C> {
                             "OSV record ID does not match index"
                         );
                         ensure!(
-                            document.modified == entry.modified,
-                            "OSV record changed since index was fetched"
+                            document.modified >= entry.modified,
+                            "OSV record is older than index entry"
                         );
+                        // A newer document is safe to ingest: the scan-start
+                        // watermark keeps changes during this scan eligible next time.
                         context.store(url.as_str(), &data).await
                     }
                     .await;
@@ -598,6 +600,108 @@ mod tests {
     }
 
     #[test_context(TrustifyContext)]
+    #[tokio::test]
+    async fn records_updated_during_scan_allow_watermark_progress(
+        ctx: &TrustifyContext,
+    ) -> anyhow::Result<()> {
+        let server = MockServer::start().await;
+        let id = "OSV-2026-0001";
+        serve(&server, &[(id, "2026-01-01T00:00:00Z")], None).await;
+        let updated = Arc::new(Mutex::new(None));
+        let timestamp = updated.clone();
+        Mock::given(path(format!("/{id}.json")))
+            .respond_with(move |_: &Request| {
+                let modified = Utc::now();
+                *timestamp.lock() = Some(modified);
+                ResponseTemplate::new(200).set_body_json(json!({
+                    "schema_version": "1.7.5", "id": id, "modified": modified,
+                    "summary": "updated during scan"
+                }))
+            })
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        let runner = runner(ctx);
+        let config = importer(&format!("{}/all.json", server.uri()));
+        let output = runner.run_once_osv((), config.clone(), Value::Null).await?;
+        assert_eq!(output.report.number_of_items, 1);
+        let token = output.continuation.unwrap();
+        let modified = updated.lock().unwrap();
+        assert!(from_value::<Continuation>(token.clone())?.osv_http_v2 <= modified);
+
+        // The refreshed index still selects this record on the next run.
+        serve(&server, &[(id, &modified.to_rfc3339())], None).await;
+        let output = runner.run_once_osv((), config.clone(), token).await?;
+        assert_eq!(output.report.number_of_items, 1);
+        let token = output.continuation.unwrap();
+        assert!(from_value::<Continuation>(token.clone())?.osv_http_v2 > modified);
+        let output = runner.run_once_osv((), config, token).await?;
+        assert_eq!(output.report.number_of_items, 0);
+        assert_eq!(
+            server
+                .received_requests()
+                .await
+                .unwrap()
+                .iter()
+                .filter(|request| request.url.path() != "/all.json")
+                .count(),
+            1
+        );
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    #[case::older_document("OSV-2026-0001", true)]
+    #[case::wrong_id("OSV-2026-0002", false)]
+    #[tokio::test]
+    async fn inconsistent_records_preserve_watermark(
+        ctx: &TrustifyContext,
+        #[case] document_id: &str,
+        #[case] older: bool,
+        #[values(false, true)] incremental: bool,
+    ) -> anyhow::Result<()> {
+        let server = MockServer::start().await;
+        let runner = runner(ctx);
+        let config = importer(&format!("{}/all.json", server.uri()));
+        let token = if incremental {
+            serve(&server, &[], None).await;
+            runner
+                .run_once_osv((), config.clone(), Value::Null)
+                .await?
+                .continuation
+                .unwrap()
+        } else {
+            Value::Null
+        };
+        let modified = Utc::now();
+        let document_modified = if older {
+            modified - TimeDelta::seconds(1)
+        } else {
+            modified
+        };
+        let id = "OSV-2026-0001";
+        serve(&server, &[(id, &modified.to_rfc3339())], None).await;
+        Mock::given(path(format!("/{id}.json")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "schema_version": "1.7.5", "id": document_id,
+                "modified": document_modified, "summary": "inconsistent record"
+            })))
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        let (output, result) = runner
+            .run_once_osv((), config, token.clone())
+            .await
+            .split()?;
+        assert!(result.is_err());
+        assert_eq!(output.report.number_of_items, 0);
+        assert!(!output.report.messages.is_empty());
+        assert_eq!(output.continuation, Some(token));
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
     #[rstest]
     #[case::not_an_array(json!({"not": "an array"}))]
     #[case::invalid_timestamp(json!([{"id": "OSV-test", "modified": "not a date"}]))]
@@ -628,6 +732,62 @@ mod tests {
                 .is_err()
         );
         assert_eq!(server.received_requests().await.unwrap().len(), 1);
+        Ok(())
+    }
+
+    #[derive(Debug)]
+    struct PendingCheckContext {
+        lock: Arc<tokio::sync::Mutex<()>>,
+        checks: Arc<AtomicUsize>,
+    }
+
+    impl RunContext for PendingCheckContext {
+        fn name(&self) -> &str {
+            "pending-check-test"
+        }
+
+        async fn is_canceled(&self) -> bool {
+            let _guard = self.lock.lock().await;
+            if self.checks.fetch_add(1, Ordering::SeqCst) == 1 {
+                // Model a production check awaiting the database while holding
+                // its mutex. Only dropping this future releases the lock.
+                std::future::pending::<()>().await;
+            }
+            false
+        }
+    }
+
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    #[tokio::test]
+    async fn pending_cancellation_check_releases_mutex(
+        ctx: &TrustifyContext,
+        #[values(false, true)] with_record: bool,
+    ) -> anyhow::Result<()> {
+        let server = MockServer::start().await;
+        let entries = if with_record {
+            vec![("OSV-2026-0001", "2026-01-01T00:00:00Z")]
+        } else {
+            vec![]
+        };
+        serve(&server, &entries, None).await;
+        let lock = Arc::new(tokio::sync::Mutex::new(()));
+        let checks = Arc::new(AtomicUsize::new(0));
+        let context = PendingCheckContext {
+            lock: lock.clone(),
+            checks: checks.clone(),
+        };
+        let runner = runner(ctx);
+        let config = importer(&format!("{}/all.json", server.uri()));
+        let output = timeout(
+            Duration::from_secs(4),
+            runner.run_once_osv(context, config, Value::Null),
+        )
+        .await??;
+        assert_eq!(output.report.number_of_items, entries.len());
+        assert!(output.continuation.is_some_and(|token| !token.is_null()));
+        assert!(checks.load(Ordering::SeqCst) >= 3);
+        assert!(lock.try_lock().is_ok());
         Ok(())
     }
 
