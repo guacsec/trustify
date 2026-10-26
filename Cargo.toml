@@ -85,6 +85,7 @@ isx = "0.1"
 itertools = "0.14"
 json-merge-patch = "0.0.1"
 jsonpath-rust = "1.0.1"
+jsonschema = { version = "0.45", default-features = false }
 lenient_semver = "0.4.2"
 liblzma = "0.4"
 lzma-rust2 = "0.16.1"

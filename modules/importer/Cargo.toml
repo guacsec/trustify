@@ -59,7 +59,7 @@ zip = { workspace = true }
 [dev-dependencies]
 actix-http = { workspace = true }
 bytesize = { workspace = true }
-jsonschema = { version = "0.45", default-features = false }
+jsonschema = { workspace = true }
 liblzma = { workspace = true }
 rstest = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
