@@ -46,8 +46,6 @@ async fn add_osv(
         importer,
         name,
         ImporterConfiguration::Osv(OsvImporter {
-            transport: None,
-            base_url: None,
             common: CommonImporter {
                 disabled: true,
                 period: Duration::from_secs(300),

@@ -1,5 +1,4 @@
 mod handler;
-mod http;
 
 use crate::{
     model::OsvImporter,
@@ -13,7 +12,6 @@ use crate::{
 use chrono::Datelike;
 use handler::OsvHandler;
 use parking_lot::Mutex;
-use serde_json::Value;
 use std::collections::HashSet;
 use std::{path::Path, path::PathBuf, sync::Arc};
 use tokio::runtime::Handle;
@@ -38,12 +36,12 @@ struct Context<C: RunContext + 'static> {
 }
 
 impl<C: RunContext> Context<C> {
-    async fn store(&self, file: &str, data: &[u8]) -> anyhow::Result<()> {
+    fn store(&self, path: &Path, data: Vec<u8>) -> anyhow::Result<()> {
         self.report.lock().tick();
 
         // apply year based filter, we need to parse
         if !self.years.is_empty() || self.start_year.is_some() {
-            let osv = parse(data)?;
+            let osv = parse(&data)?;
 
             let year = osv
                 .published
@@ -64,24 +62,26 @@ impl<C: RunContext> Context<C> {
             }
         }
 
-        self.db
-            .transaction(async |tx| {
-                self.ingestor
-                    .ingest(
-                        data,
-                        Format::OSV,
-                        Labels::new()
-                            .add("source", &self.source)
-                            .add("importer", self.context.name())
-                            .add("file", file)
-                            .extend(self.labels.0.clone()),
-                        None,
-                        Cache::Skip,
-                        tx,
-                    )
-                    .await
-            })
-            .await?;
+        Handle::current().block_on(async {
+            self.db
+                .transaction(async |tx| {
+                    self.ingestor
+                        .ingest(
+                            &data,
+                            Format::OSV,
+                            Labels::new()
+                                .add("source", &self.source)
+                                .add("importer", self.context.name())
+                                .add("file", path.to_string_lossy())
+                                .extend(self.labels.0.clone()),
+                            None,
+                            Cache::Skip,
+                            tx,
+                        )
+                        .await
+                })
+                .await
+        })?;
 
         Ok(())
     }
@@ -95,7 +95,7 @@ impl<C: RunContext> Callbacks<Vec<u8>> for Context<C> {
     }
 
     fn process(&self, path: &Path, osv: Vec<u8>) -> Result<(), CallbackError> {
-        if let Err(err) = Handle::current().block_on(self.store(&path.to_string_lossy(), &osv)) {
+        if let Err(err) = self.store(path, osv) {
             self.report
                 .lock()
                 .add_error(Phase::Upload, path.to_string_lossy(), err.to_string());
@@ -115,13 +115,17 @@ impl super::ImportRunner {
         &self,
         context: impl RunContext + 'static,
         osv: OsvImporter,
-        continuation: Value,
+        continuation: serde_json::Value,
     ) -> Result<RunOutput, ScannerError> {
-        let http = http::feed_urls(&osv)?;
         let ingestor =
             IngestorService::new(Graph::new(), self.storage.clone(), self.analysis.clone());
 
         let report = Arc::new(Mutex::new(ReportBuilder::new()));
+        let continuation = serde_json::from_value(continuation).unwrap_or_default();
+
+        // working dir
+
+        let working_dir = self.create_working_dir("osv", &osv.source).await?;
 
         // progress reporting
 
@@ -129,37 +133,29 @@ impl super::ImportRunner {
 
         // run the walker
 
-        let shared = Context {
-            context,
-            source: osv.source.clone(),
-            labels: osv.common.labels,
-            years: osv.years,
-            start_year: osv.start_year,
-            report: report.clone(),
-            ingestor,
-            db: self.db.clone(),
-        };
+        let walker = GitWalker::new(
+            osv.source.clone(),
+            OsvHandler(Context {
+                context,
+                source: osv.source,
+                labels: osv.common.labels,
+                years: osv.years,
+                start_year: osv.start_year,
+                report: report.clone(),
+                ingestor,
+                db: self.db.clone(),
+            }),
+        )
+        .continuation(continuation)
+        .branch(osv.branch)
+        .path(osv.path)
+        .progress(progress);
 
-        let (continuation, error) = if let Some((index, base)) = http {
-            http::HttpWalker::new(shared, self.storage.clone(), index, base, continuation)
-                .await?
-                .run()
-                .await?
-        } else {
-            let working_dir = self.create_working_dir("osv", &osv.source).await?;
-            let walker = GitWalker::new(osv.source, OsvHandler(shared))
-                .continuation(serde_json::from_value(continuation).unwrap_or_default())
-                .branch(osv.branch)
-                .path(osv.path)
-                .progress(progress);
-
-            let continuation = match working_dir {
-                Some(working_dir) => walker.working_dir(working_dir).run().await,
-                None => walker.run().await,
-            }
-            .map_err(|err| ScannerError::Critical(err.into()))?;
-            (serde_json::to_value(continuation).ok(), None)
-        };
+        let continuation = match working_dir {
+            Some(working_dir) => walker.working_dir(working_dir).run().await,
+            None => walker.run().await,
+        }
+        .map_err(|err| ScannerError::Critical(err.into()))?;
 
         // extract the report
 
@@ -171,16 +167,9 @@ impl super::ImportRunner {
 
         // return
 
-        let output = RunOutput {
+        Ok(RunOutput {
             report,
-            continuation,
-        };
-        match error {
-            Some(err) => Err(ScannerError::Normal {
-                err,
-                output: Box::new(output),
-            }),
-            None => Ok(output),
-        }
+            continuation: serde_json::to_value(continuation).ok(),
+        })
     }
 }
