@@ -718,54 +718,13 @@ impl PurlService {
                 .instrument(info_span!("querying purl statuses"))
                 .await?;
 
-            let vulns = all_statuses
-                .load_one(vulnerability::Entity, connection)
-                .instrument(info_span!("loading vulnerabilities"))
-                .await?;
-            let advisories_loaded = all_statuses
-                .load_one(advisory::Entity, connection)
-                .instrument(info_span!("loading advisories"))
-                .await?;
-            let status_models = all_statuses
-                .load_one(status::Entity, connection)
-                .instrument(info_span!("loading statuses"))
-                .await?;
-            let status_slug_map: HashMap<_, _> = status_models
-                .into_iter()
-                .flatten()
-                .map(|s| (s.id, s.slug))
-                .collect();
-            let remediations = all_statuses
-                .load_many_to_many(
-                    remediation::Entity,
-                    remediation_purl_status::Entity,
-                    connection,
-                )
-                .instrument(info_span!("loading remediations"))
-                .await?;
-
-            for (((vuln, advisory), ps), rems) in vulns
-                .into_iter()
-                .zip(advisories_loaded)
-                .zip(all_statuses)
-                .zip(remediations)
-            {
-                if let (Some(v), Some(advisory)) = (vuln, advisory) {
-                    let slug = status_slug_map
-                        .get(&ps.status_id)
-                        .cloned()
-                        .unwrap_or_else(|| "unknown".to_string());
-                    statuses_by_base
-                        .entry(ps.base_purl_id)
-                        .or_default()
-                        .push(StatusInfo {
-                            vuln_id: v.id,
-                            status_slug: slug,
-                            remediations: rems,
-                            advisory_date: advisory.modified.or(advisory.published),
-                            advisory_id: Some(advisory.identifier.clone()),
-                        });
-                }
+            let batch_statuses_by_base =
+                Self::load_status_infos_by_base(all_statuses, connection).await?;
+            for (base_purl_id, infos) in batch_statuses_by_base {
+                statuses_by_base
+                    .entry(base_purl_id)
+                    .or_default()
+                    .extend(infos);
             }
         }
 
@@ -802,11 +761,29 @@ impl PurlService {
             .instrument(info_span!("querying purl statuses for synthetic winner"))
             .await?;
 
+        let mut statuses_by_base =
+            Self::load_status_infos_by_base(all_statuses, connection).await?;
+        Ok(statuses_by_base.remove(&base_purl_id).unwrap_or_default())
+    }
+
+    /// Loads vulnerability status associations for PURL status rows, grouped by base PURL ID.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn load_status_infos_by_base<C: ConnectionTrait>(
+        all_statuses: Vec<purl_status::Model>,
+        connection: &C,
+    ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
         let vulns = all_statuses
             .load_one(vulnerability::Entity, connection)
+            .instrument(info_span!("loading vulnerabilities"))
             .await?;
-        let advisories_loaded = all_statuses.load_one(advisory::Entity, connection).await?;
-        let status_models = all_statuses.load_one(status::Entity, connection).await?;
+        let advisories_loaded = all_statuses
+            .load_one(advisory::Entity, connection)
+            .instrument(info_span!("loading advisories"))
+            .await?;
+        let status_models = all_statuses
+            .load_one(status::Entity, connection)
+            .instrument(info_span!("loading statuses"))
+            .await?;
         let status_slug_map: HashMap<_, _> = status_models
             .into_iter()
             .flatten()
@@ -818,9 +795,10 @@ impl PurlService {
                 remediation_purl_status::Entity,
                 connection,
             )
+            .instrument(info_span!("loading remediations"))
             .await?;
 
-        let mut infos = Vec::new();
+        let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
         for (((vuln, advisory), ps), rems) in vulns
             .into_iter()
             .zip(advisories_loaded)
@@ -832,17 +810,20 @@ impl PurlService {
                     .get(&ps.status_id)
                     .cloned()
                     .unwrap_or_else(|| "unknown".to_string());
-                infos.push(StatusInfo {
-                    vuln_id: v.id,
-                    status_slug: slug,
-                    remediations: rems,
-                    advisory_date: advisory.modified.or(advisory.published),
-                    advisory_id: Some(advisory.identifier.clone()),
-                });
+                statuses_by_base
+                    .entry(ps.base_purl_id)
+                    .or_default()
+                    .push(StatusInfo {
+                        vuln_id: v.id,
+                        status_slug: slug,
+                        remediations: rems,
+                        advisory_date: advisory.modified.or(advisory.published),
+                        advisory_id: Some(advisory.identifier.clone()),
+                    });
             }
         }
 
-        Ok(infos)
+        Ok(statuses_by_base)
     }
 
     /// Builds a single recommendation entry from a winner and its vulnerability statuses.
