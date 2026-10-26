@@ -424,8 +424,8 @@ mod tests {
         config.base_url = Some(Url::parse("https://records.example.com/osv").unwrap());
         let (_, base) = feed_urls(&config).unwrap().unwrap();
         assert_eq!(
-            record_url(&base, "CGA-1234").unwrap().as_str(),
-            "https://records.example.com/osv/CGA-1234.json"
+            record_url(&base, "OSV-2026-1234").unwrap().as_str(),
+            "https://records.example.com/osv/OSV-2026-1234.json"
         );
         config.branch = Some("main".into());
         assert!(feed_urls(&config).is_err());
@@ -558,7 +558,7 @@ mod tests {
         let server = MockServer::start().await;
         let runner = runner(ctx);
         let config = importer(&format!("{}/all.json", server.uri()));
-        let first = [("CGA-2222-2222-2222", "2026-01-01T00:00:00Z")];
+        let first = [("OSV-2026-0001", "2026-01-01T00:00:00Z")];
         serve(&server, &first, None).await;
         let output = runner.run_once_osv((), config.clone(), Value::Null).await?;
         assert_eq!(output.report.number_of_items, 1);
@@ -579,8 +579,8 @@ mod tests {
         );
         let next = [
             (first[0].0, "2026-02-01T00:00:00Z"),
-            ("CGA-3333-3333-3333", "2020-01-01T00:00:00Z"),
-            ("CGA-4444-4444-4444", "2026-02-01T00:00:00Z"),
+            ("OSV-2020-0002", "2020-01-01T00:00:00Z"),
+            ("OSV-2026-0003", "2026-02-01T00:00:00Z"),
         ];
         serve(&server, &next, Some(next[2].0)).await;
         let (output, result) = runner
@@ -630,11 +630,11 @@ mod tests {
         let runner = runner(ctx);
         for index in [
             json!({"not": "an array"}),
-            json!([{"id": "CGA-test", "modified": "not a date"}]),
+            json!([{"id": "OSV-test", "modified": "not a date"}]),
             json!([{"id": "../escape", "modified": "2026-01-01T00:00:00Z"}]),
             json!([
-                {"id": "CGA-test", "modified": "2026-01-01T00:00:00Z"},
-                {"id": "CGA-test", "modified": "2026-01-01T00:00:00Z"}
+                {"id": "OSV-test", "modified": "2026-01-01T00:00:00Z"},
+                {"id": "OSV-test", "modified": "2026-01-01T00:00:00Z"}
             ]),
         ] {
             server.reset().await;
@@ -675,7 +675,7 @@ mod tests {
         ctx: &TrustifyContext,
     ) -> anyhow::Result<()> {
         let server = MockServer::start().await;
-        let entries = [("CGA-2222-2222-2222", "2026-01-01T00:00:00Z")];
+        let entries = [("OSV-2026-0001", "2026-01-01T00:00:00Z")];
         serve(&server, &entries, None).await;
         let canceled = Arc::new(AtomicBool::new(false));
         let flag = canceled.clone();
@@ -715,7 +715,7 @@ mod tests {
         std::fs::write(
             directory.path().join("advisory.json"),
             serde_json::to_vec(&json!({
-                "id": "CGA-2222-2222-2222", "modified": "2026-01-01T00:00:00Z", "summary": "Git advisory"
+                "id": "OSV-2026-0001", "modified": "2026-01-01T00:00:00Z", "summary": "Git advisory"
             }))?,
         )?;
         let mut index = repo.index()?;
