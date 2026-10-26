@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
         conn.execute_unprepared(
             "CREATE OR REPLACE FUNCTION crypto_remediation_set_updated_at() \
              RETURNS TRIGGER LANGUAGE plpgsql AS $$ \
-             BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$",
+             BEGIN NEW.updated_at = clock_timestamp(); RETURN NEW; END; $$",
         )
         .await?;
 

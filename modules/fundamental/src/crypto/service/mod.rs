@@ -199,7 +199,7 @@ impl CryptoService {
         let mut count: usize = 0;
         const CHUNK_SIZE: usize = 500;
         for chunk in models.chunks(CHUNK_SIZE) {
-            let n = crypto_remediation::Entity::insert_many(chunk.to_vec())
+            crypto_remediation::Entity::insert_many(chunk.to_vec())
                 .on_conflict(
                     OnConflict::columns([
                         crypto_remediation::Column::AlgorithmName,
@@ -214,7 +214,7 @@ impl CryptoService {
                 )
                 .exec_without_returning(connection)
                 .await?;
-            count += n as usize;
+            count += chunk.len();
         }
 
         Ok(count)
