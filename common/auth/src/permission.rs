@@ -1,5 +1,5 @@
 use crate::{
-    authenticator::user::UserInformation,
+    authenticator::{error::AuthorizationError, user::UserInformation},
     authorizer::{Authorizer, Requirement, RequirementError},
 };
 use strum::ParseError;
@@ -140,6 +140,27 @@ permission! {
         UpdateCorrelationOption,
         #[strum(serialize = "delete.correlationOption")]
         DeleteCorrelationOption,
+    }
+}
+
+/// Require permission to upload at least one supported document format.
+pub struct AnyUpload;
+
+impl Requirement for AnyUpload {
+    fn enforce(authorizer: &Authorizer, user: &UserInformation) -> Result<(), RequirementError> {
+        if [
+            Permission::CreateSbom,
+            Permission::CreateAdvisory,
+            Permission::CreateWeakness,
+            Permission::CreateExploit,
+        ]
+        .into_iter()
+        .any(|permission| authorizer.require(user, permission).is_ok())
+        {
+            Ok(())
+        } else {
+            Err(AuthorizationError::Failed.into())
+        }
     }
 }
 

@@ -191,8 +191,15 @@ async fn catalog_upload_permissions(
     for permission in [
         None,
         Some(""),
+        Some("read.sbom"),
+        Some("upload.dataset"),
         Some("create.advisory"),
         Some("create.sbom"),
+        Some("create.importer"),
+        Some("create.metadata"),
+        Some("create.sbomGroup"),
+        Some("create.exploitIntelligence"),
+        Some("create.correlationOption"),
         Some(unrelated),
         Some(required),
     ] {
@@ -219,11 +226,21 @@ async fn catalog_upload_permissions(
                 }));
         }
         let granted = permission == Some(required);
+        let requests_before = server.received_requests().await.unwrap().len();
         let response = actix_web::test::call_service(&app, request).await;
         assert_eq!(
             response.status(),
             if granted { 201 } else { 403 },
             "{format}, from_url={from_url}, {permission:?}"
+        );
+        let can_fetch = matches!(
+            permission,
+            Some("create.advisory" | "create.sbom" | "create.weakness" | "create.exploit")
+        );
+        assert_eq!(
+            server.received_requests().await.unwrap().len() - requests_before,
+            usize::from(from_url && can_fetch),
+            "URL downloads require a document upload permission: {permission:?}"
         );
         let persisted = if format == "cwecatalog" {
             weakness::Entity::find_by_id("CWE-999999")

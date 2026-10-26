@@ -6,7 +6,7 @@ use actix_web::{HttpResponse, Responder, http::header, post, web};
 use sea_orm::TransactionTrait;
 use std::sync::Arc;
 use trustify_auth::{
-    UploadDataset,
+    AnyUpload, UploadDataset,
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
 };
@@ -224,6 +224,7 @@ pub async fn upload_document(
 #[allow(clippy::too_many_arguments)]
 /// Download a document from a URL and ingest it with auto-detected format.
 pub async fn upload_document_from_url(
+    _: Require<AnyUpload>,
     service: web::Data<IngestorService>,
     config: web::Data<Config>,
     http_client: web::Data<reqwest::Client>,
