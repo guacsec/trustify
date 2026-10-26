@@ -49,7 +49,7 @@ Format: `reports/<target>_u<users>_<duration>_<timestamp>.html`
 
 `make test` selects the endpoint groups represented in the daily dashboard:
 advisory, analysis, group, importer, advisory-label reads, license, pURL,
-SBOM, and vulnerability. It uses the daily workflow's pinned scenario file so
+SBOM, vulnerability, and correlation. It uses the daily workflow's pinned scenario file so
 scenario-based detail and recommendation tasks are enabled. Use `make test-v3`
 for the additional product, organization, weakness, miscellaneous, and website
 workloads. Label mutation tasks remain excluded because the perf client lacks
@@ -71,6 +71,7 @@ update permission.
 | `make test-group` | v3 SBOM group list + detail |
 | `make test-misc` | v3 well-known + UI helpers |
 | `make test-analysis-v3` | v3 analysis + graph rendering |
+| `make test-correlation` | v3 correlation engine reads |
 
 ### Cross-cutting targets
 
@@ -99,6 +100,15 @@ make test-readonly SCENARIO_FILE=etc/scenarios/main/full-20260412.json5
 | `SCENARIO_FILE` | `etc/scenarios/main/full-20260317T023702Z.json5` | Path to JSON5 scenario file |
 
 Run `make clean` to remove all generated reports and cached files.
+
+### Capability-aware workloads
+
+Before spawning users, the Locust entry point reads `/.well-known/trustify` and
+omits workloads whose required capability is not advertised. This keeps
+optional features such as correlation from producing expected `422` failures
+when disabled. The dedicated `make test-correlation` target reports a clean
+skip when correlation is unavailable and fails if capability discovery itself
+cannot be completed.
 
 ## CI Workflows and Dashboards
 

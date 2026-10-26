@@ -48,16 +48,27 @@ Tags:
         uv run locust ... --exclude-tags mutate
 
     Endpoint-group tags: advisory, vulnerability, sbom, purl, product,
-    organization, importer, license, weakness, group, misc, analysis, labels.
+    organization, importer, license, weakness, group, misc, analysis,
+    correlation, labels.
 
     Access-pattern tags: list, detail, slow.
 
 See auth.py, scenario.py, and the users/ modules for details.
 """
 
+import logging
 import os
 
+from locust import events
+
+from capabilities import (
+    CapabilityDiscoveryError,
+    discover_capabilities,
+    filter_user_classes,
+)
+
 TOOLS_PERF_API_VERSION = os.environ.get("TOOLS_PERF_API_VERSION", "v3")
+log = logging.getLogger(__name__)
 
 # Website tests are version-agnostic -- always loaded.
 from users.website import WebsiteUser  # noqa: F401, E402
@@ -65,6 +76,7 @@ from users.website import WebsiteUser  # noqa: F401, E402
 if TOOLS_PERF_API_VERSION in ("v3", "all"):
     from users.v3.advisory import AdvisoryUserV3  # noqa: F401
     from users.v3.analysis import AnalysisUserV3  # noqa: F401
+    from users.v3.correlation import CorrelationUserV3  # noqa: F401
     from users.v3.group import GroupUserV3  # noqa: F401
     from users.v3.importer import ImporterUserV3  # noqa: F401
     # The label mutation workloads require update permissions not granted to
@@ -83,3 +95,25 @@ if TOOLS_PERF_API_VERSION in ("v2", "all"):
     from users.v2.analysis import AnalysisUserV2  # noqa: F401
     from users.v2.rest_api import RestAPIUserV2  # noqa: F401
     from users.v2.rest_api_slow import RestAPIUserSlowV2  # noqa: F401
+
+
+@events.init.add_listener
+def configure_capability_workloads(environment, **_kwargs) -> None:
+    """Discover capabilities before Locust starts spawning users."""
+    required = [
+        user_class
+        for user_class in environment.user_classes
+        if getattr(user_class, "required_capability", None)
+    ]
+    if not required:
+        return
+
+    try:
+        capabilities = discover_capabilities(environment.host)
+    except CapabilityDiscoveryError as exc:
+        # Let Locust treat discovery failures as setup failures rather than
+        # silently producing a partial performance run.
+        log.error("Capability discovery failed: %s", exc)
+        raise
+
+    filter_user_classes(environment, capabilities)

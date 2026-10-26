@@ -44,5 +44,8 @@
   // FIXME: "get_weakness": "CWE-79",
   "get_weakness": null,
   // we don't have weakness data
-  "get_spdx_license": "MIT"
+  "get_spdx_license": "MIT",
+  "get_correlation_sbom": "019cf03d-89b1-7aa1-876e-43a3bfd8a2f5",
+  "correlation_query": "pkg:golang/k8s.io/apimachinery/third_party/forked/golang/reflect",
+  "get_correlation_advisory": "f1e5eb17-2f31-418f-9b46-c11f52398375"
 }

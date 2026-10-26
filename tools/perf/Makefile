@@ -13,7 +13,8 @@
 # All TOOLS_PERF_* env vars are forwarded automatically.
 
 .PHONY: help reports report test test-daily test-v3 test-all test-readonly \
-        test-slow test-website ui compare compare-detail compare-csv clean
+        test-slow test-correlation test-website ui compare compare-detail \
+        compare-csv clean
 
 # -- Defaults (override on command line or via env) -------------------------
 
@@ -80,7 +81,7 @@ report: reports ## Generate the custom HTML dashboard from saved Locust CSVs
 
 V3_DAILY_USERS := AdvisoryUserV3 AnalysisUserV3 GroupUserV3 ImporterUserV3 \
                   AdvisoryLabelUserV3 LicenseUserV3 PurlUserV3 \
-                  SBOMUserV3 VulnerabilityUserV3
+                  SBOMUserV3 VulnerabilityUserV3 CorrelationUserV3
 
 test: test-daily ## Run the endpoint groups shown in the daily dashboard (default)
 
@@ -100,7 +101,7 @@ test-all: reports ## Run v2 and v3 tests together
 V3_READONLY := AdvisoryUserV3 AnalysisUserV3 GroupUserV3 ImporterUserV3 \
                LicenseUserV3 MiscUserV3 OrganizationUserV3 ProductUserV3 \
                PurlUserV3 SBOMUserV3 VulnerabilityUserV3 WeaknessUserV3 \
-               AdvisoryLabelUserV3 WebsiteUser
+               AdvisoryLabelUserV3 CorrelationUserV3 WebsiteUser
 
 test-readonly: reports ## Run only read-only v3 tests
 	@$(call RUN_AND_REPORT,$(V3_READONLY) $(call BASE,v3-readonly) --tags readonly)
@@ -110,6 +111,13 @@ test-readonly: reports ## Run only read-only v3 tests
 
 test-slow: reports ## Run v3 slow queries only
 	@$(call RUN_AND_REPORT,$(call BASE,v3-slow) --tags slow)
+
+test-correlation: reports ## Run correlation engine endpoint tests
+	@status=0; \
+	uv run python capabilities.py --host "$(HOST)" --require correlation || status=$$?; \
+	if [ "$$status" -eq 2 ]; then exit 0; fi; \
+	if [ "$$status" -ne 0 ]; then exit "$$status"; fi; \
+	$(call RUN_AND_REPORT,CorrelationUserV3 $(call BASE,correlation))
 
 # -- Utilities ---------------------------------------------------------------
 

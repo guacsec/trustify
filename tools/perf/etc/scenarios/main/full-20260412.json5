@@ -156,5 +156,8 @@
   "render_sbom_graph": "urn:uuid:019a4555-a1ae-7830-85aa-bc505cdd1de8",
   "get_importer": null,
   "get_weakness": "CWE-79",
-  "get_spdx_license": "MIT"
+  "get_spdx_license": "MIT",
+  "get_correlation_sbom": "019a4555-a1ae-7830-85aa-bc505cdd1de8",
+  "correlation_query": "pkg:maven/io.quarkus/quarkus-smallrye-fault-tolerance-deployment",
+  "get_correlation_advisory": "6958b1f5-2cc0-480f-b242-9b489b8de627"
 }
