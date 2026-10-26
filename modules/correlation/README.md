@@ -110,11 +110,11 @@ of 1000. Correlation results and batched verdict counts add `freshness` with `st
 `required_revision`, `completed_revision`, and `completed_at`. Absent completion is unknown.
 The UI polls every five seconds while visible and preserves previously loaded data on errors.
 
-Migration `m0002680` preserves evidence and initializes existing SBOMs as unchecked. No refresh
+Migration `m0002570` preserves evidence and initializes existing SBOMs as unchecked. No refresh
 is started automatically. Downgrading removes freshness metadata and jobs while retaining
 the evidence, including any changes made by completed refreshes. Deploy backend and UI together.
 
-Migration `m0002700` installs durable ingestion tracking and queues all existing SBOMs and
+Migration `m0002590` installs durable ingestion tracking and queues all existing SBOMs and
 advisories once, because earlier processing had no durable acknowledgement. Expect an initial
 backlog after upgrading. Downgrading removes the ingestion queue while preserving evidence.
 
@@ -223,9 +223,9 @@ its next read; this change requires no re-ingestion or re-extraction.
 
 ### Existing data
 
-`m0002560` adds supplier/source metadata and provider aliases. Existing component suppliers
+`m0002530` adds supplier/source metadata and provider aliases. Existing component suppliers
 cannot be reconstructed safely from document authors. Re-ingest the original documents through
 a path that actually replaces their stored assertions and packages, then re-extract evidence
 to recover metadata; a duplicate-upload response or re-extraction alone does not restore
-information ingestion discarded. Rolling back `m0002560` removes its metadata and bridge views,
+information ingestion discarded. Rolling back `m0002530` removes its metadata and bridge views,
 while preserving evidence and its distinct source providers.

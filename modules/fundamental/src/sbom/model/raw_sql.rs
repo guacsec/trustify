@@ -106,7 +106,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
             pst.advisory_id,
             pst.vulnerability_id
         FROM sbom_purl_info sp
-        -- including the statuses implied by correlation options (migration m0002560)
+        -- including the statuses implied by correlation options (migration m0002530)
         JOIN purl_status_effective pst ON pst.base_purl_id = sp.base_purl_id
         JOIN version_range_effective vr
             ON pst.version_range_id = vr.id AND pst.derived = vr.derived

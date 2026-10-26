@@ -1,7 +1,7 @@
 #![recursion_limit = "512"]
 
 mod m0002010;
-mod m0002470;
+mod m0002480;
 
 use migration::{
     Migrator, MigratorExt, MigratorTraitSelf,

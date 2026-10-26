@@ -8,7 +8,7 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002690_remediation_assertions/up.sql"))
+            .execute_unprepared(include_str!("m0002570_correlation_freshness/up.sql"))
             .await?;
         Ok(())
     }
@@ -16,7 +16,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002690_remediation_assertions/down.sql"))
+            .execute_unprepared(include_str!("m0002570_correlation_freshness/down.sql"))
             .await?;
         Ok(())
     }

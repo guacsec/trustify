@@ -54,7 +54,7 @@ JOIN version_range dvr ON dvr.low_version IS NULL AND dvr.high_version = vr.low_
         database: Database::Provided(ctx.db.clone().into_connection()),
         storage: ctx.storage.clone().into(),
         direction: Direction::Up,
-        migrations: vec!["m0002470_drop_redhat_derived_purl_status".into()],
+        migrations: vec!["m0002480_drop_redhat_derived_purl_status".into()],
         options: Default::default(),
     }
     .run::<Migrator>()

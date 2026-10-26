@@ -8,7 +8,7 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002700_correlation_extraction_queue/up.sql"))
+            .execute_unprepared(include_str!("m0002590_correlation_extraction_queue/up.sql"))
             .await?;
         Ok(())
     }
@@ -17,7 +17,7 @@ impl MigrationTrait for Migration {
         manager
             .get_connection()
             .execute_unprepared(include_str!(
-                "m0002700_correlation_extraction_queue/down.sql"
+                "m0002590_correlation_extraction_queue/down.sql"
             ))
             .await?;
         Ok(())

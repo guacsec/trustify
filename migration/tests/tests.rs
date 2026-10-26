@@ -145,7 +145,7 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
     );
     let evidence = correlation_evidence::Entity::find().all(&ctx.db).await?;
     // Roll back source columns and the bridge view, preserving distinct evidence rows.
-    let migrations = since(&migrator, &ctx.db, "m0002560_purl_status_effective").await?;
+    let migrations = since(&migrator, &ctx.db, "m0002530_purl_status_effective").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
     assert_eq!(evidence_count(&ctx.db).await?, 4);
     migrator.up(&ctx.db, Some(migrations)).await?;
@@ -207,7 +207,7 @@ WHERE vr.id IN ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000
     let advisories = advisory::Entity::find().count(&ctx.db).await?;
     let sboms = sbom::Entity::find().count(&ctx.db).await?;
     let migrator = Migrator::new(ctx.storage.clone(), ());
-    let migrations = since(&migrator, &ctx.db, "m0002390_create_correlation_evidence").await?;
+    let migrations = since(&migrator, &ctx.db, "m0002410_create_correlation_evidence").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
     assert_eq!(
         advisory::Entity::find()
@@ -289,7 +289,7 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
     assert!(!legacy_purls.is_empty());
     assert!(!legacy_products.is_empty());
     let migrator = Migrator::new(ctx.storage.clone(), ());
-    let migrations = since(&migrator, &ctx.db, "m0002690_remediation_assertions").await?;
+    let migrations = since(&migrator, &ctx.db, "m0002580_remediation_assertions").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
     assert_eq!(evidence_count(&ctx.db).await?, 1);
     assert_eq!(

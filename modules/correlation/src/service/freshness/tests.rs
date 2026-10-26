@@ -440,14 +440,14 @@ async fn metadata_migration_preserves_documents_and_resets_to_unknown(
     ctx.db
         .execute_unprepared(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../migration/src/m0002680_correlation_freshness/down.sql"
+            "/../../migration/src/m0002570_correlation_freshness/down.sql"
         )))
         .await?;
     assert!(sbom::Entity::find_by_id(id).one(&ctx.db).await?.is_some());
     ctx.db
         .execute_unprepared(include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../migration/src/m0002680_correlation_freshness/up.sql"
+            "/../../migration/src/m0002570_correlation_freshness/up.sql"
         )))
         .await?;
     let state = counts(ctx).await?;

@@ -10,7 +10,7 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002560_purl_status_effective/up.sql"))
+            .execute_unprepared(include_str!("m0002530_purl_status_effective/up.sql"))
             .await
             .map(|_| ())
     }
@@ -18,7 +18,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002560_purl_status_effective/down.sql"))
+            .execute_unprepared(include_str!("m0002530_purl_status_effective/down.sql"))
             .await
             .map(|_| ())
     }

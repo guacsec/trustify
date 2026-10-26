@@ -294,12 +294,12 @@ async fn migration_backfills_existing_documents_and_can_be_reverted(
     let tx = ctx.db.begin().await?;
     tx.execute_unprepared(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../migration/src/m0002700_correlation_extraction_queue/down.sql"
+        "/../../migration/src/m0002590_correlation_extraction_queue/down.sql"
     )))
     .await?;
     tx.execute_unprepared(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../migration/src/m0002700_correlation_extraction_queue/up.sql"
+        "/../../migration/src/m0002590_correlation_extraction_queue/up.sql"
     )))
     .await?;
     tx.commit().await?;

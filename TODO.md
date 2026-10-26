@@ -31,7 +31,7 @@
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). As a bridge, the SBOM, PURL and
   vulnerability APIs of the fundamental module read the views `purl_status_effective` /
-  `version_range_effective` (`m0002560`), which add those "affected" statuses at query time for
+  `version_range_effective` (`m0002530`), which add those "affected" statuses at query time for
   publishers enabling `fixed_is_first_fixed`, without the stream scoping of the correlation
   engine. Migrate those APIs to the correlation verdicts, then drop the views.
 - [ ] CSAF ingestion still infers in `product_status` (only used by the fundamental APIs, not by
