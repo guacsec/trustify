@@ -31,6 +31,7 @@ use sea_query::{
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     db::{
+        VersionMatches,
         chunk::chunked_with,
         limiter::{LimitedResult, LimiterTrait},
         pagination_cache::PaginationCache,
@@ -710,7 +711,7 @@ impl PurlService {
                 .filter(purl_status::Column::BasePurlId.is_in(base_chunk))
                 .filter(versioned_purl::Column::Id.is_in(winner_vp_ids.iter().copied()))
                 .filter(SimpleExpr::FunctionCall(
-                    Func::cust(trustify_common::db::VersionMatches)
+                    Func::cust(VersionMatches)
                         .arg(Expr::col(versioned_purl::Column::Version))
                         .arg(Expr::col((version_range::Entity, Asterisk))),
                 ))
@@ -753,7 +754,7 @@ impl PurlService {
             .left_join(version_range::Entity)
             .filter(purl_status::Column::BasePurlId.eq(base_purl_id))
             .filter(SimpleExpr::FunctionCall(
-                Func::cust(trustify_common::db::VersionMatches)
+                Func::cust(VersionMatches)
                     .arg(Expr::value(version))
                     .arg(Expr::col((version_range::Entity, Asterisk))),
             ))
@@ -784,11 +785,11 @@ impl PurlService {
             .load_one(status::Entity, connection)
             .instrument(info_span!("loading statuses"))
             .await?;
-        let status_slug_map: HashMap<_, _> = status_models
+        let status_slug_map = status_models
             .into_iter()
             .flatten()
             .map(|s| (s.id, s.slug))
-            .collect();
+            .collect::<HashMap<_, _>>();
         let remediations = all_statuses
             .load_many_to_many(
                 remediation::Entity,
@@ -798,6 +799,7 @@ impl PurlService {
             .instrument(info_span!("loading remediations"))
             .await?;
 
+        let status_capacity = all_statuses.len();
         let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
         for (((vuln, advisory), ps), rems) in vulns
             .into_iter()
@@ -812,13 +814,13 @@ impl PurlService {
                     .unwrap_or_else(|| "unknown".to_string());
                 statuses_by_base
                     .entry(ps.base_purl_id)
-                    .or_default()
+                    .or_insert_with(|| Vec::with_capacity(status_capacity))
                     .push(StatusInfo {
                         vuln_id: v.id,
                         status_slug: slug,
                         remediations: rems,
                         advisory_date: advisory.modified.or(advisory.published),
-                        advisory_id: Some(advisory.identifier.clone()),
+                        advisory_id: Some(advisory.identifier),
                     });
             }
         }
