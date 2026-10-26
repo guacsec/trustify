@@ -878,6 +878,27 @@ impl AnalysisService {
         self.inner.load_graphs_query(connection, query).await
     }
 
+    /// Return the latest SBOM IDs selected by the same ranking path used by
+    /// `/v3/analysis/latest/component`.
+    #[cfg(feature = "latest_sbom_generation")]
+    pub async fn latest_source_sbom_ids<C: ConnectionTrait + Send + Sync>(
+        &self,
+        query: impl Into<GraphQuery<'_>> + Debug,
+        connection: &C,
+    ) -> Result<Vec<Uuid>, Error> {
+        let ids = self
+            .inner
+            .latest_sbom_ids_query(
+                connection,
+                query.into(),
+                Some(crate::sbom_generation::MAX_SOURCE_SBOMS),
+            )
+            .await?;
+        let mut ids: Vec<_> = ids.into_iter().collect();
+        ids.sort_unstable();
+        Ok(ids)
+    }
+
     #[instrument(skip(self, connection), err)]
     pub async fn retrieve_latest<C: ConnectionTrait + Send + Sync>(
         &self,

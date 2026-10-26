@@ -57,6 +57,8 @@ permission! {
     pub enum Permission {
         #[strum(serialize = "create.sbom")]
         CreateSbom,
+        #[strum(serialize = "generate.sbom")]
+        GenerateSbom,
         #[strum(serialize = "read.sbom")]
         ReadSbom,
         #[strum(serialize = "update.sbom")]
@@ -162,6 +164,27 @@ mod tests {
         assert_eq!(
             Permission::ReadAdvisory,
             serde_json::from_value(json!("read.advisory")).unwrap(),
+        );
+    }
+
+    #[test]
+    fn sbom_generation_is_not_implied_by_read_permission() {
+        use crate::{
+            authenticator::user::{UserDetails, UserInformation},
+            authorizer::{Authorizer, AuthorizerConfig},
+        };
+
+        let authorizer = Authorizer::new(Some(AuthorizerConfig::default()));
+        let reader = UserInformation::Authenticated(UserDetails {
+            id: "reader".into(),
+            permissions: vec![Permission::ReadSbom.to_string()],
+        });
+
+        assert!(authorizer.require(&reader, Permission::ReadSbom).is_ok());
+        assert!(
+            authorizer
+                .require(&reader, Permission::GenerateSbom)
+                .is_err()
         );
     }
 }

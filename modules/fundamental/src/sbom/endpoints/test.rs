@@ -2542,3 +2542,144 @@ async fn list_sboms_advisory_summary(
 
     Ok(())
 }
+
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_from_group_query_including_descendants(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let groups = create_groups(
+        &app,
+        vec![Group::new("generation-parent").group("generation-child")],
+    )
+    .await?;
+    let parent_id = locate_id(&groups, ["generation-parent"]);
+    let child_id = locate_id(&groups, ["generation-parent", "generation-child"]);
+
+    let upload = TestRequest::post()
+        .uri(&format!("/api/v3/sbom?group={child_id}"))
+        .set_payload(document_bytes("spdx/simple.json").await?)
+        .to_request();
+    let response = app.call_service(upload).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let normal_list: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v3/sbom?group={parent_id}"))
+                .to_request(),
+        )
+        .await;
+    assert!(
+        normal_list["items"]
+            .as_array()
+            .expect("items array")
+            .is_empty()
+    );
+
+    let request = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom?group={parent_id}&include_group_descendants=true&generate_sbom=true&source_format=spdx"
+        ))
+        .to_request();
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(actix_web::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/spdx+json")
+    );
+    let body = read_body(response).await;
+    let generated: Value = serde_json::from_slice(&body)?;
+    assert_eq!(generated["spdxVersion"], "SPDX-2.3");
+    assert_eq!(generated["SPDXID"], "SPDXRef-DOCUMENT");
+    assert!(
+        !generated["packages"]
+            .as_array()
+            .expect("packages array")
+            .is_empty()
+    );
+    assert!(
+        generated["packages"]
+            .as_array()
+            .expect("packages array")
+            .iter()
+            .any(|package| package["name"] == "A")
+    );
+
+    let excluded = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom?group={parent_id}&include_group_descendants=true&generate_sbom=true&source_format=cyclonedx"
+        ))
+        .to_request();
+    let response = app.call_service(excluded).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    Ok(())
+}
+
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_resolves_uuid_bom_links_and_preserves_sha3(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents([
+        "cyclonedx/sbom-generation/uuid-link-source.json",
+        "cyclonedx/sbom-generation/uuid-link-target.json",
+    ])
+    .await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=cyclonedx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("X-Trustify-SBOM-Incomplete")
+            .and_then(|value| value.to_str().ok()),
+        Some("false")
+    );
+
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+    let packages = generated["packages"].as_array().expect("packages array");
+    assert!(packages.iter().any(|package| {
+        package["name"] == "target-package"
+            && package["checksums"].as_array().is_some_and(|checksums| {
+                checksums
+                    .iter()
+                    .any(|checksum| checksum["algorithm"] == "SHA3-256")
+            })
+    }));
+    let source = packages
+        .iter()
+        .find(|package| package["name"] == "source-package")
+        .expect("source package");
+    let target = packages
+        .iter()
+        .find(|package| package["name"] == "target-package")
+        .expect("target package");
+    assert!(
+        generated["relationships"]
+            .as_array()
+            .is_some_and(|relations| {
+                relations.iter().any(|relation| {
+                    relation["spdxElementId"] == source["SPDXID"]
+                        && relation["relationshipType"] == "DEPENDS_ON"
+                        && relation["relatedSpdxElement"] == target["SPDXID"]
+                })
+            })
+    );
+
+    Ok(())
+}
