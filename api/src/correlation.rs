@@ -26,19 +26,6 @@ pub struct CorrelationResult {
     pub unmatched_components: Option<Vec<ComponentRef>>,
 }
 
-/// A page of SBOM correlation data. Totals are computed only when requested.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct SbomCorrelationPage<T> {
-    pub sbom_id: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sbom_name: Option<String>,
-    pub freshness: ExtractionFreshness,
-    pub items: Vec<T>,
-    /// Number of matching items before pagination, or null when not requested.
-    pub total: Option<u64>,
-}
-
 /// A distinct remediation stated by an advisory for a component and vulnerability.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -47,6 +34,7 @@ pub struct SbomRemediation {
     pub vulnerability: String,
     pub status: VerdictStatus,
     pub remediation: EvidenceRemediation,
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
     pub advisory_type: Option<String>,

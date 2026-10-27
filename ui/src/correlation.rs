@@ -4,7 +4,8 @@ use crate::{
     api,
     model::{
         ComponentRef, EvidenceDetail, EvidenceRemediation, IdentifierKind, IdentifierRef,
-        MatchedValue, ProviderMatch, RemediationCategory, VerdictStatus, VerdictSummary,
+        MatchedValue, ProviderMatch, RemediationCategory, SbomSummary, VerdictStatus,
+        VerdictSummary,
     },
     resolution::{confidence_cell, product_names, provider_view},
     score::primary_score,
@@ -13,9 +14,7 @@ use crate::{
 use patternfly_yew::prelude::*;
 use std::{cell::Cell as CancelFlag, collections::BTreeMap, rc::Rc};
 use time::OffsetDateTime;
-use trustify_api::correlation::{
-    RefreshJob, ResolutionSummary, SbomCorrelationPage, SbomRemediation,
-};
+use trustify_api::correlation::{RefreshJob, ResolutionSummary, SbomRemediation};
 
 mod pagination;
 use pagination::CorrelationContent;
@@ -30,7 +29,7 @@ pub struct CorrelationViewProps {
 
 #[function_component(CorrelationView)]
 pub fn correlation_view(props: &CorrelationViewProps) -> Html {
-    let result = use_state(|| Option::<SbomCorrelationPage<VerdictSummary>>::None);
+    let result = use_state(|| Option::<SbomSummary>::None);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
     let active_job = use_state(|| Option::<RefreshJob>::None);
@@ -67,7 +66,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
             spawn_local(async move {
                 loading.set(true);
                 error.set(None);
-                let response = api::fetch_correlation(&id, token.as_deref()).await;
+                let response = api::fetch_sbom(&id, token.as_deref()).await;
                 if header_pending.get() {
                     return;
                 }
@@ -82,10 +81,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
     }
 
     let sbom_name = match &*result {
-        Some(SbomCorrelationPage {
-            sbom_name: Some(name),
-            ..
-        }) => name.as_str(),
+        Some(sbom) => sbom.name.as_str(),
         _ => props.sbom_id.as_str(),
     };
 
@@ -112,14 +108,9 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                     <p>{ err.clone() }</p>
                 </Alert>
             } else if let Some(data) = &*result {
-                { crate::freshness::freshness_banner(
-                    &data.freshness,
-                    crate::freshness::is_refreshing(active_job.as_ref(), &data.freshness),
-                ) }
-                <CorrelationContent
-                    key={data.sbom_id.to_string()}
-                    sbom_id={data.sbom_id}
-                />
+                if let Ok(sbom_id) = uuid::Uuid::parse_str(&data.id) {
+                    <CorrelationContent key={sbom_id.to_string()} {sbom_id} active_job={(*active_job).clone()} />
+                }
             } else {
                 <EmptyState
                     title="No data"

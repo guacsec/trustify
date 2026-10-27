@@ -9,7 +9,9 @@ use crate::{
 use rstest::rstest;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, TransactionTrait};
 use serde_json::{Value, json};
+use std::time::Duration;
 use test_context::test_context;
+use trustify_common::{db::pagination_cache::PaginationCache, model::Paginated};
 use trustify_entity::{correlation_evidence, correlation_evidence::SourceAssertionRef};
 use trustify_test_context::{TrustifyContext, document_bytes};
 use uuid::Uuid;
@@ -172,14 +174,14 @@ async fn remediation_scopes(
         2
     );
     // Multiple matching extractors and duplicate source groups must produce one paginated row.
-    let cache = trustify_common::db::pagination_cache::PaginationCache::for_test();
+    let cache = PaginationCache::new(Duration::from_secs(60), 1000);
     for total in [false, true] {
         for offset in 0..=3 {
             let page = service
                 .remediation_page(
                     sbom_id,
                     &ResolutionRequest::default(),
-                    trustify_common::model::Paginated {
+                    Paginated {
                         offset,
                         limit: 1,
                         total,
@@ -203,7 +205,7 @@ async fn remediation_scopes(
             .remediation_page(
                 sbom_id,
                 &ResolutionRequest::default(),
-                trustify_common::model::Paginated {
+                Paginated {
                     offset: 9,
                     limit: 0,
                     total,
@@ -223,7 +225,7 @@ async fn remediation_scopes(
                 vulnerability_id: Some(CVE.into()),
                 ..Default::default()
             },
-            trustify_common::model::Paginated {
+            Paginated {
                 total: true,
                 ..Default::default()
             },
@@ -233,6 +235,34 @@ async fn remediation_scopes(
         .await?;
     assert_eq!(page.total, Some(1));
     assert_eq!(page.items[0].remediation, fix(2));
+    // Identical SQL shapes with different bound filters must not share cached totals.
+    for request in [
+        ResolutionRequest {
+            node_id: Some("missing-node".into()),
+            vulnerability_id: Some(CVE.into()),
+            ..Default::default()
+        },
+        ResolutionRequest {
+            node_id: Some("widget-2".into()),
+            vulnerability_id: Some("CVE-missing".into()),
+            ..Default::default()
+        },
+    ] {
+        let page = service
+            .remediation_page(
+                sbom_id,
+                &request,
+                Paginated {
+                    limit: 0,
+                    total: true,
+                    ..Default::default()
+                },
+                &cache,
+                &tx,
+            )
+            .await?;
+        assert_eq!(page.total, Some(0));
+    }
     let evidence = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
         .all(&tx)
@@ -342,6 +372,20 @@ async fn remediation_scopes(
     let tx = ctx.db.begin().await?;
     let wrong_id = Uuid::parse_str(&wrong.id)?;
     extractors.extract_for_sbom(wrong_id, &tx).await?;
+    let page = service
+        .remediation_page(
+            wrong_id,
+            &ResolutionRequest::default(),
+            Paginated {
+                limit: 0,
+                total: true,
+                ..Default::default()
+            },
+            &cache,
+            &tx,
+        )
+        .await?;
+    assert_eq!(page.total, Some(0));
     assert!(
         service
             .correlate_sbom(wrong_id, false, &tx)
@@ -570,7 +614,6 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel, Set};
-    use trustify_common::{db::pagination_cache::PaginationCache, model::Paginated};
     use trustify_entity::{remediation, remediation_purl_status, sbom_node};
 
     ctx.ingest_read(serde_json::to_vec(&advisory("mixed").await?)?.as_slice())
@@ -672,6 +715,20 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
         traversed.extend(page.items);
     }
     assert_eq!(traversed, full.items);
+    let warm_cache = PaginationCache::new(Duration::from_secs(60), 1000);
+    service
+        .remediation_page(
+            id,
+            &request,
+            Paginated {
+                limit: 0,
+                total: true,
+                ..Default::default()
+            },
+            &warm_cache,
+            &tx,
+        )
+        .await?;
 
     // Count-only pages still enumerate identities, but must not deserialize resolver input.
     tx.execute_unprepared("UPDATE correlation_evidence SET matched_value = '\"invalid\"'::jsonb WHERE source_assertions <> '[]'::jsonb").await?;
@@ -709,6 +766,22 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
 
     // A malformed source in a later batch proves a total=false request stops after its page.
     tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '{}'::jsonb WHERE node_id = 'widget-2'").await?;
+    // The warm count must avoid rescanning the now malformed source, even on another page.
+    let cached = service
+        .remediation_page(
+            id,
+            &request,
+            Paginated {
+                limit: 1,
+                total: true,
+                offset: 0,
+            },
+            &warm_cache,
+            &tx,
+        )
+        .await?;
+    assert_eq!(cached.total, Some(307));
+    assert_eq!(cached.items, full.items[..1]);
     let first = service
         .remediation_page(
             id,

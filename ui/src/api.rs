@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
     ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob,
-    RefreshJobDetails, SbomCorrelationPage, VerdictSummary,
+    RefreshJobDetails,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -123,19 +123,22 @@ pub async fn fetch_correlation_page<T: DeserializeOwned>(
     limit: usize,
     total: bool,
     token: Option<&str>,
-) -> Result<SbomCorrelationPage<T>, ApiError> {
+) -> Result<PaginatedResults<T>, ApiError> {
     let url = format!(
         "/api/v3/correlation/sbom/{sbom_id}{collection}?offset={offset}&limit={limit}&total={total}"
     );
     fetch_json(&url, token).await
 }
 
-pub async fn fetch_correlation(
-    sbom_id: &str,
-    token: Option<&str>,
-) -> Result<SbomCorrelationPage<VerdictSummary>, ApiError> {
-    // The view header needs metadata only. Tables load their own independent pages.
-    fetch_correlation_page(sbom_id, "", 0, 0, false, token).await
+/// Fetch SBOM metadata for the correlation view header.
+pub async fn fetch_sbom(sbom_id: &str, token: Option<&str>) -> Result<SbomSummary, ApiError> {
+    let id = if sbom_id.contains(':') {
+        sbom_id.to_string()
+    } else {
+        format!("urn:uuid:{sbom_id}")
+    };
+    let encoded: String = js_sys::encode_uri_component(&id).into();
+    fetch_json(&format!("/api/v3/sbom/{encoded}"), token).await
 }
 
 pub async fn count_verdicts(

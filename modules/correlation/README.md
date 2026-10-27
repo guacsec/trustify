@@ -55,9 +55,6 @@ Response shape (each verdict item uses the existing verdict schema):
 
 ```json
 {
-  "sbom_id": "550e8400-e29b-41d4-a716-446655440000",
-  "sbom_name": "example",
-  "freshness": {"status": "unknown", "required_revision": 0, "completed_revision": null, "completed_at": null},
   "items": [],
   "total": null
 }
@@ -84,7 +81,8 @@ Source assertion matching and the legacy PURL fallback are the same as verdict e
 
 Verdicts and remediations accept `node_id` and `vulnerability_id` filters; verdicts also accept
 `include_explanation=true`. Totals count matching items before offset/limit, including on empty
-pages beyond the end. Unknown SBOMs return empty pages. Text ordering is case-sensitive and
+pages beyond the end. Unknown UUIDs return empty pages. IDs are strings at the API boundary;
+IDs that cannot resolve to an internal UUID return HTTP 404. Text ordering is case-sensitive and
 uses PostgreSQL's `C` collation, matching Rust lexical ordering. Offset pagination is stable for
 unchanged data; extraction or document changes between requests can change page membership.
 Totals use the existing pagination cache and may lag changes by its configured TTL.
