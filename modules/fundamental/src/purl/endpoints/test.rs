@@ -12,6 +12,7 @@ use crate::{
 use actix_web::test::TestRequest;
 use regex::Regex;
 use rstest::rstest;
+use sea_orm::ConnectionTrait;
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
@@ -390,7 +391,7 @@ async fn get_recommendations(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     )
     .await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then a single recommendation entry is returned with both CVEs
     assert_eq!(
@@ -468,7 +469,7 @@ async fn get_recommendations_multi_stream(ctx: &TrustifyContext) -> Result<(), a
     )
     .await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then each base version gets its own stream's vendor rebuild
     let rec_1 = &recommendations["recommendations"]["pkg:maven/org.example/test-lib@1.0.0"];
@@ -515,7 +516,6 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     .await?;
 
     // And the real versioned_purl row is removed, forcing the synthetic path
-    use sea_orm::ConnectionTrait;
     ctx.db
         .execute_unprepared(
             "DELETE FROM versioned_purl WHERE version = '1.0.0.redhat-00001' \
@@ -527,7 +527,7 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:maven/com.example/advlib@1.0.0"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then the recommendation includes the vendor rebuild AND vulnerability metadata
     let rec = &recommendations["recommendations"]["pkg:maven/com.example/advlib@1.0.0"];
@@ -560,7 +560,7 @@ async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), any
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then no recommendations are returned
     assert_eq!(
@@ -596,7 +596,7 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then the recommendation contains a single deduplicated vulnerability
     let entry =
@@ -655,7 +655,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then the vulnerability status reflects the custom status
     let entry =
@@ -1083,7 +1083,7 @@ async fn recommend_report_aggregated_data(ctx: &TrustifyContext) -> Result<(), a
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom1, sbom2]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then the impact summary reflects 2 SBOMs and 1 distinct addressable package
     assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 2);
@@ -1331,7 +1331,7 @@ async fn recommend_report_filters_to_addressed_vulns(
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then the vendor patch is found (package entry exists)
     let packages = report["packages"].as_array().unwrap();
@@ -1494,7 +1494,7 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then the package appears with only the fixed CVE
     let packages = report["packages"].as_array().unwrap();
@@ -1558,7 +1558,7 @@ async fn recommend_report_excludes_unaddressed_package(
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then no packages appear — none are addressable
     let packages = report["packages"].as_array().unwrap();
