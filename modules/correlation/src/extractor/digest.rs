@@ -47,10 +47,21 @@ impl Extractor for DigestExtractor {
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
-        let checksums = sbom_node_checksum::Entity::find()
-            .filter(sbom_node_checksum::Column::SbomId.eq(sbom_id))
-            .all(tx)
-            .await?;
+        self.sbom_identifiers_scoped(sbom_id, None, tx).await
+    }
+
+    async fn sbom_identifiers_scoped(
+        &self,
+        sbom_id: Uuid,
+        nodes: Option<&[String]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
+        let mut query = sbom_node_checksum::Entity::find()
+            .filter(sbom_node_checksum::Column::SbomId.eq(sbom_id));
+        if let Some(nodes) = nodes {
+            query = query.filter(sbom_node_checksum::Column::NodeId.is_in(nodes.iter().cloned()));
+        }
+        let checksums = query.all(tx).await?;
 
         Ok(checksums
             .into_iter()

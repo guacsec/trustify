@@ -116,6 +116,21 @@ pub trait Extractor: Send + Sync {
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error>;
 
+    /// Presentation lookup restricted to a page's nodes. Custom extractors can override this
+    /// to push the restriction into their query; the default preserves existing implementations.
+    async fn sbom_identifiers_scoped(
+        &self,
+        sbom_id: Uuid,
+        nodes: Option<&[String]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
+        let mut identifiers = self.sbom_identifiers(sbom_id, tx).await?;
+        if let Some(nodes) = nodes {
+            identifiers.retain(|identifier| nodes.contains(&identifier.node.node_id));
+        }
+        Ok(identifiers)
+    }
+
     /// Find advisory assertions matching the given identifiers.
     ///
     /// Identifiers of kinds this extractor does not handle must be ignored.

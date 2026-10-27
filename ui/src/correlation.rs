@@ -3,18 +3,22 @@ use crate::{
     advisory::advisory_link,
     api,
     model::{
-        ComponentRef, CorrelationResult, EvidenceDetail, EvidenceRemediation, IdentifierKind,
-        IdentifierRef, MatchedValue, ProviderMatch, RemediationCategory, VerdictStatus,
-        VerdictSummary,
+        ComponentRef, EvidenceDetail, EvidenceRemediation, IdentifierKind, IdentifierRef,
+        MatchedValue, ProviderMatch, RemediationCategory, VerdictStatus, VerdictSummary,
     },
     resolution::{confidence_cell, product_names, provider_view},
     score::primary_score,
     tools::{InlineCpe, InlinePurl, inline_identifier},
 };
 use patternfly_yew::prelude::*;
-use std::collections::BTreeMap;
+use std::{cell::Cell as CancelFlag, collections::BTreeMap, rc::Rc};
 use time::OffsetDateTime;
-use trustify_api::correlation::{RefreshJob, ResolutionSummary};
+use trustify_api::correlation::{
+    RefreshJob, ResolutionSummary, SbomCorrelationPage, SbomRemediation,
+};
+
+mod pagination;
+use pagination::CorrelationContent;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -26,7 +30,7 @@ pub struct CorrelationViewProps {
 
 #[function_component(CorrelationView)]
 pub fn correlation_view(props: &CorrelationViewProps) -> Html {
-    let result = use_state(|| Option::<CorrelationResult>::None);
+    let result = use_state(|| Option::<SbomCorrelationPage<VerdictSummary>>::None);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
     let active_job = use_state(|| Option::<RefreshJob>::None);
@@ -41,34 +45,44 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
         let error = error.clone();
         let active_job = active_job.clone();
         let token = token.clone();
-        use_effect_with(sbom_id.clone(), move |id| {
+        use_effect_with((sbom_id.clone(), token.clone()), move |(id, token)| {
             let id = id.clone();
+            let token = token.clone();
+            let cancelled = Rc::new(CancelFlag::new(false));
+            let header_pending = cancelled.clone();
             {
                 let token = token.clone();
+                let pending = cancelled.clone();
                 spawn_local(async move {
-                    // only refines the freshness alert, ignore failures
-                    active_job.set(
-                        api::fetch_freshness(token.as_deref())
-                            .await
-                            .ok()
-                            .and_then(|overview| overview.active_job),
-                    );
+                    // Only refines the freshness alert; ignore failures and superseded requests.
+                    let job = api::fetch_freshness(token.as_deref())
+                        .await
+                        .ok()
+                        .and_then(|overview| overview.active_job);
+                    if !pending.get() {
+                        active_job.set(job);
+                    }
                 });
             }
             spawn_local(async move {
                 loading.set(true);
                 error.set(None);
-                match api::fetch_correlation(&id, token.as_deref()).await {
+                let response = api::fetch_correlation(&id, token.as_deref()).await;
+                if header_pending.get() {
+                    return;
+                }
+                match response {
                     Ok(data) => result.set(Some(data)),
                     Err(e) => error.set(Some(e.to_string())),
                 }
                 loading.set(false);
             });
+            move || cancelled.set(true)
         });
     }
 
     let sbom_name = match &*result {
-        Some(CorrelationResult {
+        Some(SbomCorrelationPage {
             sbom_name: Some(name),
             ..
         }) => name.as_str(),
@@ -103,9 +117,8 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                     crate::freshness::is_refreshing(active_job.as_ref(), &data.freshness),
                 ) }
                 <CorrelationContent
+                    key={data.sbom_id.to_string()}
                     sbom_id={data.sbom_id}
-                    verdicts={data.verdicts.clone()}
-                    unmatched_components={data.unmatched_components.clone().unwrap_or_default()}
                 />
             } else {
                 <EmptyState
@@ -118,13 +131,6 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
             }
         </PageSection>
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Properties)]
-struct CorrelationContentProps {
-    sbom_id: uuid::Uuid,
-    verdicts: Vec<VerdictSummary>,
-    unmatched_components: Vec<ComponentRef>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -410,65 +416,33 @@ enum RemediationColumn {
 
 /// A remediation an advisory states for the statement of a verdict's evidence.
 #[derive(Clone, PartialEq)]
-struct RemediationEntry {
-    component: ComponentRef,
-    vulnerability: String,
-    status: VerdictStatus,
-    remediation: EvidenceRemediation,
-    advisory_id: uuid::Uuid,
-    advisory_identifier: String,
-    advisory_type: Option<String>,
-}
+struct RemediationEntry(SbomRemediation);
 
 impl TableEntryRenderer<RemediationColumn> for RemediationEntry {
     fn render_cell(&self, context: CellContext<'_, RemediationColumn>) -> Cell {
         match context.column {
             RemediationColumn::Component => Cell::new(html! {
                 <div>
-                    { &self.component.name }
+                    { &self.0.component.name }
                     <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                        <code style="color: inherit;">{ &self.component.node_id }</code>
+                        <code style="color: inherit;">{ &self.0.component.node_id }</code>
                     </div>
                 </div>
             })
             .text_modifier(TextModifier::NoWrap),
             RemediationColumn::Vulnerability => {
-                html!(<strong>{ &self.vulnerability }</strong>).into()
+                html!(<strong>{ &self.0.vulnerability }</strong>).into()
             }
-            RemediationColumn::Status => status_label(self.status).into(),
-            RemediationColumn::Remediation => remediation(&self.remediation).into(),
+            RemediationColumn::Status => status_label(self.0.status).into(),
+            RemediationColumn::Remediation => remediation(&self.0.remediation).into(),
             RemediationColumn::Advisory => advisory_link(
-                self.advisory_id,
-                &self.advisory_identifier,
-                self.advisory_type.as_deref(),
+                self.0.advisory_id,
+                &self.0.advisory_identifier,
+                self.0.advisory_type.as_deref(),
             )
             .into(),
         }
     }
-}
-
-/// The remediations of the evidence of the verdicts, each once per component and vulnerability.
-fn remediation_entries(verdicts: &[VerdictSummary]) -> Vec<RemediationEntry> {
-    let mut result = Vec::<RemediationEntry>::new();
-    for verdict in verdicts {
-        for evidence in &verdict.evidence {
-            for remediation in &evidence.remediations {
-                let entry = RemediationEntry {
-                    component: verdict.component.clone(),
-                    vulnerability: verdict.vulnerability.id.clone(),
-                    status: verdict.status,
-                    remediation: remediation.clone(),
-                    advisory_id: evidence.advisory_id,
-                    advisory_identifier: evidence.advisory_identifier.clone(),
-                    advisory_type: evidence.advisory_type.clone(),
-                };
-                if !result.contains(&entry) {
-                    result.push(entry);
-                }
-            }
-        }
-    }
-    result
 }
 
 /// A remediation, e.g. "Fixed in 4.1.2", or its category and details.
@@ -488,178 +462,6 @@ fn remediation(remediation: &EvidenceRemediation) -> Html {
                 { text }
             }
         </span>
-    }
-}
-
-#[function_component(CorrelationContent)]
-fn correlation_content(props: &CorrelationContentProps) -> Html {
-    let tab = use_state_eq(|| CorrelationTab::Verdicts);
-    let onselect = {
-        let tab = tab.clone();
-        Callback::from(move |index: CorrelationTab| tab.set(index))
-    };
-    let remediation_entries = use_memo(props.verdicts.clone(), |verdicts| {
-        remediation_entries(verdicts)
-    });
-    let remediation_count = remediation_entries.len();
-    let (remediation_entries, _) = use_table_data(MemoizedTableModel::new(remediation_entries));
-    let remediation_header = html_nested! {
-        <TableHeader<RemediationColumn>>
-            <TableColumn<RemediationColumn> label="Component" index={RemediationColumn::Component} />
-            <TableColumn<RemediationColumn> label="Vulnerability" index={RemediationColumn::Vulnerability} />
-            <TableColumn<RemediationColumn> label="Status" index={RemediationColumn::Status} />
-            <TableColumn<RemediationColumn> label="Remediation" index={RemediationColumn::Remediation} />
-            <TableColumn<RemediationColumn> label="Advisory" index={RemediationColumn::Advisory} />
-        </TableHeader<RemediationColumn>>
-    };
-
-    let has_verdicts = !props.verdicts.is_empty();
-    let has_unmatched = !props.unmatched_components.is_empty();
-
-    if !has_verdicts && !has_unmatched {
-        return html! {
-            <EmptyState
-                title="No verdicts"
-                icon={Icon::CheckCircle}
-                size={Size::XXXXLarge}
-            >
-                { "No correlation matches found for this SBOM." }
-            </EmptyState>
-        };
-    }
-
-    let summary = verdict_summary_counts(&props.verdicts);
-
-    let verdict_entries = use_memo(
-        (props.verdicts.clone(), props.sbom_id),
-        |(verdicts, sbom_id)| {
-            verdicts
-                .iter()
-                .map(|v| VerdictEntry(v.clone(), *sbom_id))
-                .collect::<Vec<_>>()
-        },
-    );
-
-    let (verdict_entries, onexpand) = use_table_data(MemoizedTableModel::new(verdict_entries));
-
-    let verdict_header = html_nested! {
-        <TableHeader<VerdictColumn>>
-            <TableColumn<VerdictColumn> label="Component" index={VerdictColumn::Component} />
-            <TableColumn<VerdictColumn> label="Vulnerability" index={VerdictColumn::Vulnerability} />
-            <TableColumn<VerdictColumn> label="Score" index={VerdictColumn::Score} />
-            <TableColumn<VerdictColumn> label="Advisory" index={VerdictColumn::Advisory} />
-            <TableColumn<VerdictColumn> label="Status" index={VerdictColumn::Status} />
-            <TableColumn<VerdictColumn> label="Evidence" index={VerdictColumn::Evidence} />
-        </TableHeader<VerdictColumn>>
-    };
-
-    let unmatched_entries = use_memo(props.unmatched_components.clone(), |components| {
-        components
-            .iter()
-            .map(|c| UnmatchedEntry(c.clone()))
-            .collect::<Vec<_>>()
-    });
-
-    let (unmatched_entries, _) = use_table_data(MemoizedTableModel::new(unmatched_entries));
-
-    let unmatched_header = html_nested! {
-        <TableHeader<UnmatchedColumn>>
-            <TableColumn<UnmatchedColumn> label="Component" index={UnmatchedColumn::Name} />
-            <TableColumn<UnmatchedColumn> label="Identifiers" index={UnmatchedColumn::Identifiers} />
-        </TableHeader<UnmatchedColumn>>
-    };
-
-    let unmatched_count = props.unmatched_components.len();
-
-    html! {
-        <>
-            <Gallery gutter=true>
-                { for summary.iter().map(|(status, count)| html! {
-                    <Card>
-                        <CardBody>
-                            <Flex space_items={[SpaceItems::Small]}
-                                modifiers={[FlexModifier::Align(Alignment::Center)]}>
-                                <FlexItem>
-                                    { status_label(*status) }
-                                </FlexItem>
-                                <FlexItem>
-                                    <Title level={Level::H3}>
-                                        { count.to_string() }
-                                    </Title>
-                                </FlexItem>
-                            </Flex>
-                        </CardBody>
-                    </Card>
-                })}
-                if has_unmatched {
-                    <Card>
-                        <CardBody>
-                            <Flex space_items={[SpaceItems::Small]}
-                                modifiers={[FlexModifier::Align(Alignment::Center)]}>
-                                <FlexItem>
-                                    <Label label="No Evidence" color={Color::Grey} />
-                                </FlexItem>
-                                <FlexItem>
-                                    <Title level={Level::H3}>
-                                        { unmatched_count.to_string() }
-                                    </Title>
-                                </FlexItem>
-                            </Flex>
-                        </CardBody>
-                    </Card>
-                }
-            </Gallery>
-
-            <br />
-
-            <Tabs<CorrelationTab> selected={*tab} {onselect}>
-            <Tab<CorrelationTab> index={CorrelationTab::Verdicts} title="Verdicts">
-            <TabContent><TabContentBody padding=true>
-            if has_verdicts {
-                <Title level={Level::H2}>
-                    { "Correlated components " }
-                    <Badge>{ props.verdicts.len().to_string() }</Badge>
-                </Title>
-                <Table<VerdictColumn, UseTableData<VerdictColumn, MemoizedTableModel<VerdictEntry>>>
-                    mode={TableMode::Expandable}
-                    header={verdict_header}
-                    entries={verdict_entries}
-                    {onexpand}
-                />
-            }
-
-            if has_unmatched {
-                <br />
-                <Title level={Level::H2}>
-                    { "Unmatched components " }
-                    <Badge>{ unmatched_count.to_string() }</Badge>
-                </Title>
-                <Table<UnmatchedColumn, UseTableData<UnmatchedColumn, MemoizedTableModel<UnmatchedEntry>>>
-                    mode={TableMode::Compact}
-                    header={unmatched_header}
-                    entries={unmatched_entries}
-                />
-            }
-            </TabContentBody></TabContent>
-            </Tab<CorrelationTab>>
-            <Tab<CorrelationTab> index={CorrelationTab::Remediations} title={format!("Remediations ({remediation_count})")}>
-            <TabContent><TabContentBody padding=true>
-            if remediation_count == 0 {
-                <EmptyState title="No remediations" icon={Icon::InfoCircle} size={Size::Large}>
-                    { "The advisories of the evidence state no remediation, such as a fixed version." }
-                </EmptyState>
-            } else {
-                <p>{ "What the advisories state to remediate the vulnerabilities of the components, e.g. the version fixing them." }</p>
-                <Table<RemediationColumn, UseTableData<RemediationColumn, MemoizedTableModel<RemediationEntry>>>
-                    mode={TableMode::Compact}
-                    header={remediation_header}
-                    entries={remediation_entries}
-                />
-            }
-            </TabContentBody></TabContent>
-            </Tab<CorrelationTab>>
-            </Tabs<CorrelationTab>>
-        </>
     }
 }
 
@@ -784,40 +586,4 @@ pub(crate) fn confidence_label(resolution: &ResolutionSummary) -> Html {
 
 fn status_label(status: VerdictStatus) -> Html {
     html! { <Label label={status.label()} color={status_color(status)} /> }
-}
-
-fn verdict_summary_counts(verdicts: &[VerdictSummary]) -> Vec<(VerdictStatus, usize)> {
-    let mut affected = 0usize;
-    let mut fixed = 0usize;
-    let mut not_affected = 0usize;
-    let mut under_investigation = 0usize;
-    let mut none = 0usize;
-
-    for v in verdicts {
-        match v.status {
-            VerdictStatus::Affected => affected += 1,
-            VerdictStatus::Fixed => fixed += 1,
-            VerdictStatus::NotAffected => not_affected += 1,
-            VerdictStatus::UnderInvestigation => under_investigation += 1,
-            VerdictStatus::None => none += 1,
-        }
-    }
-
-    let mut result = Vec::new();
-    if affected > 0 {
-        result.push((VerdictStatus::Affected, affected));
-    }
-    if fixed > 0 {
-        result.push((VerdictStatus::Fixed, fixed));
-    }
-    if not_affected > 0 {
-        result.push((VerdictStatus::NotAffected, not_affected));
-    }
-    if under_investigation > 0 {
-        result.push((VerdictStatus::UnderInvestigation, under_investigation));
-    }
-    if none > 0 {
-        result.push((VerdictStatus::None, none));
-    }
-    result
 }
