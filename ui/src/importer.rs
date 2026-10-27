@@ -288,8 +288,8 @@ pub fn importer_list_page() -> Html {
                     </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
-            if let Some(PaginatedResults { items: importers, total }) = &*importers {
-                if *total == Some(0) {
+            if let Some(PaginatedResults { items: importers, .. }) = &*importers {
+                if importers.is_empty() {
                     <EmptyState title="No importers" icon={Icon::Cubes} size={Size::Large}>
                         { "Documents are only ingested when uploaded. Add an importer to fetch them from a source." }
                     </EmptyState>
@@ -447,7 +447,8 @@ fn create_importer(props: &CreateImporterProps) -> Html {
                     <Alert title="Unable to save" r#type={AlertType::Danger} inline=true><p>{ err }</p></Alert>
                 }
                 <FormGroup label="Name" required=true>
-                    <TextInput value={(*name).clone()} onchange={{ let name = name.clone(); Callback::from(move |v: String| name.set(v)) }} />
+                    <label class="pf-v6-screen-reader" for="create-importer-name">{"Name"}</label>
+                    <TextInput id="create-importer-name" value={(*name).clone()} onchange={{ let name = name.clone(); Callback::from(move |v: String| name.set(v)) }} />
                 </FormGroup>
                 <FormGroup label="Configuration (JSON)" required=true>
                     <JsonEditor {model} />

@@ -100,6 +100,16 @@ and logout callback. Configure your OIDC client to allow both the origin root an
 OIDC server accepts both. API requests continue to use `/api/` and discovery uses
 `/.well-known/trustify`, regardless of the UI mount.
 
+## Browser tests
+
+Run `npm ci`, `npx playwright install chromium`, then `npm run test:e2e` from this
+directory. The runner uses your existing `podman compose` provider to start an
+isolated database and builds and starts the API and UI automatically. The same
+Chromium suite runs as a required CI check, including embedded-OIDC smoke coverage.
+
+See [the browser test guide](e2e/README.md) for prerequisites, filtering, debugging,
+reports, ports, and cleanup.
+
 ## Layout
 
 * `src/main.rs`: application, routes, and navigation

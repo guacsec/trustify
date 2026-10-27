@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: docker.io/library/postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: trustify-e2e
+      POSTGRES_DB: postgres
+    ports:
+      - "127.0.0.1:${E2E_DB_PORT:-0}:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+volumes:
+  database:

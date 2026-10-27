@@ -717,13 +717,15 @@ fn resolution_dialog(props: &ResolutionPanelProps) -> Html {
 }
 
 pub(crate) fn text_field(label: &'static str, value: UseStateHandle<String>) -> Html {
+    let id = format!("field-{}", label.replace([' ', '(', ')'], "-"));
     let onchange = {
         let value = value.clone();
         Callback::from(move |text: String| value.set(text))
     };
     html! {
         <FormGroup label={label}>
-            <TextInput value={(*value).clone()} {onchange}/>
+            <label class="pf-v6-screen-reader" for={id.clone()}>{label}</label>
+            <TextInput id={id} value={(*value).clone()} {onchange}/>
         </FormGroup>
     }
 }

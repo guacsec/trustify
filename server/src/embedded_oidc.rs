@@ -7,7 +7,7 @@ use garage_door::{
 };
 use tokio::{sync::oneshot, task::JoinHandle};
 use trustify_auth::devmode::{
-    CONFIDENTIAL_CLIENT_IDS, ISSUER_URL, PUBLIC_CLIENT_IDS, SSO_CLIENT_SECRET,
+    CONFIDENTIAL_CLIENT_IDS, PUBLIC_CLIENT_IDS, SSO_CLIENT_SECRET, issuer_url,
 };
 use url::Url;
 
@@ -53,8 +53,9 @@ fn create(enabled: bool, bind_addr: &str) -> anyhow::Result<Option<Server>> {
 
     // take the devmode url and extract all information for building the server
 
-    let url = Url::parse(ISSUER_URL)
-        .with_context(|| format!("{} Failed to parse URL {}", "EmbeddedOidc", ISSUER_URL))?;
+    let issuer_url = issuer_url();
+    let url = Url::parse(&issuer_url)
+        .with_context(|| format!("EmbeddedOidc Failed to parse URL {issuer_url}"))?;
     let port = url.port().unwrap_or(8090);
     let mut path = url
         .path_segments()

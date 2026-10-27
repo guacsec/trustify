@@ -181,19 +181,88 @@ jobs:
           npm ci
           make all
 
+  ui-e2e:
+    name: UI end-to-end tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/maximize-build-space
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ui-e2e
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman podman-compose xz-utils libssl-dev pkg-config
+          rustup target add wasm32-unknown-unknown
+      - uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2
+        with:
+          tool: trunk@0.22.1
+      - name: Cache Trunk tools
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/trunk
+          key: ui-e2e-trunk-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'ui/package-lock.json') }}
+      - name: Install UI and browser dependencies
+        working-directory: ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check test types
+        working-directory: ui
+        run: npm run typecheck
+      - name: Start Podman API for Compose providers
+        run: |
+          nohup podman system service --time=0 "unix://${RUNNER_TEMP}/trustify-podman.sock" > "${RUNNER_TEMP}/trustify-podman.log" 2>&1 &
+          echo "$!" > "${RUNNER_TEMP}/trustify-podman.pid"
+          echo "DOCKER_HOST=unix://${RUNNER_TEMP}/trustify-podman.sock" >> "$GITHUB_ENV"
+          for attempt in {1..60}; do
+            if test -S "${RUNNER_TEMP}/trustify-podman.sock"; then exit 0; fi
+            sleep 1
+          done
+          cat "${RUNNER_TEMP}/trustify-podman.log"
+          exit 1
+      - name: Run UI tests
+        working-directory: ui
+        run: npm run test:e2e
+      - name: Stop Podman API
+        if: always()
+        run: |
+          if test -f "${RUNNER_TEMP}/trustify-podman.pid"; then
+            kill "$(cat "${RUNNER_TEMP}/trustify-podman.pid")" || true
+          fi
+      - name: Upload UI reports and service logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ui-e2e-results
+          path: |
+            ui/e2e-results/
+            ${{ runner.temp }}/trustify-podman.log
+          retention-days: 14
+          if-no-files-found: warn
+
   ci:
     runs-on: ubuntu-slim
     needs:
       - supply-chain
       - check
       - test
+      - ui-e2e
     if: always()
     steps:
       - name: Success
-        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && needs.ui-e2e.result == 'success' }}
         run: exit 0
       - name: Failure
-        if: ${{ contains(needs.*.result, 'failure') }}
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ui-e2e.result != 'success' }}
         run: exit 1
 
   container:

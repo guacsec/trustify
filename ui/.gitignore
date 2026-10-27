@@ -2,3 +2,7 @@ node_modules/
 dist/
 target/
 dist.trunk-lock
+dist-e2e/
+e2e-results/
+test-results/
+playwright-report/

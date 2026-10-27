@@ -197,7 +197,8 @@ fn alias_dialog(props: &AliasDialogProps) -> Html {
                 if let Some(e)=&*error {<Alert title="Unable to save" r#type={AlertType::Danger} inline=true><p>{e}</p></Alert>}
                 {text_field("Canonical provider",provider)}
                 <FormGroup label="Aliases (one per line)">
-                    <TextArea value={(*alias_text).clone()} rows={6} resize={ResizeOrientation::Vertical}
+                    <label class="pf-v6-screen-reader" for="provider-alias-identifiers">{"Aliases (one per line)"}</label>
+                    <TextArea id="provider-alias-identifiers" value={(*alias_text).clone()} rows={6} resize={ResizeOrientation::Vertical}
                         onchange={{let value=alias_text.clone();Callback::from(move|text:String|value.set(text))}}/>
                 </FormGroup>
             </Form>
