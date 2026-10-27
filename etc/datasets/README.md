@@ -1,5 +1,16 @@
 # Datasets
 
+Dump generation logs every error in an importer report and aborts before writing the dump
+if ingestion fails. Report warnings do not abort generation. To log ingestion errors as
+warnings and continue with the remaining importers and files, use `--keep-going`:
+
+```shell
+cargo xtask generate-dump --input etc/datasets/ds2.yaml --keep-going
+```
+
+This can produce an incomplete dump. Setup, correlation extraction, and dump-writing
+failures remain fatal.
+
 ## DS1
 
 The original.
@@ -16,6 +27,9 @@ popd
 ## DS2
 
 An OSV based example for generating dumps. Used in combination with `cargo xtask generate-dump`
+
+For Git-based OSV sources, set `path` to the directory containing advisories (here,
+`vulns`) so unrelated YAML and JSON files in the repository are not ingested.
 
 ## DS3
 

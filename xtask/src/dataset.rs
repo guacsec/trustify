@@ -8,7 +8,7 @@ use std::{
     env,
     fs::create_dir_all,
     io::BufReader,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 use tar::Builder;
@@ -28,7 +28,9 @@ use trustify_module_importer::{
         ImportRunner,
         context::RunContext,
         progress::{Progress, TracingProgress},
+        report::{Report, ScannerError, Severity},
     },
+    server::RunOutput,
 };
 use trustify_module_ingestor::{
     graph::Graph,
@@ -69,6 +71,10 @@ pub struct GenerateDump {
     /// Skip correlation extraction before writing the dump.
     #[arg(long)]
     no_correlation: bool,
+
+    /// Log ingestion errors as warnings and continue, allowing an incomplete dump.
+    #[arg(long)]
+    keep_going: bool,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
@@ -269,8 +275,8 @@ impl GenerateDump {
             tracing::info!("Ingesting: {description}");
 
             let start = Instant::now();
-            self.ingest_one(&runner, run).await?;
-            tracing::info!("Ingested {description} in {:?}", start.elapsed());
+            self.ingest_one(&runner, run, &description).await?;
+            tracing::info!("Finished importing {description} in {:?}", start.elapsed());
         }
 
         // ingest files
@@ -280,62 +286,9 @@ impl GenerateDump {
             let name = path.display().to_string();
             tracing::info!("Ingesting: {name}");
             let start = Instant::now();
-            let path = wd.join(path);
-            let path = path
-                .canonicalize()
-                .with_context(|| format!("failed to canonicalize '{}'", path.display()))?;
-            tracing::info!(" Resolved: {}", path.display());
+            self.ingest_path(&runner, &service, &wd, &path).await?;
 
-            let mut files = vec![];
-
-            if path.is_dir() {
-                for entry in walkdir::WalkDir::new(path).follow_links(true) {
-                    let entry = entry?;
-                    if !entry.file_type().is_file() {
-                        continue;
-                    }
-                    if entry.file_name().to_string_lossy().starts_with(".") {
-                        continue;
-                    }
-                    files.push(entry.into_path());
-                }
-            } else {
-                files.push(path);
-            }
-
-            for file in files {
-                let name = file.as_os_str().to_string_lossy().to_string();
-
-                tracing::info!("Loading: {name}");
-                let data: Bytes = fs::read(file).await?.into();
-
-                let detector = Detector {
-                    file_name: Some(name.as_str()),
-                    ..Default::default()
-                };
-                let data = detector
-                    .decompress(data)
-                    .map_err(|err| anyhow!("{err}"))
-                    .with_context(|| format!("failed to decompress: '{name}'"))?;
-
-                let result = runner
-                    .db
-                    .transaction(async |tx| {
-                        service
-                            .ingest(&data, Format::Unknown, (), None, Cache::Skip, tx)
-                            .await
-                    })
-                    .await?;
-                tracing::info!("  id: {}", result.id);
-                if !result.warnings.is_empty() {
-                    tracing::warn!("  warnings:");
-                    for warning in result.warnings {
-                        tracing::warn!("    - {}", warning);
-                    }
-                }
-            }
-
-            tracing::info!("Ingested {name} in {:?}", start.elapsed());
+            tracing::info!("Finished importing {name} in {:?}", start.elapsed());
         }
 
         // done
@@ -345,12 +298,156 @@ impl GenerateDump {
         Ok(())
     }
 
+    async fn ingest_path(
+        &self,
+        runner: &ImportRunner,
+        service: &IngestorService,
+        wd: &Path,
+        path: &Path,
+    ) -> anyhow::Result<()> {
+        let path = wd.join(path);
+        let path = match path
+            .canonicalize()
+            .with_context(|| format!("failed to canonicalize '{}'", path.display()))
+        {
+            Ok(path) => path,
+            Err(err) => return self.ingestion_error(&path.display().to_string(), err),
+        };
+        tracing::info!(" Resolved: {}", path.display());
+
+        let mut files = vec![];
+
+        if path.is_dir() {
+            for entry in walkdir::WalkDir::new(&path).follow_links(true) {
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(err) => {
+                        self.ingestion_error(&path.display().to_string(), err.into())?;
+                        continue;
+                    }
+                };
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                if entry.file_name().to_string_lossy().starts_with(".") {
+                    continue;
+                }
+                files.push(entry.into_path());
+            }
+        } else {
+            files.push(path);
+        }
+
+        for file in files {
+            if let Err(err) = self.ingest_file(runner, service, &file).await {
+                self.ingestion_error(&file.display().to_string(), err)?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn ingest_file(
+        &self,
+        runner: &ImportRunner,
+        service: &IngestorService,
+        file: &Path,
+    ) -> anyhow::Result<()> {
+        let name = file.as_os_str().to_string_lossy().to_string();
+
+        tracing::info!("Loading: {name}");
+        let data: Bytes = fs::read(file).await?.into();
+
+        let detector = Detector {
+            file_name: Some(name.as_str()),
+            ..Default::default()
+        };
+        let data = detector
+            .decompress(data)
+            .map_err(|err| anyhow!("{err}"))
+            .with_context(|| format!("failed to decompress: '{name}'"))?;
+
+        let result = runner
+            .db
+            .transaction(async |tx| {
+                service
+                    .ingest(&data, Format::Unknown, (), None, Cache::Skip, tx)
+                    .await
+            })
+            .await?;
+        tracing::info!("  id: {}", result.id);
+        if !result.warnings.is_empty() {
+            tracing::warn!("  warnings:");
+            for warning in result.warnings {
+                tracing::warn!("    - {}", warning);
+            }
+        }
+        Ok(())
+    }
+
+    /// Log before returning so errors are visible even when a caller discards the result.
+    fn ingestion_error(&self, source: &str, err: anyhow::Error) -> anyhow::Result<()> {
+        if self.keep_going {
+            tracing::warn!(source, error = %format!("{err:#}"), "Ingestion failed; continuing");
+            Ok(())
+        } else {
+            tracing::error!(source, error = %format!("{err:#}"), "Ingestion failed");
+            Err(err.context(format!("Ingestion failed for {source}")))
+        }
+    }
+
+    fn log_report(&self, source: &str, report: &Report) -> usize {
+        let mut errors = 0;
+        for (phase, files) in &report.messages {
+            for (file, messages) in files {
+                for message in messages {
+                    match message.severity {
+                        Severity::Error => {
+                            errors += 1;
+                            if self.keep_going {
+                                tracing::warn!(source, file, ?phase, error = %message.message, "Import error");
+                            } else {
+                                tracing::error!(source, file, ?phase, error = %message.message, "Import error");
+                            }
+                        }
+                        Severity::Warning => {
+                            tracing::warn!(source, file, ?phase, warning = %message.message, "Import warning");
+                        }
+                    }
+                }
+            }
+        }
+        errors
+    }
+
+    fn check_import_result(
+        &self,
+        source: &str,
+        result: Result<RunOutput, ScannerError>,
+    ) -> anyhow::Result<()> {
+        let (output, failure) = match result {
+            Ok(output) => (Some(output), None),
+            Err(ScannerError::Normal { err, output }) => (Some(*output), Some(err)),
+            Err(ScannerError::Critical(err)) => (None, Some(err)),
+        };
+        // Inspect the entire report before aborting, including reports returned with an error.
+        let errors = output
+            .map(|output| self.log_report(source, &output.report))
+            .unwrap_or_default();
+        if let Some(err) = failure {
+            self.ingestion_error(source, err)?;
+        } else if errors > 0 {
+            self.ingestion_error(source, anyhow!("Importer reported {errors} error(s)"))?;
+        }
+        Ok(())
+    }
+
     async fn ingest_one(
         &self,
         runner: &ImportRunner,
         configuration: ImporterConfiguration,
+        description: &str,
     ) -> anyhow::Result<()> {
-        runner
+        let result = runner
             .run_once(
                 Context {
                     name: "run".to_string(),
@@ -359,9 +456,9 @@ impl GenerateDump {
                 None,
                 Value::Null,
             )
-            .await?;
+            .await;
 
-        Ok(())
+        self.check_import_result(description, result)
     }
 }
 
@@ -421,6 +518,191 @@ impl RunContext for Context {
         TracingProgress {
             name: format!("{}: {message}", self.name),
             period: Duration::from_secs(15),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        io::{self, Write},
+        sync::{Arc, Mutex},
+    };
+    use trustify_module_importer::runner::report::{Phase, ReportBuilder};
+
+    #[derive(Clone, Default)]
+    struct LogBuffer(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for LogBuffer {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn capture_logs(f: impl FnOnce() -> anyhow::Result<()>) -> (anyhow::Result<()>, String) {
+        let buffer = LogBuffer::default();
+        let writer = buffer.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .without_time()
+            .with_ansi(false)
+            .with_writer(move || writer.clone())
+            .finish();
+        let result = tracing::subscriber::with_default(subscriber, f);
+        let logs = String::from_utf8(buffer.0.lock().unwrap().clone()).unwrap();
+        (result, logs)
+    }
+
+    fn command(keep_going: bool) -> GenerateDump {
+        let mut args = vec!["generate-dump"];
+        if keep_going {
+            args.push("--keep-going");
+        }
+        GenerateDump::try_parse_from(args).unwrap()
+    }
+
+    fn failed_report() -> RunOutput {
+        let mut report = ReportBuilder::new();
+        report.add_error(Phase::Validation, "first.yaml", "missing field id");
+        report.add_error(Phase::Upload, "second.json", "database failure");
+        report.add_message(
+            Phase::Validation,
+            "third.yaml",
+            Severity::Warning,
+            "advisory warning",
+        );
+        report.build().into()
+    }
+
+    #[test]
+    fn report_errors_are_all_logged_before_aborting() {
+        let command = command(false);
+        assert!(!command.keep_going);
+        let (result, logs) =
+            capture_logs(|| command.check_import_result("R advisories", Ok(failed_report())));
+        assert!(result.unwrap_err().to_string().contains("R advisories"));
+        for (file, message, phase) in [
+            ("first.yaml", "missing field id", "Validation"),
+            ("second.json", "database failure", "Upload"),
+        ] {
+            let line = logs.lines().find(|line| line.contains(message)).unwrap();
+            assert!(line.contains("ERROR"), "{logs}");
+            assert!(line.contains(file), "{logs}");
+            assert!(line.contains(phase), "{logs}");
+            assert!(line.contains("R advisories"), "{logs}");
+        }
+        let warning = logs
+            .lines()
+            .find(|line| line.contains("advisory warning"))
+            .unwrap();
+        assert!(warning.contains("WARN"), "{logs}");
+    }
+
+    #[test]
+    fn keep_going_downgrades_every_report_error_and_succeeds() {
+        let command = command(true);
+        assert!(command.keep_going);
+        let (result, logs) = capture_logs(|| {
+            command.check_import_result("R advisories", Ok(failed_report()))?;
+            command.check_import_result("next importer", Ok(ReportBuilder::new().build().into()))
+        });
+        result.unwrap();
+        assert!(!logs.contains("ERROR"), "{logs}");
+        for message in ["missing field id", "database failure", "advisory warning"] {
+            let line = logs.lines().find(|line| line.contains(message)).unwrap();
+            assert!(line.contains("WARN"), "{logs}");
+        }
+    }
+
+    #[test]
+    fn empty_and_warning_only_reports_succeed_without_keep_going() {
+        for warning in [false, true] {
+            let mut report = ReportBuilder::new();
+            if warning {
+                report.add_message(
+                    Phase::Validation,
+                    "advisory.json",
+                    Severity::Warning,
+                    "warning only",
+                );
+            }
+            let (result, logs) = capture_logs(|| {
+                command(false).check_import_result("advisories", Ok(report.build().into()))
+            });
+            result.unwrap();
+            assert!(!logs.contains("ERROR"), "{logs}");
+            assert_eq!(logs.contains("WARN"), warning, "{logs}");
+        }
+    }
+
+    #[test]
+    fn scanner_failure_includes_its_report_in_both_modes() {
+        for keep_going in [false, true] {
+            let (result, logs) = capture_logs(|| {
+                command(keep_going).check_import_result(
+                    "advisories",
+                    Err(ScannerError::Normal {
+                        err: anyhow!("scanner stopped"),
+                        output: Box::new(failed_report()),
+                    }),
+                )
+            });
+            assert_eq!(result.is_ok(), keep_going);
+            for message in ["scanner stopped", "missing field id", "database failure"] {
+                let line = logs.lines().find(|line| line.contains(message)).unwrap();
+                assert!(
+                    line.contains(if keep_going { "WARN" } else { "ERROR" }),
+                    "{logs}"
+                );
+            }
+            if keep_going {
+                assert!(!logs.contains("ERROR"), "{logs}");
+            }
+        }
+    }
+
+    #[test]
+    fn critical_importer_failure_respects_keep_going() {
+        for keep_going in [false, true] {
+            let (result, logs) = capture_logs(|| {
+                command(keep_going).check_import_result(
+                    "advisories",
+                    Err(ScannerError::Critical(anyhow!("clone failed"))),
+                )
+            });
+            assert_eq!(result.is_ok(), keep_going);
+            assert!(logs.contains("clone failed"), "{logs}");
+            assert!(
+                logs.contains(if keep_going { "WARN" } else { "ERROR" }),
+                "{logs}"
+            );
+        }
+    }
+
+    #[test]
+    fn local_file_errors_include_the_cause_and_respect_keep_going() {
+        for keep_going in [false, true] {
+            let (result, logs) = capture_logs(|| {
+                command(keep_going).ingestion_error(
+                    "broken.json.zst",
+                    anyhow!("invalid compressed data").context("failed to decompress"),
+                )
+            });
+            assert_eq!(result.is_ok(), keep_going);
+            assert!(logs.contains("broken.json.zst"), "{logs}");
+            assert!(
+                logs.contains("failed to decompress: invalid compressed data"),
+                "{logs}"
+            );
+            assert!(
+                logs.contains(if keep_going { "WARN" } else { "ERROR" }),
+                "{logs}"
+            );
         }
     }
 }
