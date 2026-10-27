@@ -4,7 +4,14 @@
     "cve/CVE-2026-103484.json"
   ],
   "sboms": {
-    "sbom/tpa_228_sbom_spdx_jq.json.xz": {},
+    "sbom/tpa_228_sbom_spdx_jq.json.xz": {
+      "SPDXRef-Package-postgresql-16.15-5c5baffcd5ae932d71f17151d439e69f5a1aae442f045295112e6ca2956cdda7": {
+        "CVE-2026-103484": "fixed"
+      },
+      "SPDXRef-Package-postgresql-private-libs-16.15-eed2722849694a5b66f18c8dcf1a6ba1edab505692005676d191e00ecb04bec3": {
+        "CVE-2026-103484": "fixed"
+      }
+    },
     "sbom/controls.cdx.json": {
       "before-fix": {
         "CVE-2026-103484": "affected"
@@ -16,6 +23,12 @@
         "CVE-2026-103484": "fixed"
       },
       "private-libs-at-fix": {
+        "CVE-2026-103484": "fixed"
+      },
+      "missing-module": {
+        "CVE-2026-103484": "fixed"
+      },
+      "missing-module-source-arch": {
         "CVE-2026-103484": "fixed"
       }
     },
@@ -30,6 +43,12 @@
         "CVE-2026-103484": "fixed"
       },
       "SPDXRef-private-libs-at-fix": {
+        "CVE-2026-103484": "fixed"
+      },
+      "SPDXRef-missing-module": {
+        "CVE-2026-103484": "fixed"
+      },
+      "SPDXRef-missing-module-source-arch": {
         "CVE-2026-103484": "fixed"
       }
     }

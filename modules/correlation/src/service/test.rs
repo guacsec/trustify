@@ -478,7 +478,7 @@ async fn scenario(
         {
             if name == "S31_postgresql_remediation_consistency" {
                 // TC-7208: the installed fix must not also carry affected evidence. The
-                // unmodified SBOM has no rpmmod qualifier; positive controls supply it.
+                // unmodified SBOM exercises exact-build fallback without rpmmod.
                 assert!(!verdict.resolution.has_conflict);
                 let status = match verdict.status {
                     VerdictStatus::Affected => ApiAssertionStatus::Affected,
@@ -507,6 +507,16 @@ async fn scenario(
                     .iter()
                     .find(|id| id.kind == IdentifierKind::Purl)
                     .unwrap();
+                if !identifier.value.contains("rpmmod=") {
+                    // The retry preserves the module-bearing source identifier and must
+                    // not introduce inferred ranges from another module stream.
+                    assert!(verdict.evidence.iter().all(|e| {
+                        e.matched_value.as_ref().is_some_and(|value| {
+                            value.origin == AssertionOrigin::Stated
+                                && value.identifier.contains("rpmmod=")
+                        })
+                    }));
+                }
                 let query = service
                     .query_identifier_with(
                         identifier.clone(),
