@@ -242,6 +242,27 @@ impl PurlStatusRow {
         })
     }
 
+    /// An SBOM without module metadata can still identify an exact RPM build. Retry only
+    /// that stated version, retaining architecture checks and the original advisory PURL.
+    /// A module-specific range cannot identify the module of an otherwise unknown build.
+    fn exact_rpm_without_module(&self) -> bool {
+        if self.base_purl_type != "rpm" || self.sbom_qualifiers.0.contains_key("rpmmod") {
+            return false;
+        }
+        let Some(purl) = &self.source_purl else {
+            return false;
+        };
+        if purl.version.as_deref() != Some(self.sbom_version.as_str())
+            || !purl.qualifiers.contains_key("rpmmod")
+        {
+            return false;
+        }
+        let mut qualifiers = purl.qualifiers.clone();
+        qualifiers.remove("rpmmod");
+        self.ecosystem()
+            .qualifiers_match(&self.sbom_qualifiers.0, &qualifiers)
+    }
+
     /// The package a listed status shadows the default of.
     fn package(&self) -> (Uuid, &str, &str, Option<&str>, &str) {
         (
@@ -346,7 +367,9 @@ fn group<'a, K: Ord + Clone>(
     let rows = rows
         .into_iter()
         .filter_map(|(target, source, row)| {
-            if !row.qualifiers_match() {
+            if !row.qualifiers_match()
+                && !(source.is_none() && !row.is_default && row.exact_rpm_without_module())
+            {
                 return None;
             }
             let status = map_status(&row.slug)?;

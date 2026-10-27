@@ -399,6 +399,9 @@ struct Scenario {
 #[case::s27_combined("S27_cve_identifier_synonyms_log4j", "expected.json")]
 #[case::s29_provider("S29_provider_weighting", "expected.json")]
 #[case::s28_regression("S28_fixed_then_regression", "expected.json")]
+#[case::s31_combined("S31_postgresql_remediation_consistency", "expected.json")]
+#[case::s31_cve("S31_postgresql_remediation_consistency", "expected-cve.json")]
+#[case::s31_vex("S31_postgresql_remediation_consistency", "expected-vex.json")]
 #[test_log::test(actix_web::test)]
 async fn scenario(
     ctx: &TrustifyContext,
@@ -473,6 +476,68 @@ async fn scenario(
             .await?
             .verdicts
         {
+            if name == "S31_postgresql_remediation_consistency" {
+                // TC-7208: the installed fix must not also carry affected evidence. The
+                // unmodified SBOM exercises exact-build fallback without rpmmod.
+                assert!(!verdict.resolution.has_conflict);
+                let status = match verdict.status {
+                    VerdictStatus::Affected => ApiAssertionStatus::Affected,
+                    VerdictStatus::Fixed => ApiAssertionStatus::Fixed,
+                    other => panic!("unexpected S31 verdict: {other:?}"),
+                };
+                assert!(!verdict.evidence.is_empty());
+                for evidence in &verdict.evidence {
+                    assert_eq!(evidence.assertion_status, status);
+                    assert_eq!(evidence.advisory_type.as_deref(), Some("csaf"));
+                    assert!(evidence.remediations.iter().any(|r| {
+                        r.category == crate::model::RemediationCategory::VendorFix
+                            && r.url.as_deref()
+                                == Some("https://access.redhat.com/errata/RHSA-2026:85791")
+                    }));
+                    assert!(
+                        evidence.remediations.iter().any(|r| {
+                            r.category == crate::model::RemediationCategory::Workaround
+                        })
+                    );
+                }
+                // Live identifier matching must agree with materialized SBOM evidence.
+                let identifier = verdict
+                    .component
+                    .identifiers
+                    .iter()
+                    .find(|id| id.kind == IdentifierKind::Purl)
+                    .unwrap();
+                if !identifier.value.contains("rpmmod=") {
+                    // The retry preserves the module-bearing source identifier and must
+                    // not introduce inferred ranges from another module stream.
+                    assert!(verdict.evidence.iter().all(|e| {
+                        e.matched_value.as_ref().is_some_and(|value| {
+                            value.origin == AssertionOrigin::Stated
+                                && value.identifier.contains("rpmmod=")
+                        })
+                    }));
+                }
+                let query = service
+                    .query_identifier_with(
+                        identifier.clone(),
+                        &crate::model::ResolutionRequest {
+                            product_context: vec![IdentifierRef {
+                                kind: IdentifierKind::Cpe,
+                                value: "cpe:/a:redhat:enterprise_linux:9::appstream".into(),
+                            }],
+                            ..Default::default()
+                        },
+                        &tx,
+                    )
+                    .await?;
+                let [queried] = query.verdicts.as_slice() else {
+                    panic!("expected one S31 query verdict: {query:?}");
+                };
+                assert_eq!(queried.vulnerability_id, verdict.vulnerability.id);
+                assert_eq!(queried.status, verdict.status);
+                assert!(!queried.matches.is_empty());
+                assert!(queried.matches.iter().all(|m| m.status == status));
+            }
             if name == "S23_suse_codestream_openssl"
                 && verdict.component.name == "openssl"
                 && verdict.vulnerability.id == "CVE-2025-9230"
