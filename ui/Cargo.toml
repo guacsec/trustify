@@ -6,33 +6,55 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["web"]
+web = [
+    "dep:browser-panic-hook", "dep:csaf-rs", "dep:cve", "dep:cvss", "dep:gloo-file",
+    "dep:gloo-net", "dep:gloo-timers", "dep:gloo-utils", "dep:js-sys", "dep:log",
+    "dep:monaco", "dep:osv", "dep:patternfly-yew", "dep:serde", "dep:serde_json",
+    "dep:serde-saphyr", "dep:thiserror", "dep:time", "dep:trustify-api",
+    "dep:trustify-client", "dep:url", "dep:uuid", "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures", "dep:wasm-logger", "dep:web-sys", "dep:yew",
+    "dep:yew-nested-router", "dep:yew-oauth2",
+]
+embed = ["dep:static-files"]
+
+[[bin]]
+name = "trustify-correlation-ui"
+path = "src/main.rs"
+required-features = ["web"]
+
+[build-dependencies]
+static-files = { workspace = true, optional = true }
+
 [dependencies]
-browser-panic-hook = "0.2"
-csaf-rs = { workspace = true }
-cve = { workspace = true }
-cvss = { workspace = true }
-gloo-file = { version = "0.3", features = ["futures"] }
-gloo-net = { version = "0.7", features = ["http"] }
-gloo-timers = "0.4"
-gloo-utils = "0.3"
-js-sys = "0.3"
-log = "0.4"
-monaco = { version = "0.7", default-features = false, features = ["yew-components"] }
-osv = { workspace = true, features = ["schema"] }
-patternfly-yew = { version = "0.8", features = ["tree"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde-saphyr = { workspace = true }
-thiserror = { workspace = true }
-time = { workspace = true, features = ["serde"] }
-trustify-api = { workspace = true }
-trustify-client = "0.1.3"
-url = { workspace = true }
-uuid = { workspace = true, features = ["serde"] }
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-wasm-logger = "0.2"
-web-sys = { version = "0.3", features = ["HtmlInputElement", "File", "FileList", "DragEvent", "DataTransfer", "Storage", "Window"] }
-yew = { version = "0.23", features = ["csr"] }
-yew-nested-router = "0.9"
-yew-oauth2 = { version = "0.14", features = ["openid", "yew-nested-router"] }
+static-files = { workspace = true, optional = true }
+browser-panic-hook = { version = "0.2", optional = true }
+csaf-rs = { workspace = true, optional = true }
+cve = { workspace = true, optional = true }
+cvss = { workspace = true, optional = true }
+gloo-file = { version = "0.3", features = ["futures"], optional = true }
+gloo-net = { version = "0.7", features = ["http"], optional = true }
+gloo-timers = { version = "0.4", optional = true }
+gloo-utils = { version = "0.3", optional = true }
+js-sys = { version = "0.3", optional = true }
+log = { version = "0.4", optional = true }
+monaco = { version = "0.7", default-features = false, features = ["yew-components"], optional = true }
+osv = { workspace = true, features = ["schema"], optional = true }
+patternfly-yew = { version = "0.8", features = ["tree"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+serde-saphyr = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+time = { workspace = true, features = ["serde"], optional = true }
+trustify-api = { workspace = true, optional = true }
+trustify-client = { version = "0.1.3", optional = true }
+url = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["serde"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+wasm-logger = { version = "0.2", optional = true }
+web-sys = { version = "0.3", features = ["HtmlInputElement", "File", "FileList", "DragEvent", "DataTransfer", "Storage", "Window"], optional = true }
+yew = { version = "0.23", features = ["csr"], optional = true }
+yew-nested-router = { version = "0.9", optional = true }
+yew-oauth2 = { version = "0.14", features = ["openid", "yew-nested-router"], optional = true }

@@ -32,6 +32,10 @@ fn create(enabled: bool, bind_addr: &str) -> anyhow::Result<Option<Server>> {
                     ignore_localhost_port: true,
                 },
                 RedirectUrl::Exact {
+                    url: "http://localhost/console/".into(),
+                    ignore_localhost_port: true,
+                },
+                RedirectUrl::Exact {
                     url: "http://localhost/swagger-ui/oauth2-redirect.html".into(),
                     ignore_localhost_port: true,
                 },

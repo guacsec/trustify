@@ -43,6 +43,7 @@ actix-web = "4.9"
 actix-web-extras = "0.1"
 actix-web-httpauth = "0.8"
 actix-web-static-files = "4.0.1"
+static-files = { version = "0.2.5", default-features = false }
 actix-ws = "0.3"
 anyhow = "1.0.72"
 async-compression = "0.4.13"
@@ -171,6 +172,7 @@ postgresql_embedded = { version = "0.22.0", default-features = false, features =
 trustify-api = { path = "api" }
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
+trustify-correlation-ui = { path = "ui", default-features = false }
 trustify-db = { path = "common/db" }
 trustify-entity = { path = "entity" }
 trustify-infrastructure = { path = "common/infrastructure" }

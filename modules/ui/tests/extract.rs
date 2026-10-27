@@ -3,23 +3,16 @@
 use actix_web::{dev::ServiceResponse, test::TestRequest};
 use serde_json::{Value, json};
 use test_log::test;
-use trustify_module_ui::endpoints::{Config, UiResources, configure, post_configure};
+use trustify_module_ui::endpoints::{Config, configure};
 use trustify_test_context::{call, call::CallService, document_bytes_raw};
-use trustify_ui::UI;
 
 pub async fn caller() -> anyhow::Result<impl CallService> {
     caller_with(Config::default()).await
 }
 
 async fn caller_with(config: Config) -> anyhow::Result<impl CallService> {
-    let ui = UiResources::new(&UI::default())?;
-
     call::caller(move |svc| {
         configure(svc, config);
-        svc.map(|svc| {
-            post_configure(svc, &ui);
-            svc
-        });
     })
     .await
 }

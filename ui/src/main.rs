@@ -168,8 +168,9 @@ fn app() -> Html {
                     }
                 };
                 let login_options = LoginOptions::new()
-                    .with_redirect_url(redirect_url)
+                    .with_redirect_url(redirect_url.clone())
                     .with_nested_router_redirect();
+                let config = config.with_after_logout_url(redirect_url.as_str());
                 html! {
                     <Router<AppRoute> default={AppRoute::SbomList}>
                         <openid::OAuth2 {config} {scopes} login_options={login_options}>
@@ -198,13 +199,13 @@ fn app() -> Html {
     }
 }
 
-/// The URL the OIDC provider redirects back to: the app's origin.
+/// Return to this UI's mount after login, including when served under `/console/`.
 fn redirect_url() -> Result<Url, String> {
-    let origin = gloo_utils::window()
-        .location()
-        .origin()
-        .map_err(|err| format!("failed to get origin: {err:?}"))?;
-    Url::parse(&origin).map_err(|err| format!("invalid redirect URL '{origin}': {err}"))
+    let base = gloo_utils::document()
+        .base_uri()
+        .map_err(|err| format!("failed to get document base: {err:?}"))?
+        .ok_or_else(|| "document has no base URL".to_string())?;
+    Url::parse(&base).map_err(|err| format!("invalid redirect URL '{base}': {err}"))
 }
 
 #[function_component(AuthError)]
@@ -367,7 +368,7 @@ fn page(props: &PageProps) -> Html {
     let brand = html! {
         <MastheadBrand>
             <Title level={Level::H4}>
-                { "Trustify Correlation" }
+                { "Trustify Console" }
             </Title>
         </MastheadBrand>
     };

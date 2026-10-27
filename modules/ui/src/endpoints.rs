@@ -3,16 +3,21 @@ use crate::{
     model::ExtractResult,
     service::{extract_cyclonedx_purls, extract_spdx_purls},
 };
+#[cfg(feature = "trustify-ui")]
+use actix_web::web::ServiceConfig;
 use actix_web::{
     HttpResponse, Responder,
     http::header,
     post,
-    web::{self, Bytes, ServiceConfig},
+    web::{self, Bytes},
 };
+#[cfg(feature = "trustify-ui")]
 use actix_web_static_files::{ResourceFiles, deps::static_files::Resource};
+#[cfg(feature = "trustify-ui")]
 use std::collections::HashMap;
 use trustify_common::{decompress::decompress_async, error::ErrorInformation, model::BinaryData};
 use trustify_module_ingestor::service::{DetectedDocument, DocumentDetector, Format};
+#[cfg(feature = "trustify-ui")]
 use trustify_ui::{UI, trustify_ui};
 use utoipa::IntoParams;
 
@@ -22,6 +27,7 @@ pub struct Config {
     pub scan_limit: usize,
 }
 
+#[cfg(feature = "trustify-ui")]
 pub fn post_configure(svc: &mut ServiceConfig, ui: &UiResources) {
     svc.service(ResourceFiles::new("/", ui.resources()).resolve_not_found_to(""));
 }
@@ -31,10 +37,12 @@ pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, conf
         .service(extract_sbom_purls);
 }
 
+#[cfg(feature = "trustify-ui")]
 pub struct UiResources {
     resources: HashMap<&'static str, Resource>,
 }
 
+#[cfg(feature = "trustify-ui")]
 impl UiResources {
     pub fn new(ui: &UI) -> anyhow::Result<Self> {
         Ok(Self {

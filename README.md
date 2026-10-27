@@ -39,6 +39,11 @@ AUTH_DISABLED=true ./trustd-pm
 
 ### Option 2: Build from source
 
+Install [the console build prerequisites](ui/README.md#prerequisites): Node.js 22,
+Trunk 0.22.1, and the `wasm32-unknown-unknown` Rust target. Cargo builds and embeds
+both UIs automatically. Use the independent `trustify-ui` and `ui-console` features
+to [select either UI or an API-only build](ui/README.md#embedding-in-the-server).
+
 ```shell
 AUTH_DISABLED=true cargo run --bin trustd
 ```
@@ -46,6 +51,7 @@ AUTH_DISABLED=true cargo run --bin trustd
 This starts Trustify in "PM mode" — an embedded PostgreSQL database is created in `.trustify/` in your current directory. No external setup needed.
 
 - **Web UI:** http://localhost:8080
+- **Console:** http://localhost:8080/console/
 - **REST API:** http://localhost:8080/openapi/
 
 ### Load sample data

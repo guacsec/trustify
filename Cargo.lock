@@ -9864,6 +9864,7 @@ dependencies = [
  "serde",
  "serde-saphyr",
  "serde_json",
+ "static-files 0.2.5",
  "thiserror 2.0.21",
  "time",
  "trustify-api",
@@ -10406,6 +10407,7 @@ name = "trustify-server"
 version = "0.7.0-rc.1"
 dependencies = [
  "actix-web",
+ "actix-web-static-files",
  "anyhow",
  "build-info",
  "build-info-build",
@@ -10429,6 +10431,7 @@ dependencies = [
  "trustify-api",
  "trustify-auth",
  "trustify-common",
+ "trustify-correlation-ui",
  "trustify-db",
  "trustify-infrastructure",
  "trustify-module-analysis",

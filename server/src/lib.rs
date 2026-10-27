@@ -4,6 +4,7 @@
 mod embedded_oidc;
 mod endpoints;
 mod sample_data;
+mod ui;
 
 pub use sample_data::sample_data;
 

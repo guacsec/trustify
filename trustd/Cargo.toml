@@ -31,7 +31,10 @@ liblzma = { workspace = true }
 temp-env = { workspace = true }
 
 [features]
-default = ["pm"]
+default = ["pm", "trustify-ui", "ui-console"]
+
+trustify-ui = ["trustify-server/trustify-ui"]
+ui-console = ["trustify-server/ui-console"]
 
 bundled = ["postgresql_embedded/bundled"]
 garage-door = ["trustify-server/garage-door"]

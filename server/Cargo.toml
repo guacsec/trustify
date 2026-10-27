@@ -6,10 +6,16 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["trustify-ui", "ui-console"]
+trustify-ui = ["trustify-module-ui/trustify-ui"]
+ui-console = ["dep:trustify-correlation-ui", "dep:actix-web-static-files"]
+
 [dependencies]
 trustify-api = { workspace = true, features = ["openapi"] }
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
+trustify-correlation-ui = { workspace = true, optional = true, features = ["embed"] }
 trustify-db = { workspace = true }
 trustify-infrastructure = { workspace = true }
 trustify-module-analysis = { workspace = true }
@@ -24,6 +30,7 @@ trustify-module-ui = { workspace = true }
 trustify-module-user = { workspace = true }
 
 actix-web = { workspace = true }
+actix-web-static-files = { workspace = true, optional = true }
 anyhow = { workspace = true }
 build-info = { workspace = true }
 bytesize = { workspace = true }

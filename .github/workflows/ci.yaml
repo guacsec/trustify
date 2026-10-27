@@ -75,6 +75,8 @@ jobs:
         if: matrix.install != ''
         run: ${{ matrix.install }}
 
+      - uses: ./.github/actions/setup-console
+
       - name: Clippy
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
@@ -128,6 +130,8 @@ jobs:
         with:
           tool: cargo-nextest
 
+      - uses: ./.github/actions/setup-console
+
       - name: Test
         if: steps.filter.outputs.non_md_changes == 'true'
         run: cargo nextest run --all-features -E 'not test(=m0002010::performance)' --profile ci
@@ -137,6 +141,16 @@ jobs:
           TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
           TMPDIR: /mnt/trustify
+
+      - name: UI feature combinations
+        if: steps.filter.outputs.non_md_changes == 'true'
+        run: |
+          cargo test -p trustify-server --lib --no-default-features ui::test::
+          cargo test -p trustify-server --lib --no-default-features --features trustify-ui ui::test::
+          cargo test -p trustify-server --lib --no-default-features --features ui-console ui::test::
+          cargo test -p trustify-server --lib --no-default-features --features trustify-ui,ui-console ui::test::
+          cargo test -p trustify-module-ui --no-default-features
+          node --test ui/scripts/install-dependencies.test.mjs
 
       - name: Doc tests
         if: steps.filter.outputs.non_md_changes == 'true'
@@ -198,8 +212,10 @@ jobs:
         with:
           shared-key: container
 
+      - uses: ./.github/actions/setup-console
+
       - name: Build binaries
-        run: cargo build --bin trustd --bin xtask --no-default-features --release
+        run: cargo build --bin trustd --bin xtask --no-default-features --features trustify-trustd/trustify-ui,trustify-trustd/ui-console --release
 
       - name: Stage binaries for container build
         run: |
