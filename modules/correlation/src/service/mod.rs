@@ -27,6 +27,7 @@ pub mod confidence;
 pub mod extraction;
 pub mod freshness;
 pub mod option;
+mod pagination;
 mod remediation;
 pub mod resolution;
 pub mod statement;
@@ -196,41 +197,53 @@ impl CorrelationService {
         }
         let evidence_rows = query.all(connection).await?;
 
-        let node_identifiers = self
-            .extractors
-            .component_identifiers(sbom_id, connection)
+        let verdicts = self
+            .verdicts(sbom_id, request, &evidence_rows, connection)
             .await?;
+        let unmatched_components = if include_unmatched {
+            let node_identifiers = self
+                .extractors
+                .component_identifiers(sbom_id, connection)
+                .await?;
+            let matched = evidence_rows
+                .iter()
+                .map(|row| row.node_id.as_str())
+                .collect();
+            Some(load_unmatched_components(sbom_id, &matched, &node_identifiers, connection).await?)
+        } else {
+            None
+        };
+        Ok(CorrelationResult {
+            sbom_id,
+            sbom_name,
+            freshness,
+            verdicts,
+            unmatched_components,
+        })
+    }
 
+    /// Resolve complete evidence groups selected by either a preview or a page.
+    async fn verdicts(
+        &self,
+        sbom_id: Uuid,
+        request: &ResolutionRequest,
+        evidence_rows: &[correlation_evidence::Model],
+        connection: &DatabaseTransaction,
+    ) -> Result<Vec<VerdictSummary>, Error> {
         if evidence_rows.is_empty() {
-            let unmatched_components = if include_unmatched {
-                Some(
-                    load_unmatched_components(
-                        sbom_id,
-                        &HashSet::new(),
-                        &node_identifiers,
-                        connection,
-                    )
-                    .await?,
-                )
-            } else {
-                None
-            };
-
-            return Ok(CorrelationResult {
-                sbom_id,
-                sbom_name,
-                freshness,
-                verdicts: Vec::new(),
-                unmatched_components,
-            });
+            return Ok(Vec::new());
         }
-
-        let node_ids: Vec<&str> = evidence_rows
+        let node_ids: Vec<String> = evidence_rows
             .iter()
-            .map(|e| e.node_id.as_str())
+            .map(|e| e.node_id.clone())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
+
+        let node_identifiers = self
+            .extractors
+            .component_identifiers_scoped(sbom_id, Some(&node_ids), connection)
+            .await?;
 
         let advisory_ids: Vec<Uuid> = evidence_rows
             .iter()
@@ -263,20 +276,18 @@ impl CorrelationService {
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
         let mut contexts =
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
-        let mut remediations = load_evidence_remediations(&evidence_rows, connection).await?;
-        let upstream = load_upstream(&evidence_rows, connection).await?;
+        let mut remediations = load_evidence_remediations(evidence_rows, connection).await?;
+        let upstream = load_upstream(evidence_rows, connection).await?;
         let mut scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
 
         // Group evidence by (node_id, vulnerability_id).
         let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence::Model>> = BTreeMap::new();
-        for row in &evidence_rows {
+        for row in evidence_rows {
             groups
                 .entry((row.node_id.as_str(), row.vulnerability_id.as_str()))
                 .or_default()
                 .push(row);
         }
-
-        let matched_node_ids: HashSet<&str> = groups.keys().map(|(node_id, _)| *node_id).collect();
 
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
@@ -381,27 +392,7 @@ impl CorrelationService {
             });
         }
 
-        let unmatched_components = if include_unmatched {
-            Some(
-                load_unmatched_components(
-                    sbom_id,
-                    &matched_node_ids,
-                    &node_identifiers,
-                    connection,
-                )
-                .await?,
-            )
-        } else {
-            None
-        };
-
-        Ok(CorrelationResult {
-            sbom_id,
-            sbom_name,
-            freshness,
-            verdicts,
-            unmatched_components,
-        })
+        Ok(verdicts)
     }
 
     /// Query for advisory/vulnerability matches by identifier.

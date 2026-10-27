@@ -39,6 +39,64 @@ Example:
 http GET localhost:8080/api/v3/correlation/sbom/550e8400-e29b-41d4-a716-446655440000
 ```
 
+The verdict response is a page, ordered ascending by component node ID and vulnerability ID.
+Every item contains the complete evidence for one verdict. All SBOM correlation lists accept
+`offset` (default `0`), `limit` (default `25`), and `total` (default `false`). A zero limit returns
+no items; use `limit=0&total=true` for a count-only request. Without `total=true`, `total` is
+JSON `null` and the server skips computing the count. The configured pagination maximum
+applies; excessive limits return HTTP 400 with `X-Pagination-Max-Limit`.
+
+```shell
+http GET localhost:8080/api/v3/correlation/sbom/{sbom_id} offset==25 limit==25 total==true
+http GET localhost:8080/api/v3/correlation/sbom/{sbom_id} limit==0 total==true
+```
+
+Response shape (each verdict item uses the existing verdict schema):
+
+```json
+{
+  "sbom_id": "550e8400-e29b-41d4-a716-446655440000",
+  "sbom_name": "example",
+  "freshness": {"status": "unknown", "required_revision": 0, "completed_revision": null, "completed_at": null},
+  "items": [],
+  "total": null
+}
+```
+
+### Unmatched components and remediations
+
+These independently paginated lists use the same response envelope and pagination parameters:
+
+```shell
+http GET localhost:8080/api/v3/correlation/sbom/{sbom_id}/unmatched total==true
+http GET localhost:8080/api/v3/correlation/sbom/{sbom_id}/remediations offset==0 limit==25 total==true
+```
+
+Unmatched components have no evidence anywhere in the SBOM and exclude its root. They are
+ordered by node ID and accept an optional `node_id` filter. Their item schema is `ComponentRef`.
+
+Remediations are distinct per component, vulnerability, advisory, category, details and URL.
+Each item includes `component`, `vulnerability`, the resolved verdict `status`, `remediation`,
+`advisory_id`, `advisory_identifier`, and `advisory_type`. They are ordered ascending by node ID,
+vulnerability ID, advisory UUID, category name, details and URL, with null optional values first.
+Status uses all evidence of the verdict, including evidence outside the remediation page.
+Source assertion matching and the legacy PURL fallback are the same as verdict evidence.
+
+Verdicts and remediations accept `node_id` and `vulnerability_id` filters; verdicts also accept
+`include_explanation=true`. Totals count matching items before offset/limit, including on empty
+pages beyond the end. Unknown SBOMs return empty pages. Text ordering is case-sensitive and
+uses PostgreSQL's `C` collation, matching Rust lexical ordering. Offset pagination is stable for
+unchanged data; extraction or document changes between requests can change page membership.
+Totals use the existing pagination cache and may lag changes by its configured TTL.
+Remediation pagination scans compact identities in bounded batches; large offsets and uncached
+totals can require scanning the entire matching set, without resolving all verdicts.
+
+**Client migration:** the SBOM GET response now returns verdicts in `items`, with optional `total`,
+instead of `verdicts`. `include_unmatched` no longer includes components in this response; request `/unmatched` separately.
+Resolution preview responses and identifier queries retain their existing unpaginated shapes.
+The correlation UI requests server pages independently for all three lists and uses the
+verdict-count endpoint for SBOM-wide summaries.
+
 ### Query advisories by identifier
 
 ```shell

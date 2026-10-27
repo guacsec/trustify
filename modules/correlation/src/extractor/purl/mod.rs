@@ -555,8 +555,21 @@ impl Extractor for PurlExtractor {
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
-        let purl_refs = sbom_node_purl_ref::Entity::find()
-            .filter(sbom_node_purl_ref::Column::SbomId.eq(sbom_id))
+        self.sbom_identifiers_scoped(sbom_id, None, tx).await
+    }
+
+    async fn sbom_identifiers_scoped(
+        &self,
+        sbom_id: Uuid,
+        nodes: Option<&[String]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
+        let mut query = sbom_node_purl_ref::Entity::find()
+            .filter(sbom_node_purl_ref::Column::SbomId.eq(sbom_id));
+        if let Some(nodes) = nodes {
+            query = query.filter(sbom_node_purl_ref::Column::NodeId.is_in(nodes.iter().cloned()));
+        }
+        let purl_refs = query
             .all(tx)
             .instrument(info_span!("loading purl refs"))
             .await?;

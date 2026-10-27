@@ -171,6 +171,68 @@ async fn remediation_scopes(
         service.count_verdicts(&[sbom_id], &tx).await?[0].remediations,
         2
     );
+    // Multiple matching extractors and duplicate source groups must produce one paginated row.
+    let cache = trustify_common::db::pagination_cache::PaginationCache::for_test();
+    for total in [false, true] {
+        for offset in 0..=3 {
+            let page = service
+                .remediation_page(
+                    sbom_id,
+                    &ResolutionRequest::default(),
+                    trustify_common::model::Paginated {
+                        offset,
+                        limit: 1,
+                        total,
+                    },
+                    &cache,
+                    &tx,
+                )
+                .await?;
+            assert_eq!(page.total, total.then_some(2));
+            if offset < 2 {
+                assert_eq!(page.items.len(), 1);
+                let item = &page.items[0];
+                assert_eq!(item.component.node_id, format!("widget-{}", offset + 1));
+                assert_eq!(item.remediation, fix((offset + 1) as u8));
+                assert_eq!(item.status, VerdictStatus::Affected);
+            } else {
+                assert!(page.items.is_empty());
+            }
+        }
+        let page = service
+            .remediation_page(
+                sbom_id,
+                &ResolutionRequest::default(),
+                trustify_common::model::Paginated {
+                    offset: 9,
+                    limit: 0,
+                    total,
+                },
+                &cache,
+                &tx,
+            )
+            .await?;
+        assert!(page.items.is_empty());
+        assert_eq!(page.total, total.then_some(2));
+    }
+    let page = service
+        .remediation_page(
+            sbom_id,
+            &ResolutionRequest {
+                node_id: Some("widget-2".into()),
+                vulnerability_id: Some(CVE.into()),
+                ..Default::default()
+            },
+            trustify_common::model::Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &cache,
+            &tx,
+        )
+        .await?;
+    assert_eq!(page.total, Some(1));
+    assert_eq!(page.items[0].remediation, fix(2));
     let evidence = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
         .all(&tx)
@@ -497,5 +559,203 @@ async fn derived_evidence_retains_source_remediations(ctx: &TrustifyContext) -> 
     // Unlike the legacy range/status reconstruction, source lookup also works when the
     // evidence's affected range was derived from a fixed statement.
     assert_eq!(query.verdicts[0].status, VerdictStatus::Affected);
+    Ok(())
+}
+
+/// Pages can split a verdict's remediation rows, but resolution still uses the whole verdict.
+/// Traversal also crosses the internal group-batch boundary and keeps legacy lookup behavior.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn remediation_pages_cross_batches_and_skip_unrequested_work(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel, Set};
+    use trustify_common::{db::pagination_cache::PaginationCache, model::Paginated};
+    use trustify_entity::{remediation, remediation_purl_status, sbom_node};
+
+    ctx.ingest_read(serde_json::to_vec(&advisory("mixed").await?)?.as_slice())
+        .await?;
+    let id = Uuid::parse_str(
+        &ctx.ingest_read(serde_json::to_vec(&sbom(PLATFORM))?.as_slice())
+            .await?
+            .id,
+    )?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(id, &tx).await?;
+    let original = correlation_evidence::Entity::find()
+        .filter(correlation_evidence::Column::SbomId.eq(id))
+        .filter(correlation_evidence::Column::NodeId.eq("widget-1"))
+        .filter(correlation_evidence::Column::Extractor.eq("purl"))
+        .one(&tx)
+        .await?
+        .unwrap();
+    let sources: std::collections::BTreeSet<SourceAssertionRef> =
+        serde_json::from_value(original.source_assertions.clone())?;
+    let SourceAssertionRef::Purl(source) = *sources.first().unwrap() else {
+        panic!("PURL evidence has PURL source");
+    };
+    // The duplicate database row must not increase totals. Null and empty details stay distinct.
+    for details in [None, Some(String::new()), None] {
+        let row = remediation::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            advisory_id: Set(original.advisory_id),
+            vulnerability_id: Set(CVE.into()),
+            category: Set(trustify_entity::remediation::RemediationCategory::Workaround),
+            details: Set(details),
+            url: Set(None),
+            data: Set(json!({})),
+        }
+        .insert(&tx)
+        .await?;
+        remediation_purl_status::ActiveModel {
+            remediation_id: Set(row.id),
+            purl_status_id: Set(source),
+        }
+        .insert(&tx)
+        .await?;
+    }
+    for index in (0..101).rev() {
+        let node_id = format!("node-{index:03}");
+        sbom_node::ActiveModel {
+            sbom_id: Set(id),
+            node_id: Set(node_id.clone()),
+            name: Set(node_id.clone()),
+        }
+        .insert(&tx)
+        .await?;
+        let mut row = original.clone().into_active_model();
+        row.id = Set(Uuid::new_v4());
+        row.node_id = Set(node_id);
+        if index < 2 {
+            row.source_assertions = Set(json!([]));
+        }
+        row.insert(&tx).await?;
+    }
+    let service = CorrelationService::default();
+    let cache = PaginationCache::for_test();
+    let request = ResolutionRequest::default();
+    let full = service
+        .remediation_page(
+            id,
+            &request,
+            Paginated {
+                limit: 1000,
+                total: true,
+                offset: 0,
+            },
+            &cache,
+            &tx,
+        )
+        .await?;
+    assert_eq!(full.total, Some(307));
+    assert_eq!(full.items.len(), 307);
+    assert_eq!(full.items[0].remediation, fix(1));
+    assert_eq!(full.items[1].remediation.details, None);
+    assert_eq!(full.items[2].remediation.details.as_deref(), Some(""));
+    assert_eq!(full.items[1].status, VerdictStatus::Affected);
+    let mut traversed = Vec::new();
+    for offset in [0, 101, 202, 303] {
+        let page = service
+            .remediation_page(
+                id,
+                &request,
+                Paginated {
+                    limit: 101,
+                    total: false,
+                    offset,
+                },
+                &cache,
+                &tx,
+            )
+            .await?;
+        assert_eq!(page.total, None);
+        traversed.extend(page.items);
+    }
+    assert_eq!(traversed, full.items);
+
+    // Count-only pages still enumerate identities, but must not deserialize resolver input.
+    tx.execute_unprepared("UPDATE correlation_evidence SET matched_value = '\"invalid\"'::jsonb WHERE source_assertions <> '[]'::jsonb").await?;
+    let counted = service
+        .remediation_page(
+            id,
+            &request,
+            Paginated {
+                limit: 0,
+                total: true,
+                offset: 9,
+            },
+            &cache,
+            &tx,
+        )
+        .await?;
+    assert!(counted.items.is_empty());
+    assert_eq!(counted.total, Some(307));
+    assert!(
+        service
+            .remediation_page(
+                id,
+                &request,
+                Paginated {
+                    limit: 1,
+                    total: false,
+                    offset: 6
+                },
+                &cache,
+                &tx
+            )
+            .await
+            .is_err()
+    );
+
+    // A malformed source in a later batch proves a total=false request stops after its page.
+    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '{}'::jsonb WHERE node_id = 'widget-2'").await?;
+    let first = service
+        .remediation_page(
+            id,
+            &request,
+            Paginated {
+                limit: 1,
+                total: false,
+                offset: 0,
+            },
+            &cache,
+            &tx,
+        )
+        .await?;
+    assert_eq!(first.items, full.items[..1]);
+    assert!(
+        service
+            .remediation_page(
+                id,
+                &request,
+                Paginated {
+                    limit: 0,
+                    total: true,
+                    offset: 0
+                },
+                &cache,
+                &tx
+            )
+            .await
+            .is_err()
+    );
+    // With no total, zero must skip even the compact-identity scan.
+    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '{}'::jsonb")
+        .await?;
+    let zero = service
+        .remediation_page(
+            id,
+            &request,
+            Paginated {
+                limit: 0,
+                total: false,
+                offset: u64::MAX,
+            },
+            &cache,
+            &tx,
+        )
+        .await?;
+    assert!(zero.items.is_empty());
+    assert_eq!(zero.total, None);
     Ok(())
 }

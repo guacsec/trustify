@@ -106,10 +106,22 @@ impl Extractor for ProductIdentifierExtractor {
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
-        let rows = sbom_node_product_identifier::Entity::find()
-            .filter(sbom_node_product_identifier::Column::SbomId.eq(sbom_id))
-            .all(tx)
-            .await?;
+        self.sbom_identifiers_scoped(sbom_id, None, tx).await
+    }
+
+    async fn sbom_identifiers_scoped(
+        &self,
+        sbom_id: Uuid,
+        nodes: Option<&[String]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
+        let mut query = sbom_node_product_identifier::Entity::find()
+            .filter(sbom_node_product_identifier::Column::SbomId.eq(sbom_id));
+        if let Some(nodes) = nodes {
+            query = query
+                .filter(sbom_node_product_identifier::Column::NodeId.is_in(nodes.iter().cloned()));
+        }
+        let rows = query.all(tx).await?;
 
         Ok(rows
             .into_iter()

@@ -1,14 +1,14 @@
 use crate::model::{
-    AdvisoryStatement, CorrelationOption, CorrelationOptionData, CorrelationResult, Created,
-    IdentifierKind, Importer, ImporterReport, IngestResult, PaginatedResults, QueryResult,
-    SbomSummary, SbomVerdictCounts, StatementKind, VerdictCountsRequest, WellKnownInfo,
+    AdvisoryStatement, CorrelationOption, CorrelationOptionData, Created, IdentifierKind, Importer,
+    ImporterReport, IngestResult, PaginatedResults, QueryResult, SbomSummary, SbomVerdictCounts,
+    StatementKind, VerdictCountsRequest, WellKnownInfo,
 };
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
     ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob,
-    RefreshJobDetails,
+    RefreshJobDetails, SbomCorrelationPage, VerdictSummary,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -115,12 +115,27 @@ pub async fn fetch_sboms(
     fetch_json(&url, token).await
 }
 
+/// One independently paginated correlation collection; an empty suffix selects verdicts.
+pub async fn fetch_correlation_page<T: DeserializeOwned>(
+    sbom_id: &str,
+    collection: &str,
+    offset: usize,
+    limit: usize,
+    total: bool,
+    token: Option<&str>,
+) -> Result<SbomCorrelationPage<T>, ApiError> {
+    let url = format!(
+        "/api/v3/correlation/sbom/{sbom_id}{collection}?offset={offset}&limit={limit}&total={total}"
+    );
+    fetch_json(&url, token).await
+}
+
 pub async fn fetch_correlation(
     sbom_id: &str,
     token: Option<&str>,
-) -> Result<CorrelationResult, ApiError> {
-    let url = format!("/api/v3/correlation/sbom/{sbom_id}?include_unmatched=true");
-    fetch_json(&url, token).await
+) -> Result<SbomCorrelationPage<VerdictSummary>, ApiError> {
+    // The view header needs metadata only. Tables load their own independent pages.
+    fetch_correlation_page(sbom_id, "", 0, 0, false, token).await
 }
 
 pub async fn count_verdicts(

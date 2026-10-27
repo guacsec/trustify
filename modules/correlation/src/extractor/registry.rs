@@ -129,9 +129,21 @@ impl Extractors {
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<HashMap<String, Vec<IdentifierRef>>, Error> {
+        self.component_identifiers_scoped(sbom_id, None, tx).await
+    }
+
+    pub async fn component_identifiers_scoped(
+        &self,
+        sbom_id: Uuid,
+        nodes: Option<&[String]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<HashMap<String, Vec<IdentifierRef>>, Error> {
         let mut result = HashMap::<_, Vec<_>>::new();
         for extractor in &self.0 {
-            for n in extractor.sbom_identifiers(sbom_id, tx).await? {
+            for n in extractor
+                .sbom_identifiers_scoped(sbom_id, nodes, tx)
+                .await?
+            {
                 result.entry(n.node.node_id).or_default().push(n.identifier);
             }
         }
