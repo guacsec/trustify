@@ -1,0 +1,36 @@
+{
+  "advisories": [
+    "vex/rhsa-cve-2026-103484.json.xz"
+  ],
+  "sboms": {
+    "sbom/tpa_228_sbom_spdx_jq.json.xz": {},
+    "sbom/controls.cdx.json": {
+      "before-fix": {
+        "CVE-2026-103484": "affected"
+      },
+      "at-fix": {
+        "CVE-2026-103484": "fixed"
+      },
+      "after-fix": {
+        "CVE-2026-103484": "fixed"
+      },
+      "private-libs-at-fix": {
+        "CVE-2026-103484": "fixed"
+      }
+    },
+    "sbom/controls.spdx.json": {
+      "SPDXRef-before-fix": {
+        "CVE-2026-103484": "affected"
+      },
+      "SPDXRef-at-fix": {
+        "CVE-2026-103484": "fixed"
+      },
+      "SPDXRef-after-fix": {
+        "CVE-2026-103484": "fixed"
+      },
+      "SPDXRef-private-libs-at-fix": {
+        "CVE-2026-103484": "fixed"
+      }
+    }
+  }
+}

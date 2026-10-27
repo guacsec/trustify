@@ -50,17 +50,21 @@ remain ignored; `main` was compared through source and expectations, not execute
 | [S28 — fixed then regression](S28_fixed_then_regression/README.md) | Passing | Explicit regression overrides inferred fix |
 | [S29 — provider precedence](S29_provider_weighting/README.md) | Passing | Provider aliases and temporary context covered |
 | [S30 — curl cross-product](S30_crossproduct_curl_notaffected/README.md) | Passing | Renamed from `main`'s original S18 |
+| [S31 — PostgreSQL remediation consistency](S31_postgresql_remediation_consistency/README.md) | Passing (targeted run, 2026-10-27) | TC-7208 original SBOM has no verdict because `rpmmod` is absent; synthetic controls cover module identity and fix boundaries |
 
 ## Current coverage
 
-The [service harness](../../../modules/correlation/src/service/test.rs) covers 27 scenarios through
-39 manifests (78 ingestion-order tests). S7 is the only numbered scenario without accepted
+The [service harness](../../../modules/correlation/src/service/test.rs) covers 28 scenarios through
+42 manifests (84 ingestion-order tests). S7 is the only numbered scenario without accepted
 new-engine coverage. S18 (digests) and S19 (hardware identifiers) have separate extractor and
 service tests, but no full-verdict manifests in the common harness.
 
 All migrated original scenarios cover both CycloneDX and SPDX. S20–S22 and S24–S27 currently
 cover CycloneDX only. S23, S28, and S29 cover both formats. The original S18 curl cross-product
 scenario is now S30; S18 now identifies the digest scenario.
+S31 preserves the reported SPDX SBOM and adds synthetic controls in both formats. Its combined,
+CSAF-only, and CVE-only manifests distinguish the original input's module-qualifier gap from
+the fixed-version behavior. Its README records the limits of the result.
 
 Historical legacy-engine result tables have been replaced by reviews. S7 and S11 retain their
 legacy `expected.json` files as historical artifacts, not accepted new-engine expectations.

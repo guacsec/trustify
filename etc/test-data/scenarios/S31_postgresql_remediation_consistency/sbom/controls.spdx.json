@@ -1,0 +1,131 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "Synthetic TC-7208 module and fix controls",
+  "documentNamespace": "https://example.org/trustify/s31/controls",
+  "creationInfo": {
+    "creators": [
+      "Tool: Trustify synthetic scenario"
+    ],
+    "created": "2026-10-27T00:00:00Z"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-before-fix",
+      "name": "postgresql",
+      "versionInfo": "16.14-1.module+el9.8.0+24803+9dca000b",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/postgresql@16.14-1.module%2Bel9.8.0%2B24803%2B9dca000b?arch=x86_64&rpmmod=postgresql:16:9080020261012122334:rhel9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-at-fix",
+      "name": "postgresql",
+      "versionInfo": "16.15-1.module+el9.8.0+24803+9dca000b",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/postgresql@16.15-1.module%2Bel9.8.0%2B24803%2B9dca000b?arch=x86_64&rpmmod=postgresql:16:9080020261012122334:rhel9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-after-fix",
+      "name": "postgresql",
+      "versionInfo": "16.16-1.module+el9.8.0+24803+9dca000b",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/postgresql@16.16-1.module%2Bel9.8.0%2B24803%2B9dca000b?arch=x86_64&rpmmod=postgresql:16:9080020261012122334:rhel9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-missing-module",
+      "name": "postgresql",
+      "versionInfo": "16.15-1.module+el9.8.0+24803+9dca000b",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/postgresql@16.15-1.module%2Bel9.8.0%2B24803%2B9dca000b?arch=x86_64"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-annotation-module",
+      "name": "postgresql",
+      "versionInfo": "16.15-1.module+el9.8.0+24803+9dca000b",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/postgresql@16.15-1.module%2Bel9.8.0%2B24803%2B9dca000b?arch=x86_64&rpmmod=postgresql:16:9080020260903080034:rhel9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-private-libs-at-fix",
+      "name": "postgresql-private-libs",
+      "versionInfo": "16.15-1.module+el9.8.0+24803+9dca000b",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/postgresql-private-libs@16.15-1.module%2Bel9.8.0%2B24803%2B9dca000b?arch=x86_64&rpmmod=postgresql:16:9080020261012122334:rhel9"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-before-fix",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-at-fix",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-after-fix",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-missing-module",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-annotation-module",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-private-libs-at-fix",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}
