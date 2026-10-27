@@ -53,7 +53,15 @@ run tests against old assets.
 
 ## Isolation and lifecycle
 
-The runner uses `podman compose` with a unique project name and disposable volume.
+By default, the runner uses `podman compose` with a unique project name and disposable volume.
+CI supplies PostgreSQL through a GitHub Actions service instead. To use an
+externally managed test server, set `E2E_EXTERNAL_DB_PORT` to its port on
+`127.0.0.1`. It must accept the `postgres` user with password `trustify-e2e`
+and allow database creation. This mode requires the PostgreSQL client commands
+`pg_isready`, `createdb`, and `dropdb` on the host, and does not require Podman.
+Each suite's database name includes the run ID; the runner drops only databases
+it created when the run ends. Use a dedicated test server.
+
 It starts three suites sequentially, each with a new database and filesystem
 storage directory:
 
@@ -68,8 +76,8 @@ and importers fetch only from a local HTTP fixture server. Scenario fixtures are
 seeded through the real API. Baseline documents are shared read-only; mutating
 tests use unique resources and clean them up through the API, even after failures.
 
-All five service ports are allocated dynamically by the OS and reserved until
-each service starts. The runner generates Trunk's proxy configuration and passes
+Service ports are allocated dynamically by the OS and reserved until each service
+starts, except for an externally supplied database port. The runner generates Trunk's proxy configuration and passes
 the selected URLs to Playwright and the backend. The embedded issuer honors
 `TRUSTD_ISSUER_URL`, so its port is dynamic too. API and issuer URLs explicitly use
 `127.0.0.1`; the browser UI uses `localhost`, as required by the embedded issuer's
@@ -106,7 +114,7 @@ Each run has its own `e2e-results/<run-id>` directory, containing HTML reports i
 Startup failures also retain their logs. The report command selects the latest
 run. All output is gitignored.
 
-GitHub Actions installs host dependencies and Chromium, checks TypeScript, and
+GitHub Actions provisions a PostgreSQL 17 service, installs host dependencies and Chromium, checks TypeScript, and
 runs the same command on Ubuntu 24.04. The full suite participates in the existing
 CI gate for PRs, pushes, and merge queues. Reports and service logs are uploaded
 even when startup or tests fail, with 14-day artifact retention. CI allows one

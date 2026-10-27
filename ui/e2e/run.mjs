@@ -11,6 +11,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 const ui = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(ui, '..');
 const runId = `${Date.now()}-${process.pid}`;
+const externalDatabasePort = process.env.E2E_EXTERNAL_DB_PORT;
+if (externalDatabasePort !== undefined &&
+    (!/^\d+$/.test(externalDatabasePort) || Number(externalDatabasePort) < 1 || Number(externalDatabasePort) > 65535)) {
+  throw new Error('E2E_EXTERNAL_DB_PORT must be a port between 1 and 65535');
+}
 const output = join(ui, 'e2e-results', runId);
 const logs = join(output, 'logs');
 const project = `trustify-ui-e2e-${runId}`;
@@ -33,6 +38,7 @@ const streams = [];
 const reservations = new Map();
 const controller = new AbortController();
 let composeStarted = false;
+const externalDatabases = [];
 let fixtureServer;
 let interrupted = false;
 
@@ -78,6 +84,14 @@ async function run(command, commandArgs, name, options) {
 
 function compose(commandArgs, name, options) {
   return run('podman', ['compose', '-f', join(ui, 'e2e/compose.yaml'), '-p', project, ...commandArgs], name, options);
+}
+
+function postgres(command, commandArgs, name) {
+  if (externalDatabasePort === undefined) {
+    return compose(['exec', '-T', 'postgres', command, '-U', 'postgres', ...commandArgs], name);
+  }
+  return run(command, ['-h', '127.0.0.1', '-p', externalDatabasePort, '-U', 'postgres', ...commandArgs], name,
+    { env: { ...env, PGPASSWORD: 'trustify-e2e' } });
 }
 
 const stops = new WeakMap();
@@ -168,7 +182,8 @@ try {
   // Hold reservations until immediately before each service binds, avoiding
   // duplicate allocations and minimizing the port handoff race with other runs.
   const ports = {};
-  for (const name of ['database', 'api', 'ui', 'fixtures', 'oidc']) ports[name] = await reservePort(name, name === 'ui');
+  for (const name of ['api', 'ui', 'fixtures', 'oidc']) ports[name] = await reservePort(name, name === 'ui');
+  ports.database = externalDatabasePort === undefined ? await reservePort('database') : Number(externalDatabasePort);
   env.E2E_DB_PORT = String(ports.database);
   env.E2E_API_URL = `http://127.0.0.1:${ports.api}`;
   env.E2E_UI_URL = `http://localhost:${ports.ui}`;
@@ -176,8 +191,10 @@ try {
   env.E2E_OIDC_URL = `http://127.0.0.1:${ports.oidc}/realms/trustify`;
   await writeFile(join(logs, 'ports.json'), JSON.stringify({ project, ...ports }, null, 2));
   console.log(`[e2e] Allocated ports: ${JSON.stringify(ports)}`);
-  await run('podman', ['info', '--format', '{{.Host.Arch}}'], 'podman-info');
-  await compose(['version'], 'compose-version');
+  if (externalDatabasePort === undefined) {
+    await run('podman', ['info', '--format', '{{.Host.Arch}}'], 'podman-info');
+    await compose(['version'], 'compose-version');
+  }
   if (!process.env.E2E_SKIP_BUILD) {
     await run('cargo', ['build', '--locked', '-p', 'trustify-trustd', '--no-default-features', '--features', 'garage-door'], 'build-backend');
   }
@@ -205,12 +222,14 @@ try {
     fixtureServer.once('error', reject);
     releasePort('fixtures').then(() => fixtureServer.listen(ports.fixtures, '127.0.0.1', resolveListen), reject);
   });
-  await releasePort('database');
-  composeStarted = true; // Cleanup also covers partially successful `up`.
-  await compose(['up', '-d'], 'compose-up');
+  if (externalDatabasePort === undefined) {
+    await releasePort('database');
+    composeStarted = true; // Cleanup also covers partially successful `up`.
+    await compose(['up', '-d'], 'compose-up');
+  }
   await waitFor('PostgreSQL', async () => {
     try {
-      await compose(['exec', '-T', 'postgres', 'pg_isready', '-U', 'postgres'], 'postgres-ready');
+      await postgres('pg_isready', ['-d', 'postgres'], 'postgres-ready');
       return true;
     } catch { return false; }
   });
@@ -234,7 +253,7 @@ try {
   for (const suite of selected) {
     console.log(`[e2e] Starting ${suite} suite`);
     controller.signal.throwIfAborted();
-    const database = `e2e_${suite}`;
+    const database = `e2e_${suite}_${runId.replaceAll('-', '_')}`;
     const storage = join(scratch, suite, 'storage');
     await mkdir(storage, { recursive: true });
     const serviceEnv = {
@@ -251,7 +270,8 @@ try {
       serviceEnv.TRUSTD_ISSUER_URL = env.E2E_OIDC_URL;
       serviceEnv.UI_ISSUER_URL = serviceEnv.TRUSTD_ISSUER_URL;
     }
-    await compose(['exec', '-T', 'postgres', 'createdb', '-U', 'postgres', database], `create-${suite}`);
+    await postgres('createdb', [database], `create-${suite}`);
+    if (externalDatabasePort !== undefined) externalDatabases.push(database);
     await run(binary, ['db', 'migrate'], `migrate-${suite}`, { env: serviceEnv });
     const flags = suite === 'oidc' ? ['--embedded-oidc'] : ['--auth-disabled'];
     if (suite === 'capabilities') flags.push('--disable-correlation');
@@ -284,6 +304,10 @@ try {
   await Promise.allSettled([...children].map(stop));
   await Promise.allSettled([...reservations.keys()].map(releasePort));
   if (fixtureServer?.listening) await new Promise(resolveClose => fixtureServer.close(resolveClose));
+  for (const database of externalDatabases) {
+    try { await postgres('dropdb', [database], `drop-${database}`); }
+    catch (error) { console.error(error.message); process.exitCode = 1; }
+  }
   if (composeStarted) {
     try { await compose(['logs', '--no-color'], 'postgres'); } catch (error) { console.error(error.message); }
     try { await compose(['down', '--volumes', '--remove-orphans'], 'compose-down'); }
