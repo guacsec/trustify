@@ -1,6 +1,6 @@
 //! Pages select complete verdict groups, never individual evidence rows.
 use super::*;
-use crate::model::{SbomCorrelationPage, SbomRemediation};
+use crate::model::SbomRemediation;
 use sea_orm::{
     Condition, ExprTrait, QueryOrder, QuerySelect, QueryTrait, Select,
     sea_query::{Expr, Order},
@@ -10,7 +10,7 @@ use trustify_common::{
         limiter::{LimiterAsModelTrait, LimiterTrait},
         pagination_cache::PaginationCache,
     },
-    model::Pagination,
+    model::{PaginatedResults, Pagination},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, FromQueryResult)]
@@ -90,25 +90,6 @@ struct RemediationKey {
 }
 
 impl CorrelationService {
-    async fn page<T>(
-        &self,
-        sbom_id: Uuid,
-        items: Vec<T>,
-        total: Option<u64>,
-        connection: &DatabaseTransaction,
-    ) -> Result<SbomCorrelationPage<T>, Error> {
-        Ok(SbomCorrelationPage {
-            sbom_id,
-            sbom_name: load_sbom_name(sbom_id, connection).await?,
-            freshness: freshness::for_sboms(connection, &[sbom_id])
-                .await?
-                .remove(&sbom_id)
-                .unwrap_or_default(),
-            items,
-            total,
-        })
-    }
-
     pub async fn verdict_page(
         &self,
         sbom_id: Uuid,
@@ -116,7 +97,7 @@ impl CorrelationService {
         paginated: impl Pagination,
         cache: &PaginationCache,
         connection: &DatabaseTransaction,
-    ) -> Result<SbomCorrelationPage<VerdictSummary>, Error> {
+    ) -> Result<PaginatedResults<VerdictSummary>, Error> {
         let selected = groups(sbom_id, request)
             .limiting_as::<EvidenceGroup>(connection, paginated, cache)?
             .fetch()
@@ -126,7 +107,7 @@ impl CorrelationService {
         let items = self
             .verdicts(sbom_id, request, &evidence, connection)
             .await?;
-        self.page(sbom_id, items, total, connection).await
+        Ok(PaginatedResults { items, total })
     }
 
     pub async fn unmatched_page(
@@ -136,7 +117,7 @@ impl CorrelationService {
         paginated: impl Pagination,
         cache: &PaginationCache,
         connection: &DatabaseTransaction,
-    ) -> Result<SbomCorrelationPage<ComponentRef>, Error> {
+    ) -> Result<PaginatedResults<ComponentRef>, Error> {
         let evidence = correlation_evidence::Entity::find()
             .select_only()
             .column(correlation_evidence::Column::NodeId)
@@ -183,7 +164,7 @@ impl CorrelationService {
                 .map(|n| build_component_ref(n.node_id, n.name, &identifiers))
                 .collect()
         };
-        self.page(sbom_id, items, total, connection).await
+        Ok(PaginatedResults { items, total })
     }
 
     /// Enumerate compact identities in bounded batches. Resolution and UI enrichment happen only
@@ -259,14 +240,15 @@ impl CorrelationService {
         paginated: impl Pagination,
         cache: &PaginationCache,
         connection: &DatabaseTransaction,
-    ) -> Result<SbomCorrelationPage<SbomRemediation>, Error> {
+    ) -> Result<PaginatedResults<SbomRemediation>, Error> {
         // Use the common limiter for validation, including the configured maximum and zero.
         let _validated =
             groups(sbom_id, request).limiting_as::<EvidenceGroup>(connection, paginated, cache)?;
         let total = if paginated.total() {
+            let statement = groups(sbom_id, request).build(DbBackend::Postgres);
             let key = format!(
-                "correlation-remediations:{}",
-                groups(sbom_id, request).build(DbBackend::Postgres)
+                "correlation-remediations:{}|{:?}",
+                statement.sql, statement.values
             );
             Some(
                 cache
@@ -306,12 +288,14 @@ impl CorrelationService {
             .collect::<HashMap<_, _>>();
         let mut items = Vec::with_capacity(keys.len());
         for key in keys {
-            let verdict = &verdicts[&(key.group.node_id, key.group.vulnerability_id)];
+            let verdict = verdicts
+                .get(&(key.group.node_id, key.group.vulnerability_id))
+                .ok_or(Error::IncompleteRemediationEvidence)?;
             let advisory = verdict
                 .evidence
                 .iter()
                 .find(|e| e.advisory_id == key.advisory_id)
-                .expect("remediation advisory belongs to its complete verdict group");
+                .ok_or(Error::IncompleteRemediationEvidence)?;
             items.push(SbomRemediation {
                 component: verdict.component.clone(),
                 vulnerability: verdict.vulnerability.id.clone(),
@@ -322,7 +306,7 @@ impl CorrelationService {
                 advisory_type: advisory.advisory_type.clone(),
             });
         }
-        self.page(sbom_id, items, total, connection).await
+        Ok(PaginatedResults { items, total })
     }
 }
 

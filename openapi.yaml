@@ -1809,7 +1809,10 @@ paths:
     get:
       tags:
       - correlation
-      summary: Get correlation verdicts for an SBOM.
+      summary: |-
+        Get correlation verdicts for an SBOM, ordered by node ID and vulnerability ID.
+        Each item contains all evidence for one complete verdict.
+        A zero limit returns no items; the total is computed only when requested.
       operationId: getSbomCorrelation
       parameters:
       - name: id
@@ -1818,13 +1821,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
-      - name: include_unmatched
-        in: query
-        description: When true, include components that have no correlation evidence.
-        required: false
-        schema:
-          type: boolean
       - name: include_explanation
         in: query
         description: When true, include an explanation of how each verdict was resolved.
@@ -1847,17 +1843,293 @@ paths:
           type:
           - string
           - 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Correlation verdicts for the SBOM
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CorrelationResult'
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/ResolutionSummary'
+                      - type: object
+                        required:
+                        - component
+                        - vulnerability
+                        - status
+                        - evidence
+                        properties:
+                          component:
+                            $ref: '#/components/schemas/ComponentRef'
+                          component_provider:
+                            $ref: '#/components/schemas/ProviderResolution'
+                            description: The provider who supplied the component, as resolved through provider aliases.
+                          evidence:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/EvidenceDetail'
+                          status:
+                            $ref: '#/components/schemas/VerdictStatus'
+                          vulnerability:
+                            $ref: '#/components/schemas/VulnerabilityRef'
+                      description: Resolved determination per (component, vulnerability) pair.
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '400':
+          description: Invalid pagination or query parameters
         '401':
           description: The user was not authenticated
         '403':
           description: Insufficient permissions
+        '404':
+          description: SBOM ID not found
+        '422':
+          description: Correlation capability disabled
+  /api/v3/correlation/sbom/{id}/remediations:
+    get:
+      tags:
+      - correlation
+      summary: |-
+        List distinct advisory remediations, ordered by node, vulnerability, advisory UUID,
+        category, details and URL (nulls first). Status is resolved from the full verdict group.
+      operationId: getSbomRemediations
+      parameters:
+      - name: id
+        in: path
+        description: SBOM ID
+        required: true
+        schema:
+          type: string
+      - name: node_id
+        in: query
+        description: Only this SBOM node.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: vulnerability_id
+        in: query
+        description: Only this vulnerability.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: A page of remediations
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: A distinct remediation stated by an advisory for a component and vulnerability.
+                      required:
+                      - component
+                      - vulnerability
+                      - status
+                      - remediation
+                      - advisory_id
+                      - advisory_identifier
+                      properties:
+                        advisory_id:
+                          type: string
+                        advisory_identifier:
+                          type: string
+                        advisory_type:
+                          type:
+                          - string
+                          - 'null'
+                        component:
+                          $ref: '#/components/schemas/ComponentRef'
+                        remediation:
+                          $ref: '#/components/schemas/EvidenceRemediation'
+                        status:
+                          $ref: '#/components/schemas/VerdictStatus'
+                        vulnerability:
+                          type: string
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '400':
+          description: Invalid pagination or query parameters
+        '401':
+          description: Not authenticated
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: SBOM ID not found
+        '422':
+          description: Correlation capability disabled
+  /api/v3/correlation/sbom/{id}/unmatched:
+    get:
+      tags:
+      - correlation
+      summary: |-
+        List components without correlation evidence, excluding the SBOM root.
+        Ordered by node ID. Evidence is checked independently of verdict filters.
+      operationId: getSbomUnmatched
+      parameters:
+      - name: id
+        in: path
+        description: SBOM ID
+        required: true
+        schema:
+          type: string
+      - name: node_id
+        in: query
+        description: Only this SBOM node.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: A page of unmatched components
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: A component and the identifiers attached to it.
+                      required:
+                      - node_id
+                      - name
+                      - identifiers
+                      properties:
+                        identifiers:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/IdentifierRef'
+                        name:
+                          type: string
+                        node_id:
+                          type: string
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '400':
+          description: Invalid pagination or query parameters
+        '401':
+          description: Not authenticated
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: SBOM ID not found
         '422':
           description: Correlation capability disabled
   /api/v3/correlation/verdict-counts:

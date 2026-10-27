@@ -949,6 +949,13 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
     .await;
     let id = Uuid::new_v4();
     for suffix in ["", "/unmatched", "/remediations"] {
+        for id in ["not-a-uuid", "123", "urn:uuid:not-a-uuid"] {
+            let uri = format!("/v3/correlation/sbom/{id}{suffix}");
+            let response = call_service(&app, TestRequest::get().uri(&uri).to_request()).await;
+            assert_eq!(response.status(), 404, "{uri}");
+            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            assert_eq!(body["error"], "NotFound");
+        }
         for query in [
             "",
             "?limit=0",
@@ -970,8 +977,7 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 },
                 "{uri}"
             );
-            assert_eq!(body["sbom_id"], id.to_string());
-            assert!(body.get("freshness").is_some());
+            assert_eq!(body.as_object().unwrap().len(), 2);
         }
         for query in ["?limit=26", "?limit=-1", "?offset=-1", "?total=maybe"] {
             let response = call_service(

@@ -1,19 +1,14 @@
 //! Each collection owns its request, page state and table expansion state.
 use super::*;
+use crate::model::PaginatedResults;
 use serde::de::DeserializeOwned;
 use trustify_api::correlation::SbomVerdictCounts;
 
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub(super) struct CorrelationContentProps {
     pub sbom_id: uuid::Uuid,
-}
-
-struct Page<T> {
-    items: Vec<T>,
-    pagination: UsePagination,
-    total: Option<usize>,
-    loading: bool,
-    error: Option<String>,
+    #[prop_or_default]
+    pub active_job: Option<RefreshJob>,
 }
 
 #[hook]
@@ -21,7 +16,7 @@ fn use_collection<T: Clone + PartialEq + DeserializeOwned + 'static>(
     sbom_id: uuid::Uuid,
     collection: &'static str,
     count_only: bool,
-) -> Page<T> {
+) -> (PaginatedResults<T>, UsePagination, bool, Option<String>) {
     let items = use_state_eq(Vec::<T>::new);
     let total = use_state_eq(|| None::<usize>);
     let loading = use_state_eq(|| true);
@@ -76,19 +71,26 @@ fn use_collection<T: Clone + PartialEq + DeserializeOwned + 'static>(
             },
         );
     }
-    Page {
-        items: (*items).clone(),
+    (
+        PaginatedResults {
+            items: (*items).clone(),
+            total: (*total).map(|n| n as u64),
+        },
         pagination,
-        total: *total,
-        loading: *loading,
-        error: (*error).clone(),
-    }
+        *loading,
+        (*error).clone(),
+    )
 }
 
-fn page_status<T>(page: &Page<T>, empty: &'static str) -> Html {
-    if page.loading {
+fn page_status<T>(
+    page: &PaginatedResults<T>,
+    loading: bool,
+    error: Option<&str>,
+    empty: &'static str,
+) -> Html {
+    if loading {
         html!(<Spinner size={SpinnerSize::Md} />)
-    } else if let Some(error) = &page.error {
+    } else if let Some(error) = error {
         html!(<Alert title="Failed to load correlation data" r#type={AlertType::Danger} inline=true><p>{error}</p></Alert>)
     } else if page.items.is_empty() {
         html!(<EmptyState title={empty} icon={Icon::InfoCircle} size={Size::Large} />)
@@ -106,7 +108,7 @@ pub(super) fn correlation_content(props: &CorrelationContentProps) -> Html {
     };
     html! {
         <>
-            <CorrelationSummary sbom_id={props.sbom_id} />
+            <CorrelationSummary sbom_id={props.sbom_id} active_job={props.active_job.clone()} />
             <br />
             <Tabs<CorrelationTab> selected={*tab} {onselect}>
                 <Tab<CorrelationTab> index={CorrelationTab::Verdicts} title="Verdicts">
@@ -130,7 +132,8 @@ pub(super) fn correlation_content(props: &CorrelationContentProps) -> Html {
 fn correlation_summary(props: &CorrelationContentProps) -> Html {
     let counts = use_state_eq(|| None::<SbomVerdictCounts>);
     let error = use_state_eq(|| None::<String>);
-    let unmatched = use_collection::<ComponentRef>(props.sbom_id, "/unmatched", true);
+    let (unmatched, _, _, unmatched_error) =
+        use_collection::<ComponentRef>(props.sbom_id, "/unmatched", true);
     let latest_token = use_latest_access_token();
     let token = latest_token.as_ref().and_then(|t| t.access_token());
     {
@@ -145,7 +148,10 @@ fn correlation_summary(props: &CorrelationContentProps) -> Html {
                     return;
                 }
                 match response {
-                    Ok(data) => counts.set(data.into_iter().next()),
+                    Ok(data) => {
+                        error.set(None);
+                        counts.set(data.into_iter().next());
+                    }
                     Err(err) => error.set(Some(err.to_string())),
                 }
             });
@@ -169,6 +175,11 @@ fn correlation_summary(props: &CorrelationContentProps) -> Html {
         (VerdictStatus::None, counts.none),
     ];
     html! {
+        <>
+        { crate::freshness::freshness_banner(
+            &counts.freshness,
+            crate::freshness::is_refreshing(props.active_job.as_ref(), &counts.freshness),
+        ) }
         <Gallery gutter=true>
             { for summary.into_iter().map(|(status, count)| html! {
                 <Card><CardBody>{status_label(status)}<Title level={Level::H3}>{count.to_string()}</Title></CardBody></Card>
@@ -177,17 +188,20 @@ fn correlation_summary(props: &CorrelationContentProps) -> Html {
                 <Label label="No Evidence" color={Color::Grey} />
                 if let Some(count) = unmatched.total {
                     <Title level={Level::H3}>{count.to_string()}</Title>
-                } else if unmatched.error.is_some() {
+                } else if unmatched_error.is_some() {
                     <p>{"Count unavailable"}</p>
                 } else { <Spinner size={SpinnerSize::Md} /> }
             </CardBody></Card>
         </Gallery>
+        </>
     }
 }
 
 #[function_component(VerdictTable)]
 fn verdict_table(props: &CorrelationContentProps) -> Html {
-    let page = use_collection::<VerdictSummary>(props.sbom_id, "", false);
+    let (page, pagination, loading, error) =
+        use_collection::<VerdictSummary>(props.sbom_id, "", false);
+    let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo((page.items.clone(), props.sbom_id), |(items, id)| {
         items
             .iter()
@@ -209,9 +223,9 @@ fn verdict_table(props: &CorrelationContentProps) -> Html {
     html! {
         <>
             <Title level={Level::H2}>{"Correlated components "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
-            <SimplePagination pagination={page.pagination.clone()} total={page.total} />
-            {page_status(&page, "No verdicts found")}
-            if !page.loading && page.error.is_none() && !page.items.is_empty() {
+            <SimplePagination {pagination} {total} />
+            {page_status(&page, loading, error.as_deref(), "No verdicts found")}
+            if !loading && error.is_none() && !page.items.is_empty() {
                 <Table<VerdictColumn, UseTableData<VerdictColumn, MemoizedTableModel<VerdictEntry>>>
                     mode={TableMode::Expandable} {header} {entries} {onexpand}
                 />
@@ -222,7 +236,9 @@ fn verdict_table(props: &CorrelationContentProps) -> Html {
 
 #[function_component(UnmatchedTable)]
 fn unmatched_table(props: &CorrelationContentProps) -> Html {
-    let page = use_collection::<ComponentRef>(props.sbom_id, "/unmatched", false);
+    let (page, pagination, loading, error) =
+        use_collection::<ComponentRef>(props.sbom_id, "/unmatched", false);
+    let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo(page.items.clone(), |items| {
         items
             .iter()
@@ -240,9 +256,9 @@ fn unmatched_table(props: &CorrelationContentProps) -> Html {
     html! {
         <>
             <Title level={Level::H2}>{"Unmatched components "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
-            <SimplePagination pagination={page.pagination.clone()} total={page.total} />
-            {page_status(&page, "No unmatched components")}
-            if !page.loading && page.error.is_none() && !page.items.is_empty() {
+            <SimplePagination {pagination} {total} />
+            {page_status(&page, loading, error.as_deref(), "No unmatched components")}
+            if !loading && error.is_none() && !page.items.is_empty() {
                 <Table<UnmatchedColumn, UseTableData<UnmatchedColumn, MemoizedTableModel<UnmatchedEntry>>>
                     mode={TableMode::Compact} {header} {entries}
                 />
@@ -253,7 +269,9 @@ fn unmatched_table(props: &CorrelationContentProps) -> Html {
 
 #[function_component(RemediationTable)]
 fn remediation_table(props: &CorrelationContentProps) -> Html {
-    let page = use_collection::<SbomRemediation>(props.sbom_id, "/remediations", false);
+    let (page, pagination, loading, error) =
+        use_collection::<SbomRemediation>(props.sbom_id, "/remediations", false);
+    let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo(page.items.clone(), |items| {
         items
             .iter()
@@ -275,9 +293,9 @@ fn remediation_table(props: &CorrelationContentProps) -> Html {
         <>
             <Title level={Level::H2}>{"Remediations "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
             <p>{"What the advisories state to remediate the vulnerabilities of the components, e.g. the version fixing them."}</p>
-            <SimplePagination pagination={page.pagination.clone()} total={page.total} />
-            {page_status(&page, "No remediations")}
-            if !page.loading && page.error.is_none() && !page.items.is_empty() {
+            <SimplePagination {pagination} {total} />
+            {page_status(&page, loading, error.as_deref(), "No remediations")}
+            if !loading && error.is_none() && !page.items.is_empty() {
                 <Table<RemediationColumn, UseTableData<RemediationColumn, MemoizedTableModel<RemediationEntry>>>
                     mode={TableMode::Compact} {header} {entries}
                 />
