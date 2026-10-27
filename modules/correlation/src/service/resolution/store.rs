@@ -1,8 +1,8 @@
 use super::provider::ResolutionContext;
 use crate::{error::Error, extractor::context::format_cpe, model::*};
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
-    QueryFilter, Statement,
+    ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait,
+    FromQueryResult, QueryFilter, Statement,
 };
 use std::collections::{HashMap, HashSet};
 use trustify_entity::{advisory, organization, sbom, sbom_package};
@@ -353,13 +353,24 @@ pub async fn delete_alias(id: Uuid, connection: &impl ConnectionTrait) -> Result
 /// Compact, batched identifier input needed to infer providers for verdict counts.
 pub async fn provider_identifiers(
     connection: &DatabaseTransaction,
-    sboms: &[Uuid],
+    nodes: &std::collections::BTreeSet<(Uuid, String)>,
 ) -> Result<HashMap<(Uuid, String), Vec<IdentifierRef>>, Error> {
     use trustify_entity::{cpe, qualified_purl, sbom_node_cpe_ref, sbom_node_purl_ref};
     let mut result = HashMap::<(Uuid, String), Vec<IdentifierRef>>::new();
-    for chunk in sboms.chunks(1000) {
+    // Counts only resolve nodes which already have evidence. Restrict both queries to those
+    // exact (SBOM, node) pairs instead of scanning every identifier in every requested SBOM.
+    let nodes = nodes.iter().collect::<Vec<_>>();
+    for chunk in nodes.chunks(500) {
+        let mut node_filter = Condition::any();
+        for (sbom_id, node_id) in chunk {
+            node_filter = node_filter.add(
+                Condition::all()
+                    .add(sbom_node_purl_ref::Column::SbomId.eq(*sbom_id))
+                    .add(sbom_node_purl_ref::Column::NodeId.eq(node_id)),
+            );
+        }
         for (node, purl) in sbom_node_purl_ref::Entity::find()
-            .filter(sbom_node_purl_ref::Column::SbomId.is_in(chunk.iter().copied()))
+            .filter(node_filter)
             .find_also_related(qualified_purl::Entity)
             .all(connection)
             .await?
@@ -374,8 +385,16 @@ pub async fn provider_identifiers(
                     });
             }
         }
+        let mut node_filter = Condition::any();
+        for (sbom_id, node_id) in chunk {
+            node_filter = node_filter.add(
+                Condition::all()
+                    .add(sbom_node_cpe_ref::Column::SbomId.eq(*sbom_id))
+                    .add(sbom_node_cpe_ref::Column::NodeId.eq(node_id)),
+            );
+        }
         for (node, cpe) in sbom_node_cpe_ref::Entity::find()
-            .filter(sbom_node_cpe_ref::Column::SbomId.is_in(chunk.iter().copied()))
+            .filter(node_filter)
             .find_also_related(cpe::Entity)
             .all(connection)
             .await?

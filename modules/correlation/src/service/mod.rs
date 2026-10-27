@@ -74,10 +74,6 @@ impl CorrelationService {
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        let snapshot =
-            resolution::ProviderSnapshot::load(connection, sbom_ids, &advisory_ids).await?;
-        let identifiers = resolution::store::provider_identifiers(connection, sbom_ids).await?;
-        let remediations = load_evidence_remediations(&evidence, connection).await?;
         let mut groups = BTreeMap::<(Uuid, &str, &str), Vec<&correlation_evidence::Model>>::new();
         for row in &evidence {
             groups
@@ -85,6 +81,21 @@ impl CorrelationService {
                 .or_default()
                 .push(row);
         }
+        let node_keys = groups
+            .keys()
+            .map(|(sbom_id, node_id, _)| (*sbom_id, (*node_id).to_string()))
+            .collect::<BTreeSet<_>>();
+        let evidence_sbom_ids = node_keys
+            .iter()
+            .map(|(sbom_id, _)| *sbom_id)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let snapshot =
+            resolution::ProviderSnapshot::load(connection, &evidence_sbom_ids, &advisory_ids)
+                .await?;
+        let identifiers = resolution::store::provider_identifiers(connection, &node_keys).await?;
+        let remediations = load_evidence_remediations(&evidence, connection).await?;
         let mut counts = HashMap::<Uuid, SbomVerdictCounts>::new();
         // as the remediations of a correlation result list them: once per component,
         // vulnerability and advisory
