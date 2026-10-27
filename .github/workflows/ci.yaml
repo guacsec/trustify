@@ -207,19 +207,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ui-e2e
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: ui/package-lock.json
+      - uses: ./.github/actions/setup-console
       - name: Install host dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client xz-utils libssl-dev pkg-config
-          rustup target add wasm32-unknown-unknown
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: trunk@0.22.1
       - name: Cache Trunk tools
         uses: actions/cache@v6
         with:

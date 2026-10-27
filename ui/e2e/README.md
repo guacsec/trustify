@@ -1,8 +1,8 @@
 # Browser end-to-end tests
 
-The Playwright suite runs the UI in Chromium against a source-built Trustify API,
-an isolated PostgreSQL 17 container, and checked-in document fixtures. The same
-runner is used locally and by the required `ui-e2e` CI job.
+The Playwright suite runs the embedded console in Chromium against a source-built
+Trustify API, an isolated PostgreSQL 17 container, and checked-in document fixtures.
+The same runner is used locally and by the required `ui-e2e` CI job.
 
 ## Prerequisites
 
@@ -46,10 +46,14 @@ The runner forwards Playwright arguments, including `--grep`, `--headed`, and
 runner. Tests run with one worker because some settings and refresh operations
 affect the whole test instance. Each test receives a new browser context.
 
-`E2E_SKIP_BUILD=1` skips only the backend build when debugging against a binary
-you have already built. The normal command always builds from the current source.
-The UI build is always checked before serving, so a failed build cannot silently
-run tests against old assets.
+The runner builds `trustd` with `--no-default-features --features garage-door,ui-console`,
+which builds and embeds the console at `/`. The browser uses the same server and
+port as the API; no Trunk development server or generated proxy config is needed.
+A failed console build fails the backend build before tests start.
+
+`E2E_SKIP_BUILD=1` skips the build when debugging against a binary you have already
+built with those features. It also reuses that binary's embedded console assets.
+The normal command always builds from the current source.
 
 ## Isolation and lifecycle
 
@@ -77,16 +81,16 @@ seeded through the real API. Baseline documents are shared read-only; mutating
 tests use unique resources and clean them up through the API, even after failures.
 
 Service ports are allocated dynamically by the OS and reserved until each service
-starts, except for an externally supplied database port. The runner generates Trunk's proxy configuration and passes
+starts, except for an externally supplied database port. The runner passes
 the selected URLs to Playwright and the backend. The embedded issuer honors
 `TRUSTD_ISSUER_URL`, so its port is dynamic too. API and issuer URLs explicitly use
 `127.0.0.1`; the browser UI uses `localhost`, as required by the embedded issuer's
-redirect allowlist. The UI port is checked on both loopback address families.
+redirect allowlist. The shared API/UI port is checked on both loopback address families.
 
 Ports and the Compose project name are printed and recorded in
-`e2e-results/<run-id>/logs/ports.json`. Build output, storage, databases, and reports
-are isolated per run, allowing concurrent invocations. Existing services are
-never reused or stopped.
+`e2e-results/<run-id>/logs/ports.json`. Build output uses Cargo's target directory;
+Storage, databases, and reports are isolated per run, allowing concurrent invocations.
+Existing services are never reused or stopped.
 Developer database, authentication, and service environment settings are removed
 from child environments. The runner stops its processes and removes its Compose
 project and volume on completion, failure, Ctrl-C, or SIGTERM.

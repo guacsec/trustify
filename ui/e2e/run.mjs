@@ -60,7 +60,7 @@ function start(command, commandArgs, name, options = {}) {
   children.add(child);
   child.stdout.pipe(log, { end: false });
   child.stderr.pipe(log, { end: false });
-  if (/^(playwright|build|trunk)/.test(name)) {
+  if (/^(playwright|build)/.test(name)) {
     child.stdout.pipe(process.stdout, { end: false });
     child.stderr.pipe(process.stderr, { end: false });
   }
@@ -182,11 +182,11 @@ try {
   // Hold reservations until immediately before each service binds, avoiding
   // duplicate allocations and minimizing the port handoff race with other runs.
   const ports = {};
-  for (const name of ['api', 'ui', 'fixtures', 'oidc']) ports[name] = await reservePort(name, name === 'ui');
+  for (const name of ['api', 'fixtures', 'oidc']) ports[name] = await reservePort(name, name === 'api');
   ports.database = externalDatabasePort === undefined ? await reservePort('database') : Number(externalDatabasePort);
   env.E2E_DB_PORT = String(ports.database);
   env.E2E_API_URL = `http://127.0.0.1:${ports.api}`;
-  env.E2E_UI_URL = `http://localhost:${ports.ui}`;
+  env.E2E_UI_URL = `http://localhost:${ports.api}`;
   env.E2E_FIXTURE_URL = `http://127.0.0.1:${ports.fixtures}`;
   env.E2E_OIDC_URL = `http://127.0.0.1:${ports.oidc}/realms/trustify`;
   await writeFile(join(logs, 'ports.json'), JSON.stringify({ project, ...ports }, null, 2));
@@ -196,7 +196,7 @@ try {
     await compose(['version'], 'compose-version');
   }
   if (!process.env.E2E_SKIP_BUILD) {
-    await run('cargo', ['build', '--locked', '-p', 'trustify-trustd', '--no-default-features', '--features', 'garage-door'], 'build-backend');
+    await run('cargo', ['build', '--locked', '-p', 'trustify-trustd', '--no-default-features', '--features', 'garage-door,ui-console'], 'build-backend');
   }
   const binary = resolve(process.env.CARGO_TARGET_DIR ?? join(root, 'target'), 'debug/trustd');
   fixtureServer = createHttpServer(async (request, response) => {
@@ -233,21 +233,6 @@ try {
       return true;
     } catch { return false; }
   });
-  // Trunk's development server can stay alive after a failed build and serve stale
-  // assets. Require a successful build before accepting its readiness response.
-  const trunkConfig = join(scratch, 'Trunk.toml');
-  await writeFile(trunkConfig, [
-    '[build]', `target = ${JSON.stringify(join(ui, 'index.html'))}`, `dist = ${JSON.stringify(join(scratch, 'dist'))}`,
-    '[watch]', `watch = ${JSON.stringify(['src', 'assets', 'index.html', 'Cargo.toml'].map(path => join(ui, path)))}`,
-    '[serve]', 'addresses = ["127.0.0.1"]', `port = ${ports.ui}`, 'no_autoreload = true',
-    ...['/api/', '/.well-known/', '/swagger-ui/', '/openapi.json'].flatMap(path => [
-      '[[proxy]]', `rewrite = ${JSON.stringify(path)}`, `backend = ${JSON.stringify(env.E2E_API_URL + path)}`,
-    ]),
-  ].join('\n'));
-  await run('trunk', ['build', '--config', trunkConfig, '--locked'], 'build-ui', { cwd: ui });
-  await releasePort('ui');
-  const trunk = start('trunk', ['serve', '--config', trunkConfig, '--locked', '--no-autoreload'], 'trunk', { cwd: ui });
-  await ready(env.E2E_UI_URL, trunk, 600_000);
   const failures = [];
   let testsRun = 0;
   for (const suite of selected) {
@@ -281,6 +266,8 @@ try {
     let importer;
     try {
       await ready(`${env.E2E_API_URL}/.well-known/trustify`, api);
+      // The console is embedded in trustd and served alongside the API at /.
+      await ready(env.E2E_UI_URL, api);
       if (suite === 'oidc') await ready(`${env.E2E_OIDC_URL}/.well-known/openid-configuration`, api);
       if (suite === 'core') {
         importer = start(binary, ['importer', '--working-dir', join(scratch, 'importer')], 'importer', { env: serviceEnv });

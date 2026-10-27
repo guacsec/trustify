@@ -104,8 +104,8 @@ OIDC server accepts both. API requests continue to use `/api/` and discovery use
 
 Run `npm ci`, `npx playwright install chromium`, then `npm run test:e2e` from this
 directory. The runner uses your existing `podman compose` provider to start an
-isolated database and builds and starts the API and UI automatically. The same
-Chromium suite runs as a required CI check, including embedded-OIDC smoke coverage.
+isolated database and builds and starts the API with this console embedded at `/`.
+The same Chromium suite runs as a required CI check, including embedded-OIDC smoke coverage.
 
 See [the browser test guide](e2e/README.md) for prerequisites, filtering, debugging,
 reports, ports, and cleanup.

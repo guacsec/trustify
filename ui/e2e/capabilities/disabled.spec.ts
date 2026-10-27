@@ -10,10 +10,6 @@ test('disabled correlation hides navigation and SBOM columns while ingestion wor
   await expect(page.getByRole('link', { name: 'Query', exact: true })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'Verdicts', exact: true })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'Remediations', exact: true })).toHaveCount(0);
-  for (const path of ['query', 'options', 'provideraliases', 'confidence', 'correlationstatus', `correlation/${seed.affected}`]) {
-    await page.goto(`/${path}`);
-    await expect(page.getByRole('heading', { name: 'Correlation is disabled on this instance' })).toBeVisible();
-  }
   await page.goto(`/advisory/${seed.csaf}`);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByText('Failed to load advisory')).toHaveCount(0);
@@ -23,6 +19,18 @@ test('disabled correlation hides navigation and SBOM columns while ingestion wor
   await expect(page.getByText('Document ingested: no-correlation.json')).toBeVisible();
   expect(correlationRequests).toEqual([]);
 });
+
+for (const path of ['query', 'options', 'provideraliases', 'confidence', 'correlationstatus', 'correlation']) {
+  test(`disabled correlation blocks direct ${path} navigation`, async ({ page, seed }) => {
+    const correlationRequests: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/api/v3/correlation/')) correlationRequests.push(request.url());
+    });
+    await page.goto(path === 'correlation' ? `/correlation/${seed.affected}` : `/${path}`);
+    await expect(page.getByRole('heading', { name: 'Correlation is disabled on this instance' })).toBeVisible();
+    expect(correlationRequests).toEqual([]);
+  });
+}
 
 test('legacy discovery without a correlation capability fails closed', async ({ page }) => {
   await page.route('**/.well-known/trustify', async route => {
