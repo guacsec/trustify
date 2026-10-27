@@ -515,13 +515,40 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     ))
     .await?;
 
+    // Detach the assertion from its qualified PURL so deleting the versioned PURL
+    // does not violate the purl_status foreign key.
+    let detached_statuses = ctx
+        .db
+        .execute_unprepared(
+            "UPDATE purl_status SET qualified_purl_id = NULL \
+             WHERE qualified_purl_id IN ( \
+                 SELECT qp.id FROM qualified_purl qp \
+                 JOIN versioned_purl vp ON vp.id = qp.versioned_purl_id \
+                 JOIN base_purl bp ON bp.id = vp.base_purl_id \
+                 WHERE bp.name = 'advlib' \
+                   AND vp.version = '1.0.0.redhat-00001' \
+             )",
+        )
+        .await?;
+    assert_eq!(
+        detached_statuses.rows_affected(),
+        1,
+        "the advisory status should be detached from the qualified PURL"
+    );
+
     // And the real versioned_purl row is removed, forcing the synthetic path
-    ctx.db
+    let deleted_versioned_purls = ctx
+        .db
         .execute_unprepared(
             "DELETE FROM versioned_purl WHERE version = '1.0.0.redhat-00001' \
              AND base_purl_id = (SELECT id FROM base_purl WHERE name = 'advlib')",
         )
         .await?;
+    assert_eq!(
+        deleted_versioned_purls.rows_affected(),
+        1,
+        "the real versioned PURL must be removed to force the synthetic path"
+    );
 
     // When requesting a recommendation for the base version
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
