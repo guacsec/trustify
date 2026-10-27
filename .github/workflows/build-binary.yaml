@@ -149,7 +149,7 @@ jobs:
 
       - run: mkdir -p upload
 
-      - run: npm --version
+      - uses: ./.github/actions/setup-console
 
       - name: Build | Build
         shell: bash
@@ -168,7 +168,7 @@ jobs:
 
           # build options
 
-          OPTS="--no-default-features --release"
+          OPTS="--no-default-features --features trustify-trustd/trustify-ui,trustify-trustd/ui-console --release"
 
           if [[ "${{ matrix.edition }}" == "-pm" ]]; then
             OPTS="$OPTS --features pm"

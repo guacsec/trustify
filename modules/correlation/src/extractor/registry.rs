@@ -8,7 +8,11 @@ use super::{
     version::retain_in_range,
     writer::EvidenceWriter,
 };
-use crate::{error::Error, model::IdentifierRef};
+use crate::{
+    error::Error,
+    model::IdentifierRef,
+    service::freshness::{lock_revision, lock_sboms},
+};
 use sea_orm::DatabaseTransaction;
 use std::{
     collections::{BTreeSet, HashMap},
@@ -47,8 +51,8 @@ impl Extractors {
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<usize, Error> {
-        crate::service::freshness::lock_revision(tx).await?;
-        crate::service::freshness::lock_sboms(tx, vec![sbom_id]).await?;
+        lock_revision(tx).await?;
+        lock_sboms(tx, vec![sbom_id]).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
         for extractor in &self.0 {
@@ -90,7 +94,7 @@ impl Extractors {
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<usize, Error> {
-        crate::service::freshness::lock_revision(tx).await?;
+        lock_revision(tx).await?;
         let mut batches = Vec::new();
         let mut sboms = BTreeSet::new();
         for extractor in &self.0 {
@@ -98,7 +102,7 @@ impl Extractors {
             sboms.extend(matches.iter().map(|m| m.node.sbom_id));
             batches.push((extractor.id(), matches));
         }
-        crate::service::freshness::lock_sboms(tx, sboms.into_iter().collect()).await?;
+        lock_sboms(tx, sboms.into_iter().collect()).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
         for (extractor_id, matches) in batches {

@@ -1,7 +1,7 @@
 #[cfg(feature = "garage-door")]
 use crate::embedded_oidc;
 
-use crate::{endpoints, profile::spawn_db_check, sample_data};
+use crate::{endpoints, profile::spawn_db_check, sample_data, ui::EmbeddedUis};
 use actix_web::web;
 use anyhow::Context;
 use bytesize::ByteSize;
@@ -95,7 +95,6 @@ use trustify_module_ingestor::{
 };
 use trustify_module_notification::config::NotificationConfig;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
-use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
 
 /// Run the API server
@@ -435,7 +434,7 @@ mod default {
     }
 }
 
-#[derive(clap::Args, Debug, Clone)]
+#[derive(clap::Args, Debug, Clone, Default)]
 #[command(next_help_heading = "UI")]
 #[group(id = "ui")]
 pub struct UiConfig {
@@ -475,7 +474,7 @@ struct InitData {
     swagger_oidc: Option<Arc<SwaggerUiOidc>>,
     #[cfg(feature = "garage-door")]
     embedded_oidc: Option<embedded_oidc::EmbeddedOidc>,
-    ui: UI,
+    ui: UiConfig,
     frontend: FrontendInfo,
     config: ModuleConfig,
     analysis: AnalysisService,
@@ -576,14 +575,7 @@ impl InitData {
                 scope: run.ui.scope.clone(),
             }),
         };
-        let ui = UI {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            auth_required: authenticator.is_some().to_string(),
-            oidc_server_url: run.ui.issuer_url,
-            oidc_client_id: run.ui.client_id,
-            oidc_scope: run.ui.scope,
-            oidc_load_user: run.ui.load_user.to_string(),
-        };
+        let ui = run.ui;
 
         let http_client = reqwest::Client::builder()
             .user_agent(format!("trustify/{}", env!("CARGO_PKG_VERSION")))
@@ -710,7 +702,7 @@ impl InitData {
 
     #[allow(unused_mut)]
     async fn run(mut self) -> anyhow::Result<()> {
-        let ui = Arc::new(UiResources::new(&self.ui)?);
+        let ui = EmbeddedUis::new(&self.ui, self.authenticator.is_some())?;
 
         let graph = Graph::new();
         let ei_service = ExploitIntelligenceService::new(self.ei_config.take())?;
@@ -753,7 +745,7 @@ impl InitData {
                         },
                     );
                 })
-                .post_configure(move |svc| post_configure(svc, PostConfig { ui: ui.clone() }))
+                .post_configure(move |svc| ui.configure(svc))
         };
         let http = async { http.run().await }.boxed_local();
 
@@ -948,22 +940,6 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     );
 }
 
-struct PostConfig {
-    ui: Arc<UiResources>,
-}
-
-fn post_configure(svc: &mut web::ServiceConfig, config: PostConfig) {
-    let PostConfig { ui } = config;
-
-    // register UI
-
-    svc.configure(|svc| {
-        // I think the UI must come last due to
-        // its use of `resolve_not_found_to`
-        trustify_module_ui::endpoints::post_configure(svc, &ui);
-    });
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -974,12 +950,11 @@ mod test {
     };
     use clap::{Args, Command, FromArgMatches};
     use rstest::rstest;
-    use std::{sync::Arc, time::Duration};
+    use std::{str::from_utf8, time::Duration};
     use test_context::test_context;
     use test_log::test;
     use trustify_common::db::change::ChangeBroadcaster;
     use trustify_infrastructure::app::http::ApplyOpenApi;
-    use trustify_module_ui::{UI, endpoints::UiResources};
     use trustify_test_context::{TrustifyContext, app::TestApp, call, call::CallService};
     use utoipa_actix_web::AppExt;
 
@@ -1021,7 +996,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let ui = Arc::new(UiResources::new(&UI::default())?);
+        let ui = EmbeddedUis::new(&UiConfig::default(), false)?;
         let db_rw = db::ReadWrite::new(ctx.db.clone());
         let analysis =
             AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
@@ -1061,23 +1036,29 @@ mod test {
                     );
                 })
                 .apply_openapi(None, None)
-                .configure(|svc| post_configure(svc, PostConfig { ui })),
+                .configure(|svc| ui.configure(svc)),
         )
         .await;
 
         // main UI
 
         let req = TestRequest::get().uri("/").to_request();
-        let body = call_and_read_body(&app, req).await;
-        let text = std::str::from_utf8(&body)?;
-        assert!(text.contains("<title>Trustification</title>"));
+        let response = call_service(&app, req).await;
+        if cfg!(any(feature = "trustify-ui", feature = "ui-console")) {
+            assert_eq!(response.status(), StatusCode::OK);
+        } else {
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        }
 
         // redirect
 
         let req = TestRequest::get().uri("/anything/at/all").to_request();
-        let body = call_and_read_body(&app, req).await;
-        let text = std::str::from_utf8(&body)?;
-        assert!(text.contains("<title>Trustification</title>"));
+        let response = call_service(&app, req).await;
+        if cfg!(any(feature = "trustify-ui", feature = "ui-console")) {
+            assert_eq!(response.status(), StatusCode::OK);
+        } else {
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        }
 
         // openapi redirects to swagger-ui
 
@@ -1097,7 +1078,7 @@ mod test {
 
         let req = TestRequest::get().uri("/swagger-ui/").to_request();
         let body = call_and_read_body(&app, req).await;
-        let text = std::str::from_utf8(&body)?;
+        let text = from_utf8(&body)?;
         assert!(text.contains("<title>Swagger UI</title>"));
 
         // API
@@ -1108,7 +1089,7 @@ mod test {
 
         let req = TestRequest::get().uri("/api/v3/advisory").to_request();
         let body = call_and_read_body(&app, req).await;
-        let text = std::str::from_utf8(&body)?;
+        let text = from_utf8(&body)?;
         assert!(text.contains("items"));
 
         Ok(())

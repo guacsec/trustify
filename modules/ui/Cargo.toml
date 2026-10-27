@@ -6,13 +6,16 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+trustify-ui = ["dep:trustify-ui", "dep:actix-web-static-files"]
+
 [dependencies]
 
 trustify-common = { workspace = true }
 trustify-module-ingestor = { workspace = true }
 
 actix-web = { workspace = true }
-actix-web-static-files = { workspace = true }
+actix-web-static-files = { workspace = true, optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 cyclonedx-rs = { workspace = true }
@@ -20,7 +23,7 @@ serde_json = { workspace = true }
 spdx-rs = { workspace = true }
 thiserror = { workspace = true }
 tokio = {workspace = true }
-trustify-ui = { workspace = true }
+trustify-ui = { workspace = true, optional = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
 

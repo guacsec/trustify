@@ -2,7 +2,12 @@
 target = "index.html"
 
 [watch]
-watch = ["src", "index.html", "assets", "Cargo.toml", "../Cargo.lock"]
+watch = ["src", "index.html", "assets", "Cargo.toml", "../Cargo.lock", "package.json", "package-lock.json", "scripts"]
+
+[[hooks]]
+stage = "pre_build"
+command = "node"
+command_arguments = ["scripts/install-dependencies.mjs"]
 
 [[proxy]]
 rewrite = "/api/"

@@ -1,8 +1,10 @@
 use super::*;
-use crate::extractor::{Extractor, NodeIdentifier};
+use crate::extractor::{Extractor, NodeIdentifier, worker::run_extraction_worker};
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::change::{ChangeEntity, ChangeOperation, record_change};
+use trustify_common::db::change::{
+    ChangeBroadcaster, ChangeEntity, ChangeOperation, record_change,
+};
 use trustify_test_context::TrustifyContext;
 
 async fn status(ctx: &TrustifyContext) -> anyhow::Result<ExtractionLag> {
@@ -258,16 +260,13 @@ async fn worker_drains_ingestion_committed_before_it_subscribed(
     // Simulate a restart after notification history has already been cleaned up.
     ctx.db.execute_unprepared("DELETE FROM change_log").await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster = trustify_common::db::change::ChangeBroadcaster::new(
+    let broadcaster = ChangeBroadcaster::new(
         &db,
         std::time::Duration::from_secs(86400),
         std::time::Duration::from_secs(30),
         std::time::Duration::from_secs(300),
     )?;
-    let worker = tokio::spawn(crate::extractor::worker::run_extraction_worker(
-        broadcaster,
-        db,
-    ));
+    let worker = tokio::spawn(run_extraction_worker(broadcaster, db));
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), async {
         while status(ctx).await? != ExtractionLag::default() {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;

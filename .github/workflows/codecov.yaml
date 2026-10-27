@@ -65,6 +65,8 @@ jobs:
         run: |
           rustup component add llvm-tools-preview
 
+      - uses: ./.github/actions/setup-console
+
       - name: Test
         # use only one job, trying to reduce memory usage
         run: cargo llvm-cov --codecov --jobs 1 --all-features --output-path codecov.json

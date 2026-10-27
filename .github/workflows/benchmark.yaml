@@ -74,6 +74,8 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install httpie
 
+      - uses: ./.github/actions/setup-console
+
       - name: Build
         run: |
           cargo build --bin trustd --release
