@@ -22,6 +22,7 @@ tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "tracing-log", "ansi"] }
+url = { workspace = true }
 walkdir = { workspace = true }
 walker-common = { workspace = true }
 
@@ -33,3 +34,6 @@ trustify-module-importer = { workspace = true }
 trustify-module-ingestor = { workspace = true }
 trustify-module-storage = { workspace = true }
 trustify-server = { workspace = true }
+
+[dev-dependencies]
+wiremock = { workspace = true }

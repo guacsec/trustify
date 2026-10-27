@@ -11493,8 +11493,10 @@ dependencies = [
  "trustify-module-ingestor",
  "trustify-module-storage",
  "trustify-server",
+ "url",
  "walkdir",
  "walker-common",
+ "wiremock",
 ]
 
 [[package]]

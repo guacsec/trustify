@@ -267,16 +267,21 @@ impl GenerateDump {
 
         // run importers
 
-        for run in config.import {
+        for (index, run) in config.import.into_iter().enumerate() {
+            let source = format!("importer-{}", index + 1);
             let description = run
                 .description
                 .clone()
                 .unwrap_or_else(|| "<unnamed>".into());
-            tracing::info!("Ingesting: {description}");
+            tracing::info!(source, "Ingesting: {description}");
 
             let start = Instant::now();
-            self.ingest_one(&runner, run, &description).await?;
-            tracing::info!("Finished importing {description} in {:?}", start.elapsed());
+            self.ingest_one(&runner, run, &source).await?;
+            tracing::info!(
+                source,
+                "Finished importing {description} in {:?}",
+                start.elapsed()
+            );
         }
 
         // ingest files
@@ -399,18 +404,21 @@ impl GenerateDump {
         let mut errors = 0;
         for (phase, files) in &report.messages {
             for (file, messages) in files {
+                let redacted_file = redact_report_file(file);
                 for message in messages {
+                    let text = message.message.replace(file, &redacted_file);
+                    let file = redacted_file.as_ref();
                     match message.severity {
                         Severity::Error => {
                             errors += 1;
                             if self.keep_going {
-                                tracing::warn!(source, file, ?phase, error = %message.message, "Import error");
+                                tracing::warn!(source, file, ?phase, error = %text, "Import error");
                             } else {
-                                tracing::error!(source, file, ?phase, error = %message.message, "Import error");
+                                tracing::error!(source, file, ?phase, error = %text, "Import error");
                             }
                         }
                         Severity::Warning => {
-                            tracing::warn!(source, file, ?phase, warning = %message.message, "Import warning");
+                            tracing::warn!(source, file, ?phase, warning = %text, "Import warning");
                         }
                     }
                 }
@@ -445,12 +453,12 @@ impl GenerateDump {
         &self,
         runner: &ImportRunner,
         configuration: ImporterConfiguration,
-        description: &str,
+        source: &str,
     ) -> anyhow::Result<()> {
         let result = runner
             .run_once(
                 Context {
-                    name: "run".to_string(),
+                    name: source.to_owned(),
                 },
                 configuration,
                 None,
@@ -458,8 +466,24 @@ impl GenerateDump {
             )
             .await;
 
-        self.check_import_result(description, result)
+        self.check_import_result(source, result)
     }
+}
+
+/// Keep report URLs useful for diagnosis without exposing authentication data.
+fn redact_report_file(file: &str) -> std::borrow::Cow<'_, str> {
+    // Avoid treating local paths (including Windows drive letters) as URLs.
+    if !file.contains("://") {
+        return file.into();
+    }
+    let Ok(mut url) = url::Url::parse(file) else {
+        return "<invalid URL>".into();
+    };
+    let _ = url.set_username("");
+    let _ = url.set_password(None);
+    url.set_query(None);
+    url.set_fragment(None);
+    url.to_string().into()
 }
 
 /// Create a temporary working directory in Cargo's target directory, or the system's
@@ -704,5 +728,311 @@ mod tests {
                 "{logs}"
             );
         }
+    }
+
+    const ADVISORY: &str = include_str!("../../etc/test-data/osv/GHSA-2ccf-ffrj-m4qw.json");
+    const ADVISORY_ID: &str = "GHSA-2ccf-ffrj-m4qw";
+
+    struct DumpTest {
+        dir: TempDir,
+    }
+
+    impl DumpTest {
+        fn new() -> Self {
+            Self {
+                dir: tempfile::tempdir().unwrap(),
+            }
+        }
+
+        fn command(&self, keep_going: bool, instructions: Value) -> GenerateDump {
+            let input = self.dir.path().join("instructions.json");
+            std::fs::write(&input, instructions.to_string()).unwrap();
+            let mut command = command(keep_going);
+            command.input = Some(input);
+            // Share the cached PostgreSQL installation, while keeping each database isolated.
+            command.working_dir = None;
+            command.output = self.dir.path().join("dump.sql");
+            command.storage_output = Some(self.dir.path().join("storage.tar"));
+            command.no_correlation = true;
+            command
+        }
+
+        fn assert_no_output(&self) {
+            assert!(!self.dir.path().join("dump.sql").exists());
+            assert!(!self.dir.path().join("storage.tar").exists());
+        }
+
+        fn assert_advisory_dumped(&self) {
+            let sql = std::fs::read_to_string(self.dir.path().join("dump.sql")).unwrap();
+            assert!(sql.contains(ADVISORY_ID));
+            assert!(
+                std::fs::metadata(self.dir.path().join("storage.tar"))
+                    .unwrap()
+                    .len()
+                    > 0
+            );
+        }
+    }
+
+    async fn capture_run(command: GenerateDump) -> (anyhow::Result<()>, String) {
+        use tracing::instrument::WithSubscriber;
+
+        let buffer = LogBuffer::default();
+        let writer = buffer.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .without_time()
+            .with_ansi(false)
+            .with_writer(move || writer.clone())
+            .with_env_filter("warn,xtask::dataset=info")
+            .finish();
+        let result = command.run().with_subscriber(subscriber).await;
+        let logs = String::from_utf8(buffer.0.lock().unwrap().clone()).unwrap();
+        (result, logs)
+    }
+
+    async fn mock_importer(
+        server: &wiremock::MockServer,
+        prefix: &str,
+        valid: bool,
+        expected_runs: u64,
+    ) -> Value {
+        use trustify_module_importer::runner::http::sha256_hex;
+        use wiremock::{
+            Mock, ResponseTemplate,
+            matchers::{method, path},
+        };
+
+        let digest = if valid {
+            sha256_hex(ADVISORY.as_bytes())
+        } else {
+            "0".repeat(64)
+        };
+        let manifest = format!("advisory.json,{digest},{}\n", ADVISORY.len());
+        Mock::given(method("GET"))
+            .and(path(format!("/{prefix}/PULP_MANIFEST")))
+            .respond_with(ResponseTemplate::new(200).set_body_string(manifest))
+            .expect(expected_runs)
+            .mount(server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("/{prefix}/advisory.json")))
+            .respond_with(ResponseTemplate::new(200).set_body_string(ADVISORY))
+            .expect(expected_runs)
+            .mount(server)
+            .await;
+        serde_json::json!({
+            "http": {
+                "period": "1s",
+                "source": format!("{}/{prefix}/", server.uri()),
+                "discovery": {"type": "pulp"},
+                "fetchRetries": 0
+            }
+        })
+    }
+
+    // The importer dispatcher has large futures in debug builds. Give these
+    // full-flow tests more stack than libtest's default worker stack.
+    fn run_importer_test<F, Fut>(test: F)
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ()>,
+    {
+        std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(move || {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(test());
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn importer_report_errors_prevent_dump_output() {
+        run_importer_test(|| async {
+            let server = wiremock::MockServer::start().await;
+            let failed = mock_importer(&server, "failed", false, 1).await;
+            let next = mock_importer(&server, "next", true, 0).await;
+            let test = DumpTest::new();
+            let command = test.command(false, serde_json::json!({"import": [failed, next]}));
+            let (result, logs) = capture_run(command).await;
+            let error = format!("{:#}", result.unwrap_err());
+            assert!(
+                error.contains("Importer reported 1 error(s)"),
+                "{error}\n{logs}"
+            );
+            assert!(error.contains("importer-1"), "{error}");
+            test.assert_no_output();
+            server.verify().await;
+        });
+    }
+
+    #[test]
+    fn keep_going_imports_after_report_errors_and_identifies_unnamed_importers() {
+        run_importer_test(|| async {
+            let server = wiremock::MockServer::start().await;
+            let first = mock_importer(&server, "first", false, 1).await;
+            let second = mock_importer(&server, "second", false, 1).await;
+            let valid = mock_importer(&server, "valid", true, 1).await;
+            let test = DumpTest::new();
+            let command = test.command(true, serde_json::json!({"import": [first, second, valid]}));
+            let (result, logs) = capture_run(command).await;
+            result.unwrap();
+            for (prefix, source) in [("first", "importer-1"), ("second", "importer-2")] {
+                let line = logs
+                    .lines()
+                    .find(|line| line.contains("Import error") && line.contains(prefix))
+                    .unwrap();
+                assert!(line.contains(source), "{logs}");
+                assert!(line.contains("WARN"), "{logs}");
+            }
+            test.assert_advisory_dumped();
+            server.verify().await;
+        });
+    }
+
+    fn local_inputs(test: &DumpTest) -> Vec<&'static str> {
+        let dir = test.dir.path();
+        std::fs::write(dir.join("broken.json.zst"), b"invalid compressed data").unwrap();
+        std::fs::write(dir.join("invalid.json"), b"not a document").unwrap();
+        std::fs::write(dir.join("valid.json"), ADVISORY).unwrap();
+        vec![
+            "missing.json",
+            "broken.json.zst",
+            "invalid.json",
+            "valid.json",
+        ]
+    }
+
+    #[tokio::test]
+    async fn local_input_errors_prevent_dump_output() {
+        for failing_path in ["missing.json", "broken.json.zst", "invalid.json"] {
+            let test = DumpTest::new();
+            local_inputs(&test);
+            let command = test.command(
+                false,
+                serde_json::json!({"paths": [failing_path, "valid.json"]}),
+            );
+            let (result, logs) = capture_run(command).await;
+            let error = format!("{:#}", result.unwrap_err());
+            assert!(error.contains(failing_path), "{error}\n{logs}");
+            assert!(
+                logs.lines()
+                    .any(|line| line.contains("ERROR") && line.contains(failing_path)),
+                "{logs}"
+            );
+            assert!(
+                !logs.lines().any(|line| line.contains("Loading: ")
+                    && (line.ends_with("/valid.json") || line.ends_with(r"\valid.json"))),
+                "{logs}"
+            );
+            test.assert_no_output();
+        }
+    }
+
+    #[tokio::test]
+    async fn keep_going_processes_local_inputs_after_failures() {
+        let test = DumpTest::new();
+        let paths = local_inputs(&test);
+        let command = test.command(true, serde_json::json!({"paths": paths}));
+        let (result, logs) = capture_run(command).await;
+        result.unwrap();
+        for failed in &paths[..3] {
+            assert!(
+                logs.lines()
+                    .any(|line| line.contains("WARN") && line.contains(failed)),
+                "{logs}"
+            );
+        }
+        test.assert_advisory_dumped();
+    }
+
+    #[tokio::test]
+    async fn keep_going_processes_valid_files_in_a_directory_with_invalid_files() {
+        let test = DumpTest::new();
+        let documents = test.dir.path().join("documents");
+        std::fs::create_dir(&documents).unwrap();
+        std::fs::write(documents.join("invalid.json"), b"not a document").unwrap();
+        std::fs::write(documents.join("valid.json"), ADVISORY).unwrap();
+        let command = test.command(true, serde_json::json!({"paths": ["documents"]}));
+        let (result, logs) = capture_run(command).await;
+        result.unwrap();
+        assert!(
+            logs.lines()
+                .any(|line| line.contains("WARN") && line.contains("invalid.json")),
+            "{logs}"
+        );
+        test.assert_advisory_dumped();
+    }
+
+    #[test]
+    fn report_urls_are_redacted_in_file_fields_and_repeated_messages() {
+        let file = "https://alice:password@example.com/advisory.json?X-Amz-Signature=signature&access_token=token&ordinary=value#fragment";
+        for keep_going in [false, true] {
+            let mut report = ReportBuilder::new();
+            for severity in [Severity::Error, Severity::Warning] {
+                report.add_message(
+                    Phase::Retrieval,
+                    file,
+                    severity,
+                    format!("Failed to fetch {file}"),
+                );
+            }
+            let report = report.build();
+            let original = report.clone();
+            let (result, logs) = capture_logs(|| {
+                assert_eq!(command(keep_going).log_report("importer-1", &report), 1);
+                Ok(())
+            });
+            result.unwrap();
+            assert_eq!(report, original);
+            assert!(logs.contains("https://example.com/advisory.json"), "{logs}");
+            for secret in [
+                "alice",
+                "password",
+                "X-Amz-Signature",
+                "signature",
+                "access_token",
+                "token",
+                "ordinary",
+                "value",
+                "fragment",
+            ] {
+                assert!(!logs.contains(secret), "{logs}");
+            }
+            let error = logs
+                .lines()
+                .find(|line| line.contains("Import error"))
+                .unwrap();
+            assert!(
+                error.contains(if keep_going { "WARN" } else { "ERROR" }),
+                "{logs}"
+            );
+            let warning = logs
+                .lines()
+                .find(|line| line.contains("Import warning"))
+                .unwrap();
+            assert!(warning.contains("WARN"), "{logs}");
+        }
+    }
+
+    #[test]
+    fn report_file_redaction_preserves_paths_and_handles_invalid_urls() {
+        for file in [
+            "advisory.json",
+            "/tmp/advisories/a?b.json",
+            r"C:\advisories\a.json",
+            "https://example.com/advisory.json",
+        ] {
+            assert_eq!(redact_report_file(file), file);
+        }
+        assert_eq!(
+            redact_report_file("https://alice:password@[invalid/?token=secret"),
+            "<invalid URL>"
+        );
     }
 }
