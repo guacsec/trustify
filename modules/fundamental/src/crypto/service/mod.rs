@@ -106,8 +106,7 @@ impl CryptoService {
                 let verdict = evaluate_algorithm(&node.name, &crypto.properties);
                 let primitive = crypto
                     .properties
-                    .get("algorithmProperties")
-                    .and_then(|ap| ap.get("primitive"))
+                    .get("primitive")
                     .and_then(|p| p.as_str())
                     .map(String::from);
                 let pc = pkg_counts
