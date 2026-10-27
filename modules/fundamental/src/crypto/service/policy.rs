@@ -15,9 +15,8 @@ struct AlgorithmProps<'a> {
 
 impl<'a> AlgorithmProps<'a> {
     fn from_value(v: &'a serde_json::Value) -> Self {
-        let ap = &v["algorithmProperties"];
         Self {
-            parameter_set_identifier: ap["parameterSetIdentifier"].as_str(),
+            parameter_set_identifier: v["parameterSetIdentifier"].as_str(),
         }
     }
 
@@ -102,17 +101,13 @@ mod test {
 
     fn props_with_param(param: &str) -> serde_json::Value {
         json!({
-            "algorithmProperties": {
-                "parameterSetIdentifier": param
-            }
+            "parameterSetIdentifier": param
         })
     }
 
     fn props_with_primitive(primitive: &str) -> serde_json::Value {
         json!({
-            "algorithmProperties": {
-                "primitive": primitive
-            }
+            "primitive": primitive
         })
     }
 
@@ -302,10 +297,8 @@ mod test {
             evaluate_algorithm(
                 "SHA1",
                 &json!({
-                    "algorithmProperties": {
-                        "primitive": "hash",
-                        "parameterSetIdentifier": "160"
-                    }
+                    "primitive": "hash",
+                    "parameterSetIdentifier": "160"
                 })
             ),
             PolicyVerdict::NonCompliant
@@ -314,9 +307,7 @@ mod test {
             evaluate_algorithm(
                 "ECDH",
                 &json!({
-                    "algorithmProperties": {
-                        "primitive": "key-agree"
-                    }
+                    "primitive": "key-agree"
                 })
             ),
             PolicyVerdict::Warning
@@ -325,10 +316,8 @@ mod test {
             evaluate_algorithm(
                 "EC-secp521r1",
                 &json!({
-                    "algorithmProperties": {
-                        "primitive": "pke",
-                        "curve": "secp521r1"
-                    }
+                    "primitive": "pke",
+                    "curve": "secp521r1"
                 })
             ),
             PolicyVerdict::Warning
