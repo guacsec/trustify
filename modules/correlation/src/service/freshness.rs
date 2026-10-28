@@ -1,12 +1,13 @@
 //! Indexed completion metadata, revision counters, and durable refresh jobs.
 use crate::{error::Error, extractor::Extractors, model::*};
 use sea_orm::{
-    ConnectionTrait, DatabaseTransaction, DbBackend, FromQueryResult, Statement, TransactionTrait,
+    ConnectionTrait, DatabaseTransaction, DbBackend, DbErr, FromQueryResult, Statement,
+    TransactionTrait, Value,
 };
 use std::collections::HashMap;
 use time::OffsetDateTime;
 use trustify_common::{
-    db,
+    db::{self, pagination_cache::PaginationCache},
     model::{Paginated, PaginatedResults},
 };
 use uuid::Uuid;
@@ -32,7 +33,7 @@ WHERE completed_revision < $1
 ORDER BY completed_revision, sbom_id LIMIT 1
 "#;
 
-fn sql(query: &str, values: Vec<sea_orm::Value>) -> Statement {
+fn sql(query: &str, values: Vec<Value>) -> Statement {
     Statement::from_sql_and_values(DbBackend::Postgres, query, values)
 }
 
@@ -49,7 +50,7 @@ pub async fn lock_revision(tx: &DatabaseTransaction) -> Result<i64, Error> {
             vec![],
         ))
         .await?
-        .ok_or_else(|| sea_orm::DbErr::Custom("missing extraction revision".into()))?;
+        .ok_or_else(|| DbErr::Custom("missing extraction revision".into()))?;
     Ok(Revision::from_query_result(&row, "")?.revision)
 }
 
@@ -156,9 +157,7 @@ impl JobRow {
                 "completed" => RefreshJobStatus::Completed,
                 "superseded" => RefreshJobStatus::Superseded,
                 other => {
-                    return Err(
-                        sea_orm::DbErr::Custom(format!("unknown refresh status: {other}")).into(),
-                    );
+                    return Err(DbErr::Custom(format!("unknown refresh status: {other}")).into());
                 }
             },
             processed: self.processed as u64,
@@ -169,12 +168,17 @@ impl JobRow {
     }
 }
 
-pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Error> {
+/// Read the current extraction revision and document totals from maintained counters.
+async fn load_counts(tx: &DatabaseTransaction) -> Result<Counts, Error> {
     let row = tx
         .query_one_raw(sql(OVERVIEW_COUNTS_SQL, vec![]))
         .await?
-        .ok_or_else(|| sea_orm::DbErr::Custom("missing extraction counters".into()))?;
-    let counts = Counts::from_query_result(&row, "")?;
+        .ok_or_else(|| DbErr::Custom("missing extraction counters".into()))?;
+    Ok(Counts::from_query_result(&row, "")?)
+}
+
+pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Error> {
+    let counts = load_counts(tx).await?;
     let mut result = FreshnessOverview {
         revision: counts.revision,
         checked_at: OffsetDateTime::now_utc(),
@@ -206,13 +210,45 @@ pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Err
     Ok(result)
 }
 
+/// Page SBOMs by extraction status using revision-ordered SQL selection.
+/// Totals use maintained counters only when requested. Limits are validated against
+/// the configured maximum; zero-limit requests skip document selection.
 pub async fn documents(
     tx: &DatabaseTransaction,
     status: Option<FreshnessStatus>,
     page: Paginated,
+    cache: &PaginationCache,
 ) -> Result<PaginatedResults<FreshnessDocument>, Error> {
+    cache.check_limit(page.limit)?;
+    if page.limit == 0 && !page.total {
+        return Ok(PaginatedResults::default());
+    }
+    let (revision, total) = if page.total {
+        let counts = load_counts(tx).await?;
+        let total = match status {
+            Some(FreshnessStatus::Current) => counts.current,
+            Some(FreshnessStatus::Stale) => counts.stale,
+            Some(FreshnessStatus::Unknown) => counts.unknown,
+            None => counts.stale + counts.unknown,
+        };
+        (counts.revision, Some(total as u64))
+    } else {
+        let row = tx
+            .query_one_raw(sql(
+                "SELECT revision FROM correlation_extraction_revision",
+                vec![],
+            ))
+            .await?
+            .ok_or_else(|| DbErr::Custom("missing extraction revision".into()))?;
+        (Revision::from_query_result(&row, "")?.revision, None)
+    };
+    if page.limit == 0 {
+        return Ok(PaginatedResults {
+            items: Vec::new(),
+            total,
+        });
+    }
     // Each branch has an indexable revision predicate. None means the refresh backlog.
-    let revision = overview(tx).await?;
     let predicate = match status {
         Some(FreshnessStatus::Current) => "s.completed_revision = $1",
         Some(FreshnessStatus::Stale) => "s.completed_revision > 0 AND s.completed_revision < $1",
@@ -228,8 +264,8 @@ pub async fn documents(
         .query_all_raw(sql(
             &query,
             vec![
-                revision.revision.into(),
-                (page.limit.min(1000) as i64).into(),
+                revision.into(),
+                (page.limit.min(i64::MAX as u64) as i64).into(),
                 (page.offset.min(i64::MAX as u64) as i64).into(),
             ],
         ))
@@ -242,16 +278,7 @@ pub async fn documents(
             freshness: completion(&state),
         });
     }
-    let count = match status {
-        Some(FreshnessStatus::Current) => revision.current,
-        Some(FreshnessStatus::Stale) => revision.stale,
-        Some(FreshnessStatus::Unknown) => revision.unknown,
-        None => revision.needs_refresh,
-    };
-    Ok(PaginatedResults {
-        items,
-        total: page.total.then_some(count),
-    })
+    Ok(PaginatedResults { items, total })
 }
 
 pub async fn start(tx: &DatabaseTransaction) -> Result<RefreshJob, Error> {
@@ -269,7 +296,7 @@ pub async fn start(tx: &DatabaseTransaction) -> Result<RefreshJob, Error> {
         return JobRow::from_query_result(&row, "")?.model();
     }
     let row = tx.query_one_raw(sql("INSERT INTO correlation_refresh_job(id, revision, status) VALUES ($1,$2,'queued') RETURNING *", vec![Uuid::now_v7().into(), revision.into()])).await?
-        .ok_or_else(|| sea_orm::DbErr::Custom("failed to create refresh job".into()))?;
+        .ok_or_else(|| DbErr::Custom("failed to create refresh job".into()))?;
     JobRow::from_query_result(&row, "")?.model()
 }
 

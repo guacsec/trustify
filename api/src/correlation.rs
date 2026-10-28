@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use strum::IntoStaticStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -330,9 +331,10 @@ pub struct EvidenceRemediation {
 }
 
 /// The kind of a remediation, as CSAF defines them (OSV's fixed versions are vendor fixes).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, IntoStaticStr)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum RemediationCategory {
     VendorFix,
     Workaround,
