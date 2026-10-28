@@ -1,0 +1,38 @@
+= Release Notes — RHTPA 3.2.0
+
+== New features
+
+=== PQC Readiness — Cryptography page
+
+Trustify now includes a dedicated *Cryptography* page for Post-Quantum Cryptography (PQC) readiness assessment.
+This feature provides visibility into the cryptographic algorithms used across your software supply chain by analyzing Cryptographic Bills of Materials (CBOMs) embedded in CycloneDX 1.6 SBOMs.
+
+Key capabilities:
+
+* *Algorithm inventory* — A searchable, sortable table listing all cryptographic assets (algorithms, keys, certificates, protocols) extracted from ingested CBOMs. Organized into *Algorithms* and *Keys* tabs.
+
+* *PQC compliance evaluation* — Each algorithm is automatically evaluated against a built-in policy that classifies it as *Compliant* (quantum-safe), *Warning* (classical, needs migration), or *Non-compliant* (weak/broken). The policy recognizes NIST-standardized PQC algorithms (ML-KEM, ML-DSA, SLH-DSA) and flags weak algorithms (MD5, RC4, DES, SHA-1, small RSA/DSA keys).
+
+* *KPI summary cards* — Dashboard-level metrics showing total algorithms, PQC-compliant count, classical share percentage, and number of SBOMs meeting PQC requirements.
+
+* *Blast radius visibility* — Each algorithm shows the count of packages and SBOMs that depend on it, helping prioritize migration efforts.
+
+* *Remediation mapping import* — Operators can import algorithm-to-PQC-replacement mappings in CSV or JSON format, populating the *Recommendation* column in the inventory table.
+
+=== CBOM tab in SBOM Explorer
+
+The SBOM Explorer detail view now includes a *CBOM* tab when viewing a CycloneDX 1.6 SBOM that contains cryptographic properties.
+The tab displays cryptographic assets (name, type, OID, primitive, compliance status) specific to that SBOM, with links to navigate to the Cryptography page.
+
+== API additions
+
+New endpoints under the `crypto` tag:
+
+* `GET /v3/crypto/algorithm` — List cryptographic assets with filtering and pagination
+* `GET /v3/crypto/summary` — Aggregate PQC readiness KPIs
+* `GET /v3/sbom/{id}/crypto` — List cryptographic assets for a specific SBOM
+* `POST /v3/crypto/policy/evaluate` — Evaluate PQC compliance policy
+* `POST /v3/crypto/remediation/import` — Import remediation mappings (CSV or JSON)
+* `GET /v3/crypto/remediation` — List stored remediation mappings
+
+See xref:concepts:cryptography.adoc[PQC Readiness and Cryptography] for full documentation.

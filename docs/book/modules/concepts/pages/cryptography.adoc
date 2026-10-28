@@ -1,0 +1,354 @@
+= PQC Readiness and Cryptography
+
+Trustify provides a *Cryptography* page that gives visibility into the cryptographic algorithms used across your software supply chain.
+By analyzing Cryptographic Bill of Materials (CBOMs) embedded in CycloneDX 1.6 SBOMs, Trustify inventories every cryptographic asset and evaluates its readiness for the transition to Post-Quantum Cryptography (PQC).
+
+[#navigation]
+== Accessing the Cryptography page
+
+Select *Cryptography* from the main navigation sidebar.
+The page displays Key Performance Indicator (KPI) summary cards at the top and a tabbed algorithm inventory table below.
+
+[#kpi-cards]
+== KPI summary cards
+
+The top section shows four cards:
+
+[cols="1,2"]
+|===
+| Card | Description
+
+| *Total Algorithms*
+| Count of all unique cryptographic algorithm assets across ingested CBOMs.
+
+| *PQC Compliant*
+| Count of algorithms that are classified as quantum-safe (e.g., ML-KEM, ML-DSA, SLH-DSA).
+
+| *Classical Share*
+| Percentage of algorithms that are not yet PQC compliant — a higher number indicates greater migration effort.
+
+| *SBOMs Meeting PQC*
+| Count of SBOMs where every algorithm is PQC compliant.
+|===
+
+[#algorithm-inventory]
+== Algorithm inventory table
+
+The inventory table lists cryptographic assets extracted from ingested CBOMs.
+Two tabs filter the table by asset type:
+
+* *Algorithms* — shows `algorithm` type assets (ciphers, hash functions, key-agreement schemes, digital signatures).
+* *Keys* — shows `related-crypto-material` type assets (keys, tokens, certificates, and other cryptographic material).
+
+=== Columns
+
+[cols="1,2"]
+|===
+| Column | Description
+
+| *Name*
+| The algorithm or key name as declared in the CBOM (e.g., `AES-128-GCM`, `RSA`, `ML-KEM-768`).
+
+| *Asset Type*
+| The CycloneDX cryptographic asset type: `algorithm`, `certificate`, `protocol`, or `related-crypto-material`.
+
+| *OID*
+| The Object Identifier for the algorithm, if declared in the CBOM.
+
+| *Primitive*
+| The cryptographic primitive (e.g., `hash`, `pke`, `key-agree`, `mac`, `block-cipher`), extracted from the CBOM properties.
+
+| *Status*
+| The compliance verdict: *Compliant*, *Warning*, or *Non-compliant*. See <<compliance-badges>>.
+
+| *Packages*
+| Number of packages in the SBOM that use this cryptographic asset (via `Generates` relationships).
+
+| *SBOMs*
+| Number of distinct SBOMs that contain an algorithm with the same name.
+
+| *Recommendation*
+| The NIST PQC replacement recommendation, populated from imported <<remediation-mappings,remediation mappings>>.
+|===
+
+=== Filtering and sorting
+
+The inventory table supports:
+
+* *Text search* — filter by algorithm name, OID, or other text fields using the search box.
+* *Asset type filter* — use the tabs or the `asset_type` query parameter to filter by asset type.
+* *Column sorting* — click column headers to sort ascending or descending.
+* *Pagination* — navigate through results using page controls.
+
+=== Blast radius links
+
+The *Packages* and *SBOMs* columns display clickable counts.
+These indicate the blast radius of each cryptographic asset — how many software packages depend on the algorithm and how many SBOMs contain it.
+
+[#compliance-badges]
+== Compliance status badges
+
+Each algorithm receives a compliance verdict based on Trustify's built-in policy evaluation:
+
+[cols="1,2,3"]
+|===
+| Badge | Meaning | Examples
+
+| image:compliant-badge.png[Compliant,20] *Compliant*
+| The algorithm is quantum-safe and approved for long-term use.
+| ML-KEM, ML-KEM-768, Kyber, ML-DSA, MLDSA-65, Dilithium, SLH-DSA, SPHINCS+
+
+| image:warning-badge.png[Warning,20] *Warning*
+| The algorithm is classical and secure today but will need to be migrated to a PQC alternative. Unknown algorithms also receive this verdict.
+| AES, AES-128-GCM, RSA (>=2048 bits), ECDSA, ECDH, Ed25519, SHA-256, SHA-384, SHA-512, 3DES, ChaCha20
+
+| image:noncompliant-badge.png[Non-compliant,20] *Non-compliant*
+| The algorithm is weak or broken and should be replaced immediately, regardless of quantum computing timelines.
+| MD5, RC4, RC2, DES, SHA-1, RSA (<=1024 bits), DSA (<=1024 bits)
+|===
+
+[#policy-evaluation]
+== Policy evaluation
+
+Trustify evaluates each cryptographic algorithm against a built-in policy engine.
+The policy is implemented in Rust and applies a deterministic classification:
+
+. *PQC-safe algorithms* are marked *Compliant*. These include NIST-standardized post-quantum algorithms and their common aliases: ML-KEM (Kyber), ML-DSA (Dilithium), and SLH-DSA (SPHINCS+).
+
+. *Weak or broken algorithms* are marked *Non-compliant*. These include MD5, RC4, RC2, DES (but not 3DES), SHA-1, and RSA/DSA with key sizes of 1024 bits or smaller.
+
+. *All other algorithms* receive a *Warning* verdict. This includes classical algorithms that are currently secure (AES, RSA >= 2048, ECDSA, SHA-256) but are not quantum-resistant, as well as any algorithm not recognized by the policy.
+
+The policy uses the algorithm name and, when available, the `parameterSetIdentifier` property from the CBOM to determine key sizes for RSA and DSA.
+
+=== Policy evaluation API
+
+You can trigger an explicit policy evaluation via the API:
+
+.Request
+[source,bash]
+----
+curl -X POST /api/v3/crypto/policy/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{"sbom_id": "urn:uuid:..."}'
+----
+
+Omit `sbom_id` to evaluate all algorithms across all SBOMs.
+
+.Response
+[source,json]
+----
+{
+  "summary": {
+    "total": 42,
+    "compliant": 3,
+    "warning": 30,
+    "non_compliant": 9
+  },
+  "results": [
+    {
+      "sbom_id": "urn:uuid:...",
+      "node_id": "SPDXRef-crypto-001",
+      "name": "AES-128-GCM",
+      "oid": "2.16.840.1.101.3.4.1.6",
+      "verdict": "warning",
+      "properties": {"primitive": "block-cipher"}
+    }
+  ]
+}
+----
+
+[#remediation-mappings]
+== Remediation mappings
+
+Remediation mappings link classical algorithms to their recommended NIST PQC replacements.
+Once imported, the *Recommendation* column in the algorithm inventory table displays the PQC replacement for each matched algorithm.
+
+=== Data model
+
+Each mapping contains:
+
+[cols="1,1,2"]
+|===
+| Field | Required | Description
+
+| `algorithm_name`
+| Yes
+| The name of the classical algorithm to replace (e.g., `RSA`, `ECDSA`).
+
+| `algorithm_primitive`
+| No
+| The cryptographic primitive (e.g., `pke`, `key-agree`). When specified, the mapping applies only to algorithms with that primitive.
+
+| `replacement_name`
+| Yes
+| The name of the recommended PQC replacement (e.g., `ML-KEM-768`, `ML-DSA-65`).
+
+| `replacement_standard`
+| No
+| The standard reference (e.g., `FIPS 203`, `NIST SP 800-208`). Displayed in parentheses after the replacement name.
+
+| `replacement_primitive`
+| No
+| The primitive of the replacement algorithm.
+|===
+
+Mappings are uniquely keyed by `(algorithm_name, algorithm_primitive)`.
+Importing a mapping with the same key updates the existing entry.
+
+=== Importing via CSV
+
+Send a `POST` request with `Content-Type: text/csv` to `/api/v3/crypto/remediation/import`.
+
+.CSV format
+[source,csv]
+----
+algorithm_name,algorithm_primitive,replacement_name,replacement_standard,replacement_primitive
+RSA,pke,ML-KEM-768,FIPS 203,kem
+ECDSA,dsa,ML-DSA-65,FIPS 204,dsa
+ECDH,key-agree,ML-KEM-768,FIPS 203,kem
+SHA-256,hash,SHA-256,,hash
+----
+
+All five columns must be present in the header.
+Leave optional columns blank (empty string) to omit them.
+
+.Example request
+[source,bash]
+----
+curl -X POST /api/v3/crypto/remediation/import \
+  -H "Content-Type: text/csv" \
+  --data-binary @remediation-mappings.csv
+----
+
+=== Importing via JSON
+
+Send a `POST` request with `Content-Type: application/json` to `/api/v3/crypto/remediation/import`.
+
+.JSON format
+[source,json]
+----
+[
+  {
+    "algorithm_name": "RSA",
+    "algorithm_primitive": "pke",
+    "replacement_name": "ML-KEM-768",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "kem"
+  },
+  {
+    "algorithm_name": "ECDSA",
+    "algorithm_primitive": "dsa",
+    "replacement_name": "ML-DSA-65",
+    "replacement_standard": "FIPS 204",
+    "replacement_primitive": "dsa"
+  }
+]
+----
+
+.Response (both formats)
+[source,json]
+----
+{
+  "count": 2
+}
+----
+
+The `count` field indicates the number of mappings processed (inserted or updated).
+
+=== Listing current mappings
+
+.Request
+[source,bash]
+----
+curl /api/v3/crypto/remediation
+----
+
+.Response
+[source,json]
+----
+[
+  {
+    "id": "urn:uuid:...",
+    "algorithm_name": "RSA",
+    "algorithm_primitive": "pke",
+    "replacement_name": "ML-KEM-768",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "kem"
+  }
+]
+----
+
+[#cbom]
+== Cryptographic Bill of Materials (CBOM)
+
+A CBOM is a CycloneDX 1.6 extension that declares the cryptographic assets used by a software component.
+It is embedded within a standard CycloneDX SBOM and describes:
+
+* The *algorithms* used (encryption, hashing, key agreement, digital signatures)
+* The *keys* and related cryptographic material
+* The *certificates* and *protocols* in use
+* The *relationships* between software packages and cryptographic assets (via the `Generates` relationship type)
+
+When a CycloneDX SBOM containing `cryptoProperties` is ingested into Trustify, the cryptographic assets are automatically extracted and stored in the `sbom_crypto` table, making them available through the Cryptography page and API.
+
+=== Viewing CBOM data in the SBOM Explorer
+
+After ingesting a CBOM-enabled SBOM, a *CBOM* tab appears in the SBOM Explorer detail view.
+This tab shows the cryptographic assets contained in that specific SBOM with the following columns:
+
+[cols="1,2"]
+|===
+| Column | Description
+
+| *Name*
+| The asset name (algorithm name, key identifier, certificate subject).
+
+| *Asset Type*
+| One of: `algorithm`, `certificate`, `protocol`, `related-crypto-material`.
+
+| *OID*
+| The Object Identifier, if declared.
+
+| *Primitive*
+| The cryptographic primitive from the CBOM properties.
+
+| *Status*
+| The compliance verdict (Compliant/Warning/Non-compliant).
+|===
+
+From the CBOM tab, click an algorithm name to navigate to the Cryptography page filtered by that algorithm.
+
+[#api-reference]
+== API reference
+
+The following API endpoints are available under the `crypto` tag:
+
+[cols="1,1,2"]
+|===
+| Method | Path | Description
+
+| `GET`
+| `/v3/crypto/algorithm`
+| List all cryptographic assets with optional filtering by asset type. Supports pagination and text search.
+
+| `GET`
+| `/v3/crypto/summary`
+| Get aggregate KPI metrics (total algorithms, PQC compliant count, classical share percentage, SBOMs meeting PQC).
+
+| `GET`
+| `/v3/sbom/{id}/crypto`
+| List cryptographic assets for a specific SBOM. Supports the same filtering as the global endpoint.
+
+| `POST`
+| `/v3/crypto/policy/evaluate`
+| Evaluate the built-in policy against all or a specific SBOM's algorithms. Returns per-algorithm verdicts and an aggregate summary.
+
+| `POST`
+| `/v3/crypto/remediation/import`
+| Import algorithm-to-PQC-replacement mappings in CSV or JSON format. Upserts on `(algorithm_name, algorithm_primitive)`.
+
+| `GET`
+| `/v3/crypto/remediation`
+| List all stored remediation mappings.
+|===
