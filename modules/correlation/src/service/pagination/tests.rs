@@ -39,7 +39,9 @@ async fn fixture(ctx: &TrustifyContext) -> anyhow::Result<(Uuid, Uuid)> {
                     matched_value: Set(None),
                     created_at: Set(time::OffsetDateTime::now_utc()),
                     confidence_factors: Set(serde_json::json!([])),
-                    source_assertions: Set(serde_json::json!([])),
+                    source_assertions: Set(
+                        serde_json::json!([{"kind": "digest", "id": Uuid::new_v4()}]),
+                    ),
                 }
                 .insert(&ctx.db)
                 .await?;

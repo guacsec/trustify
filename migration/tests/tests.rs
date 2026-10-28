@@ -131,7 +131,7 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             }))),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
             confidence_factors: sea_orm::NotSet,
-            source_assertions: sea_orm::NotSet,
+            source_assertions: Set(serde_json::json!([{"kind": "purl", "id": rows[0].id}])),
         }
         .insert(&ctx.db)
         .await?;

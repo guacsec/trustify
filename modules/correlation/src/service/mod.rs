@@ -752,7 +752,6 @@ async fn load_scores(
 }
 
 /// Remediations of the source assertions that survived matching, keyed by evidence ID.
-/// Evidence without source references contributes no remediations.
 async fn load_evidence_remediations(
     evidence: &[correlation_evidence::Model],
     connection: &impl ConnectionTrait,
