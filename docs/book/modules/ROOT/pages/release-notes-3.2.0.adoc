@@ -11,7 +11,7 @@ Key capabilities:
 
 * *Algorithm inventory* — A searchable, sortable table listing all cryptographic assets (algorithms, keys, certificates, protocols) extracted from ingested CBOMs. Organized into *Algorithms* and *Keys* tabs.
 
-* *PQC compliance evaluation* — Each algorithm is automatically evaluated against a built-in policy based on https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards) that classifies it as *Compliant* (quantum-safe), *Warning* (classical, needs migration), or *Non-compliant* (weak/broken). NIST IR 8547 is currently the only supported recommendation profile; additional profiles (e.g., ANSSI) may be added in future releases.
+* *PQC compliance evaluation* — Each algorithm is automatically evaluated against a built-in policy based on https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards) that classifies it as *Compliant* (quantum-safe), *Warning* (classical, needs migration), or *Non-compliant* (weak/broken). NIST IR 8547 is currently the only supported recommendation profile; additional profiles (e.g., ANSSI) will be added in future releases.
 
 * *KPI summary cards* — Dashboard-level metrics showing total algorithms, PQC-compliant count, classical share percentage, and number of SBOMs meeting PQC requirements.
 
