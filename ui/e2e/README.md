@@ -9,7 +9,7 @@ The same runner is used locally and by the required `ui-e2e` CI job.
 - The repository's Rust toolchain (currently 1.96.0), including
   `rustup target add wasm32-unknown-unknown`.
 - Trunk 0.22.1: `cargo install trunk --version 0.22.1 --locked`.
-- Node.js 22 and npm.
+- Node.js 24 and npm.
 - Podman with a working `podman compose` command. Its configured Compose provider
   can be Docker Compose or podman-compose; the runner does not override it.
 - `xz`, used to read compressed scenario fixtures.

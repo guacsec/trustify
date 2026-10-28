@@ -173,7 +173,7 @@ jobs:
       - name: Check the docs
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Build the docs
         run: |
