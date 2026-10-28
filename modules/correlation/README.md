@@ -51,7 +51,7 @@ http GET localhost:8080/api/v3/correlation/sbom/{sbom_id} offset==25 limit==25 t
 http GET localhost:8080/api/v3/correlation/sbom/{sbom_id} limit==0 total==true
 ```
 
-Response shape (each verdict item uses the existing verdict schema):
+Response shape (each item is a complete verdict):
 
 ```json
 {
@@ -81,9 +81,8 @@ Each item includes `component`, `vulnerability`, the resolved verdict `status`, 
 `advisory_id`, `advisory_identifier`, and `advisory_type`. They are ordered ascending by node ID,
 vulnerability ID, advisory UUID, category name, details and URL, with null optional values first.
 Status uses all evidence of the verdict, including evidence outside the remediation page.
-Only source assertions recorded in evidence contribute remediations, just as in verdict details
-and summary counts. Older evidence without source references contributes no remediations until
-re-extraction; reads do not reconstruct matches from PURL identifiers, statuses or ranges.
+Only source assertions recorded in evidence contribute remediations, both in verdict details
+and summary counts. Evidence without source references contributes no remediations.
 
 Verdicts and remediations accept `node_id` and `vulnerability_id` filters; verdicts also accept
 `include_explanation=true`. Totals count matching items before offset/limit, including on empty
@@ -93,19 +92,18 @@ Unknown UUIDs return empty pages. IDs are strings at the API boundary;
 IDs that cannot resolve to an internal UUID return HTTP 404. Text ordering is case-sensitive and
 uses PostgreSQL's `C` collation, matching Rust lexical ordering. Offset pagination is stable for
 unchanged data; extraction or document changes between requests can change page membership.
-Verdict and unmatched totals use the existing pagination cache and may lag changes by its
+Verdict and unmatched totals use the pagination cache and may lag changes by its
 configured TTL. Remediation pagination loads all matching evidence and its source-linked
 remediation identities, orders and deduplicates them in memory, then returns the requested slice.
 Its optional total is the size of that collection and is not cached. Only verdict groups in the
 requested slice are resolved. Count-only requests collect identities without resolving verdicts;
 `limit=0&total=false` skips collection loading entirely.
 
-**Future work:** move remediation identity pagination and counting into SQL. For now, even a small
-remediation page materializes the full matching identity collection; its cost grows with the SBOM.
+Even a small remediation page materializes the full matching identity collection; its cost grows
+with the SBOM.
 
-**Client migration:** the SBOM GET response now returns verdicts in `items`, with optional `total`,
-instead of `verdicts`. `include_unmatched` no longer includes components in this response; request `/unmatched` separately.
-Resolution preview responses and identifier queries retain their existing unpaginated shapes.
+Unmatched components are available through `/unmatched`. Resolution preview responses and
+identifier queries are unpaginated.
 The correlation UI requests server pages independently for all three lists and uses the
 verdict-count endpoint for SBOM-wide summaries.
 

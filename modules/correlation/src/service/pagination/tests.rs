@@ -93,7 +93,7 @@ async fn verdict_pages_preserve_groups_filters_and_order(
     let expected = service
         .correlate_sbom_with(id, false, &request, &tx)
         .await?;
-    // Compare verdicts without relying on the original reader's unspecified evidence ordering.
+    // Evidence ordering within a verdict is unspecified; compare verdict keys.
     let keys = |items: &[VerdictSummary]| {
         items
             .iter()
