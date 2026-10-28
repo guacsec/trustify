@@ -22,6 +22,7 @@ struct EvidenceGroup {
     vulnerability_id: String,
 }
 
+/// Select evidence for an SBOM, applying optional node and vulnerability filters.
 fn evidence_query(
     sbom_id: Uuid,
     request: &ResolutionRequest,
@@ -37,6 +38,7 @@ fn evidence_query(
     query
 }
 
+/// Select distinct verdict keys in case-sensitive node and vulnerability order.
 fn groups(sbom_id: Uuid, request: &ResolutionRequest) -> Select<correlation_evidence::Entity> {
     evidence_query(sbom_id, request)
         .select_only()
@@ -48,6 +50,8 @@ fn groups(sbom_id: Uuid, request: &ResolutionRequest) -> Select<correlation_evid
         .order_by(Expr::cust("vulnerability_id COLLATE \"C\""), Order::Asc)
 }
 
+/// Load all evidence for the selected verdict keys, ordered by evidence ID.
+/// An empty selection returns no evidence without querying the database.
 async fn evidence_for_groups(
     sbom_id: Uuid,
     groups: &[EvidenceGroup],
@@ -72,19 +76,6 @@ async fn evidence_for_groups(
         .await?)
 }
 
-/// The order is the serialized category name, independent of enum declaration order.
-fn category_key(category: crate::model::RemediationCategory) -> &'static str {
-    use crate::model::RemediationCategory::*;
-    match category {
-        VendorFix => "vendor_fix",
-        Workaround => "workaround",
-        Mitigation => "mitigation",
-        NoFixPlanned => "no_fix_planned",
-        NoneAvailable => "none_available",
-        WillNotFix => "will_not_fix",
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct RemediationKey {
     group: EvidenceGroup,
@@ -95,11 +86,12 @@ struct RemediationKey {
 }
 
 impl RemediationKey {
+    /// Build the distinct remediation identity used for ordering and deduplication.
     fn new(group: EvidenceGroup, advisory_id: Uuid, remediation: &EvidenceRemediation) -> Self {
         Self {
             group,
             advisory_id,
-            category: category_key(remediation.category),
+            category: remediation.category.into(),
             details: remediation.details.clone(),
             url: remediation.url.clone(),
         }
@@ -129,6 +121,9 @@ async fn remediation_keys(
 }
 
 impl CorrelationService {
+    /// Page verdict keys in SQL and resolve their complete evidence groups.
+    /// Filters apply before pagination; the optional cached total counts verdict groups.
+    /// Invalid pagination limits return an error before fetching evidence.
     pub async fn verdict_page(
         &self,
         sbom_id: Uuid,
@@ -149,6 +144,9 @@ impl CorrelationService {
         Ok(PaginatedResults { items, total })
     }
 
+    /// Page components with no evidence in the SBOM, excluding its root node.
+    /// The optional node filter applies before pagination; identifiers are loaded only
+    /// for selected components. Totals are optional and cached, and invalid limits fail.
     pub async fn unmatched_page(
         &self,
         sbom_id: Uuid,
@@ -207,6 +205,9 @@ impl CorrelationService {
     }
 
     /// Slice distinct remediation identities in memory, resolving only selected verdict groups.
+    /// Filters apply before collection and slicing; the optional uncached total counts
+    /// distinct identities. Zero-limit requests skip verdict resolution, and requests
+    /// without a total also skip identity loading. Invalid pagination limits fail.
     pub async fn remediation_page(
         &self,
         sbom_id: Uuid,

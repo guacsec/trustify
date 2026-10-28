@@ -5,7 +5,7 @@ use serde::Deserialize;
 use trustify_auth::{ReadAdvisory, UpdateCorrelationOption, authorizer::Require};
 use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::{
-    db::{self, DatabaseExt},
+    db::{self, DatabaseExt, pagination_cache::PaginationCache},
     model::{Paginated, PaginatedResults},
 };
 use utoipa::IntoParams;
@@ -52,10 +52,11 @@ async fn documents(
     db: web::Data<db::ReadOnly>,
     web::Query(filter): web::Query<Filter>,
     web::Query(page): web::Query<Paginated>,
+    cache: web::Data<PaginationCache>,
     _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
-    Ok(HttpResponse::Ok().json(freshness::documents(&tx, filter.status, page).await?))
+    Ok(HttpResponse::Ok().json(freshness::documents(&tx, filter.status, page, &cache).await?))
 }
 
 /// Start a correlation refresh

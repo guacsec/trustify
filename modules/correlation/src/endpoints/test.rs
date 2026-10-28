@@ -947,6 +947,24 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
             .into_app(),
     )
     .await;
+    for limit in [0, 25, 26] {
+        let response = call_service(
+            &app,
+            TestRequest::get()
+                .uri(&format!("/v3/correlation/freshness/sbom?limit={limit}"))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), if limit > 25 { 400 } else { 200 });
+        if limit > 25 {
+            assert_eq!(
+                response.headers().get("X-Pagination-Max-Limit").unwrap(),
+                "25"
+            );
+            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            assert_eq!(body["error"], "LimitExceeded");
+        }
+    }
     let id = Uuid::new_v4();
     for suffix in ["", "/unmatched", "/remediations"] {
         for id in ["not-a-uuid", "123", "urn:uuid:not-a-uuid"] {

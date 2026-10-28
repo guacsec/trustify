@@ -78,7 +78,7 @@ impl PaginationCache {
 
     /// Check that the given limit does not exceed the configured maximum.
     /// Returns the limit unchanged, or an error if it exceeds the maximum.
-    pub(crate) fn check_limit(&self, limit: u64) -> Result<u64, LimitError> {
+    pub fn check_limit(&self, limit: u64) -> Result<u64, LimitError> {
         if self.max_limit > 0 && limit > self.max_limit {
             Err(LimitError {
                 max_limit: self.max_limit,

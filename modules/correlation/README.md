@@ -174,7 +174,10 @@ The API exposes:
 
 Read endpoints require `read.advisory`; starting refresh requires `update.correlationOption`.
 Document lists use the usual `offset`, `limit`, and `total` parameters, with a maximum page size
-of 1000. Resolution previews and batched verdict counts include `freshness` with `status`,
+of 1000 for refresh-job failures. The freshness SBOM list uses the configured pagination
+maximum; excessive limits return HTTP 400 with `X-Pagination-Max-Limit`. Its optional total
+comes from maintained revision counters and is not cached. Resolution previews and batched
+verdict counts include `freshness` with `status`,
 `required_revision`, `completed_revision`, and `completed_at`. Absent completion is unknown.
 The UI polls every five seconds while visible and preserves previously loaded data on errors.
 
