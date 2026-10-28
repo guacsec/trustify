@@ -714,6 +714,13 @@ impl ResponseError for DbError {
 #[derive(Clone, Debug)]
 pub struct ReadOnly(Database);
 
+#[async_trait::async_trait]
+impl DatabaseExt for ReadOnly {
+    async fn begin_read(&self) -> Result<DatabaseTransaction, DbErr> {
+        self.0.begin_read().await
+    }
+}
+
 impl ReadOnly {
     /// Wraps an existing database connection for read-only access.
     pub fn new(db: Database) -> Self {
