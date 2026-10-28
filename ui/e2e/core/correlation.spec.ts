@@ -24,8 +24,9 @@ test('affected and fixed verdicts, evidence, advisory links, and temporary resol
   await expect(dialog.getByRole('heading', { name: 'Temporary preview' }).first()).toBeVisible();
   await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
   // Preview must not persist its temporary provider or change the stored verdict.
-  const result = await request.get(`${apiURL}/api/v3/correlation/sbom/${seed.belowFix}`);
-  expect((await result.json()).verdicts.find((v: { vulnerability: { id: string } }) => v.vulnerability.id === 'CVE-2022-4304').status).toBe('affected');
+  const result = await request.get(`${apiURL}/api/v3/correlation/sbom/${seed.belowFix}?vulnerability_id=CVE-2022-4304`);
+  expect(result.ok(), await result.text()).toBeTruthy();
+  expect((await result.json()).items.find((v: { vulnerability: { id: string } }) => v.vulnerability.id === 'CVE-2022-4304').status).toBe('affected');
   await page.goto(`/correlation/${seed.atFix}`);
   await expect(page.getByRole('row').filter({ hasText: 'CVE-2022-4304' }).first()).toContainText('Fixed');
 });
