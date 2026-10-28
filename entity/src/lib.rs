@@ -33,6 +33,7 @@ pub mod product_version;
 pub mod product_version_range;
 pub mod purl_status;
 pub mod qualified_purl;
+pub mod query;
 pub mod relationship;
 pub mod remediation;
 pub mod remediation_cpe_assertion;
