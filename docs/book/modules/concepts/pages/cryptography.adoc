@@ -88,36 +88,39 @@ These indicate the blast radius of each cryptographic asset — how many softwar
 [#compliance-badges]
 == Compliance status badges
 
-Each algorithm receives a compliance verdict based on Trustify's built-in policy evaluation:
+Each algorithm receives a compliance verdict based on Trustify's default built-in PQC readiness policy.
+The verdicts reflect **urgency of action** — distinguishing between algorithms that are broken today and must be replaced immediately, algorithms that are secure today but will need migration to PQC alternatives, and algorithms that are already quantum-safe:
 
 [cols="1,2,3"]
 |===
 | Badge | Meaning | Examples
 
-| image:compliant-badge.png[Compliant,20] *Compliant*
-| The algorithm is quantum-safe and approved for long-term use.
+| *Compliant*
+| The algorithm is quantum-safe. No action required.
 | ML-KEM, ML-KEM-768, Kyber, ML-DSA, MLDSA-65, Dilithium, SLH-DSA, SPHINCS+
 
-| image:warning-badge.png[Warning,20] *Warning*
-| The algorithm is classical and secure today but will need to be migrated to a PQC alternative. Unknown algorithms also receive this verdict.
+| *Warning*
+| The algorithm is secure today but is not quantum-resistant and will require migration to a PQC alternative. Algorithms not recognized by the policy also receive this verdict.
 | AES, AES-128-GCM, RSA (>=2048 bits), ECDSA, ECDH, Ed25519, SHA-256, SHA-384, SHA-512, 3DES, ChaCha20
 
-| image:noncompliant-badge.png[Non-compliant,20] *Non-compliant*
-| The algorithm is weak or broken and should be replaced immediately, regardless of quantum computing timelines.
+| *Non-compliant*
+| The algorithm is cryptographically weak or broken and should be replaced immediately, regardless of quantum computing timelines.
 | MD5, RC4, RC2, DES, SHA-1, RSA (<=1024 bits), DSA (<=1024 bits)
 |===
 
 [#policy-evaluation]
 == Policy evaluation
 
-Trustify evaluates each cryptographic algorithm against a built-in PQC readiness policy.
-The policy is implemented in Rust and applies a deterministic classification:
+Trustify ships with a default built-in PQC readiness policy that provides a starting point for assessing cryptographic posture.
+The policy is not a formal implementation of a specific compliance standard — it is a default assessment that organizations can use to identify and prioritize their PQC migration efforts.
+
+The policy applies a deterministic, three-tier classification based on urgency of action:
 
 . *PQC-safe algorithms* are marked *Compliant*. The PQC-safe list is aligned with NIST post-quantum standards (https://csrc.nist.gov/pubs/fips/203/final[FIPS 203], https://csrc.nist.gov/pubs/fips/204/final[FIPS 204], https://csrc.nist.gov/pubs/fips/205/final[FIPS 205]) and recognizes: ML-KEM (Kyber), ML-DSA (Dilithium), and SLH-DSA (SPHINCS+).
 
-. *Weak or broken algorithms* are marked *Non-compliant*. These are algorithms considered cryptographically broken or insufficient regardless of quantum computing timelines: MD5, RC4, RC2, DES (but not 3DES), SHA-1, and RSA/DSA with key sizes of 1024 bits or smaller.
+. *Weak or broken algorithms* are marked *Non-compliant*. These are algorithms considered cryptographically broken or insufficient today, regardless of quantum computing timelines: MD5, RC4, RC2, DES (but not 3DES), SHA-1, and RSA/DSA with key sizes of 1024 bits or smaller. These require immediate replacement.
 
-. *All other algorithms* receive a *Warning* verdict. This includes classical algorithms that are currently secure (AES, RSA >= 2048, ECDSA, SHA-256) but are not quantum-resistant, as well as any algorithm not recognized by the policy.
+. *All other algorithms* receive a *Warning* verdict. These are classical algorithms that are secure today (AES, RSA >= 2048, ECDSA, SHA-256) but are not quantum-resistant and will require planned migration to PQC alternatives. Algorithms not recognized by the policy also receive this verdict.
 
 The policy uses the algorithm name and, when available, the `parameterSetIdentifier` property from the CBOM to determine key sizes for RSA and DSA.
 
@@ -339,7 +342,7 @@ The following API endpoints are available under the `crypto` tag:
 | Get aggregate KPI metrics (total algorithms, PQC compliant count, classical share percentage, SBOMs meeting PQC).
 
 | `GET`
-| `/v3/sbom/{id}/crypto`
+| `/v3/sbom/\{id\}/crypto`
 | List cryptographic assets for a specific SBOM. Supports the same filtering as the global endpoint.
 
 | `POST`
