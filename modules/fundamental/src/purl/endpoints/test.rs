@@ -566,6 +566,17 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
         "the CVE record's defaultStatus should be stored as a default status"
     );
 
+    // And an SBOM containing the upstream version for the report path.
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-advisory-only-report",
+            "00000000-0000-0000-0000-200000000002",
+            &[("advlib", "1.0.0", "pkg:maven/com.example/advlib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+
     // Detach the assertion from its qualified PURL so deleting the versioned PURL
     // does not violate the purl_status foreign key.
     let detached_statuses = ctx
@@ -622,6 +633,25 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     );
     assert_eq!(vulnerabilities[0]["id"], "CVE-2099-20001");
     assert_eq!(vulnerabilities[0]["status"], "Fixed");
+
+    // The report must use the same effective status lookup for this synthetic winner.
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    let report_packages = report["packages"].as_array().unwrap();
+    assert_eq!(report_packages.len(), 1);
+    assert_eq!(
+        report_packages[0]["purl"],
+        "pkg:maven/com.example/advlib@1.0.0"
+    );
+    assert_eq!(
+        report_packages[0]["recommended_purl"],
+        "pkg:maven/com.example/advlib@1.0.0.redhat-00001"
+    );
+    assert_eq!(
+        report_packages[0]["vulnerabilities"],
+        json!(["CVE-2099-20001"])
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
 
     Ok(())
 }
