@@ -329,19 +329,6 @@ async fn remediation_scopes(
             }
         );
     }
-    // Evidence without source references contributes no remediations.
-    let mut legacy = evidence
-        .iter()
-        .find(|row| row.extractor == "purl" && row.node_id == "widget-1")
-        .unwrap()
-        .clone();
-    legacy.source_assertions = json!([]);
-    assert!(
-        super::super::load_evidence_remediations(&[legacy], &tx)
-            .await?
-            .is_empty()
-    );
-
     // These PURL-based products retain the legacy PURL associations. Product-status
     // associations are covered with product-version CSAF fixtures in the ingestor tests.
     use trustify_entity::{remediation_product_status, remediation_purl_status};
@@ -656,10 +643,11 @@ async fn derived_evidence_retains_source_remediations(ctx: &TrustifyContext) -> 
 
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
-async fn remediations_require_recorded_sources_until_reextraction(
+async fn evidence_requires_sources_and_repeated_extraction_preserves_remediations(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     use sea_orm::ConnectionTrait;
+    use trustify_common::db::sql;
 
     ctx.ingest_read(serde_json::to_vec(&advisory("mixed").await?)?.as_slice())
         .await?;
@@ -683,22 +671,22 @@ async fn remediations_require_recorded_sources_until_reextraction(
         .await?;
     assert_eq!(original.total, Some(2));
 
-    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '[]'::jsonb")
-        .await?;
-    let verdicts = service.correlate_sbom(id, false, &tx).await?.verdicts;
-    assert_eq!(verdicts.len(), 2);
-    assert!(verdicts.iter().all(|verdict| {
-        verdict
-            .evidence
-            .iter()
-            .all(|evidence| evidence.remediations.is_empty())
-    }));
-    let empty = service
-        .remediation_page(id, &request, pagination, &cache, &tx)
-        .await?;
-    assert!(empty.items.is_empty());
-    assert_eq!(empty.total, Some(0));
-    assert_eq!(service.count_verdicts(&[id], &tx).await?[0].remediations, 0);
+    for invalid in ["[]", "null", "{}"] {
+        let attempt = tx.begin().await?;
+        assert!(
+            attempt
+                .execute_raw(sql(
+                    "UPDATE correlation_evidence SET source_assertions = $1",
+                    vec![serde_json::from_str::<Value>(invalid)?.into()],
+                ))
+                .await
+                .is_err()
+        );
+        attempt.rollback().await?;
+    }
+    let attempt = tx.begin().await?;
+    assert!(attempt.execute_unprepared("INSERT INTO correlation_evidence (id, sbom_id, node_id, advisory_id, vulnerability_id, status, confidence, extractor) SELECT gen_random_uuid(), sbom_id, node_id, advisory_id, vulnerability_id, status, confidence, 'missing-sources' FROM correlation_evidence LIMIT 1").await.is_err());
+    attempt.rollback().await?;
 
     extractors.extract_for_sbom(id, &tx).await?;
     let restored = service
@@ -788,7 +776,7 @@ async fn remediation_pages_slice_identities_and_resolve_selected_groups(
         row.id = Set(Uuid::new_v4());
         row.node_id = Set(node_id);
         if index < 2 {
-            row.source_assertions = Set(json!([]));
+            row.source_assertions = Set(json!([{"kind": "purl", "id": Uuid::new_v4()}]));
         }
         row.insert(&tx).await?;
     }
@@ -889,7 +877,7 @@ async fn remediation_pages_slice_identities_and_resolve_selected_groups(
     );
 
     // Identity collection validates every source, including those outside the requested slice.
-    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '{}'::jsonb WHERE node_id = 'widget-2'").await?;
+    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '[{\"kind\":\"invalid\"}]'::jsonb WHERE node_id = 'widget-2'").await?;
     assert!(
         service
             .remediation_page(
@@ -923,8 +911,10 @@ async fn remediation_pages_slice_identities_and_resolve_selected_groups(
             .is_err()
     );
     // With no total, zero must skip even the compact-identity scan.
-    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '{}'::jsonb")
-        .await?;
+    tx.execute_unprepared(
+        "UPDATE correlation_evidence SET source_assertions = '[{\"kind\":\"invalid\"}]'::jsonb",
+    )
+    .await?;
     let zero = service
         .remediation_page(
             id,

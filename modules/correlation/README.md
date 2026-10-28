@@ -82,7 +82,7 @@ Each item includes `component`, `vulnerability`, the resolved verdict `status`, 
 vulnerability ID, advisory UUID, category name, details and URL, with null optional values first.
 Status uses all evidence of the verdict, including evidence outside the remediation page.
 Only source assertions recorded in evidence contribute remediations, both in verdict details
-and summary counts. Evidence without source references contributes no remediations.
+and summary counts. Every evidence record contains at least one source assertion reference.
 
 Verdicts and remediations accept `node_id` and `vulnerability_id` filters; verdicts also accept
 `include_explanation=true`. Totals count matching items before offset/limit, including on empty

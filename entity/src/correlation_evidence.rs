@@ -23,7 +23,7 @@ pub struct Model {
     #[sea_orm(column_type = "JsonBinary")]
     pub confidence_factors: serde_json::Value,
     /// Source assertions which survived identity, version and product-context matching.
-    /// Empty for evidence extracted before source references were recorded.
+    /// Contains at least one source assertion reference.
     #[sea_orm(column_type = "JsonBinary")]
     pub source_assertions: serde_json::Value,
 }
