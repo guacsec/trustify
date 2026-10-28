@@ -35,13 +35,24 @@ class CorrelationUserV3(AuthenticatedHttpUser):
 
     @tag("v3", "correlation", "detail", "readonly")
     @task(2)
-    def get_sbom_correlation_with_unmatched(self) -> None:
+    def get_sbom_unmatched(self) -> None:
         if not SCENARIO.get_correlation_sbom:
             return
         sbom_id = quote(SCENARIO.get_correlation_sbom, safe="")
         self.client.get(
-            f"/api/v3/correlation/sbom/{sbom_id}?include_unmatched=true",
-            name="/api/v3/correlation/sbom/{sbom_id}?include_unmatched=true",
+            f"/api/v3/correlation/sbom/{sbom_id}/unmatched?offset=0&limit=25&total=true",
+            name="/api/v3/correlation/sbom/{sbom_id}/unmatched",
+        )
+
+    @tag("v3", "correlation", "detail", "readonly")
+    @task
+    def get_sbom_remediations(self) -> None:
+        if not SCENARIO.get_correlation_sbom:
+            return
+        sbom_id = quote(SCENARIO.get_correlation_sbom, safe="")
+        self.client.get(
+            f"/api/v3/correlation/sbom/{sbom_id}/remediations?offset=0&limit=25&total=true",
+            name="/api/v3/correlation/sbom/{sbom_id}/remediations",
         )
 
     @tag("v3", "correlation", "list", "readonly")

@@ -1,25 +1,21 @@
 use crate::{
     error::Error,
-    extractor::Extractors,
+    extractor::{Extractors, SourceAssertionRef},
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, EvidenceRemediation,
-        IdentifierRef, MatchedRange, MatchedValue, QueryMatch, QueryResult, QueryVerdict,
-        ResolutionRequest, SbomVerdictCounts, ScoreRef, VerdictStatus, VerdictSummary,
-        VulnerabilityRef,
+        IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict, ResolutionRequest,
+        SbomVerdictCounts, ScoreRef, VerdictStatus, VerdictSummary, VulnerabilityRef,
     },
 };
 use sea_orm::{
-    ActiveEnum, ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait,
-    FromQueryResult, QueryFilter, Statement,
+    ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, QueryFilter,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
-use trustify_common::purl::Purl;
 use trustify_entity::{
     advisory, advisory_vulnerability_score, advisory_vulnerability_upstream, assertion_context,
     correlation_evidence, correlation_evidence::AssertionStatus, correlation_evidence_context,
-    qualified_purl, remediation::RemediationCategory, sbom, sbom_node, version_range,
-    version_scheme::VersionScheme, vulnerability,
+    sbom, sbom_node, vulnerability,
 };
 use uuid::Uuid;
 
@@ -755,28 +751,8 @@ async fn load_scores(
     Ok(result)
 }
 
-#[derive(FromQueryResult)]
-struct RemediationRow {
-    advisory_id: Uuid,
-    vulnerability_id: String,
-    slug: String,
-    base_purl_type: String,
-    base_purl_namespace: Option<String>,
-    base_purl_name: String,
-    source_purl: Option<qualified_purl::CanonicalPurl>,
-    range_id: Uuid,
-    range_scheme: VersionScheme,
-    range_low_version: Option<String>,
-    range_low_inclusive: Option<bool>,
-    range_high_version: Option<String>,
-    range_high_inclusive: Option<bool>,
-    category: String,
-    details: Option<String>,
-    url: Option<String>,
-}
-
 /// Remediations of the source assertions that survived matching, keyed by evidence ID.
-/// Older evidence without source references retains the legacy PURL lookup.
+/// Evidence without source references contributes no remediations until re-extraction.
 async fn load_evidence_remediations(
     evidence: &[correlation_evidence::Model],
     connection: &impl ConnectionTrait,
@@ -784,11 +760,9 @@ async fn load_evidence_remediations(
     let references = evidence
         .iter()
         .map(|row| {
-            serde_json::from_value::<BTreeSet<crate::extractor::SourceAssertionRef>>(
-                row.source_assertions.clone(),
-            )
-            .map(|sources| (row, sources))
-            .map_err(Error::MatchedValue)
+            serde_json::from_value::<BTreeSet<SourceAssertionRef>>(row.source_assertions.clone())
+                .map(|sources| (row, sources))
+                .map_err(Error::MatchedValue)
         })
         .collect::<Result<Vec<_>, _>>()?;
     let remediations = remediation::Remediations::load(
@@ -799,131 +773,10 @@ async fn load_evidence_remediations(
     )
     .await?;
     let mut result = HashMap::new();
-    let mut legacy = Vec::new();
     for (row, sources) in references {
-        if sources.is_empty() {
-            legacy.push(row.clone());
-        } else {
-            let values = remediations.for_sources(row.advisory_id, &row.vulnerability_id, &sources);
-            if !values.is_empty() {
-                result.insert(row.id, values);
-            }
-        }
-    }
-    result.extend(load_legacy_evidence_remediations(&legacy, connection).await?);
-    Ok(result)
-}
-
-/// Compatibility for evidence extracted before source provenance was recorded.
-async fn load_legacy_evidence_remediations(
-    evidence: &[correlation_evidence::Model],
-    connection: &impl ConnectionTrait,
-) -> Result<HashMap<Uuid, Vec<EvidenceRemediation>>, Error> {
-    let advisories = evidence
-        .iter()
-        .map(|e| e.advisory_id)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-    if advisories.is_empty() {
-        return Ok(HashMap::new());
-    }
-
-    let rows = RemediationRow::find_by_statement(Statement::from_sql_and_values(
-        DbBackend::Postgres,
-        r#"
-SELECT ps.advisory_id, ps.vulnerability_id, s.slug,
-       bp.type AS base_purl_type, bp.namespace AS base_purl_namespace, bp.name AS base_purl_name,
-       qp.purl AS source_purl,
-       vr.id AS range_id, vr.version_scheme_id AS range_scheme,
-       vr.low_version AS range_low_version, vr.low_inclusive AS range_low_inclusive,
-       vr.high_version AS range_high_version, vr.high_inclusive AS range_high_inclusive,
-       r.category::text AS category, r.details, r.url
-FROM remediation r
-JOIN remediation_purl_status rps ON rps.remediation_id = r.id
-JOIN purl_status ps ON ps.id = rps.purl_status_id
-JOIN status s ON s.id = ps.status_id
-JOIN base_purl bp ON bp.id = ps.base_purl_id
-LEFT JOIN qualified_purl qp ON qp.id = ps.qualified_purl_id
-JOIN version_range vr ON vr.id = ps.version_range_id
-WHERE ps.advisory_id = ANY($1)
-ORDER BY r.category, r.details
-"#,
-        [advisories.into()],
-    ))
-    .all(connection)
-    .instrument(info_span!("loading evidence remediations"))
-    .await?;
-
-    // by statement: advisory, vulnerability, status, PURL, and range
-    let mut statements =
-        BTreeMap::<(Uuid, String, String, String, MatchedRange), Vec<EvidenceRemediation>>::new();
-    for row in rows {
-        let purl = row.source_purl.map(Purl::from).unwrap_or_else(|| Purl {
-            ty: row.base_purl_type,
-            namespace: row.base_purl_namespace,
-            name: row.base_purl_name,
-            version: None,
-            qualifiers: Default::default(),
-        });
-        let range = version_range::Model {
-            id: row.range_id,
-            version_scheme_id: row.range_scheme,
-            low_version: row.range_low_version,
-            low_inclusive: row.range_low_inclusive,
-            high_version: row.range_high_version,
-            high_inclusive: row.range_high_inclusive,
-        };
-        let Ok(category) = RemediationCategory::try_from_value(&row.category)
-            .inspect_err(|err| tracing::warn!("unknown remediation category: {err}"))
-        else {
-            continue;
-        };
-        let remediation = EvidenceRemediation {
-            category: category.into(),
-            details: row.details,
-            url: row.url,
-        };
-        let remediations = statements
-            .entry((
-                row.advisory_id,
-                row.vulnerability_id,
-                row.slug,
-                purl.to_string(),
-                range.into(),
-            ))
-            .or_default();
-        if !remediations.contains(&remediation) {
-            remediations.push(remediation);
-        }
-    }
-
-    let mut result = HashMap::new();
-    for e in evidence {
-        let Some(value) = e
-            .matched_value
-            .clone()
-            .and_then(|value| serde_json::from_value::<MatchedValue>(value).ok())
-        else {
-            continue;
-        };
-        let mut remediations = Vec::<EvidenceRemediation>::new();
-        for range in value.ranges {
-            let key = (
-                e.advisory_id,
-                e.vulnerability_id.clone(),
-                e.status.to_value(),
-                value.identifier.clone(),
-                range,
-            );
-            for remediation in statements.get(&key).into_iter().flatten() {
-                if !remediations.contains(remediation) {
-                    remediations.push(remediation.clone());
-                }
-            }
-        }
-        if !remediations.is_empty() {
-            result.insert(e.id, remediations);
+        let values = remediations.for_sources(row.advisory_id, &row.vulnerability_id, &sources);
+        if !values.is_empty() {
+            result.insert(row.id, values);
         }
     }
     Ok(result)

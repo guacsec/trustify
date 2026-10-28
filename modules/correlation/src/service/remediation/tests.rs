@@ -235,7 +235,7 @@ async fn remediation_scopes(
         .await?;
     assert_eq!(page.total, Some(1));
     assert_eq!(page.items[0].remediation, fix(2));
-    // Identical SQL shapes with different bound filters must not share cached totals.
+    // Filters apply to both the identity collection and its total.
     for request in [
         ResolutionRequest {
             node_id: Some("missing-node".into()),
@@ -280,17 +280,17 @@ async fn remediation_scopes(
             }
         );
     }
-    // Pre-upgrade evidence without source references keeps its existing PURL lookup.
+    // Evidence without source references must not reconstruct a PURL match at read time.
     let mut legacy = evidence
         .iter()
         .find(|row| row.extractor == "purl" && row.node_id == "widget-1")
         .unwrap()
         .clone();
     legacy.source_assertions = json!([]);
-    let legacy_id = legacy.id;
-    assert_eq!(
-        super::super::load_evidence_remediations(&[legacy], &tx).await?[&legacy_id],
-        vec![fix(1)]
+    assert!(
+        super::super::load_evidence_remediations(&[legacy], &tx)
+            .await?
+            .is_empty()
     );
 
     // These PURL-based products retain the legacy PURL associations. Product-status
@@ -600,17 +600,83 @@ async fn derived_evidence_retains_source_remediations(ctx: &TrustifyContext) -> 
         .find(|m| m.extractor == "purl_fixed_as_first_fixed_before")
         .unwrap();
     assert_eq!(matched.remediations, inferred.remediations);
-    // Unlike the legacy range/status reconstruction, source lookup also works when the
-    // evidence's affected range was derived from a fixed statement.
+    // Source lookup also works when the evidence's affected range was derived from a fixed
+    // statement; no range/status reconstruction is needed at read time.
     assert_eq!(query.verdicts[0].status, VerdictStatus::Affected);
     Ok(())
 }
 
-/// Pages can split a verdict's remediation rows, but resolution still uses the whole verdict.
-/// Traversal also crosses the internal group-batch boundary and keeps legacy lookup behavior.
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
-async fn remediation_pages_cross_batches_and_skip_unrequested_work(
+async fn remediations_require_recorded_sources_until_reextraction(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::ConnectionTrait;
+
+    ctx.ingest_read(serde_json::to_vec(&advisory("mixed").await?)?.as_slice())
+        .await?;
+    let id = Uuid::parse_str(
+        &ctx.ingest_read(serde_json::to_vec(&sbom(PLATFORM))?.as_slice())
+            .await?
+            .id,
+    )?;
+    let tx = ctx.db.begin().await?;
+    let extractors = Extractors::default();
+    extractors.extract_for_sbom(id, &tx).await?;
+    let service = CorrelationService::default();
+    let cache = PaginationCache::new(Duration::from_secs(60), 1000);
+    let request = ResolutionRequest::default();
+    let pagination = Paginated {
+        total: true,
+        ..Default::default()
+    };
+    let original = service
+        .remediation_page(id, &request, pagination, &cache, &tx)
+        .await?;
+    assert_eq!(original.total, Some(2));
+
+    tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '[]'::jsonb")
+        .await?;
+    let verdicts = service.correlate_sbom(id, false, &tx).await?.verdicts;
+    assert_eq!(verdicts.len(), 2);
+    assert!(verdicts.iter().all(|verdict| {
+        verdict
+            .evidence
+            .iter()
+            .all(|evidence| evidence.remediations.is_empty())
+    }));
+    let empty = service
+        .remediation_page(id, &request, pagination, &cache, &tx)
+        .await?;
+    assert!(empty.items.is_empty());
+    assert_eq!(empty.total, Some(0));
+    assert_eq!(service.count_verdicts(&[id], &tx).await?[0].remediations, 0);
+
+    extractors.extract_for_sbom(id, &tx).await?;
+    let restored = service
+        .remediation_page(id, &request, pagination, &cache, &tx)
+        .await?;
+    assert_eq!(restored, original);
+    assert_eq!(service.count_verdicts(&[id], &tx).await?[0].remediations, 2);
+    assert!(
+        service
+            .correlate_sbom(id, false, &tx)
+            .await?
+            .verdicts
+            .iter()
+            .all(|verdict| verdict
+                .evidence
+                .iter()
+                .all(|evidence| !evidence.remediations.is_empty()))
+    );
+    Ok(())
+}
+
+/// Pages can split a verdict's remediation rows, but resolution still uses the whole verdict.
+/// All identities are collected before slicing, but unselected resolver input stays deferred.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn remediation_pages_slice_identities_and_resolve_selected_groups(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     use sea_orm::{ActiveModelTrait, ConnectionTrait, IntoActiveModel, Set};
@@ -657,8 +723,12 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
         .insert(&tx)
         .await?;
     }
-    for index in (0..101).rev() {
-        let node_id = format!("node-{index:03}");
+    for (index, node_id) in (0..101)
+        .rev()
+        .map(|n| format!("node-{n:03}"))
+        .chain(["A", "a", "é", "z"].map(str::to_string))
+        .enumerate()
+    {
         sbom_node::ActiveModel {
             sbom_id: Set(id),
             node_id: Set(node_id.clone()),
@@ -690,8 +760,10 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
             &tx,
         )
         .await?;
-    assert_eq!(full.total, Some(307));
-    assert_eq!(full.items.len(), 307);
+    assert_eq!(full.total, Some(313));
+    assert_eq!(full.items.len(), 313);
+    assert_eq!(full.items[0].component.node_id, "A");
+    assert_eq!(full.items.last().unwrap().component.node_id, "é");
     assert_eq!(full.items[0].remediation, fix(1));
     assert_eq!(full.items[1].remediation.details, None);
     assert_eq!(full.items[2].remediation.details.as_deref(), Some(""));
@@ -715,23 +787,27 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
         traversed.extend(page.items);
     }
     assert_eq!(traversed, full.items);
-    let warm_cache = PaginationCache::new(Duration::from_secs(60), 1000);
-    service
+    // Invalid resolver input outside the selected groups must not prevent the first page.
+    tx.execute_unprepared("UPDATE correlation_evidence SET matched_value = '\"invalid\"'::jsonb WHERE node_id = 'widget-2'").await?;
+    let first = service
         .remediation_page(
             id,
             &request,
             Paginated {
-                limit: 0,
+                limit: 1,
                 total: true,
-                ..Default::default()
+                offset: 0,
             },
-            &warm_cache,
+            &cache,
             &tx,
         )
         .await?;
+    assert_eq!(first.items, full.items[..1]);
+    assert_eq!(first.total, full.total);
 
-    // Count-only pages still enumerate identities, but must not deserialize resolver input.
-    tx.execute_unprepared("UPDATE correlation_evidence SET matched_value = '\"invalid\"'::jsonb WHERE source_assertions <> '[]'::jsonb").await?;
+    // Count-only pages collect identities, but must not deserialize any resolver input.
+    tx.execute_unprepared("UPDATE correlation_evidence SET matched_value = '\"invalid\"'::jsonb")
+        .await?;
     let counted = service
         .remediation_page(
             id,
@@ -746,7 +822,7 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
         )
         .await?;
     assert!(counted.items.is_empty());
-    assert_eq!(counted.total, Some(307));
+    assert_eq!(counted.total, Some(313));
     assert!(
         service
             .remediation_page(
@@ -764,38 +840,24 @@ async fn remediation_pages_cross_batches_and_skip_unrequested_work(
             .is_err()
     );
 
-    // A malformed source in a later batch proves a total=false request stops after its page.
+    // Identity collection validates every source, including those outside the requested slice.
     tx.execute_unprepared("UPDATE correlation_evidence SET source_assertions = '{}'::jsonb WHERE node_id = 'widget-2'").await?;
-    // The warm count must avoid rescanning the now malformed source, even on another page.
-    let cached = service
-        .remediation_page(
-            id,
-            &request,
-            Paginated {
-                limit: 1,
-                total: true,
-                offset: 0,
-            },
-            &warm_cache,
-            &tx,
-        )
-        .await?;
-    assert_eq!(cached.total, Some(307));
-    assert_eq!(cached.items, full.items[..1]);
-    let first = service
-        .remediation_page(
-            id,
-            &request,
-            Paginated {
-                limit: 1,
-                total: false,
-                offset: 0,
-            },
-            &cache,
-            &tx,
-        )
-        .await?;
-    assert_eq!(first.items, full.items[..1]);
+    assert!(
+        service
+            .remediation_page(
+                id,
+                &request,
+                Paginated {
+                    limit: 1,
+                    total: false,
+                    offset: 0,
+                },
+                &cache,
+                &tx,
+            )
+            .await
+            .is_err()
+    );
     assert!(
         service
             .remediation_page(
