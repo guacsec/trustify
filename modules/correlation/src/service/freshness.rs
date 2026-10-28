@@ -1,15 +1,16 @@
 //! Indexed completion metadata, revision counters, and durable refresh jobs.
 use crate::{error::Error, extractor::Extractors, model::*};
 use sea_orm::{
-    ConnectionTrait, DatabaseTransaction, DbBackend, DbErr, FromQueryResult, Statement,
-    TransactionTrait, Value,
+    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, FromQueryResult,
+    JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait, TransactionTrait,
 };
 use std::collections::HashMap;
 use time::OffsetDateTime;
 use trustify_common::{
-    db::{self, pagination_cache::PaginationCache},
+    db::{self, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::{Paginated, PaginatedResults},
 };
+use trustify_entity::{correlation_extraction_state, sbom, sbom_node};
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -32,10 +33,6 @@ WHERE completed_revision < $1
   AND ($2::uuid IS NULL OR (completed_revision, sbom_id) > ($3, $2))
 ORDER BY completed_revision, sbom_id LIMIT 1
 "#;
-
-fn sql(query: &str, values: Vec<Value>) -> Statement {
-    Statement::from_sql_and_values(DbBackend::Postgres, query, values)
-}
 
 #[derive(FromQueryResult)]
 struct Revision {
@@ -72,6 +69,14 @@ struct Completion {
     sbom_id: Uuid,
     revision: i64,
     completed_revision: Option<i64>,
+    completed_at: Option<OffsetDateTime>,
+}
+
+#[derive(FromQueryResult)]
+struct DocumentCompletion {
+    sbom_id: Uuid,
+    name: String,
+    completed_revision: i64,
     completed_at: Option<OffsetDateTime>,
 }
 
@@ -248,36 +253,46 @@ pub async fn documents(
             total,
         });
     }
-    // Each branch has an indexable revision predicate. None means the refresh backlog.
-    let predicate = match status {
-        Some(FreshnessStatus::Current) => "s.completed_revision = $1",
-        Some(FreshnessStatus::Stale) => "s.completed_revision > 0 AND s.completed_revision < $1",
-        Some(FreshnessStatus::Unknown) => "s.completed_revision = 0",
-        None => "s.completed_revision < $1",
+    let completed = correlation_extraction_state::Column::CompletedRevision;
+    let mut query = correlation_extraction_state::Entity::find()
+        .select_only()
+        .column(correlation_extraction_state::Column::SbomId)
+        .column(completed)
+        .column(correlation_extraction_state::Column::CompletedAt)
+        .column_as(sbom_node::Column::Name, "name")
+        .join(
+            JoinType::InnerJoin,
+            correlation_extraction_state::Relation::Sbom.def(),
+        )
+        .join(JoinType::InnerJoin, sbom::Relation::SbomNode.def());
+    query = match status {
+        Some(FreshnessStatus::Current) => query.filter(completed.eq(revision)),
+        Some(FreshnessStatus::Stale) => query
+            .filter(completed.gt(0_i64))
+            .filter(completed.lt(revision)),
+        Some(FreshnessStatus::Unknown) => query.filter(completed.eq(0_i64)),
+        None => query.filter(completed.lt(revision)),
     };
-    // Unknown still binds $1 in the projection, keeping one stable parameter layout.
-    let query = format!(
-        "SELECT s.sbom_id, n.name, $1::bigint revision, s.completed_revision, s.completed_at FROM correlation_extraction_state s JOIN sbom b USING (sbom_id) JOIN sbom_node n ON n.sbom_id = b.sbom_id AND n.node_id = b.node_id WHERE {predicate} ORDER BY s.completed_revision, s.sbom_id LIMIT $2 OFFSET $3"
-    );
-    let mut items = Vec::new();
-    for row in tx
-        .query_all_raw(sql(
-            &query,
-            vec![
-                revision.into(),
-                (page.limit.min(i64::MAX as u64) as i64).into(),
-                (page.offset.min(i64::MAX as u64) as i64).into(),
-            ],
-        ))
-        .await?
-    {
-        let state = Completion::from_query_result(&row, "")?;
-        items.push(FreshnessDocument {
-            sbom_id: state.sbom_id,
-            name: row.try_get("", "name")?,
-            freshness: completion(&state),
-        });
-    }
+    let selected = query
+        .order_by_asc(completed)
+        .order_by_asc(correlation_extraction_state::Column::SbomId)
+        .limiting_as::<DocumentCompletion>(tx, page, cache)?
+        .fetch()
+        .await?;
+    let items = selected
+        .items
+        .into_iter()
+        .map(|row| FreshnessDocument {
+            sbom_id: row.sbom_id,
+            name: row.name,
+            freshness: completion(&Completion {
+                sbom_id: row.sbom_id,
+                revision,
+                completed_revision: Some(row.completed_revision),
+                completed_at: row.completed_at,
+            }),
+        })
+        .collect();
     Ok(PaginatedResults { items, total })
 }
 
