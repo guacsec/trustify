@@ -188,11 +188,11 @@ impl CorrelationService {
             let nodes = selected
                 .items
                 .iter()
-                .map(|n| n.node_id.clone())
+                .map(|n| n.node_id.as_str())
                 .collect::<Vec<_>>();
             let identifiers = self
                 .extractors
-                .component_identifiers_scoped(sbom_id, Some(&nodes), connection)
+                .component_identifiers(sbom_id, Some(&nodes), connection)
                 .await?;
             selected
                 .items
