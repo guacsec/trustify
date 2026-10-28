@@ -1,32 +1,32 @@
-use crate::{
-    AppRoute,
-    advisory::advisory_link,
-    api,
-    model::{
-        ComponentRef, EvidenceDetail, EvidenceRemediation, IdentifierKind, IdentifierRef,
-        MatchedValue, ProviderMatch, RemediationCategory, SbomSummary, VerdictStatus,
-        VerdictSummary,
-    },
-    resolution::{confidence_cell, product_names, provider_view},
-    score::primary_score,
-    tools::{InlineCpe, InlinePurl, inline_identifier},
-};
+//! SBOM correlation view layout and collection tabs.
+use crate::{AppRoute, api, model::SbomSummary};
 use patternfly_yew::prelude::*;
-use std::{cell::Cell as CancelFlag, collections::BTreeMap, rc::Rc};
-use time::OffsetDateTime;
-use trustify_api::correlation::{RefreshJob, ResolutionSummary, SbomRemediation};
-
-mod pagination;
-use pagination::CorrelationContent;
+use std::{cell::Cell as CancelFlag, rc::Rc};
+use trustify_api::correlation::RefreshJob;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
 
+mod common;
+mod pagination;
+mod remediations;
+mod summary;
+mod unmatched;
+mod verdicts;
+
+pub(crate) use common::{confidence_label, matched_value, status_color, timestamp};
+use remediations::RemediationTable;
+use summary::CorrelationSummary;
+use unmatched::UnmatchedTable;
+use verdicts::VerdictTable;
+
+/// Properties of the SBOM correlation view.
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub struct CorrelationViewProps {
     pub sbom_id: String,
 }
 
+/// Show an SBOM's metadata and independently paginated correlation collections.
 #[function_component(CorrelationView)]
 pub fn correlation_view(props: &CorrelationViewProps) -> Html {
     let result = use_state(|| Option::<SbomSummary>::None);
@@ -124,268 +124,39 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-enum VerdictColumn {
-    Component,
-    Vulnerability,
-    Score,
-    Advisory,
-    Status,
-    Evidence,
-}
-
-#[derive(Clone, PartialEq)]
-struct VerdictEntry(VerdictSummary, uuid::Uuid);
-
-impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
-    fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
-        match context.column {
-            VerdictColumn::Component => Cell::new(html! {
-                <div>
-                    { &self.0.component.name }
-                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                        <code style="color: inherit;">{ &self.0.component.node_id }</code>
-                    </div>
-                </div>
-            })
-            .text_modifier(TextModifier::NoWrap),
-            VerdictColumn::Vulnerability => html! {
-                <>
-                    <strong>{ &self.0.vulnerability.id }</strong>
-                    if let Some(title) = &self.0.vulnerability.title {
-                        <br />
-                        <small>{ title }</small>
-                    }
-                    if !self.0.vulnerability.upstream.is_empty() {
-                        <Tooltip text="The vulnerabilities this advisory refers to upstream. They are different vulnerabilities, not aliases.">
-                            <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                                { "Upstream: " }{ self.0.vulnerability.upstream.join(", ") }
-                            </div>
-                        </Tooltip>
-                    }
-                </>
-            }
-            .into(),
-            VerdictColumn::Score => primary_score(&self.0.vulnerability.scores).into(),
-            VerdictColumn::Advisory => advisory_link(
-                self.0.vulnerability.advisory_id,
-                &self.0.vulnerability.advisory_identifier,
-                self.0.vulnerability.advisory_type.as_deref(),
-            )
-            .into(),
-            VerdictColumn::Status => html! {
-                <div>
-                    <span style="display: inline-flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
-                        {status_label(self.0.status)}
-                        {confidence_label(&self.0.resolution)}
-                        if self.0.evidence.iter().any(|e| !e.remediations.is_empty()) {
-                            <Tooltip text="The advisories state a remediation, e.g. the version fixing the vulnerability">
-                                <i class="fas fa-wrench" aria-label="Remediation available"/>
-                            </Tooltip>
-                        }
-                    </span>
-                </div>
-            }.into(),
-            VerdictColumn::Evidence => {
-                html!(<Badge>{ self.0.evidence.len().to_string() }</Badge>).into()
-            }
-        }
-    }
-
-    fn actions(&self) -> Vec<MenuChildVariant> {
-        vec![
-            html_nested! {
-                <Raw>
-                    <crate::resolution::ResolutionAction
-                        target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
-                        node_id={Some(self.0.component.node_id.clone())}
-                        vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
-                </Raw>
-            }
-            .into(),
-        ]
-    }
-
-    fn render_details(&self) -> Vec<Span> {
-        let evidence = &self.0.evidence;
-        if evidence.is_empty() {
-            return vec![];
-        }
-
-        // the remediations the advisories state for the evidence, each once per advisory
-        let mut remediations = Vec::<(&EvidenceRemediation, &EvidenceDetail)>::new();
-        for e in evidence {
-            for r in &e.remediations {
-                if !remediations
-                    .iter()
-                    .any(|(other, o)| *other == r && o.advisory_id == e.advisory_id)
-                {
-                    remediations.push((r, e));
-                }
-            }
-        }
-
-        let content = html! {
-            <Stack gutter=true>
-                <StackItem>
-                    <Flex>
-                        <FlexItem><Title level={Level::H4}>{ "Component in the SBOM" }</Title></FlexItem>
-                        <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
-                            <crate::resolution::ResolutionButton
-                                target={trustify_api::correlation::PreviewTarget::Sbom{sbom_id:self.1}}
-                                node_id={Some(self.0.component.node_id.clone())}
-                                vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
-                        </FlexItem>
-                    </Flex>
-                    { identifiers(&self.0.component.identifiers) }
-                    <div>
-                        <strong>{ "Provider" }</strong>
-                        <div>{ provider_view(&self.0.component_provider) }</div>
-                    </div>
-                </StackItem>
-                <StackItem>
-                    <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
-                    <EvidenceTable evidence={evidence.clone()} />
-                </StackItem>
-                if !remediations.is_empty() {
-                    <StackItem>
-                        <Title level={Level::H4}>{ "Remediations" }</Title>
-                        <ul class="pf-v6-c-list pf-m-plain">
-                            { for remediations.iter().map(|(r, e)| html! {
-                                <li>
-                                    { remediation(r) }
-                                    <span class="pf-v6-u-text-color-subtle pf-v6-u-ml-sm">
-                                        { "(" }
-                                        { advisory_link(e.advisory_id, &e.advisory_identifier, e.advisory_type.as_deref()) }
-                                        { ")" }
-                                    </span>
-                                </li>
-                            }) }
-                        </ul>
-                    </StackItem>
-                }
-            </Stack>
-        };
-
-        vec![Span::max(content)]
-    }
-
-    fn is_full_width_details(&self) -> Option<bool> {
-        Some(true)
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq)]
-enum EvidenceColumn {
-    Assertion,
-    Confidence,
-    Extractor,
-    MatchedValue,
-    Product,
-    Provider,
-    Advisory,
-    Created,
-}
-
-#[derive(Clone, PartialEq)]
-struct EvidenceEntry(EvidenceDetail);
-
-impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
-    fn render_cell(&self, context: CellContext<'_, EvidenceColumn>) -> Cell {
-        match context.column {
-            EvidenceColumn::Assertion => html!(self.0.assertion_status.label()).into(),
-            EvidenceColumn::Confidence => confidence_cell(
-                &self.0.confidence_factors,
-                &self.0.contexts,
-                self.0.confidence,
-            )
-            .into(),
-            EvidenceColumn::Extractor => html!(&self.0.extractor).into(),
-            EvidenceColumn::MatchedValue => match &self.0.matched_value {
-                Some(value) => matched_value(value).into(),
-                None => html!("\u{2014}").into(),
-            },
-            EvidenceColumn::Product => product_names(&self.0.contexts).into(),
-            EvidenceColumn::Provider => {
-                let same = match self.0.provider_match {
-                    Some(ProviderMatch::Provider) => Some(("Same as component", Color::Green)),
-                    Some(ProviderMatch::Name) => Some(("Same name as component", Color::Blue)),
-                    None => None,
-                };
-                html! {
-                    <>
-                        { provider_view(&self.0.provider) }
-                        if let Some((label, color)) = same {
-                            <div><Label compact=true {label} {color}/></div>
-                        }
-                    </>
-                }
-                .into()
-            }
-            EvidenceColumn::Advisory => advisory_link(
-                self.0.advisory_id,
-                &self.0.advisory_identifier,
-                self.0.advisory_type.as_deref(),
-            )
-            .into(),
-            EvidenceColumn::Created => timestamp(&self.0.created_at).into(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Properties)]
-struct EvidenceTableProps {
-    evidence: Vec<EvidenceDetail>,
+struct CorrelationContentProps {
+    sbom_id: uuid::Uuid,
+    #[prop_or_default]
+    active_job: Option<RefreshJob>,
 }
 
-#[function_component(EvidenceTable)]
-fn evidence_table(props: &EvidenceTableProps) -> Html {
-    let entries = use_memo(props.evidence.clone(), |evidence| {
-        evidence
-            .iter()
-            .map(|e| EvidenceEntry(e.clone()))
-            .collect::<Vec<_>>()
-    });
-
-    let (entries, _) = use_table_data(MemoizedTableModel::new(entries));
-
-    let header = html_nested! {
-        <TableHeader<EvidenceColumn>>
-            <TableColumn<EvidenceColumn> label="Assertion" index={EvidenceColumn::Assertion} />
-            <TableColumn<EvidenceColumn> label="Confidence" index={EvidenceColumn::Confidence} />
-            <TableColumn<EvidenceColumn> label="Extractor" index={EvidenceColumn::Extractor} />
-            <TableColumn<EvidenceColumn> label="Matched Value" index={EvidenceColumn::MatchedValue} />
-            <TableColumn<EvidenceColumn> label="Product" index={EvidenceColumn::Product} />
-            <TableColumn<EvidenceColumn> label="Provider" index={EvidenceColumn::Provider} />
-            <TableColumn<EvidenceColumn> label="Advisory" index={EvidenceColumn::Advisory} />
-            <TableColumn<EvidenceColumn> label="Created" index={EvidenceColumn::Created} />
-        </TableHeader<EvidenceColumn>>
+#[function_component(CorrelationContent)]
+fn correlation_content(props: &CorrelationContentProps) -> Html {
+    let tab = use_state_eq(|| CorrelationTab::Verdicts);
+    let onselect = {
+        let tab = tab.clone();
+        Callback::from(move |index: CorrelationTab| tab.set(index))
     };
-
     html! {
-        <Table<EvidenceColumn, UseTableData<EvidenceColumn, MemoizedTableModel<EvidenceEntry>>>
-            mode={TableMode::Compact}
-            {header}
-            {entries}
-        />
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq)]
-enum UnmatchedColumn {
-    Name,
-    Identifiers,
-}
-
-#[derive(Clone, PartialEq)]
-struct UnmatchedEntry(ComponentRef);
-
-impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
-    fn render_cell(&self, context: CellContext<'_, UnmatchedColumn>) -> Cell {
-        match context.column {
-            UnmatchedColumn::Name => html!(&self.0.name).into(),
-            UnmatchedColumn::Identifiers => identifiers(&self.0.identifiers).into(),
-        }
+        <>
+            <CorrelationSummary sbom_id={props.sbom_id} active_job={props.active_job.clone()} />
+            <br />
+            <Tabs<CorrelationTab> selected={*tab} {onselect}>
+                <Tab<CorrelationTab> index={CorrelationTab::Verdicts} title="Verdicts">
+                    <TabContent><TabContentBody padding=true>
+                        <VerdictTable sbom_id={props.sbom_id} />
+                        <br />
+                        <UnmatchedTable sbom_id={props.sbom_id} />
+                    </TabContentBody></TabContent>
+                </Tab<CorrelationTab>>
+                <Tab<CorrelationTab> index={CorrelationTab::Remediations} title="Remediations">
+                    <TabContent><TabContentBody padding=true>
+                        <RemediationTable sbom_id={props.sbom_id} />
+                    </TabContentBody></TabContent>
+                </Tab<CorrelationTab>>
+            </Tabs<CorrelationTab>>
+        </>
     }
 }
 
@@ -394,187 +165,4 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
 enum CorrelationTab {
     Verdicts,
     Remediations,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum RemediationColumn {
-    Component,
-    Vulnerability,
-    Status,
-    Remediation,
-    Advisory,
-}
-
-/// A remediation an advisory states for the statement of a verdict's evidence.
-#[derive(Clone, PartialEq)]
-struct RemediationEntry(SbomRemediation);
-
-impl TableEntryRenderer<RemediationColumn> for RemediationEntry {
-    fn render_cell(&self, context: CellContext<'_, RemediationColumn>) -> Cell {
-        match context.column {
-            RemediationColumn::Component => Cell::new(html! {
-                <div>
-                    { &self.0.component.name }
-                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                        <code style="color: inherit;">{ &self.0.component.node_id }</code>
-                    </div>
-                </div>
-            })
-            .text_modifier(TextModifier::NoWrap),
-            RemediationColumn::Vulnerability => {
-                html!(<strong>{ &self.0.vulnerability }</strong>).into()
-            }
-            RemediationColumn::Status => status_label(self.0.status).into(),
-            RemediationColumn::Remediation => remediation(&self.0.remediation).into(),
-            RemediationColumn::Advisory => advisory_link(
-                self.0.advisory_id,
-                &self.0.advisory_identifier,
-                self.0.advisory_type.as_deref(),
-            )
-            .into(),
-        }
-    }
-}
-
-/// A remediation, e.g. "Fixed in 4.1.2", or its category and details.
-fn remediation(remediation: &EvidenceRemediation) -> Html {
-    let text = match (&remediation.category, &remediation.details) {
-        // a vendor fix's details already say what fixes it
-        (RemediationCategory::VendorFix, Some(details)) => details.clone(),
-        (category, Some(details)) => format!("{}: {details}", category.label()),
-        (category, None) => category.label().to_string(),
-    };
-    html! {
-        <span>
-            <i class="fas fa-wrench pf-v6-u-mr-xs" aria-hidden="true"/>
-            if let Some(url) = &remediation.url {
-                <a href={url.clone()} target="_blank" rel="noopener noreferrer">{ text }</a>
-            } else {
-                { text }
-            }
-        </span>
-    }
-}
-
-/// Render the identifiers of a component, grouped by kind.
-fn identifiers(identifiers: &[IdentifierRef]) -> Html {
-    let mut sections = BTreeMap::<IdentifierKind, Vec<&str>>::new();
-    for identifier in identifiers {
-        sections
-            .entry(identifier.kind)
-            .or_default()
-            .push(&identifier.value);
-    }
-
-    if sections.is_empty() {
-        return html!(<i>{ "\u{2014}" }</i>);
-    }
-
-    html! {
-        { for sections.into_iter().map(|(kind, items)| html! {
-            <div>
-                <strong>{ kind.label() }</strong>
-                <ul style="margin:0;padding-left:1em">
-                    { for items.iter().map(|value| html!(<li>{ identifier(kind, value) }</li>)) }
-                </ul>
-            </div>
-        })}
-    }
-}
-
-/// Render an identifier, linking PURLs and CPEs to their inspector.
-fn identifier(kind: IdentifierKind, value: &str) -> Html {
-    let value = value.to_owned();
-    match kind {
-        IdentifierKind::Purl => html!(<InlinePurl {value} />),
-        IdentifierKind::Cpe => html!(<InlineCpe {value} />),
-        _ => html!(<code>{ value }</code>),
-    }
-}
-
-/// Render the advisory side of a match: the identifier, and each matched version range on a line
-/// of its own.
-pub(crate) fn matched_value(value: &MatchedValue) -> Html {
-    html! {
-        <>
-            { inline_identifier(&value.identifier) }
-            if !value.ranges.is_empty() {
-                <ul style="margin:0;padding-left:1em">
-                    { for value.ranges.iter().map(|range| html!(<li>{ range.to_string() }</li>)) }
-                </ul>
-            }
-            if let Some(enabled_by) = &value.enabled_by {
-                <div>
-                    <small>
-                        { "enabled by option " }
-                        <code>{ enabled_by.key.as_str() }</code>
-                        { " for " }
-                        <code>{ &enabled_by.publisher_namespace }</code>
-                        if let Some(reason) = &enabled_by.reason {
-                            { ": " }{ reason }
-                        }
-                    </small>
-                </div>
-            }
-        </>
-    }
-}
-
-/// The label color of a verdict status.
-/// A timestamp to the second, without the offset when in UTC. The tooltip has the full value.
-pub(crate) fn timestamp(value: &OffsetDateTime) -> Html {
-    let offset = value.offset();
-    let mut short = format!(
-        "{} {:02}:{:02}:{:02}",
-        value.date(),
-        value.hour(),
-        value.minute(),
-        value.second()
-    );
-    if !offset.is_utc() {
-        let sign = if offset.is_negative() { '-' } else { '+' };
-        short.push_str(&format!(
-            " {sign}{:02}:{:02}",
-            offset.whole_hours().unsigned_abs(),
-            offset.minutes_past_hour().unsigned_abs()
-        ));
-    }
-    html! {
-        <Tooltip text={value.to_string()}>
-            <span>{ short }</span>
-        </Tooltip>
-    }
-}
-
-/// The color of a verdict status, the same as of the statuses of advisories.
-pub(crate) fn status_color(status: VerdictStatus) -> Color {
-    match status {
-        VerdictStatus::Affected => Color::Red,
-        VerdictStatus::Fixed => Color::Blue,
-        VerdictStatus::NotAffected => Color::Green,
-        VerdictStatus::UnderInvestigation => Color::Orange,
-        VerdictStatus::None => Color::Grey,
-    }
-}
-
-/// The selected match confidence of a verdict as a label, e.g. "55%", explained on hover. A
-/// conflict among the evidence is shown as a label of its own.
-pub(crate) fn confidence_label(resolution: &ResolutionSummary) -> Html {
-    let percent = format!("{:.0}%", resolution.confidence * 100.0);
-    html! {
-        <>
-            <Tooltip text={format!("Confidence: {percent}")}>
-                <Label compact=true outline=true label={percent.clone()} />
-            </Tooltip>
-            if resolution.has_conflict {
-                <Tooltip text="Evidence states different statuses">
-                    <Label compact=true color={Color::Orange} label="Conflict" />
-                </Tooltip>
-            }
-        </>
-    }
-}
-
-fn status_label(status: VerdictStatus) -> Html {
-    html! { <Label label={status.label()} color={status_color(status)} /> }
 }
