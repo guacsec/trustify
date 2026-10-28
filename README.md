@@ -39,6 +39,11 @@ AUTH_DISABLED=true ./trustd-pm
 
 ### Option 2: Build from source
 
+Install [the console build prerequisites](ui/README.md#prerequisites): Node.js 24,
+Trunk 0.22.1, and the `wasm32-unknown-unknown` Rust target. Cargo builds and embeds
+both UIs automatically. Use the independent `trustify-ui` and `ui-console` features
+to [select either UI or an API-only build](ui/README.md#embedding-in-the-server).
+
 ```shell
 AUTH_DISABLED=true cargo run --bin trustd
 ```
