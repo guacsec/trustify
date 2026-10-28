@@ -11,7 +11,7 @@ Key capabilities:
 
 * *Algorithm inventory* — A searchable, sortable table listing all cryptographic assets (algorithms, keys, certificates, protocols) extracted from ingested CBOMs. Organized into *Algorithms* and *Keys* tabs.
 
-* *PQC compliance evaluation* — Each algorithm is automatically evaluated against a built-in PQC readiness policy that classifies it as *Compliant* (quantum-safe), *Warning* (classical, needs migration), or *Non-compliant* (weak/broken). The PQC-safe list is aligned with NIST post-quantum standards (FIPS 203/204/205: ML-KEM, ML-DSA, SLH-DSA).
+* *PQC compliance evaluation* — Each algorithm is automatically evaluated against a default built-in PQC readiness policy that classifies it by urgency of action: *Compliant* (quantum-safe, no action required), *Warning* (secure today but requires planned migration to PQC), or *Non-compliant* (cryptographically weak, replace immediately). The PQC-safe list is aligned with NIST post-quantum standards (FIPS 203/204/205: ML-KEM, ML-DSA, SLH-DSA).
 
 * *KPI summary cards* — Dashboard-level metrics showing total algorithms, PQC-compliant count, classical share percentage, and number of SBOMs meeting PQC requirements.
 
