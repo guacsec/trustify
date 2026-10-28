@@ -89,6 +89,42 @@ struct RemediationKey {
     remediation: EvidenceRemediation,
 }
 
+/// Collect distinct source-linked identities before slicing the requested page in memory.
+async fn remediation_keys(
+    evidence: &[correlation_evidence::Model],
+    connection: &DatabaseTransaction,
+) -> Result<Vec<RemediationKey>, Error> {
+    let mut remediations = load_evidence_remediations(evidence, connection).await?;
+    let mut ordered = BTreeMap::new();
+    for row in evidence {
+        for remediation in remediations.remove(&row.id).unwrap_or_default() {
+            ordered.insert(
+                (
+                    EvidenceGroup {
+                        node_id: row.node_id.clone(),
+                        vulnerability_id: row.vulnerability_id.clone(),
+                    },
+                    row.advisory_id,
+                    category_key(remediation.category),
+                    remediation.details.clone(),
+                    remediation.url.clone(),
+                ),
+                remediation,
+            );
+        }
+    }
+    Ok(ordered
+        .into_iter()
+        .map(
+            |((group, advisory_id, _, _, _), remediation)| RemediationKey {
+                group,
+                advisory_id,
+                remediation,
+            },
+        )
+        .collect())
+}
+
 impl CorrelationService {
     pub async fn verdict_page(
         &self,
@@ -167,72 +203,7 @@ impl CorrelationService {
         Ok(PaginatedResults { items, total })
     }
 
-    /// Enumerate compact identities in bounded batches. Resolution and UI enrichment happen only
-    /// after selecting the requested remediation rows. The legacy source matching stays shared.
-    async fn remediation_keys(
-        &self,
-        sbom_id: Uuid,
-        request: &ResolutionRequest,
-        offset: u64,
-        limit: u64,
-        count_all: bool,
-        connection: &DatabaseTransaction,
-    ) -> Result<(Vec<RemediationKey>, u64), Error> {
-        let mut items = Vec::new();
-        let mut seen = 0u64;
-        let mut group_offset = 0;
-        if limit == 0 && !count_all {
-            return Ok((items, seen));
-        }
-        loop {
-            let batch = groups(sbom_id, request)
-                .offset(group_offset)
-                .limit(100)
-                .into_model::<EvidenceGroup>()
-                .all(connection)
-                .await?;
-            if batch.is_empty() {
-                break;
-            }
-            group_offset += batch.len() as u64;
-            let evidence = evidence_for_groups(sbom_id, &batch, connection).await?;
-            let mut remediations = load_evidence_remediations(&evidence, connection).await?;
-            let mut ordered = BTreeMap::new();
-            for row in &evidence {
-                for remediation in remediations.remove(&row.id).unwrap_or_default() {
-                    let group = EvidenceGroup {
-                        node_id: row.node_id.clone(),
-                        vulnerability_id: row.vulnerability_id.clone(),
-                    };
-                    ordered.insert(
-                        (
-                            group,
-                            row.advisory_id,
-                            category_key(remediation.category),
-                            remediation.details.clone(),
-                            remediation.url.clone(),
-                        ),
-                        remediation,
-                    );
-                }
-            }
-            for ((group, advisory_id, _, _, _), remediation) in ordered {
-                if seen >= offset && (items.len() as u64) < limit {
-                    items.push(RemediationKey {
-                        group,
-                        advisory_id,
-                        remediation,
-                    });
-                }
-                seen += 1;
-                if !count_all && (items.len() as u64) == limit {
-                    return Ok((items, seen));
-                }
-            }
-        }
-        Ok((items, seen))
-    }
-
+    /// Slice distinct remediation identities in memory, resolving only selected verdict groups.
     pub async fn remediation_page(
         &self,
         sbom_id: Uuid,
@@ -244,50 +215,42 @@ impl CorrelationService {
         // Use the common limiter for validation, including the configured maximum and zero.
         let _validated =
             groups(sbom_id, request).limiting_as::<EvidenceGroup>(connection, paginated, cache)?;
-        let total = if paginated.total() {
-            let statement = groups(sbom_id, request).build(DbBackend::Postgres);
-            let key = format!(
-                "correlation-remediations:{}|{:?}",
-                statement.sql, statement.values
-            );
-            Some(
-                cache
-                    .cached_total(key, async || {
-                        self.remediation_keys(sbom_id, request, 0, 0, true, connection)
-                            .await
-                            .map(|(_, count)| count)
-                            .map_err(|err| sea_orm::DbErr::Custom(err.to_string()))
-                    })
-                    .await?,
-            )
-        } else {
-            None
-        };
-        let (keys, _) = self
-            .remediation_keys(
-                sbom_id,
-                request,
-                paginated.offset(),
-                paginated.limit(),
-                false,
-                connection,
-            )
+        if paginated.limit() == 0 && !paginated.total() {
+            return Ok(PaginatedResults::default());
+        }
+        let mut evidence = evidence_query(sbom_id, request)
+            .order_by_asc(correlation_evidence::Column::Id)
+            .all(connection)
             .await?;
-        let selected = keys
+        let keys = remediation_keys(&evidence, connection).await?;
+        let page = paginated.paginate_array(&keys);
+        if page.items.is_empty() {
+            return Ok(PaginatedResults {
+                items: Vec::new(),
+                total: page.total,
+            });
+        }
+        let selected = page
+            .items
             .iter()
-            .map(|key| key.group.clone())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        let evidence = evidence_for_groups(sbom_id, &selected, connection).await?;
+            .map(|key| {
+                (
+                    key.group.node_id.as_str(),
+                    key.group.vulnerability_id.as_str(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        evidence.retain(|row| {
+            selected.contains(&(row.node_id.as_str(), row.vulnerability_id.as_str()))
+        });
         let verdicts = self
             .verdicts(sbom_id, request, &evidence, connection)
             .await?
             .into_iter()
             .map(|v| ((v.component.node_id.clone(), v.vulnerability.id.clone()), v))
             .collect::<HashMap<_, _>>();
-        let mut items = Vec::with_capacity(keys.len());
-        for key in keys {
+        let mut items = Vec::with_capacity(page.items.len());
+        for key in page.items {
             let verdict = verdicts
                 .get(&(key.group.node_id, key.group.vulnerability_id))
                 .ok_or(Error::IncompleteRemediationEvidence)?;
@@ -306,7 +269,10 @@ impl CorrelationService {
                 advisory_type: advisory.advisory_type.clone(),
             });
         }
-        Ok(PaginatedResults { items, total })
+        Ok(PaginatedResults {
+            items,
+            total: page.total,
+        })
     }
 }
 
