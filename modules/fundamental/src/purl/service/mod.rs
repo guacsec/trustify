@@ -743,7 +743,7 @@ impl PurlService {
         version: &str,
         connection: &C,
     ) -> Result<Vec<StatusInfo>, Error> {
-        let all_statuses = purl_status::Entity::find()
+        let all_statuses = purl_status::find_effective()
             .columns([
                 version_range::Column::Id,
                 version_range::Column::LowVersion,
@@ -751,7 +751,7 @@ impl PurlService {
                 version_range::Column::HighVersion,
                 version_range::Column::HighInclusive,
             ])
-            .left_join(version_range::Entity)
+            .join(JoinType::LeftJoin, purl_status::effective_version_range())
             .filter(purl_status::Column::BasePurlId.eq(base_purl_id))
             .filter(SimpleExpr::FunctionCall(
                 Func::cust(VersionMatches)
