@@ -515,6 +515,53 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     ))
     .await?;
 
+    // And a CVE record for the same package whose `defaultStatus` is `affected`: ingestion
+    // stores it as an unbounded `is_default` status, which the effective view ignores, so it
+    // must not reach the advisory-only winner either
+    ctx.ingest_json(json!({
+        "dataType": "CVE_RECORD",
+        "dataVersion": "5.2",
+        "cveMetadata": {
+            "cveId": "CVE-2099-30001",
+            "assignerOrgId": "ce714d77-add3-4f53-aff5-83d477b104bb",
+            "state": "PUBLISHED",
+            "assignerShortName": "example",
+            "dateReserved": "2026-02-21T20:04:35.087Z",
+            "datePublished": "2026-03-31T19:18:35.796Z",
+            "dateUpdated": "2026-04-01T13:43:21.491Z"
+        },
+        "containers": {
+            "cna": {
+                "providerMetadata": {
+                    "orgId": "ce714d77-add3-4f53-aff5-83d477b104bb",
+                    "shortName": "example",
+                    "dateUpdated": "2026-03-31T19:18:35.796Z"
+                },
+                "title": "advlib default status",
+                "descriptions": [{ "lang": "en", "value": "advlib default status" }],
+                "references": [{ "url": "https://example.com/CVE-2099-30001" }],
+                "affected": [{
+                    "vendor": "example",
+                    "product": "advlib",
+                    "defaultStatus": "affected",
+                    "versions": [{ "versionType": "semver", "status": "affected", "version": "0.0.1" }],
+                    "packageURL": "pkg:maven/com.example/advlib"
+                }]
+            }
+        }
+    }))
+    .await?;
+    let default_statuses = purl_status::Entity::find()
+        .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
+        .filter(base_purl::Column::Name.eq("advlib"))
+        .filter(purl_status::Column::IsDefault.eq(true))
+        .count(&ctx.db)
+        .await?;
+    assert_eq!(
+        default_statuses, 1,
+        "the CVE record's defaultStatus should be stored as a default status"
+    );
+
     // Detach the assertion from its qualified PURL so deleting the versioned PURL
     // does not violate the purl_status foreign key.
     let detached_statuses = ctx
