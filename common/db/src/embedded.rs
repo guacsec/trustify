@@ -18,7 +18,7 @@ pub fn default_settings() -> anyhow::Result<Settings> {
         username: "postgres".to_string(),
         password: "trustify".to_string(),
         temporary: true,
-        // The five-second library default is too short on busy CI runners.
+        // Allow time for embedded PostgreSQL operations on busy CI runners.
         timeout: Some(Duration::from_secs(30)),
         ..Default::default()
     })

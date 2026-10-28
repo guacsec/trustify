@@ -329,7 +329,7 @@ async fn remediation_scopes(
             }
         );
     }
-    // Evidence without source references must not reconstruct a PURL match at read time.
+    // Evidence without source references contributes no remediations.
     let mut legacy = evidence
         .iter()
         .find(|row| row.extractor == "purl" && row.node_id == "widget-1")
@@ -649,8 +649,7 @@ async fn derived_evidence_retains_source_remediations(ctx: &TrustifyContext) -> 
         .find(|m| m.extractor == "purl_fixed_as_first_fixed_before")
         .unwrap();
     assert_eq!(matched.remediations, inferred.remediations);
-    // Source lookup also works when the evidence's affected range was derived from a fixed
-    // statement; no range/status reconstruction is needed at read time.
+    // Source references identify remediations for affected ranges derived from fixed statements.
     assert_eq!(query.verdicts[0].status, VerdictStatus::Affected);
     Ok(())
 }
