@@ -24,9 +24,6 @@ pub enum Error {
     MatchedValue(#[source] serde_json::Error),
     #[error("invalid distance of a context: {0}")]
     Distance(#[from] TryFromIntError),
-    /// A selected remediation has no corresponding verdict or advisory evidence.
-    #[error("remediation is missing its complete verdict or advisory evidence")]
-    IncompleteRemediationEvidence,
 }
 
 impl From<DbErr> for Error {
