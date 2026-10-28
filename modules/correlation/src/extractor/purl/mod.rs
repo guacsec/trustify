@@ -62,7 +62,8 @@ use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::VersionMatches, purl::Purl};
 use trustify_entity::{
     advisory, base_purl, correlation_evidence::AssertionStatus, purl_status, qualified_purl,
-    sbom_node_purl_ref, status, version_range, version_scheme::VersionScheme, versioned_purl,
+    query::ForNodes, sbom_node_purl_ref, status, version_range, version_scheme::VersionScheme,
+    versioned_purl,
 };
 use uuid::Uuid;
 
@@ -556,12 +557,9 @@ impl Extractor for PurlExtractor {
         nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
-        let mut query = sbom_node_purl_ref::Entity::find()
-            .filter(sbom_node_purl_ref::Column::SbomId.eq(sbom_id));
-        if let Some(nodes) = nodes {
-            query = query.filter(sbom_node_purl_ref::Column::NodeId.is_in(nodes.iter().copied()));
-        }
-        let purl_refs = query
+        let purl_refs = sbom_node_purl_ref::Entity::find()
+            .filter(sbom_node_purl_ref::Column::SbomId.eq(sbom_id))
+            .for_nodes(nodes)
             .all(tx)
             .instrument(info_span!("loading purl refs"))
             .await?;

@@ -33,7 +33,7 @@ use std::{
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::cpe::Cpe;
 use trustify_entity::{
-    correlation_evidence::AssertionStatus, cpe, sbom_node_cpe_ref, version_range,
+    correlation_evidence::AssertionStatus, cpe, query::ForNodes, sbom_node_cpe_ref, version_range,
 };
 use uuid::Uuid;
 
@@ -207,12 +207,9 @@ impl Extractor for CpeExtractor {
         nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
-        let mut query =
-            sbom_node_cpe_ref::Entity::find().filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id));
-        if let Some(nodes) = nodes {
-            query = query.filter(sbom_node_cpe_ref::Column::NodeId.is_in(nodes.iter().copied()));
-        }
-        let cpe_refs = query
+        let cpe_refs = sbom_node_cpe_ref::Entity::find()
+            .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
+            .for_nodes(nodes)
             .all(tx)
             .instrument(info_span!("loading cpe refs"))
             .await?;
