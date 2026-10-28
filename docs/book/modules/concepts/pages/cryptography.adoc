@@ -111,7 +111,7 @@ Each algorithm receives a compliance verdict based on Trustify's built-in policy
 == Policy evaluation
 
 Trustify evaluates each cryptographic algorithm against a built-in policy engine based on the https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards) recommendation profile.
-This is currently the only supported profile; additional profiles (e.g., ANSSI) may be added in future releases.
+This is currently the only supported profile; additional profiles (e.g., ANSSI) will be added in future releases.
 The policy is implemented in Rust and applies a deterministic classification:
 
 . *PQC-safe algorithms* are marked *Compliant*. These include NIST-standardized post-quantum algorithms and their common aliases: ML-KEM (Kyber), ML-DSA (Dilithium), and SLH-DSA (SPHINCS+).
@@ -163,7 +163,7 @@ Omit `sbom_id` to evaluate all algorithms across all SBOMs.
 == Remediation mappings
 
 Remediation mappings link classical algorithms to their recommended PQC replacements based on https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards).
-NIST IR 8547 is currently the only supported recommendation profile; additional profiles (e.g., ANSSI) may be added in future releases.
+NIST IR 8547 is currently the only supported recommendation profile; additional profiles (e.g., ANSSI) will be added in future releases.
 Once imported, the *Recommendation* column in the algorithm inventory table displays the PQC replacement for each matched algorithm.
 
 === Data model
