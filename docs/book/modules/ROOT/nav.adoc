@@ -1,1 +1,2 @@
 * xref:ROOT:index.adoc[What is Trustify?]
+* xref:ROOT:release-notes-3.2.0.adoc[Release Notes — RHTPA 3.2.0]

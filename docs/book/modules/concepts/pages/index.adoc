@@ -91,3 +91,13 @@ Each is an artifact of the *same* package.
 Each might, and most likely will, have its own SHA-256 related to it.
 
 Consider an *artifact* to be a concrete *instance* of a package.
+
+== CBOM (Cryptographic Bill of Materials)
+
+A CBOM extends the CycloneDX 1.6 SBOM specification with `cryptoProperties` to declare the cryptographic assets used by software components.
+When Trustify ingests a CycloneDX SBOM containing cryptographic properties, it extracts and stores the cryptographic assets — algorithms, keys, certificates, and protocols — making them available for PQC readiness assessment.
+
+CBOMs enable visibility into the cryptographic posture of your software supply chain.
+The extracted assets are displayed on the xref:concepts:cryptography.adoc[Cryptography page] and in the *CBOM* tab of the SBOM Explorer.
+
+See xref:concepts:cryptography.adoc[PQC Readiness and Cryptography] for full details on how cryptographic assets are analyzed and evaluated.
