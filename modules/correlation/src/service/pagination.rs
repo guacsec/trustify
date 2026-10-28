@@ -13,6 +13,9 @@ use trustify_common::{
     model::{PaginatedResults, Pagination},
 };
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, FromQueryResult)]
 struct EvidenceGroup {
     node_id: String,
@@ -82,11 +85,25 @@ fn category_key(category: crate::model::RemediationCategory) -> &'static str {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct RemediationKey {
     group: EvidenceGroup,
     advisory_id: Uuid,
-    remediation: EvidenceRemediation,
+    category: &'static str,
+    details: Option<String>,
+    url: Option<String>,
+}
+
+impl RemediationKey {
+    fn new(group: EvidenceGroup, advisory_id: Uuid, remediation: &EvidenceRemediation) -> Self {
+        Self {
+            group,
+            advisory_id,
+            category: category_key(remediation.category),
+            details: remediation.details.clone(),
+            url: remediation.url.clone(),
+        }
+    }
 }
 
 /// Collect distinct source-linked identities before slicing the requested page in memory.
@@ -95,34 +112,20 @@ async fn remediation_keys(
     connection: &DatabaseTransaction,
 ) -> Result<Vec<RemediationKey>, Error> {
     let mut remediations = load_evidence_remediations(evidence, connection).await?;
-    let mut ordered = BTreeMap::new();
+    let mut ordered = BTreeSet::new();
     for row in evidence {
         for remediation in remediations.remove(&row.id).unwrap_or_default() {
-            ordered.insert(
-                (
-                    EvidenceGroup {
-                        node_id: row.node_id.clone(),
-                        vulnerability_id: row.vulnerability_id.clone(),
-                    },
-                    row.advisory_id,
-                    category_key(remediation.category),
-                    remediation.details.clone(),
-                    remediation.url.clone(),
-                ),
-                remediation,
-            );
+            ordered.insert(RemediationKey::new(
+                EvidenceGroup {
+                    node_id: row.node_id.clone(),
+                    vulnerability_id: row.vulnerability_id.clone(),
+                },
+                row.advisory_id,
+                &remediation,
+            ));
         }
     }
-    Ok(ordered
-        .into_iter()
-        .map(
-            |((group, advisory_id, _, _, _), remediation)| RemediationKey {
-                group,
-                advisory_id,
-                remediation,
-            },
-        )
-        .collect())
+    Ok(ordered.into_iter().collect())
 }
 
 impl CorrelationService {
@@ -243,38 +246,40 @@ impl CorrelationService {
         evidence.retain(|row| {
             selected.contains(&(row.node_id.as_str(), row.vulnerability_id.as_str()))
         });
-        let verdicts = self
+        let selected = page.items.into_iter().collect::<BTreeSet<_>>();
+        let mut items = BTreeMap::new();
+        for verdict in self
             .verdicts(sbom_id, request, &evidence, connection)
             .await?
-            .into_iter()
-            .map(|v| ((v.component.node_id.clone(), v.vulnerability.id.clone()), v))
-            .collect::<HashMap<_, _>>();
-        let mut items = Vec::with_capacity(page.items.len());
-        for key in page.items {
-            let verdict = verdicts
-                .get(&(key.group.node_id, key.group.vulnerability_id))
-                .ok_or(Error::IncompleteRemediationEvidence)?;
-            let advisory = verdict
-                .evidence
-                .iter()
-                .find(|e| e.advisory_id == key.advisory_id)
-                .ok_or(Error::IncompleteRemediationEvidence)?;
-            items.push(SbomRemediation {
-                component: verdict.component.clone(),
-                vulnerability: verdict.vulnerability.id.clone(),
-                status: verdict.status,
-                remediation: key.remediation,
-                advisory_id: key.advisory_id,
-                advisory_identifier: advisory.advisory_identifier.clone(),
-                advisory_type: advisory.advisory_type.clone(),
-            });
+        {
+            let group = EvidenceGroup {
+                node_id: verdict.component.node_id.clone(),
+                vulnerability_id: verdict.vulnerability.id.clone(),
+            };
+            for advisory in verdict.evidence {
+                for remediation in advisory.remediations {
+                    let key =
+                        RemediationKey::new(group.clone(), advisory.advisory_id, &remediation);
+                    if selected.contains(&key) {
+                        items.insert(
+                            key,
+                            SbomRemediation {
+                                component: verdict.component.clone(),
+                                vulnerability: verdict.vulnerability.id.clone(),
+                                status: verdict.status,
+                                remediation,
+                                advisory_id: advisory.advisory_id,
+                                advisory_identifier: advisory.advisory_identifier.clone(),
+                                advisory_type: advisory.advisory_type.clone(),
+                            },
+                        );
+                    }
+                }
+            }
         }
         Ok(PaginatedResults {
-            items,
+            items: items.into_values().collect(),
             total: page.total,
         })
     }
 }
-
-#[cfg(test)]
-mod tests;
