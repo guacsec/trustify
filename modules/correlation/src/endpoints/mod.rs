@@ -12,7 +12,7 @@ use serde::Deserialize;
 use trustify_auth::{ReadAdvisory, ReadSbom, all, authorizer::Require};
 use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::{
-    db::{self, pagination_cache::PaginationCache},
+    db::{self, DatabaseExt, pagination_cache::PaginationCache},
     model::{Paginated, PaginatedResults},
 };
 use utoipa::IntoParams;
@@ -111,8 +111,7 @@ async fn get_sbom_correlation(
     _: Require<ReadSbomCorrelation>,
 ) -> Result<impl Responder, Error> {
     let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
-    let tx = db.begin().await?;
-    freshness::snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     let result = service
         .verdict_page(
             sbom_id,
@@ -156,8 +155,7 @@ async fn get_sbom_unmatched(
     _: Require<ReadSbomCorrelation>,
 ) -> Result<impl Responder, Error> {
     let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
-    let tx = db.begin().await?;
-    freshness::snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     let result = service
         .unmatched_page(sbom_id, params.node_id.as_deref(), paginated, &cache, &tx)
         .await?;
@@ -190,8 +188,7 @@ async fn get_sbom_remediations(
     _: Require<ReadSbomCorrelation>,
 ) -> Result<impl Responder, Error> {
     let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
-    let tx = db.begin().await?;
-    freshness::snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     let request = crate::model::ResolutionRequest {
         node_id: params.node_id.clone(),
         vulnerability_id: params.vulnerability_id.clone(),
@@ -259,8 +256,7 @@ async fn count_verdicts(
         )));
     }
 
-    let tx = db.begin().await?;
-    freshness::snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     let result = service.count_verdicts(&request.sbom_ids, &tx).await?;
     Ok(HttpResponse::Ok().json(result))
 }

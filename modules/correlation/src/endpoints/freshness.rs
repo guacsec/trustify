@@ -1,11 +1,11 @@
 use crate::{error::Error, model::*, service::freshness};
 use actix_web::{HttpResponse, Responder, get, post, web};
-use sea_orm::{ConnectionTrait, TransactionTrait};
+use sea_orm::TransactionTrait;
 use serde::Deserialize;
 use trustify_auth::{ReadAdvisory, UpdateCorrelationOption, authorizer::Require};
 use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::{
-    db,
+    db::{self, DatabaseExt},
     model::{Paginated, PaginatedResults},
 };
 use utoipa::IntoParams;
@@ -16,13 +16,6 @@ struct Filter {
     /// Omit to list all documents needing refresh.
     #[param(inline)]
     status: Option<FreshnessStatus>,
-}
-
-/// A coherent snapshot prevents a freshly committed revision being attached to old results.
-pub(super) async fn snapshot(tx: &sea_orm::DatabaseTransaction) -> Result<(), Error> {
-    tx.execute_unprepared("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
-        .await?;
-    Ok(())
 }
 
 /// Get the correlation freshness overview
@@ -40,8 +33,7 @@ async fn overview(
     db: web::Data<db::ReadOnly>,
     _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(freshness::overview(&tx).await?))
 }
 
@@ -62,8 +54,7 @@ async fn documents(
     web::Query(page): web::Query<Paginated>,
     _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(freshness::documents(&tx, filter.status, page).await?))
 }
 
@@ -112,8 +103,7 @@ async fn get_job(
     web::Query(page): web::Query<Paginated>,
     _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(freshness::job(&tx, *id, page).await?))
 }
 
