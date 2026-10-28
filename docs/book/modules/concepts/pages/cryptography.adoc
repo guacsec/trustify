@@ -1,7 +1,7 @@
 = PQC Readiness and Cryptography
 
 Trustify provides a *Cryptography* page that gives visibility into the cryptographic algorithms used across your software supply chain.
-By analyzing Cryptographic Bill of Materials (CBOMs) embedded in CycloneDX 1.6 SBOMs, Trustify inventories every cryptographic asset and evaluates its readiness for the transition to Post-Quantum Cryptography (PQC).
+By analyzing Cryptographic Bill of Materials (CBOMs) embedded in CycloneDX 1.6 and 1.7 SBOMs, Trustify inventories every cryptographic asset and evaluates its readiness for the transition to Post-Quantum Cryptography (PQC).
 
 [#navigation]
 == Accessing the Cryptography page
@@ -284,8 +284,9 @@ curl /api/v3/crypto/remediation
 [#cbom]
 == Cryptographic Bill of Materials (CBOM)
 
-A CBOM is a CycloneDX 1.6 extension that declares the cryptographic assets used by a software component.
-It is embedded within a standard CycloneDX SBOM and describes:
+A CBOM is a CycloneDX extension (introduced in 1.6, enhanced in 1.7) that declares the cryptographic assets used by a software component.
+Trustify supports both CycloneDX 1.6 and 1.7 CBOMs; version 1.7 adds additional fields such as `algorithmFamily` and `certificationLevel`, which are stored and available through the API.
+A CBOM is embedded within a standard CycloneDX SBOM and describes:
 
 * The *algorithms* used (encryption, hashing, key agreement, digital signatures)
 * The *keys* and related cryptographic material

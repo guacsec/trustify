@@ -94,7 +94,7 @@ Consider an *artifact* to be a concrete *instance* of a package.
 
 == CBOM (Cryptographic Bill of Materials)
 
-A CBOM extends the CycloneDX 1.6 SBOM specification with `cryptoProperties` to declare the cryptographic assets used by software components.
+A CBOM extends the CycloneDX 1.6 and 1.7 SBOM specification with `cryptoProperties` to declare the cryptographic assets used by software components.
 When Trustify ingests a CycloneDX SBOM containing cryptographic properties, it extracts and stores the cryptographic assets — algorithms, keys, certificates, and protocols — making them available for PQC readiness assessment.
 
 CBOMs enable visibility into the cryptographic posture of your software supply chain.

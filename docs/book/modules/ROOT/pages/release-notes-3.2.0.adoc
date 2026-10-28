@@ -5,7 +5,7 @@
 === PQC Readiness — Cryptography page
 
 Trustify now includes a dedicated *Cryptography* page for Post-Quantum Cryptography (PQC) readiness assessment.
-This feature provides visibility into the cryptographic algorithms used across your software supply chain by analyzing Cryptographic Bills of Materials (CBOMs) embedded in CycloneDX 1.6 SBOMs.
+This feature provides visibility into the cryptographic algorithms used across your software supply chain by analyzing Cryptographic Bills of Materials (CBOMs) embedded in CycloneDX 1.6 and 1.7 SBOMs.
 
 Key capabilities:
 
