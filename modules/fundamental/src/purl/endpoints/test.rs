@@ -12,7 +12,11 @@ use crate::{
 use actix_web::test::TestRequest;
 use regex::Regex;
 use rstest::rstest;
-use sea_orm::ConnectionTrait;
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QuerySelect,
+    RelationTrait,
+};
+use trustify_entity::{base_purl, purl_status};
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
