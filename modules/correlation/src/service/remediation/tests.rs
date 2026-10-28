@@ -107,6 +107,55 @@ fn sbom(platform: &str) -> Value {
 }
 
 #[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn component_identifiers_respect_borrowed_node_filter(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let id = Uuid::parse_str(
+        &ctx.ingest_read(serde_json::to_vec(&sbom(PLATFORM))?.as_slice())
+            .await?
+            .id,
+    )?;
+    let tx = ctx.db.begin().await?;
+    let extractors = Extractors::default();
+    let all = extractors.component_identifiers(id, None, &tx).await?;
+    assert_eq!(all.len(), 3);
+
+    let node_id = String::from("widget-2");
+    let nodes = [node_id.as_str()];
+    let selected = extractors
+        .component_identifiers(id, Some(&nodes), &tx)
+        .await?;
+    assert_eq!(selected.len(), 1);
+    assert_eq!(selected.get(node_id.as_str()), all.get(node_id.as_str()));
+    let kinds = selected[&node_id]
+        .iter()
+        .map(|identifier| identifier.kind)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        kinds,
+        [
+            IdentifierKind::Purl,
+            IdentifierKind::Cpe,
+            IdentifierKind::Digest,
+            IdentifierKind::Sku,
+            IdentifierKind::ModelNumber,
+            IdentifierKind::SerialNumber,
+        ]
+        .into()
+    );
+    for nodes in [&[][..], &["missing-node"][..]] {
+        assert!(
+            extractors
+                .component_identifiers(id, Some(nodes), &tx)
+                .await?
+                .is_empty()
+        );
+    }
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
 #[rstest]
 #[case::direct("direct")]
 #[case::groups("groups")]

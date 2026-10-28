@@ -112,6 +112,7 @@ impl Extractor for FailingExtractor {
     async fn sbom_identifiers(
         &self,
         _: Uuid,
+        _: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
         // This mutation must roll back with the failed extraction.
@@ -223,6 +224,7 @@ impl Extractor for PausedExtractor {
     async fn sbom_identifiers(
         &self,
         _: Uuid,
+        _: Option<&[&str]>,
         _: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
         self.0.wait().await;

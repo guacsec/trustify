@@ -206,6 +206,7 @@ impl crate::extractor::Extractor for FailingExtractor {
     async fn sbom_identifiers(
         &self,
         _: Uuid,
+        _: Option<&[&str]>,
         _: &DatabaseTransaction,
     ) -> Result<Vec<crate::extractor::NodeIdentifier>, Error> {
         Err(Error::BadRequest("deliberate extraction failure".into()))

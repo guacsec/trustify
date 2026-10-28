@@ -199,7 +199,7 @@ impl CorrelationService {
         let unmatched_components = if include_unmatched {
             let node_identifiers = self
                 .extractors
-                .component_identifiers(sbom_id, connection)
+                .component_identifiers(sbom_id, None, connection)
                 .await?;
             let matched = evidence_rows
                 .iter()
@@ -229,16 +229,16 @@ impl CorrelationService {
         if evidence_rows.is_empty() {
             return Ok(Vec::new());
         }
-        let node_ids: Vec<String> = evidence_rows
+        let node_ids = evidence_rows
             .iter()
-            .map(|e| e.node_id.clone())
+            .map(|e| e.node_id.as_str())
             .collect::<HashSet<_>>()
             .into_iter()
-            .collect();
+            .collect::<Vec<_>>();
 
         let node_identifiers = self
             .extractors
-            .component_identifiers_scoped(sbom_id, Some(&node_ids), connection)
+            .component_identifiers(sbom_id, Some(&node_ids), connection)
             .await?;
 
         let advisory_ids: Vec<Uuid> = evidence_rows
