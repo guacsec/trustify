@@ -99,6 +99,7 @@ struct ReportWinner {
     upstream_purl: String,
     recommended_purl: String,
     base_purl_id: Uuid,
+    winner_version: String,
     winner_vp_id: Uuid,
     found_in: Vec<Uuid>,
 }
@@ -1127,7 +1128,7 @@ impl PurlService {
             .filter(base_purl::Column::Id.is_in(base_purl_ids_vec))
             .all(connection)
             .await?;
-        let (versioned_by_base, _) =
+        let (versioned_by_base, advisory_synthesized_vp_ids) =
             Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         // Pattern-match each (base, version) to find the highest vendor patch.
@@ -1176,6 +1177,7 @@ impl PurlService {
                 upstream_purl,
                 recommended_purl,
                 base_purl_id: *base_id,
+                winner_version: winner_vp.version.clone(),
                 winner_vp_id: winner_vp.id,
                 found_in: group.sbom_ids.clone(),
             });
@@ -1215,6 +1217,16 @@ impl PurlService {
             .await?;
             if let Some(infos) = per_winner.into_values().next() {
                 statuses_by_vp.insert(winner.winner_vp_id, infos);
+            } else if advisory_synthesized_vp_ids.contains(&winner.winner_vp_id) {
+                let infos = Self::fetch_vulnerability_statuses_by_version(
+                    winner.base_purl_id,
+                    &winner.winner_version,
+                    connection,
+                )
+                .await?;
+                if !infos.is_empty() {
+                    statuses_by_vp.insert(winner.winner_vp_id, infos);
+                }
             }
         }
 
