@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793208775374,
+  "lastUpdate": 1793271743112,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24237,6 +24237,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "gilles@redhat.com",
+            "name": "Gilles Dubreuil",
+            "username": "gildub"
+          },
+          "distinct": true,
+          "id": "ecaf9ff31f1facacd84a4c04a4153ded7237e3ec",
+          "message": "docs(crypto): clarify policy as default built-in, urgency-based\n\nFrame the built-in policy as a default PQC readiness assessment (not a\nformal compliance standard). Clarify the three-tier classification is\nbased on urgency of action: Non-compliant (broken now, replace\nimmediately), Warning (secure today, plan PQC migration), Compliant\n(quantum-safe, no action needed).\n\nImplements TC-5857\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-10-29T09:31:19Z",
+          "tree_id": "51798700fdb4f60200485a77eb97b396146c7425",
+          "url": "https://github.com/guacsec/trustify/commit/ecaf9ff31f1facacd84a4c04a4153ded7237e3ec"
+        },
+        "date": 1793271741605,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
