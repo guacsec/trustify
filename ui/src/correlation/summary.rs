@@ -80,15 +80,22 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
         ) }
         <Gallery gutter=true>
             { for summary.into_iter().map(|(status, count)| html! {
-                <Card><CardBody>{status_label(status)}<Title level={Level::H3}>{count.to_string()}</Title></CardBody></Card>
+                <Card><CardBody>
+                    <div style="display: flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
+                        {status_label(status)}
+                        <Title level={Level::H3}>{count.to_string()}</Title>
+                    </div>
+                </CardBody></Card>
             }) }
             <Card><CardBody>
-                <Label label="No Evidence" color={Color::Grey} />
-                if let Some(count) = unmatched.total {
-                    <Title level={Level::H3}>{count.to_string()}</Title>
-                } else if unmatched_error.is_some() {
-                    <p>{"Count unavailable"}</p>
-                } else { <Spinner size={SpinnerSize::Md} /> }
+                <div style="display: flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
+                    <Label label="No Evidence" color={Color::Grey} />
+                    if let Some(count) = unmatched.total {
+                        <Title level={Level::H3}>{count.to_string()}</Title>
+                    } else if unmatched_error.is_some() {
+                        <p>{"Count unavailable"}</p>
+                    } else { <Spinner size={SpinnerSize::Md} /> }
+                </div>
             </CardBody></Card>
         </Gallery>
         </>
