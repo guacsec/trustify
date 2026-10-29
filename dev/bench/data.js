@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793271743112,
+  "lastUpdate": 1793285546786,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24266,6 +24266,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "17082a12e098e981554ab4b1a07ecb705b1f1919",
+          "message": "fix(purl): include advisory-only winners in reports\n\nUse effective status views for synthetic winners and resolve their status in reports.\n\nImplements TC-6902\n\nAssisted-by: OpenCode (GPT-6 Luna)",
+          "timestamp": "2026-10-29T13:30:47Z",
+          "tree_id": "31153a7fb9965ef629b307f1da1860d5b4aea680",
+          "url": "https://github.com/guacsec/trustify/commit/17082a12e098e981554ab4b1a07ecb705b1f1919"
+        },
+        "date": 1793285544995,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
