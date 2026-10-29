@@ -646,10 +646,9 @@ impl PurlService {
         // Using one call per winner rather than a single batch call avoids cross-version
         // contamination: when the same base PURL appears with two different upstream versions
         // (two different winner versioned PURLs), a batch call groups both versions' statuses
-        // under the same base_purl_id bucket. The best_by_vuln picker then selects by advisory
-        // date across both versions, which can assign a status from the wrong version to a
-        // winner. Isolating each winner to its own query ensures version-range matching is
-        // scoped to that winner's specific versioned PURL.
+        // under the same base_purl_id bucket, so a status from one version can be attached to
+        // the other winner. Isolating each winner to its own query ensures version-range
+        // matching is scoped to that winner's specific versioned PURL.
         let mut statuses_by_vp = HashMap::new();
         for winner in &winners {
             let per_winner = Self::fetch_vulnerability_statuses(
@@ -853,15 +852,34 @@ impl PurlService {
         }
         .to_string();
 
-        // Report all advisory statuses without dedup — each advisory's assessment is
-        // independent. Consumers see every source's view (e.g. vendor "Fixed" alongside
-        // upstream "Affected") with the advisory_id to distinguish them.
+        // One advisory can state the same status for a purl under several product contexts
+        // (different CPEs), which yields one `purl_status` row per context. Collapse those
+        // identical assessments — keyed on vulnerability, status, and advisory — into a single
+        // entry. Assessments that differ in status or source are kept: conflicting sources (e.g.
+        // vendor "Fixed" alongside upstream "Affected") are all reported, distinguished by
+        // `advisory_id`. Sorting first makes the reported order deterministic.
+        let mut statuses = statuses_by_vp
+            .get(&winner.versioned_purl.id)
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        statuses.sort_by(|a, b| {
+            (&a.vuln_id, &a.status_slug, &a.advisory_id).cmp(&(
+                &b.vuln_id,
+                &b.status_slug,
+                &b.advisory_id,
+            ))
+        });
+        statuses.dedup_by(|a, b| {
+            a.vuln_id == b.vuln_id
+                && a.status_slug == b.status_slug
+                && a.advisory_id == b.advisory_id
+        });
+
         RecommendEntry {
             package: package_str,
-            vulnerabilities: statuses_by_vp
-                .get(&winner.versioned_purl.id)
+            vulnerabilities: statuses
                 .into_iter()
-                .flatten()
                 .map(|info| {
                     let vex_status = match info.status_slug.as_str() {
                         "affected" => VexStatus::Affected,
