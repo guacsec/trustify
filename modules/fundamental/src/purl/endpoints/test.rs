@@ -575,6 +575,54 @@ async fn get_recommendations_multi_advisory_statuses(
     Ok(())
 }
 
+/// Verifies that statuses from superseded advisory revisions are not returned: republishing an
+/// advisory (revision 1 affected, revision 2 fixed) only yields the current revision's status.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_ignores_deprecated_revisions(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given the same advisory is ingested twice for the same vendor rebuild: the older revision
+    // marks it affected, the newer revision marks it fixed
+    let component = "revlib-1.0.0.redhat-00001";
+    let purl = "pkg:maven/com.example/revlib@1.0.0.redhat-00001";
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "REV-1",
+        "2024-01-15T00:00:00+00:00",
+        "Test Product Rev 1",
+        &[(component, purl)],
+        &[("CVE-2099-40001", "known_affected", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "REV-1",
+        "2024-02-15T00:00:00+00:00",
+        "Test Product Rev 2",
+        &[(component, purl)],
+        &[("CVE-2099-40001", "fixed", &[0])],
+    ))
+    .await?;
+
+    // When requesting a recommendation
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &["pkg:maven/com.example/revlib@1.0.0"]).await;
+
+    tracing::info!("{recommendations:#?}");
+
+    // Then only the current (non-deprecated) revision's status is reported
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/com.example/revlib@1.0.0"][0]["vulnerabilities"],
+        json!([{
+            "id": "CVE-2099-40001",
+            "status": "Fixed",
+            "remediations": [],
+            "advisory_id": "https://test.example.com/#REV-1",
+        }])
+    );
+
+    Ok(())
+}
+
 /// Verifies that /recommend returns vulnerability metadata for advisory-synthesized winners
 /// (no real versioned_purl row in the database).
 #[test_context(TrustifyContext)]
@@ -1554,6 +1602,9 @@ async fn recommend_report_filters_to_addressed_vulns(
     Ok(())
 }
 
+/// The release date used by [`minimal_csaf_vex`] for single-revision test advisories.
+const MINIMAL_CSAF_RELEASE_DATE: &str = "2024-01-15T00:00:00+00:00";
+
 /// Builds a minimal CSAF VEX advisory JSON with given product and vulnerability statuses.
 ///
 /// `tracking_id` must be unique across ingested documents.
@@ -1564,6 +1615,26 @@ async fn recommend_report_filters_to_addressed_vulns(
 /// and `component_indices` indexes into the `components` slice.
 fn minimal_csaf_vex(
     tracking_id: &str,
+    product_name: &str,
+    components: &[(&str, &str)],
+    vulns: &[(&str, &str, &[usize])],
+) -> Value {
+    minimal_csaf_vex_at(
+        tracking_id,
+        MINIMAL_CSAF_RELEASE_DATE,
+        product_name,
+        components,
+        vulns,
+    )
+}
+
+/// Same as [`minimal_csaf_vex`], but with an explicit release date.
+///
+/// Republishing an advisory means ingesting the same `tracking_id` again with a newer
+/// `release_date`; ingestion then marks the older revision as deprecated.
+fn minimal_csaf_vex_at(
+    tracking_id: &str,
+    release_date: &str,
     product_name: &str,
     components: &[(&str, &str)],
     vulns: &[(&str, &str, &[usize])],
@@ -1625,9 +1696,9 @@ fn minimal_csaf_vex(
             },
             "title": format!("Test VEX {tracking_id}"),
             "tracking": {
-                "current_release_date": "2024-01-15T00:00:00+00:00",
+                "current_release_date": release_date,
                 "id": tracking_id,
-                "initial_release_date": "2024-01-15T00:00:00+00:00",
+                "initial_release_date": MINIMAL_CSAF_RELEASE_DATE,
                 "revision_history": [{
                     "date": "2024-01-15T00:00:00+00:00",
                     "number": "1",
