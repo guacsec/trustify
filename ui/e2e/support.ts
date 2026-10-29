@@ -135,7 +135,7 @@ export { expect };
 export async function navigate(page: Page, name: string): Promise<void> {
   const link = page.getByRole('link', { name, exact: true }).first();
   if (!await link.isVisible()) {
-    const group = ['Query', 'CVSS', 'Package URL', 'CPE'].includes(name) ? 'Explore'
+    const group = ['Query', 'CVSS', 'Package URL', 'CPE'].includes(name) ? 'Tools'
       : name === 'Match confidence' ? 'Documentation' : 'Administration';
     await page.getByRole('button').filter({ hasText: group }).click();
   }

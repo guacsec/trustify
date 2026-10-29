@@ -27,7 +27,7 @@ for (const [tool, key, value, field] of [
     await expect(page.getByRole('button', { name: 'Copy link' })).toBeDisabled();
   });
 }
-test('Explore contains all inspection tools', async ({ page }) => {
+test('Tools contains all inspection tools', async ({ page }) => {
   await page.goto('/');
   for (const name of ['CVSS', 'Package URL', 'CPE']) {
     await navigate(page, name);

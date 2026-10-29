@@ -330,7 +330,7 @@ fn page(props: &PageProps) -> Html {
                         <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
-                        <NavExpandable title="Explore">
+                        <NavExpandable title="Tools">
                             <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "cvss".into() }}>{ "CVSS" }</NavRouterItem<AppRoute>>
                             <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "purl".into() }}>{ "Package URL" }</NavRouterItem<AppRoute>>
                             <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "cpe".into() }}>{ "CPE" }</NavRouterItem<AppRoute>>
