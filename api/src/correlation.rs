@@ -653,10 +653,11 @@ impl RangeBound {
     }
 }
 
-/// Resolved verdict status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Resolved verdict status. It displays as its stable serialized name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum VerdictStatus {
     Affected,
     Fixed,
@@ -666,17 +667,6 @@ pub enum VerdictStatus {
 }
 
 impl VerdictStatus {
-    /// Stable serialized status name.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Affected => "affected",
-            Self::Fixed => "fixed",
-            Self::NotAffected => "not_affected",
-            Self::UnderInvestigation => "under_investigation",
-            Self::None => "none",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Affected => "Affected",
