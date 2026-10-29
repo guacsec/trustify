@@ -24,6 +24,78 @@ async fn since(
     Ok(u32::try_from(names.len() - position)?)
 }
 
+/// Queue installation backfills existing documents and reinstalls verdict work metadata.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn extraction_queue_migration_backfills_existing_documents(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::ConnectionTrait;
+    use trustify_common::db::sql;
+    use uuid::Uuid;
+
+    let sbom = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    let advisory = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
+    ctx.db
+        .execute_unprepared("DELETE FROM correlation_extraction_queue")
+        .await?;
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let steps = since(&migrator, &ctx.db, "m0002590_correlation_extraction_queue").await?;
+    migrator.down(&ctx.db, Some(steps)).await?;
+    migrator.up(&ctx.db, Some(steps)).await?;
+    let rows = ctx.db.query_all_raw(sql("SELECT entity_id, entity_type, attempts, queued_at IS NOT NULL AS queued FROM correlation_extraction_queue ORDER BY entity_type", vec![])).await?;
+    assert_eq!(rows.len(), 2);
+    for (row, (id, kind)) in rows.iter().zip([(advisory, "advisory"), (sbom, "sbom")]) {
+        assert_eq!(row.try_get::<Uuid>("", "entity_id")?, id);
+        assert_eq!(row.try_get::<String>("", "entity_type")?, kind);
+        assert_eq!(row.try_get::<i64>("", "attempts")?, 0);
+        assert!(row.try_get::<bool>("", "queued")?);
+    }
+    let state = ctx.db.query_one_raw(sql("SELECT generation IS NULL AND completed_at IS NULL AND completed_revision=0 AND completed_input_revision=0 AS uncomputed FROM correlation_verdict_state WHERE sbom_id=$1", vec![sbom.into()])).await?.unwrap();
+    assert!(state.try_get::<bool>("", "uncomputed")?);
+    Ok(())
+}
+
+/// Freshness metadata can be recreated without removing documents or their evidence.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn freshness_migration_preserves_documents_and_resets_to_unknown(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::{ConnectionTrait, EntityTrait};
+    use trustify_common::db::sql;
+    use trustify_entity::{advisory, sbom};
+    use uuid::Uuid;
+
+    let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
+    // Seed evidence directly: this test exercises schema lifecycle, not extraction.
+    ctx.db.execute_unprepared("INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),n.sbom_id,n.node_id,a.advisory_id,a.vulnerability_id,'affected',1,'purl',now(),'[]'::jsonb,jsonb_build_array(jsonb_build_object('kind','purl','id',a.id)) FROM sbom_node n CROSS JOIN purl_status a LIMIT 1").await?;
+    assert_eq!(evidence_count(&ctx.db).await?, 1);
+    let documents = sbom::Entity::find().all(&ctx.db).await?;
+    let advisories = advisory::Entity::find().all(&ctx.db).await?;
+    ctx.db
+        .execute_unprepared(
+            "UPDATE correlation_extraction_state SET completed_revision=1,completed_at=now()",
+        )
+        .await?;
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let steps = since(&migrator, &ctx.db, "m0002570_correlation_freshness").await?;
+    migrator.down(&ctx.db, Some(steps)).await?;
+    assert_eq!(evidence_count(&ctx.db).await?, 1);
+    assert_eq!(sbom::Entity::find().all(&ctx.db).await?, documents);
+    assert_eq!(advisory::Entity::find().all(&ctx.db).await?, advisories);
+    migrator.up(&ctx.db, Some(steps)).await?;
+    assert_eq!(evidence_count(&ctx.db).await?, 1);
+    assert_eq!(sbom::Entity::find().all(&ctx.db).await?, documents);
+    assert_eq!(advisory::Entity::find().all(&ctx.db).await?, advisories);
+    let state = ctx.db.query_one_raw(sql("SELECT completed_revision=0 AND completed_at IS NULL AS unknown FROM correlation_extraction_state WHERE sbom_id=$1", vec![id.into()])).await?.unwrap();
+    assert!(state.try_get::<bool>("", "unknown")?);
+    let count = ctx.db.query_one_raw(sql("SELECT sum(documents)::bigint AS unknown FROM correlation_extraction_count WHERE revision=0", vec![])).await?.unwrap();
+    assert_eq!(count.try_get::<i64>("", "unknown")?, 1);
+    Ok(())
+}
+
 /// The number of evidence rows, read without the entity, whose columns may not exist yet.
 async fn evidence_count(db: &sea_orm::DatabaseConnection) -> anyhow::Result<i64> {
     use sea_orm::{ConnectionTrait, DbBackend, Statement};

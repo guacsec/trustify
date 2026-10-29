@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use time::OffsetDateTime;
 use tracing::{info_span, instrument};
 use tracing_futures::Instrument;
+use trustify_api::correlation::VerdictFreshness;
 use trustify_common::{
     cpe::Cpe,
     purl::Purl,
@@ -116,6 +117,9 @@ impl SbomHead {
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct SbomSummary<P: IntoPackage = SbomPackage> {
+    /// Freshness of stored verdicts, included when filtering by correlation results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation: Option<VerdictFreshness>,
     #[serde(flatten)]
     pub head: SbomHead,
 
@@ -138,6 +142,7 @@ impl SbomSummary<SbomPackage> {
         let described_by = service.describing_packages(sbom.sbom_id, db).await?;
 
         Ok(SbomSummary {
+            correlation: None,
             head: SbomHead::from_entity(&sbom, &node, db).await?,
             source_document: SourceDocument::from_entity(&source_document),
             described_by,
@@ -181,6 +186,7 @@ impl<P: IntoPackage> SbomSummary<P> {
                     .as_ref()
                     .and_then(|m| m.get(&sbom.sbom_id).cloned());
                 SbomSummary {
+                    correlation: None,
                     head: SbomHead {
                         id: sbom.sbom_id,
                         document_id: sbom.document_id,

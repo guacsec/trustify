@@ -20,7 +20,7 @@ use yew::prelude::*;
 /// Show one page of complete verdicts with expandable evidence details.
 #[function_component(VerdictTable)]
 pub(super) fn verdict_table(props: &CorrelationContentProps) -> Html {
-    let (page, pagination, loading, error) =
+    let (page, pagination, loading, error, freshness, onrefresh) =
         use_collection::<VerdictSummary>(props.sbom_id, "", false);
     let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo((page.items.clone(), props.sbom_id), |(items, id)| {
@@ -39,13 +39,15 @@ pub(super) fn verdict_table(props: &CorrelationContentProps) -> Html {
             <TableColumn<VerdictColumn> label="Advisory" index={VerdictColumn::Advisory} />
             <TableColumn<VerdictColumn> label="Status" index={VerdictColumn::Status} />
             <TableColumn<VerdictColumn> label="Evidence" index={VerdictColumn::Evidence} />
+            <TableColumn<VerdictColumn> label="Remediations" index={VerdictColumn::Remediations} />
         </TableHeader<VerdictColumn>>
     };
     html! {
         <>
+            <super::processing::ProcessingStatus sbom_id={Some(props.sbom_id)} snapshot={freshness.clone()} {onrefresh} />
             <Title level={Level::H2}>{"Correlated components "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
             <SimplePagination {pagination} {total} />
-            {page_status(&page, loading, error.as_deref(), "No verdicts found")}
+            {page_status(&page, loading, error.as_deref(), if freshness.as_ref().is_none_or(|s| s.generation.is_none()) { "Verdicts not computed yet" } else { "No verdicts in completed results" })}
             if !loading && error.is_none() && !page.items.is_empty() {
                 <Table<VerdictColumn, UseTableData<VerdictColumn, MemoizedTableModel<VerdictEntry>>>
                     mode={TableMode::Expandable} {header} {entries} {onexpand}
@@ -63,14 +65,48 @@ enum VerdictColumn {
     Advisory,
     Status,
     Evidence,
+    Remediations,
 }
 
 #[derive(Clone, PartialEq)]
 struct VerdictEntry(VerdictSummary, Uuid);
 
+impl VerdictEntry {
+    fn remediations(&self) -> Vec<(&EvidenceRemediation, &EvidenceDetail)> {
+        let mut result = Vec::new();
+        for evidence in &self.0.evidence {
+            for remediation in &evidence.remediations {
+                if !result
+                    .iter()
+                    .any(|(r, e): &(&EvidenceRemediation, &EvidenceDetail)| {
+                        *r == remediation && e.advisory_id == evidence.advisory_id
+                    })
+                {
+                    result.push((remediation, evidence));
+                }
+            }
+        }
+        result
+    }
+}
+
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
         match context.column {
+            VerdictColumn::Remediations => {
+                let entries = self.remediations();
+                match entries.as_slice() {
+                    [] => html!("None reported").into(),
+                    [(r, e)] => html! {
+                        <div>
+                            <div style="max-width: 28rem; max-height: 5rem; overflow: hidden;">{remediation(r)}</div>
+                            {advisory_link(e.advisory_id, &e.advisory_identifier, e.advisory_type.as_deref())}
+                            <div class="pf-v6-u-text-color-subtle">{"Expand row for details"}</div>
+                        </div>
+                    }.into(),
+                    _ => html!(<span>{format!("{} remediations · expand row", entries.len())}</span>).into(),
+                }
+            }
             VerdictColumn::Component => Cell::new(html! {
                 <div>
                     { &self.0.component.name }

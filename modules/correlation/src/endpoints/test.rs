@@ -64,7 +64,6 @@ async fn correlation_capability_disabled(
     let cases = [
         (Method::GET, format!("sbom/{id}"), None),
         (Method::GET, format!("sbom/{id}/unmatched"), None),
-        (Method::GET, format!("sbom/{id}/remediations"), None),
         (
             Method::POST,
             "verdict-counts".into(),
@@ -149,11 +148,6 @@ async fn correlation_read_permissions(
     let cases = [
         (format!("/v3/correlation/sbom/{id}"), None, true),
         (format!("/v3/correlation/sbom/{id}/unmatched"), None, true),
-        (
-            format!("/v3/correlation/sbom/{id}/remediations"),
-            None,
-            true,
-        ),
         (
             "/v3/correlation/verdict-counts".into(),
             Some(json!({"sbom_ids": [id]})),
@@ -401,7 +395,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "not_affected": 0,
             "under_investigation": 0,
             "none": 0,
-            "remediations": 0,
+            "remediations": 0, "verdict_freshness": {"status":"unknown", "generation":null, "completed_at":null, "required_revision":0, "completed_revision":null},
             "freshness": {"status":"unknown", "required_revision":1, "completed_revision":null, "completed_at":null},
         })
     };
@@ -966,7 +960,7 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
         }
     }
     let id = Uuid::new_v4();
-    for suffix in ["", "/unmatched", "/remediations"] {
+    for suffix in ["", "/unmatched"] {
         for id in ["not-a-uuid", "123", "urn:uuid:not-a-uuid"] {
             let uri = format!("/v3/correlation/sbom/{id}{suffix}");
             let response = call_service(&app, TestRequest::get().uri(&uri).to_request()).await;
@@ -995,7 +989,10 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 },
                 "{uri}"
             );
-            assert_eq!(body.as_object().unwrap().len(), 2);
+            assert_eq!(
+                body.as_object().unwrap().len(),
+                if suffix.is_empty() { 3 } else { 2 }
+            );
         }
         for query in ["?limit=26", "?limit=-1", "?offset=-1", "?total=maybe"] {
             let response = call_service(

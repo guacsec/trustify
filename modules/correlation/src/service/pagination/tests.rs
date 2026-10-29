@@ -1,4 +1,5 @@
 use super::*;
+use crate::service::projection::publish_for_test;
 use sea_orm::{ActiveModelTrait, Set, TransactionTrait};
 use test_context::test_context;
 use trustify_common::model::Paginated;
@@ -48,6 +49,9 @@ async fn fixture(ctx: &TrustifyContext) -> anyhow::Result<(Uuid, Uuid)> {
             }
         }
     }
+    let tx = ctx.db.begin().await?;
+    publish_for_test(sbom_id, &tx).await?;
+    tx.commit().await?;
     Ok((sbom_id, advisory_id))
 }
 
@@ -182,7 +186,7 @@ async fn unmatched_pages_exclude_root_and_all_matched_nodes(
 }
 
 /// Invalid resolver input proves zero-limit requests and pages beyond the end do not hydrate
-/// evidence. The requested total still counts complete groups, not evidence rows.
+/// evidence. Stored pages remain available even when newer inputs are invalid.
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
 async fn count_only_skips_resolution(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -236,7 +240,7 @@ async fn count_only_skips_resolution(ctx: &TrustifyContext) -> anyhow::Result<()
                 &tx
             )
             .await
-            .is_err()
+            .is_ok()
     );
     Ok(())
 }

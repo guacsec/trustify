@@ -9,13 +9,12 @@ use yew_oauth2::prelude::use_latest_access_token;
 
 mod common;
 mod pagination;
-mod remediations;
+pub(crate) mod processing;
 mod summary;
 mod unmatched;
 mod verdicts;
 
 pub(crate) use common::{confidence_label, matched_value, status_color, timestamp};
-use remediations::RemediationTable;
 use summary::CorrelationSummary;
 use unmatched::UnmatchedTable;
 use verdicts::VerdictTable;
@@ -133,36 +132,14 @@ struct CorrelationContentProps {
 
 #[function_component(CorrelationContent)]
 fn correlation_content(props: &CorrelationContentProps) -> Html {
-    let tab = use_state_eq(|| CorrelationTab::Verdicts);
-    let onselect = {
-        let tab = tab.clone();
-        Callback::from(move |index: CorrelationTab| tab.set(index))
-    };
     html! {
         <>
             <CorrelationSummary sbom_id={props.sbom_id} active_job={props.active_job.clone()} />
             <br />
-            <Tabs<CorrelationTab> selected={*tab} {onselect}>
-                <Tab<CorrelationTab> index={CorrelationTab::Verdicts} title="Verdicts">
-                    <TabContent><TabContentBody padding=true>
                         <VerdictTable sbom_id={props.sbom_id} />
                         <br />
                         <UnmatchedTable sbom_id={props.sbom_id} />
-                    </TabContentBody></TabContent>
-                </Tab<CorrelationTab>>
-                <Tab<CorrelationTab> index={CorrelationTab::Remediations} title="Remediations">
-                    <TabContent><TabContentBody padding=true>
-                        <RemediationTable sbom_id={props.sbom_id} />
-                    </TabContentBody></TabContent>
-                </Tab<CorrelationTab>>
-            </Tabs<CorrelationTab>>
+
         </>
     }
-}
-
-/// The tabs of the correlation result of an SBOM.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum CorrelationTab {
-    Verdicts,
-    Remediations,
 }

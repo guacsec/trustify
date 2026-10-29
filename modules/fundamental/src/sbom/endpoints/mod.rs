@@ -30,13 +30,15 @@ use futures_util::TryStreamExt;
 use sea_orm::TransactionTrait;
 use serde_qs::actix::QsQuery;
 use std::str::FromStr;
+use trustify_api::correlation::VerdictStatus;
 use trustify_auth::{
     CreateSbom, DeleteSbom, Permission, ReadAdvisory, ReadSbom, all,
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
 };
 use trustify_common::{
-    db::{self, pagination_cache::PaginationCache, query::Query},
+    capability::{ActiveCapabilities, Capability},
+    db::{self, DatabaseExt, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
     id::Id,
     model::{BinaryData, Paginated, PaginatedResults},
@@ -231,6 +233,10 @@ pub struct SbomListParams {
     /// Include advisory severity summary per SBOM
     #[serde(default)]
     pub advisories: bool,
+    /// Find SBOMs containing a published verdict with this resolved status.
+    pub verdict_status: Option<VerdictStatus>,
+    /// Exact vulnerability ID; matches the same verdict as verdict_status.
+    pub verdict_vulnerability_id: Option<String>,
 }
 
 mod v3 {
@@ -260,6 +266,7 @@ mod v3 {
         web::Query(search): web::Query<Query>,
         web::Query(paginated): web::Query<Paginated>,
         web::Query(params): web::Query<SbomListParams>,
+        capabilities: Option<web::Data<ActiveCapabilities>>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
         QsQuery(crypto_filter): QsQuery<CryptoFilterQuery>,
         authorizer: web::Data<Authorizer>,
@@ -267,8 +274,17 @@ mod v3 {
     ) -> Result<impl Responder, Error> {
         authorizer.require(&user, Permission::ReadSbom)?;
 
-        let tx = db.begin().await?;
+        let tx = db.begin_read().await?;
         let mut options = FetchOptions::default().advisories(params.advisories);
+        if params.verdict_status.is_some() || params.verdict_vulnerability_id.is_some() {
+            authorizer.require(&user, Permission::ReadAdvisory)?;
+            capabilities
+                .map(|c| c.get_ref().clone())
+                .unwrap_or_default()
+                .require(Capability::Correlation)?;
+            options.verdict_status = params.verdict_status;
+            options.verdict_vulnerability_id = params.verdict_vulnerability_id;
+        }
         if !group_filter.group.is_empty() {
             options = options.groups(group_filter.group);
         }

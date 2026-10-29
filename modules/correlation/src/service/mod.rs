@@ -4,7 +4,7 @@ use crate::{
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, EvidenceRemediation,
         IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict, ResolutionRequest,
-        SbomVerdictCounts, ScoreRef, VerdictStatus, VerdictSummary, VulnerabilityRef,
+        SbomVerdictCounts, ScoreRef, VerdictSummary, VulnerabilityRef,
     },
 };
 use sea_orm::{
@@ -24,6 +24,7 @@ pub mod extraction;
 pub mod freshness;
 pub mod option;
 mod pagination;
+pub mod projection;
 mod remediation;
 pub mod resolution;
 pub mod statement;
@@ -43,109 +44,13 @@ impl CorrelationService {
         Self { extractors }
     }
 
-    /// Count verdicts using the same precedence resolver, with compact batched provider inputs.
-    ///
-    /// Returns one entry per requested SBOM, in the requested order, with zero counts for SBOMs
-    /// without evidence (or unknown SBOMs).
-    #[instrument(skip_all, fields(sboms = sbom_ids.len()), err(level = tracing::Level::INFO))]
+    /// Read counts from the last completed verdict snapshots, without resolving evidence.
     pub async fn count_verdicts(
         &self,
         sbom_ids: &[Uuid],
         connection: &DatabaseTransaction,
     ) -> Result<Vec<SbomVerdictCounts>, Error> {
-        if sbom_ids.is_empty() {
-            return Ok(Vec::new());
-        }
-        let freshness = freshness::for_sboms(connection, sbom_ids).await?;
-        let mut evidence = Vec::new();
-        for chunk in sbom_ids.chunks(1000) {
-            evidence.extend(
-                correlation_evidence::Entity::find()
-                    .filter(correlation_evidence::Column::SbomId.is_in(chunk.iter().copied()))
-                    .all(connection)
-                    .await?,
-            );
-        }
-        let advisory_ids = evidence
-            .iter()
-            .map(|e| e.advisory_id)
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        let mut groups = BTreeMap::<(Uuid, &str, &str), Vec<&correlation_evidence::Model>>::new();
-        for row in &evidence {
-            groups
-                .entry((row.sbom_id, &row.node_id, &row.vulnerability_id))
-                .or_default()
-                .push(row);
-        }
-        let node_keys = groups
-            .keys()
-            .map(|(sbom_id, node_id, _)| (*sbom_id, (*node_id).to_string()))
-            .collect::<BTreeSet<_>>();
-        let evidence_sbom_ids = node_keys
-            .iter()
-            .map(|(sbom_id, _)| *sbom_id)
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        let snapshot =
-            resolution::ProviderSnapshot::load(connection, &evidence_sbom_ids, &advisory_ids)
-                .await?;
-        let identifiers = resolution::store::provider_identifiers(connection, &node_keys).await?;
-        let remediations = load_evidence_remediations(&evidence, connection).await?;
-        let mut counts = HashMap::<Uuid, SbomVerdictCounts>::new();
-        // as the remediations of a correlation result list them: once per component,
-        // vulnerability and advisory
-        let mut distinct = HashMap::<Uuid, HashSet<_>>::new();
-        for row in &evidence {
-            for remediation in remediations.get(&row.id).into_iter().flatten() {
-                distinct.entry(row.sbom_id).or_default().insert((
-                    row.node_id.as_str(),
-                    row.vulnerability_id.as_str(),
-                    row.advisory_id,
-                    remediation,
-                ));
-            }
-        }
-        for (sbom_id, remediations) in distinct {
-            counts.entry(sbom_id).or_default().remediations = remediations.len() as u64;
-        }
-        for ((sbom_id, node_id, _), rows) in groups {
-            let request = ResolutionRequest::default();
-            let context = snapshot.context(&request)?;
-            let node_identifiers = identifiers
-                .get(&(sbom_id, node_id.to_string()))
-                .map(Vec::as_slice)
-                .unwrap_or_default();
-            let provider = snapshot.component_provider(
-                Some(sbom_id),
-                Some(node_id),
-                node_identifiers,
-                &context,
-            );
-            let inputs = rows
-                .iter()
-                .map(|row| decision_evidence(row, &snapshot))
-                .collect::<Result<Vec<_>, _>>()?;
-            let decision = resolution::resolve(&inputs, provider, &context, false)?;
-            let count = counts.entry(sbom_id).or_default();
-            match decision.status {
-                VerdictStatus::Affected => count.affected += 1,
-                VerdictStatus::Fixed => count.fixed += 1,
-                VerdictStatus::NotAffected => count.not_affected += 1,
-                VerdictStatus::UnderInvestigation => count.under_investigation += 1,
-                VerdictStatus::None => count.none += 1,
-            }
-        }
-        Ok(sbom_ids
-            .iter()
-            .map(|id| SbomVerdictCounts {
-                sbom_id: *id,
-                freshness: freshness.get(id).cloned().unwrap_or_default(),
-                ..counts.get(id).cloned().unwrap_or_default()
-            })
-            .collect())
+        projection::counts(sbom_ids, connection).await
     }
 
     /// Read evidence for an SBOM and compute verdicts.
