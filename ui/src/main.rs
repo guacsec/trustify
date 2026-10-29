@@ -322,14 +322,16 @@ fn page(props: &PageProps) -> Html {
                         <NavRouterItem<AppRoute> to={AppRoute::AdvisoryList}>
                             { "Advisories" }
                         </NavRouterItem<AppRoute>>
-                        if correlation_enabled {
-                            <NavRouterItem<AppRoute> to={AppRoute::Query}>
-                                { "Query" }
-                            </NavRouterItem<AppRoute>>
-                        }
                         <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
+                        if correlation_enabled {
+                            <NavExpandable title="Explore">
+                                <NavRouterItem<AppRoute> to={AppRoute::Query}>
+                                    { "Query" }
+                                </NavRouterItem<AppRoute>>
+                            </NavExpandable>
+                        }
                         <NavExpandable title="Administration">
                             <NavRouterItem<AppRoute> to={AppRoute::Importers}>
                                 { "Importers" }
