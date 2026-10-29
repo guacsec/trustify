@@ -1,5 +1,5 @@
 //! Verdict explanations and read-only context previews.
-use crate::{AppRoute, api, correlation::status_color};
+use crate::{AppRoute, api, correlation::status_color, tools::inline_identifier};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::*;
 use wasm_bindgen_futures::spawn_local;
@@ -184,7 +184,7 @@ fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
                             if context.distance > 1 {
                                 { format!(" ({} hops away)", context.distance) }
                             }
-                            { " " }<code style="overflow-wrap: anywhere;">{ &context.node_identifier }</code>
+                            { " " }{ inline_identifier(&context.node_identifier) }
                             <span class="pf-v6-u-text-color-subtle">
                                 { format!(" (match confidence ×{:.2})", context.confidence) }
                             </span>
@@ -453,7 +453,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                     <StackItem>
                         <p>{"Provider identifiers:"}</p>
                         {for e.provider.diagnostics.iter().map(|d|html!{<p class="pf-v6-u-text-color-subtle">{d}</p>})}
-                        <ul class="pf-v6-c-list">{for e.provider.identifiers.iter().map(|id|html!{<li><code>{id}</code></li>})}</ul>
+                        <ul class="pf-v6-c-list">{for e.provider.identifiers.iter().map(|id|html!{<li>{inline_identifier(id)}</li>})}</ul>
                     </StackItem>
                 }
             </Stack>

@@ -8,6 +8,7 @@ use crate::{
         VerdictSummary,
     },
     resolution::{confidence_cell, product_names, provider_view},
+    tools::{InlineCpe, InlinePurl, inline_identifier},
 };
 use patternfly_yew::prelude::*;
 use std::collections::BTreeMap;
@@ -677,10 +678,20 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
             <div>
                 <strong>{ kind.label() }</strong>
                 <ul style="margin:0;padding-left:1em">
-                    { for items.iter().map(|s| html!(<li><code>{ s }</code></li>)) }
+                    { for items.iter().map(|value| html!(<li>{ identifier(kind, value) }</li>)) }
                 </ul>
             </div>
         })}
+    }
+}
+
+/// Render an identifier, linking PURLs and CPEs to their inspector.
+fn identifier(kind: IdentifierKind, value: &str) -> Html {
+    let value = value.to_owned();
+    match kind {
+        IdentifierKind::Purl => html!(<InlinePurl {value} />),
+        IdentifierKind::Cpe => html!(<InlineCpe {value} />),
+        _ => html!(<code>{ value }</code>),
     }
 }
 
@@ -689,7 +700,7 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
 pub(crate) fn matched_value(value: &MatchedValue) -> Html {
     html! {
         <>
-            { crate::tools::inline_identifier(&value.identifier) }
+            { inline_identifier(&value.identifier) }
             if !value.ranges.is_empty() {
                 <ul style="margin:0;padding-left:1em">
                     { for value.ranges.iter().map(|range| html!(<li>{ range.to_string() }</li>)) }
