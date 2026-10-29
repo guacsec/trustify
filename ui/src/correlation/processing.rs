@@ -1,4 +1,5 @@
 //! Poll processing metadata without replacing the page the user is inspecting.
+use super::timestamp;
 use crate::{AppRoute, api};
 use gloo_timers::callback::Interval;
 use patternfly_yew::prelude::*;
@@ -113,23 +114,131 @@ pub fn processing_status(props: &ProcessingStatusProps) -> Html {
             if let Some(state) = state {
                 <StackItem>
                     <Label label={if changed { "Newer results available" } else { match state.status { FreshnessStatus::Current => "Verdicts current", FreshnessStatus::Stale => "Verdicts stale", FreshnessStatus::Unknown => "Verdicts not computed yet" } }} />
-                    if let Some(completed) = state.completed_at { <span>{format!(" Computed at {completed}")}</span> }
+                    if let Some(completed) = &state.completed_at { <span>{" Computed at "}{ timestamp(completed) }</span> }
                     if changed { <Button variant={ButtonVariant::Link} onclick={refresh}>{"Load updated results"}</Button> }
                 </StackItem>
             }
-            if let Some(data) = &*overview {
+            if let Some(outstanding) = (*overview).as_ref().and_then(outstanding) {
                 <StackItem>
-                    <p>{format!("Verdict processing: {} SBOMs outstanding, {} awaiting retry.", data.verdict_lag.pending, data.verdict_lag.failed)}</p>
-                    if let Some(oldest) = data.verdict_lag.oldest_pending_at { <p>{format!("Oldest verdict work: {oldest}")}</p> }
-                    if let Some(lag) = &data.extraction_lag {
-                        <p>{format!("Extraction: {} advisory changes and {} SBOM changes outstanding, {} awaiting retry.", lag.pending_advisories, lag.pending_sboms, lag.failed)}</p>
-                        if let Some(oldest) = lag.oldest_pending_at { <p>{format!("Oldest extraction work: {oldest}")}</p> }
-                    }
-                    if data.needs_refresh > 0 { <p>{format!("{} SBOMs need extraction refreshed against current settings.", data.needs_refresh)}</p> }
-                    <p>{format!("Status checked at {}. Searches use the latest completed results.", data.checked_at)}</p>
-                    <Link<AppRoute> to={AppRoute::CorrelationStatus}>{"View processing status"}</Link<AppRoute>>
+                    <Alert title="Correlation results are being updated" r#type={AlertType::Info} inline=true>
+                        <p>{ outstanding }{ ". Results show the latest completed computation. " }<Link<AppRoute> to={AppRoute::CorrelationStatus}>{"View processing status"}</Link<AppRoute>></p>
+                    </Alert>
                 </StackItem>
             }
         </Stack>
+    }
+}
+
+/// Summarizes outstanding background work, or nothing once processing has caught up.
+fn outstanding(overview: &FreshnessOverview) -> Option<String> {
+    let mut parts = Vec::new();
+    let verdicts = &overview.verdict_lag;
+    if verdicts.pending > 0 {
+        parts.push(format!(
+            "{} awaiting verdicts",
+            count(verdicts.pending, "SBOM", "SBOMs")
+        ));
+    }
+    let mut failed = verdicts.failed;
+    if let Some(lag) = &overview.extraction_lag {
+        if lag.pending_advisories > 0 {
+            parts.push(format!(
+                "{} awaiting extraction",
+                count(
+                    lag.pending_advisories,
+                    "advisory change",
+                    "advisory changes"
+                )
+            ));
+        }
+        if lag.pending_sboms > 0 {
+            parts.push(format!(
+                "{} awaiting extraction",
+                count(lag.pending_sboms, "SBOM change", "SBOM changes")
+            ));
+        }
+        failed += lag.failed;
+    }
+    if overview.needs_refresh > 0 {
+        parts.push(format!(
+            "{} refreshing against current settings",
+            count(overview.needs_refresh, "SBOM", "SBOMs")
+        ));
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    let mut text = parts.join(", ");
+    if failed > 0 {
+        text.push_str(&format!(" ({failed} awaiting retry)"));
+    }
+    Some(text)
+}
+
+fn count(value: u64, singular: &str, plural: &str) -> String {
+    format!("{value} {}", if value == 1 { singular } else { plural })
+}
+
+#[cfg(test)]
+mod test {
+    use super::outstanding;
+    use time::OffsetDateTime;
+    use trustify_api::correlation::{ExtractionLag, FreshnessOverview, VerdictLag};
+
+    fn overview(
+        verdict_lag: VerdictLag,
+        extraction_lag: Option<ExtractionLag>,
+    ) -> FreshnessOverview {
+        FreshnessOverview {
+            revision: 1,
+            checked_at: OffsetDateTime::UNIX_EPOCH,
+            total: 10,
+            current: 10,
+            stale: 0,
+            unknown: 0,
+            needs_refresh: 0,
+            extraction_lag,
+            verdict_lag,
+            active_job: None,
+            latest_job: None,
+        }
+    }
+
+    /// Nothing is shown once all background work has caught up.
+    #[test]
+    fn caught_up() {
+        assert_eq!(
+            outstanding(&overview(
+                VerdictLag::default(),
+                Some(ExtractionLag::default())
+            )),
+            None
+        );
+    }
+
+    /// Outstanding work is summarized in one line, with retries of both stages combined.
+    #[test]
+    fn outstanding_work() {
+        let mut data = overview(
+            VerdictLag {
+                pending: 1,
+                failed: 1,
+                oldest_pending_at: None,
+            },
+            Some(ExtractionLag {
+                pending_advisories: 5,
+                pending_sboms: 0,
+                failed: 2,
+                oldest_pending_at: None,
+            }),
+        );
+        data.needs_refresh = 2;
+        assert_eq!(
+            outstanding(&data).as_deref(),
+            Some(
+                "1 SBOM awaiting verdicts, 5 advisory changes awaiting extraction, \
+                 2 SBOMs refreshing against current settings (3 awaiting retry)"
+            )
+        );
     }
 }
