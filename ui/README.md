@@ -9,7 +9,7 @@ A web UI for the correlation engine and the advisories behind it, written in Rus
 
 * The `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
 * [Trunk](https://github.com/trunk-rs/trunk), version 0.22.1: `cargo install trunk --version 0.22.1 --locked`
-* Node.js 22 and npm, for the PatternFly and Font Awesome assets
+* Node.js 24 and npm, for the PatternFly and Font Awesome assets
 
 Trunk's pre-build hook runs `npm ci` automatically on the first build and whenever
 `package.json` or `package-lock.json` changes. It reuses the installation for other

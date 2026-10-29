@@ -11,13 +11,14 @@ pub enum PolicyVerdict {
 
 struct AlgorithmProps<'a> {
     parameter_set_identifier: Option<&'a str>,
+    primitive: Option<&'a str>,
 }
 
 impl<'a> AlgorithmProps<'a> {
     fn from_value(v: &'a serde_json::Value) -> Self {
-        let ap = &v["algorithmProperties"];
         Self {
-            parameter_set_identifier: ap["parameterSetIdentifier"].as_str(),
+            parameter_set_identifier: v["parameterSetIdentifier"].as_str(),
+            primitive: v["primitive"].as_str(),
         }
     }
 
@@ -82,6 +83,11 @@ fn is_weak(upper_name: &str, props: &AlgorithmProps<'_>) -> bool {
         return true;
     }
 
+    // Hash with short digest (≤128 bits)
+    if props.primitive == Some("hash") && matches!(props.key_size(), Some(size) if size <= 128) {
+        return true;
+    }
+
     false
 }
 
@@ -102,17 +108,13 @@ mod test {
 
     fn props_with_param(param: &str) -> serde_json::Value {
         json!({
-            "algorithmProperties": {
-                "parameterSetIdentifier": param
-            }
+            "parameterSetIdentifier": param
         })
     }
 
     fn props_with_primitive(primitive: &str) -> serde_json::Value {
         json!({
-            "algorithmProperties": {
-                "primitive": primitive
-            }
+            "primitive": primitive
         })
     }
 
@@ -302,10 +304,8 @@ mod test {
             evaluate_algorithm(
                 "SHA1",
                 &json!({
-                    "algorithmProperties": {
-                        "primitive": "hash",
-                        "parameterSetIdentifier": "160"
-                    }
+                    "primitive": "hash",
+                    "parameterSetIdentifier": "160"
                 })
             ),
             PolicyVerdict::NonCompliant
@@ -314,9 +314,7 @@ mod test {
             evaluate_algorithm(
                 "ECDH",
                 &json!({
-                    "algorithmProperties": {
-                        "primitive": "key-agree"
-                    }
+                    "primitive": "key-agree"
                 })
             ),
             PolicyVerdict::Warning
@@ -325,11 +323,49 @@ mod test {
             evaluate_algorithm(
                 "EC-secp521r1",
                 &json!({
-                    "algorithmProperties": {
-                        "primitive": "pke",
-                        "curve": "secp521r1"
-                    }
+                    "primitive": "pke",
+                    "curve": "secp521r1"
                 })
+            ),
+            PolicyVerdict::Warning
+        );
+    }
+
+    #[test]
+    fn short_hash_digest_noncompliant_via_primitive() {
+        // Hash primitive with short digest → NonCompliant
+        assert_eq!(
+            evaluate_algorithm(
+                "CustomHash",
+                &json!({"primitive": "hash", "parameterSetIdentifier": "128"})
+            ),
+            PolicyVerdict::NonCompliant
+        );
+        assert_eq!(
+            evaluate_algorithm(
+                "CustomHash",
+                &json!({"primitive": "hash", "parameterSetIdentifier": "64"})
+            ),
+            PolicyVerdict::NonCompliant
+        );
+        // Without primitive, same params default to Warning
+        assert_eq!(
+            evaluate_algorithm("CustomHash", &json!({"parameterSetIdentifier": "128"})),
+            PolicyVerdict::Warning
+        );
+        // Hash with sufficient digest → Warning
+        assert_eq!(
+            evaluate_algorithm(
+                "CustomHash",
+                &json!({"primitive": "hash", "parameterSetIdentifier": "256"})
+            ),
+            PolicyVerdict::Warning
+        );
+        // Non-hash primitive with short parameterSetIdentifier → Warning
+        assert_eq!(
+            evaluate_algorithm(
+                "CustomCipher",
+                &json!({"primitive": "block-cipher", "parameterSetIdentifier": "128"})
             ),
             PolicyVerdict::Warning
         );
