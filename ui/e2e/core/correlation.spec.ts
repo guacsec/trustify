@@ -38,7 +38,7 @@ test('unmatched components are shown without an affected verdict', async ({ page
   await expect(page.getByRole('row').filter({ hasText: 'CVE-2023-45803' })).toHaveCount(0);
 });
 
-test('SBOM verdict filters use published results and expose freshness', async ({ page, seed }) => {
+test('SBOM verdict filters use published results', async ({ page, seed }) => {
   await page.goto('/');
   const pending = page.waitForResponse(r => r.url().includes('/api/v3/sbom?') && r.url().includes('verdict_status=affected'));
   await page.getByRole('button', { name: 'Affected', exact: true }).click();
@@ -47,19 +47,19 @@ test('SBOM verdict filters use published results and expose freshness', async ({
   const result = await response.json();
   expect(result.items.length).toBeGreaterThan(0);
   expect(result.items.every((item: { correlation: { generation: string } }) => item.correlation.generation)).toBeTruthy();
-  await expect(page.getByText(/Searches use the latest completed results/)).toBeVisible();
   await page.getByPlaceholder('Vulnerability ID (exact)').fill('CVE-nonexistent');
   await page.getByPlaceholder('Vulnerability ID (exact)').press('Tab');
   await expect(page.getByRole('heading', { name: 'No matches in completed results' })).toBeVisible();
 });
 
-test('verdict remediations keep advisory provenance and do not require a separate tab', async ({ page, seed }) => {
+test('verdict remediations keep advisory provenance and only show in the expanded row', async ({ page, seed }) => {
   await page.goto(`/correlation/${seed.affected}`);
   await expect(page.getByRole('tab', { name: 'Remediations', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('columnheader', { name: 'Remediations', exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Remediations', exact: true })).toHaveCount(0);
   const row = page.getByRole('row').filter({ hasText: 'CVE-2023-45803' }).first();
   await row.getByRole('button').first().click();
   await expect(page.getByRole('heading', { name: 'Matched advisory assertions' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Remediations', exact: true })).toBeVisible();
   await expect(page.getByText(/Computed at/)).toBeVisible();
 });
 

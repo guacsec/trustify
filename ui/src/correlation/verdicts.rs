@@ -39,7 +39,6 @@ pub(super) fn verdict_table(props: &CorrelationContentProps) -> Html {
             <TableColumn<VerdictColumn> label="Advisory" index={VerdictColumn::Advisory} />
             <TableColumn<VerdictColumn> label="Status" index={VerdictColumn::Status} />
             <TableColumn<VerdictColumn> label="Evidence" index={VerdictColumn::Evidence} />
-            <TableColumn<VerdictColumn> label="Remediations" index={VerdictColumn::Remediations} />
         </TableHeader<VerdictColumn>>
     };
     html! {
@@ -65,13 +64,13 @@ enum VerdictColumn {
     Advisory,
     Status,
     Evidence,
-    Remediations,
 }
 
 #[derive(Clone, PartialEq)]
 struct VerdictEntry(VerdictSummary, Uuid);
 
 impl VerdictEntry {
+    /// The remediations the advisories state for the evidence, each once per advisory.
     fn remediations(&self) -> Vec<(&EvidenceRemediation, &EvidenceDetail)> {
         let mut result = Vec::new();
         for evidence in &self.0.evidence {
@@ -93,20 +92,6 @@ impl VerdictEntry {
 impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
     fn render_cell(&self, context: CellContext<'_, VerdictColumn>) -> Cell {
         match context.column {
-            VerdictColumn::Remediations => {
-                let entries = self.remediations();
-                match entries.as_slice() {
-                    [] => html!("None reported").into(),
-                    [(r, e)] => html! {
-                        <div>
-                            <div style="max-width: 28rem; max-height: 5rem; overflow: hidden;">{remediation(r)}</div>
-                            {advisory_link(e.advisory_id, &e.advisory_identifier, e.advisory_type.as_deref())}
-                            <div class="pf-v6-u-text-color-subtle">{"Expand row for details"}</div>
-                        </div>
-                    }.into(),
-                    _ => html!(<span>{format!("{} remediations · expand row", entries.len())}</span>).into(),
-                }
-            }
             VerdictColumn::Component => Cell::new(html! {
                 <div>
                     { &self.0.component.name }
@@ -179,18 +164,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             return vec![];
         }
 
-        // the remediations the advisories state for the evidence, each once per advisory
-        let mut remediations = Vec::<(&EvidenceRemediation, &EvidenceDetail)>::new();
-        for e in evidence {
-            for r in &e.remediations {
-                if !remediations
-                    .iter()
-                    .any(|(other, o)| *other == r && o.advisory_id == e.advisory_id)
-                {
-                    remediations.push((r, e));
-                }
-            }
-        }
+        let remediations = self.remediations();
 
         let content = html! {
             <Stack gutter=true>
