@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793285546786,
+  "lastUpdate": 1793297252523,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24295,6 +24295,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "05b08cf0982bb777cacce30aa8e0d85e2172af70",
+          "message": "feat(correlation): show the CVSS score of verdicts, colored by severity\n\nVerdicts of SBOM correlation and identifier queries carry the CVSS\nscores the deciding advisory states for the vulnerability, the newest\nversion first, and within a version the highest score first. The UI\nshows the first as a label colored by its severity rating, linking to\nthe CVSS inspector, and uses the same label for scores in the advisory\nviews and the CVSS inspector.\n\nAssisted-by: Claude Code\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-29T16:32:31Z",
+          "tree_id": "68099c1470851edb15bf49005eb29fb0b7c8e37c",
+          "url": "https://github.com/guacsec/trustify/commit/05b08cf0982bb777cacce30aa8e0d85e2172af70"
+        },
+        "date": 1793297250648,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
