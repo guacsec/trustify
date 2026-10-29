@@ -12,6 +12,7 @@ use crate::{
 use actix_web::test::TestRequest;
 use regex::Regex;
 use rstest::rstest;
+use sea_orm::ConnectionTrait;
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
@@ -460,6 +461,141 @@ async fn get_recommendations_multi_stream(ctx: &TrustifyContext) -> Result<(), a
     let vuln_2 = &rec_2[0]["vulnerabilities"].as_array().unwrap()[0];
     assert_eq!(vuln_2["id"], "CVE-2099-10001");
     assert_eq!(vuln_2["status"], "Affected");
+
+    Ok(())
+}
+
+/// Verifies advisory-only winners retain version-specific vulnerability metadata in recommendations and reports.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-ADVISORY-ONLY-001",
+        "Test Product Advisory Only",
+        &[
+            (
+                "advlib-1.0.0.redhat-00001",
+                "pkg:maven/com.example/advlib@1.0.0.redhat-00001",
+            ),
+            (
+                "advlib-2.0.0.redhat-00001",
+                "pkg:maven/com.example/advlib@2.0.0.redhat-00001",
+            ),
+        ],
+        &[
+            ("CVE-2099-20001", "fixed", &[0]),
+            ("CVE-2099-20002", "fixed", &[1]),
+        ],
+    ))
+    .await?;
+
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-advisory-only-report",
+            "00000000-0000-0000-0000-200000000002",
+            &[
+                ("advlib", "1.0.0", "pkg:maven/com.example/advlib@1.0.0"),
+                ("advlib", "2.0.0", "pkg:maven/com.example/advlib@2.0.0"),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // Remove the persisted recommendation versions so both paths exercise synthesized winners.
+    let deleted_qualified_purls = ctx
+        .db
+        .execute_unprepared(
+            "DELETE FROM qualified_purl WHERE versioned_purl_id IN ( \
+                 SELECT vp.id FROM versioned_purl vp \
+                 JOIN base_purl bp ON bp.id = vp.base_purl_id \
+                 WHERE bp.name = 'advlib' \
+                   AND vp.version IN ('1.0.0.redhat-00001', '2.0.0.redhat-00001') \
+             )",
+        )
+        .await?;
+    assert_eq!(deleted_qualified_purls.rows_affected(), 2);
+
+    let deleted_versioned_purls = ctx
+        .db
+        .execute_unprepared(
+            "DELETE FROM versioned_purl WHERE version IN ( \
+                 '1.0.0.redhat-00001', '2.0.0.redhat-00001' \
+             ) AND base_purl_id = (SELECT id FROM base_purl WHERE name = 'advlib')",
+        )
+        .await?;
+    assert_eq!(deleted_versioned_purls.rows_affected(), 2);
+
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(
+        &app,
+        &[
+            "pkg:maven/com.example/advlib@1.0.0",
+            "pkg:maven/com.example/advlib@2.0.0",
+        ],
+    )
+    .await;
+
+    let recommendation_1 =
+        &recommendations["recommendations"]["pkg:maven/com.example/advlib@1.0.0"][0];
+    assert_eq!(
+        recommendation_1["package"],
+        "pkg:maven/com.example/advlib@1.0.0.redhat-00001"
+    );
+    assert_eq!(
+        recommendation_1["vulnerabilities"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        recommendation_1["vulnerabilities"][0]["id"],
+        "CVE-2099-20001"
+    );
+    assert_eq!(recommendation_1["vulnerabilities"][0]["status"], "Fixed");
+
+    let recommendation_2 =
+        &recommendations["recommendations"]["pkg:maven/com.example/advlib@2.0.0"][0];
+    assert_eq!(
+        recommendation_2["package"],
+        "pkg:maven/com.example/advlib@2.0.0.redhat-00001"
+    );
+    assert_eq!(
+        recommendation_2["vulnerabilities"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        recommendation_2["vulnerabilities"][0]["id"],
+        "CVE-2099-20002"
+    );
+    assert_eq!(recommendation_2["vulnerabilities"][0]["status"], "Fixed");
+
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    let report_packages = report["packages"].as_array().unwrap();
+    assert_eq!(report_packages.len(), 2);
+    let report_1 = report_packages
+        .iter()
+        .find(|package| package["purl"] == "pkg:maven/com.example/advlib@1.0.0")
+        .unwrap();
+    assert_eq!(
+        report_1["recommended_purl"],
+        "pkg:maven/com.example/advlib@1.0.0.redhat-00001"
+    );
+    assert_eq!(report_1["vulnerabilities"], json!(["CVE-2099-20001"]));
+    let report_2 = report_packages
+        .iter()
+        .find(|package| package["purl"] == "pkg:maven/com.example/advlib@2.0.0")
+        .unwrap();
+    assert_eq!(
+        report_2["recommended_purl"],
+        "pkg:maven/com.example/advlib@2.0.0.redhat-00001"
+    );
+    assert_eq!(report_2["vulnerabilities"], json!(["CVE-2099-20002"]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 2);
 
     Ok(())
 }
