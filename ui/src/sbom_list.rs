@@ -96,9 +96,17 @@ fn verdict_counts(counts: Option<&SbomVerdictCounts>) -> Html {
     })
     .collect::<Vec<_>>();
 
+    let freshness_label = match counts.verdict_freshness.status {
+        FreshnessStatus::Current => None,
+        FreshnessStatus::Stale => Some("Stale"),
+        FreshnessStatus::Unknown => Some("Not computed yet"),
+    };
+
     html! {
         <Flex space_items={[SpaceItems::Small]}>
-            <FlexItem><Label label={match counts.verdict_freshness.status { FreshnessStatus::Current => "Current", FreshnessStatus::Stale => "Stale", FreshnessStatus::Unknown => "Not computed yet" }} compact=true /></FlexItem>
+            { for freshness_label.map(|label| html_nested! {
+                <FlexItem><Label {label} compact=true /></FlexItem>
+            }) }
             { for labels }
         </Flex>
     }
