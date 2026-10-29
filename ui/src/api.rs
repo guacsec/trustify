@@ -115,7 +115,7 @@ pub async fn fetch_sboms(
         url.push_str(&format!("&q={encoded}"));
     }
     if let Some(status) = verdict_status {
-        url.push_str(&format!("&verdict_status={}", status.as_str()));
+        url.push_str(&format!("&verdict_status={status}"));
     }
     if !vulnerability.is_empty() {
         let encoded: String = js_sys::encode_uri_component(vulnerability).into();
