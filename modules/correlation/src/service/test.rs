@@ -540,8 +540,13 @@ async fn scenario(
             }
         }
 
+        super::projection::publish_for_test(sbom_id, &tx).await?;
         // the counts must agree with the verdicts
         let mut counts = SbomVerdictCounts {
+            verdict_freshness: super::projection::state(&[sbom_id], &tx)
+                .await?
+                .remove(&sbom_id)
+                .unwrap(),
             freshness: super::freshness::for_sboms(&tx, &[sbom_id])
                 .await?
                 .remove(&sbom_id)
@@ -797,6 +802,7 @@ async fn provider_aliases_and_context_preview(ctx: &TrustifyContext) -> anyhow::
         .correlate_sbom_with(sbom_id, false, &request, &tx)
         .await?;
     assert_eq!(ordinary.verdicts[0].status, VerdictStatus::NotAffected);
+    super::projection::publish_for_test(sbom_id, &tx).await?;
     let counts = service.count_verdicts(&[sbom_id, sbom_id], &tx).await?;
     assert_eq!(counts[0], counts[1]);
     assert_eq!((counts[0].affected, counts[0].not_affected), (2, 1));
@@ -834,6 +840,7 @@ async fn provider_aliases_and_context_preview(ctx: &TrustifyContext) -> anyhow::
         .correlate_sbom_with(sbom_id, false, &request, &tx)
         .await?;
     assert_eq!(changed.verdicts[0].status, VerdictStatus::Affected);
+    super::projection::publish_for_test(sbom_id, &tx).await?;
     let changed_counts = service.count_verdicts(&[sbom_id], &tx).await?;
     assert_eq!(
         (changed_counts[0].affected, changed_counts[0].not_affected),
@@ -1055,12 +1062,17 @@ async fn osv_fixed_remediation(ctx: &TrustifyContext) -> anyhow::Result<()> {
         vec![fix]
     );
 
+    super::projection::publish_for_test(sbom_id, &tx).await?;
     // the SBOM list counts it
     assert_eq!(
         CorrelationService::default()
             .count_verdicts(&[sbom_id], &tx)
             .await?,
         vec![SbomVerdictCounts {
+            verdict_freshness: super::projection::state(&[sbom_id], &tx)
+                .await?
+                .remove(&sbom_id)
+                .unwrap(),
             freshness: super::freshness::for_sboms(&tx, &[sbom_id])
                 .await?
                 .remove(&sbom_id)

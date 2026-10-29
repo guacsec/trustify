@@ -110,6 +110,28 @@ when disabled. The dedicated `make test-correlation` target reports a clean
 skip when correlation is unavailable and fails if capability discovery itself
 cannot be completed.
 
+### Correlation measurements
+
+Verdict reads now use asynchronously published snapshots. Before a steady-state
+run, check `/api/v3/correlation/freshness`: extraction pending counts,
+`needs_refresh`, and `verdict_lag.pending` should be zero. Check that the scenario's
+`get_correlation_sbom` has a non-null `freshness.generation`. Locust records a
+failure for uncomputed verdict reads so empty, unfinished snapshots cannot silently
+produce misleading latency results. Stale completed snapshots remain valid reads.
+For runs during processing, record the starting and ending backlog alongside results;
+these tasks do not measure worker throughput or ingestion-to-publication latency.
+
+Separate report rows measure verdict pages with and without totals, the second
+page, count-only requests, and the metadata-only request used by UI polling.
+Choose an SBOM with more than 25 verdicts to exercise a nonempty second page.
+SBOM searches cover affected verdicts with and without totals and an exact
+vulnerability filter using the existing `get_vulnerability` scenario field.
+Use a vulnerability present in published verdicts for a positive-match benchmark.
+Remediations are included in verdict payloads; there is no standalone remediation
+request. Repeated total requests primarily measure the warm pagination cache.
+The expanded task mix and explicit verdict query names change aggregate/report
+comparability with earlier runs; compare equivalent request shapes.
+
 ## CI Workflows and Dashboards
 
 CI runs use the repeatable stack from

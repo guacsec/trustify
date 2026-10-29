@@ -11,7 +11,7 @@ use yew::prelude::*;
 /// Show one page of unmatched components and their identifiers.
 #[function_component(UnmatchedTable)]
 pub(super) fn unmatched_table(props: &CorrelationContentProps) -> Html {
-    let (page, pagination, loading, error) =
+    let (page, pagination, loading, error, ..) =
         use_collection::<ComponentRef>(props.sbom_id, "/unmatched", false);
     let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo(page.items.clone(), |items| {

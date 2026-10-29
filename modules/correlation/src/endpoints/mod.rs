@@ -2,8 +2,8 @@ use crate::{
     error::Error,
     model::{
         AdvisoryStatement, ComponentRef, ConfidenceCatalog, IdentifierKind, IdentifierRef,
-        QueryResult, SbomRemediation, SbomVerdictCounts, StatementKind, VerdictCountsRequest,
-        VerdictSummary,
+        QueryResult, SbomVerdictCounts, SbomVerdictPage, StatementKind, VerdictCountsRequest,
+        VerdictStatus,
     },
     service::{CorrelationService, confidence, option::OptionService, statement::StatementService},
 };
@@ -28,20 +28,14 @@ struct SbomCorrelationParams {
     node_id: Option<String>,
     /// Only the verdicts for this vulnerability, e.g. `CVE-2024-1234`.
     vulnerability_id: Option<String>,
+    /// Only verdicts with this resolved status.
+    status: Option<VerdictStatus>,
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
 struct UnmatchedParams {
     /// Only this SBOM node.
     node_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize, IntoParams)]
-struct RemediationParams {
-    /// Only this SBOM node.
-    node_id: Option<String>,
-    /// Only this vulnerability.
-    vulnerability_id: Option<String>,
 }
 
 mod freshness;
@@ -68,7 +62,6 @@ pub fn configure(
         .app_data(web::Data::new(StatementService::new(cache)))
         .service(get_sbom_correlation)
         .service(get_sbom_unmatched)
-        .service(get_sbom_remediations)
         .service(list_advisory_statements)
         .service(count_verdicts)
         .service(query_correlation)
@@ -91,7 +84,7 @@ pub fn configure(
     ),
     responses(
         (status = 422, description = "Correlation capability disabled"),
-        (status = 200, description = "Correlation verdicts for the SBOM", body = inline(PaginatedResults<VerdictSummary>)),
+        (status = 200, description = "Correlation verdicts for the SBOM", body = SbomVerdictPage),
         (status = 400, description = "Invalid pagination or query parameters"),
         (status = 404, description = "SBOM ID not found"),
         (status = 401, description = "The user was not authenticated"),
@@ -113,7 +106,7 @@ async fn get_sbom_correlation(
     let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
     let tx = db.begin_read().await?;
     let result = service
-        .verdict_page(
+        .filtered_verdict_page(
             sbom_id,
             &crate::model::ResolutionRequest {
                 include_explanation: params.include_explanation,
@@ -121,6 +114,7 @@ async fn get_sbom_correlation(
                 vulnerability_id: params.vulnerability_id.clone(),
                 ..Default::default()
             },
+            params.status,
             paginated,
             &cache,
             &tx,
@@ -158,44 +152,6 @@ async fn get_sbom_unmatched(
     let tx = db.begin_read().await?;
     let result = service
         .unmatched_page(sbom_id, params.node_id.as_deref(), paginated, &cache, &tx)
-        .await?;
-    Ok(HttpResponse::Ok().json(result))
-}
-
-/// List distinct advisory remediations, ordered by node, vulnerability, advisory UUID,
-/// category, details and URL (nulls first). Status is resolved from the full verdict group.
-#[utoipa::path(tag = "correlation", operation_id = "getSbomRemediations",
-    params(("id" = String, Path, description = "SBOM ID"), RemediationParams, Paginated),
-    responses(
-        (status = 200, description = "A page of remediations", body = inline(PaginatedResults<SbomRemediation>)),
-        (status = 400, description = "Invalid pagination or query parameters"),
-        (status = 404, description = "SBOM ID not found"),
-        (status = 422, description = "Correlation capability disabled"),
-        (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Insufficient permissions")
-    )
-)]
-#[get("/v3/correlation/sbom/{id}/remediations")]
-#[allow(clippy::too_many_arguments)]
-async fn get_sbom_remediations(
-    _gate: RequireCapability<Correlation>,
-    sbom_id: web::Path<String>,
-    params: web::Query<RemediationParams>,
-    web::Query(paginated): web::Query<Paginated>,
-    service: web::Data<CorrelationService>,
-    cache: web::Data<PaginationCache>,
-    db: web::Data<db::ReadOnly>,
-    _: Require<ReadSbomCorrelation>,
-) -> Result<impl Responder, Error> {
-    let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
-    let tx = db.begin_read().await?;
-    let request = crate::model::ResolutionRequest {
-        node_id: params.node_id.clone(),
-        vulnerability_id: params.vulnerability_id.clone(),
-        ..Default::default()
-    };
-    let result = service
-        .remediation_page(sbom_id, &request, paginated, &cache, &tx)
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }

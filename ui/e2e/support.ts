@@ -53,7 +53,7 @@ async function seedData(request: APIRequestContext): Promise<Seed> {
     await expect.poll(async () => {
       const response = await request.get(`${apiURL}/api/v3/correlation/freshness`);
       const data = await response.json();
-      return data.extraction_lag?.pending_advisories + data.extraction_lag?.pending_sboms;
+      return data.extraction_lag?.pending_advisories + data.extraction_lag?.pending_sboms + data.verdict_lag.pending;
     }, { timeout: 60_000 }).toBe(0);
     await expect.poll(async () => {
       const response = await request.get(`${apiURL}/api/v3/correlation/sbom/${affected}?vulnerability_id=CVE-2023-45803`);

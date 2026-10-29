@@ -193,6 +193,7 @@ pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Err
         unknown: counts.unknown as u64,
         needs_refresh: (counts.stale + counts.unknown) as u64,
         extraction_lag: Some(super::extraction::lag(tx).await?),
+        verdict_lag: super::projection::lag(tx).await?,
         active_job: None,
         latest_job: None,
     };
@@ -344,7 +345,12 @@ pub async fn job(
 pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<bool, Error> {
     let tx = db.begin().await?;
     let revision = lock_revision(&tx).await?;
-    let Some(row) = tx.query_one_raw(sql("SELECT * FROM correlation_refresh_job WHERE status IN ('queued','running') FOR UPDATE SKIP LOCKED", vec![])).await? else { return Ok(false); };
+    let Some(row) = tx.query_one_raw(sql("SELECT * FROM correlation_refresh_job WHERE status IN ('queued','running') FOR UPDATE SKIP LOCKED", vec![])).await? else {
+        // Settings changes schedule their refresh automatically. Failed sweeps wait before retry.
+        let needed = tx.query_one_raw(sql("SELECT 1 FROM correlation_extraction_state WHERE completed_revision > 0 AND completed_revision < $1 AND NOT EXISTS (SELECT 1 FROM correlation_refresh_job WHERE status IN ('queued','running') OR (failed > 0 AND finished_at > now()-interval '30 seconds')) LIMIT 1", vec![revision.into()])).await?.is_some();
+        if needed { start(&tx).await?; tx.commit().await?; }
+        return Ok(needed);
+    };
     let job = JobRow::from_query_result(&row, "")?;
     if job.revision != revision {
         tx.execute_raw(sql("UPDATE correlation_refresh_job SET status = 'superseded', finished_at = clock_timestamp() WHERE id = $1", vec![job.id.into()])).await?;

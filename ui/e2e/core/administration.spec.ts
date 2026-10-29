@@ -72,17 +72,12 @@ test('freshness filtering and durable refresh complete after settings change', a
   expect(created.ok(), await created.text()).toBeTruthy();
   owned.options.push((await created.json()).id);
   await page.goto('/correlationstatus');
-  const refresh = page.getByRole('button', { name: 'Refresh outdated results', exact: true });
-  await expect(refresh).toBeEnabled({ timeout: 60_000 });
-  const pending = page.waitForResponse(r => r.url().endsWith('/correlation/refresh') && r.request().method() === 'POST');
-  await refresh.click();
-  const response = await pending;
-  expect(response.ok()).toBeTruthy();
-  const job = await response.json();
+  // Settings changes now schedule refresh automatically, without requiring a synchronous action.
   await expect.poll(async () => {
-    const response = await request.get(`${apiURL}/api/v3/correlation/refresh/${job.id}`);
-    return (await response.json()).job.status;
-  }, { timeout: 90_000 }).toBe('completed');
+    const response = await request.get(`${apiURL}/api/v3/correlation/freshness`);
+    const state = await response.json();
+    return state.needs_refresh + state.verdict_lag.pending;
+  }, { timeout: 90_000 }).toBe(0);
   await expect(page.getByRole('progressbar', { name: 'No refresh running', exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Current', exact: true }).click();
   await expect(page.getByRole('row').filter({ hasText: 's6-urllib3-affected' })).toContainText('Current');

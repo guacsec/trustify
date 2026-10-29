@@ -321,6 +321,9 @@ pub fn freshness_page() -> Html {
                     <Alert title="Background extraction lag is unavailable" r#type={AlertType::Info} inline=true />
                 }
                 <p>{ format!("Status checked at {}", data.overview.checked_at) }</p>
+                <Title level={Level::H2}>{"Verdict computation"}</Title>
+                <p>{format!("{} SBOMs outstanding, including {} awaiting retry.", data.overview.verdict_lag.pending, data.overview.verdict_lag.failed)}</p>
+                if let Some(oldest) = data.overview.verdict_lag.oldest_pending_at { <p>{format!("Oldest outstanding verdict work: {oldest}")}</p> }
                 <Title level={Level::H2}>{ "Matching settings" }</Title>
                 <Gallery gutter=true>
                     { for [("Current", data.overview.current), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {

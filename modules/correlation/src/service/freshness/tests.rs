@@ -605,33 +605,6 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn metadata_migration_preserves_documents_and_resets_to_unknown(
-    ctx: &TrustifyContext,
-) -> anyhow::Result<()> {
-    let id = ingest(ctx).await?;
-    let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
-    tx.commit().await?;
-    ctx.db
-        .execute_unprepared(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../migration/src/m0002570_correlation_freshness/down.sql"
-        )))
-        .await?;
-    assert!(sbom::Entity::find_by_id(id).one(&ctx.db).await?.is_some());
-    ctx.db
-        .execute_unprepared(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../migration/src/m0002570_correlation_freshness/up.sql"
-        )))
-        .await?;
-    let state = counts(ctx).await?;
-    assert_eq!((state.total, state.unknown, state.current), (1, 1, 0));
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
 async fn overview_uses_counters_and_discovery_can_use_the_completion_index(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {

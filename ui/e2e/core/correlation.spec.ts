@@ -38,6 +38,31 @@ test('unmatched components are shown without an affected verdict', async ({ page
   await expect(page.getByRole('row').filter({ hasText: 'CVE-2023-45803' })).toHaveCount(0);
 });
 
+test('SBOM verdict filters use published results and expose freshness', async ({ page, seed }) => {
+  await page.goto('/');
+  const pending = page.waitForResponse(r => r.url().includes('/api/v3/sbom?') && r.url().includes('verdict_status=affected'));
+  await page.getByRole('button', { name: 'Affected', exact: true }).click();
+  const response = await pending;
+  expect(response.ok(), await response.text()).toBeTruthy();
+  const result = await response.json();
+  expect(result.items.length).toBeGreaterThan(0);
+  expect(result.items.every((item: { correlation: { generation: string } }) => item.correlation.generation)).toBeTruthy();
+  await expect(page.getByText(/Searches use the latest completed results/)).toBeVisible();
+  await page.getByPlaceholder('Vulnerability ID (exact)').fill('CVE-nonexistent');
+  await page.getByPlaceholder('Vulnerability ID (exact)').press('Tab');
+  await expect(page.getByRole('heading', { name: 'No matches in completed results' })).toBeVisible();
+});
+
+test('verdict remediations keep advisory provenance and do not require a separate tab', async ({ page, seed }) => {
+  await page.goto(`/correlation/${seed.affected}`);
+  await expect(page.getByRole('tab', { name: 'Remediations', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('columnheader', { name: 'Remediations', exact: true })).toBeVisible();
+  const row = page.getByRole('row').filter({ hasText: 'CVE-2023-45803' }).first();
+  await row.getByRole('button').first().click();
+  await expect(page.getByRole('heading', { name: 'Matched advisory assertions' })).toBeVisible();
+  await expect(page.getByText(/Computed at/)).toBeVisible();
+});
+
 for (const [kind, identifier] of [
   ['PURL', 'pkg:pypi/urllib3@1.26.17'],
   ['CPE', 'cpe:/o:redhat:enterprise_linux:8::baseos'],

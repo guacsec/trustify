@@ -22,12 +22,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt::Debug, sync::Arc, vec::Vec};
 use tracing::{Instrument, info_span, instrument};
+use trustify_api::correlation::VerdictStatus;
 use trustify_common::{
     cpe::Cpe,
     db::{
         limiter::{LimitedResult, LimiterTrait, limit_selector},
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
         query::{Columns, Filtering, IntoColumns, Query, q},
+        sql,
     },
     id::{Id, TrySelectForId},
     model::{PaginatedResults, Pagination},
@@ -36,7 +38,8 @@ use trustify_common::{
     service::{Mappable, Resulting},
 };
 use trustify_entity::{
-    advisory, advisory_vulnerability, base_purl,
+    advisory, advisory_vulnerability, base_purl, correlation_verdict,
+    correlation_verdict_freshness,
     cpe::{self, CpeDto},
     labels::Labels,
     license, organization, package_relates_to_package, qualified_purl,
@@ -52,9 +55,23 @@ pub struct FetchOptions {
     groups: Option<Vec<Uuid>>,
     crypto: Option<Vec<String>>,
     pub advisories: bool,
+    /// Filter on the published default verdict, before paging SBOMs.
+    pub verdict_status: Option<VerdictStatus>,
+    /// Match the same verdict as the status filter.
+    pub verdict_vulnerability_id: Option<String>,
 }
 
 impl FetchOptions {
+    /// Filter SBOMs using a single published verdict matching both optional constraints.
+    pub fn verdicts(
+        mut self,
+        status: Option<VerdictStatus>,
+        vulnerability: Option<String>,
+    ) -> Self {
+        self.verdict_status = status;
+        self.verdict_vulnerability_id = vulnerability;
+        self
+    }
     pub fn labels(mut self, labels: impl Into<Labels>) -> Self {
         self.labels = labels.into();
         self
@@ -229,6 +246,43 @@ impl SbomService {
             sbom::Entity::find().filter(Expr::col(sbom::Column::Labels).contains(options.labels))
         };
 
+        let correlation =
+            options.verdict_status.is_some() || options.verdict_vulnerability_id.is_some();
+        if correlation {
+            let mut verdicts = correlation_verdict::Entity::find()
+                .select_only()
+                .column(correlation_verdict::Column::SbomId)
+                .filter(
+                    Expr::col((
+                        correlation_verdict::Entity,
+                        correlation_verdict::Column::SbomId,
+                    ))
+                    .equals((sbom::Entity, sbom::Column::SbomId)),
+                );
+            if let Some(status) = options.verdict_status {
+                verdicts = verdicts.filter(
+                    correlation_verdict::Column::Status
+                        .eq(correlation_verdict::VerdictStatus::from(status)),
+                );
+            }
+            if let Some(vulnerability) = &options.verdict_vulnerability_id {
+                verdicts =
+                    verdicts.filter(correlation_verdict::Column::VulnerabilityId.eq(vulnerability));
+            }
+            query = query.filter(Expr::exists(verdicts.into_query()));
+            // Publication commits together with the snapshots, so cached totals cannot
+            // outlive the generation that produced them, including across server instances.
+            let row = connection
+                .query_one_raw(sql(
+                    "SELECT revision FROM correlation_verdict_publication",
+                    vec![],
+                ))
+                .await?
+                .ok_or_else(|| DbErr::Custom("missing verdict publication".into()))?;
+            let revision: i64 = row.try_get("", "revision")?;
+            query = query.filter(Expr::val(revision).eq(revision));
+        }
+
         if let Some(group_ids) = options.groups {
             query = query.filter(
                 sbom::Column::SbomId.in_subquery(
@@ -325,6 +379,7 @@ impl SbomService {
                         },
                     }),
             )?
+            .order_by_asc(sbom::Column::SbomId)
             .limiting(connection, paginated, &self.cache)?;
 
         let LimitedResult {
@@ -338,8 +393,24 @@ impl SbomService {
             .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
             .collect();
 
-        let items =
+        let mut items =
             SbomSummary::from_entities(filtered, self, options.advisories, connection).await?;
+
+        if correlation && !items.is_empty() {
+            let mut states: HashMap<_, _> = correlation_verdict_freshness::Entity::find()
+                .filter(
+                    correlation_verdict_freshness::Column::SbomId
+                        .is_in(items.iter().map(|s| s.head.id)),
+                )
+                .all(connection)
+                .await?
+                .into_iter()
+                .map(|row| (row.sbom_id, row.into()))
+                .collect();
+            for item in &mut items {
+                item.correlation = states.remove(&item.head.id);
+            }
+        }
 
         Ok(PaginatedResults { total, items })
     }

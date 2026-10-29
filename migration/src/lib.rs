@@ -105,6 +105,7 @@ mod m0002570_correlation_freshness;
 mod m0002580_remediation_assertions;
 mod m0002590_correlation_extraction_queue;
 mod m0002600_package_describes_index;
+mod m0002610_correlation_verdict;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -225,6 +226,7 @@ impl MigratorExt for Migrator {
             .normal(m0002580_remediation_assertions::Migration)
             .normal(m0002590_correlation_extraction_queue::Migration)
             .normal(m0002600_package_describes_index::Migration)
+            .normal(m0002610_correlation_verdict::Migration)
     }
 }
 

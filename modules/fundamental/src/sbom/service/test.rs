@@ -23,6 +23,92 @@ use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
+async fn filter_sboms_by_published_verdict_before_pagination(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use crate::sbom::service::sbom::FetchOptions;
+    use sea_orm::ConnectionTrait;
+    use trustify_api::correlation::VerdictStatus;
+    use trustify_common::db::sql;
+    let mut ids = Vec::new();
+    for name in ["verdict-search-a", "verdict-search-b"] {
+        let document = serde_json::json!({"bomFormat":"CycloneDX","specVersion":"1.6","version":1,"metadata":{"component":{"type":"application","name":name}},"components":[]});
+        ids.push(Uuid::parse_str(
+            &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+                .await?
+                .id,
+        )?);
+    }
+    let tx = ctx.db.begin().await?;
+    // The payload intentionally cannot be decoded as a verdict: search must use indexed fields.
+    for (id, node, vulnerability, status) in [
+        (ids[0], "a", "CVE-A", "affected"),
+        (ids[0], "b", "CVE-A", "affected"),
+        (ids[1], "a", "CVE-A", "fixed"),
+        (ids[1], "b", "CVE-B", "affected"),
+    ] {
+        tx.execute_raw(sql("INSERT INTO correlation_verdict(sbom_id,node_id,vulnerability_id,status,snapshot,remediation_count) VALUES($1,$2,$3,$4::verdict_status,'{}',0)",vec![id.into(),node.into(),vulnerability.into(),status.into()])).await?;
+    }
+    let service = SbomService::new(PaginationCache::for_test());
+    for total in [false, true] {
+        for limit in [0, 1, 25] {
+            let options = FetchOptions::default()
+                .verdicts(Some(VerdictStatus::Affected), Some("CVE-A".into()));
+            let result = service
+                .fetch_sboms::<_, SbomPackage>(
+                    Query::default(),
+                    Paginated {
+                        offset: 0,
+                        limit,
+                        total,
+                    },
+                    options,
+                    &tx,
+                )
+                .await?;
+            assert_eq!(result.total, total.then_some(1));
+            assert_eq!(result.items.len(), usize::from(limit != 0));
+            if let Some(item) = result.items.first() {
+                assert_eq!(item.head.id, ids[0]);
+                assert!(item.correlation.is_some());
+            }
+        }
+    }
+    let options = FetchOptions::default().verdicts(Some(VerdictStatus::Affected), None);
+    ids.sort();
+    for (offset, id) in ids.iter().enumerate() {
+        let page = service
+            .fetch_sboms::<_, SbomPackage>(
+                Query::default(),
+                Paginated {
+                    offset: offset as u64,
+                    limit: 1,
+                    total: true,
+                },
+                options.clone(),
+                &tx,
+            )
+            .await?;
+        assert_eq!(page.total, Some(2));
+        assert_eq!(page.items[0].head.id, *id);
+    }
+    let filtered = service
+        .fetch_sboms::<_, SbomPackage>(
+            q("name=verdict-search-a"),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            options,
+            &tx,
+        )
+        .await?;
+    assert_eq!(filtered.total, Some(1));
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
 async fn sbom_details_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let results = ctx
         .ingest_documents([

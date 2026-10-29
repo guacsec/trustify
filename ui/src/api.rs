@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
     ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob,
-    RefreshJobDetails,
+    RefreshJobDetails, VerdictFreshness, VerdictStatus,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -103,6 +103,8 @@ pub async fn fetch_refresh_job(
 /// Fetch a page of SBOMs matching a query, with the total.
 pub async fn fetch_sboms(
     query: &str,
+    verdict_status: Option<VerdictStatus>,
+    vulnerability: &str,
     offset: usize,
     limit: usize,
     token: Option<&str>,
@@ -112,10 +114,26 @@ pub async fn fetch_sboms(
         let encoded: String = js_sys::encode_uri_component(query).into();
         url.push_str(&format!("&q={encoded}"));
     }
+    if let Some(status) = verdict_status {
+        url.push_str(&format!("&verdict_status={}", status.as_str()));
+    }
+    if !vulnerability.is_empty() {
+        let encoded: String = js_sys::encode_uri_component(vulnerability).into();
+        url.push_str(&format!("&verdict_vulnerability_id={encoded}"));
+    }
     fetch_json(&url, token).await
 }
 
 /// One independently paginated correlation collection; an empty suffix selects verdicts.
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct CorrelationPage<T> {
+    pub items: Vec<T>,
+    pub total: Option<u64>,
+    #[serde(default)]
+    pub freshness: Option<VerdictFreshness>,
+}
+
+/// Read a correlation page and its generation metadata, if applicable.
 pub async fn fetch_correlation_page<T: DeserializeOwned>(
     sbom_id: &str,
     collection: &str,
@@ -123,7 +141,7 @@ pub async fn fetch_correlation_page<T: DeserializeOwned>(
     limit: usize,
     total: bool,
     token: Option<&str>,
-) -> Result<PaginatedResults<T>, ApiError> {
+) -> Result<CorrelationPage<T>, ApiError> {
     let url = format!(
         "/api/v3/correlation/sbom/{sbom_id}{collection}?offset={offset}&limit={limit}&total={total}"
     );

@@ -12,6 +12,8 @@ pub mod correlation_evidence;
 pub mod correlation_evidence_context;
 pub mod correlation_extraction_state;
 pub mod correlation_option;
+pub mod correlation_verdict;
+pub mod correlation_verdict_freshness;
 pub mod cpe;
 pub mod cpe_status;
 pub mod crypto_remediation;

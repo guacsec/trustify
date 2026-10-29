@@ -4,6 +4,7 @@ use sea_orm::DbErr;
 use std::borrow::Cow;
 use trustify_auth::authenticator::error::AuthorizationError;
 use trustify_common::{
+    capability::CapabilityDisabled,
     db::{DatabaseErrors, DbError, limiter::LimiterError, pagination_cache::LimitError, query},
     decompress,
     error::ErrorInformation,
@@ -15,6 +16,8 @@ use trustify_module_storage::service::StorageKeyError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    Capability(#[from] CapabilityDisabled),
     #[error(transparent)]
     IdKey(#[from] IdError),
     #[error(transparent)]
@@ -116,6 +119,7 @@ impl From<DbError> for Error {
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse<BoxBody> {
         match self {
+            Self::Capability(err) => err.error_response(),
             Self::Purl(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("InvalidPurlSyntax", err))
             }

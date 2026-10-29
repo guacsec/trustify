@@ -36,8 +36,33 @@ pub struct FreshnessOverview {
     /// Absent when talking to a server without durable extraction tracking.
     #[serde(default)]
     pub extraction_lag: Option<ExtractionLag>,
+    /// Verdict work, including global invalidations not yet processed by a worker.
+    #[serde(default)]
+    pub verdict_lag: VerdictLag,
     pub active_job: Option<RefreshJob>,
     pub latest_job: Option<RefreshJob>,
+}
+
+/// Freshness of a published verdict snapshot, including upstream extraction lag.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct VerdictFreshness {
+    /// Unknown means no completed computation, not zero findings.
+    pub status: FreshnessStatus,
+    pub generation: Option<Uuid>,
+    pub completed_at: Option<OffsetDateTime>,
+    pub required_revision: i64,
+    pub completed_revision: Option<i64>,
+}
+
+/// Durable outstanding verdict work. Failed work is a subset of pending work.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct VerdictLag {
+    /// Includes work currently being processed and work implied by global invalidation.
+    pub pending: u64,
+    pub failed: u64,
+    pub oldest_pending_at: Option<OffsetDateTime>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

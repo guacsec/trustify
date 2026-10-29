@@ -27,18 +27,13 @@ pub struct CorrelationResult {
     pub unmatched_components: Option<Vec<ComponentRef>>,
 }
 
-/// A distinct remediation stated by an advisory for a component and vulnerability.
+/// A page from one completed verdict generation, including its current freshness.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct SbomRemediation {
-    pub component: ComponentRef,
-    pub vulnerability: String,
-    pub status: VerdictStatus,
-    pub remediation: EvidenceRemediation,
-    #[cfg_attr(feature = "openapi", schema(value_type = String))]
-    pub advisory_id: Uuid,
-    pub advisory_identifier: String,
-    pub advisory_type: Option<String>,
+pub struct SbomVerdictPage {
+    pub items: Vec<VerdictSummary>,
+    pub total: Option<u64>,
+    pub freshness: VerdictFreshness,
 }
 
 /// Resolved determination per (component, vulnerability) pair.
@@ -671,6 +666,17 @@ pub enum VerdictStatus {
 }
 
 impl VerdictStatus {
+    /// Stable serialized status name.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Affected => "affected",
+            Self::Fixed => "fixed",
+            Self::NotAffected => "not_affected",
+            Self::UnderInvestigation => "under_investigation",
+            Self::None => "none",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::Affected => "Affected",
@@ -825,6 +831,8 @@ mod entity_conversions {
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
         correlation_evidence_context::ContextSource as EntityContextSource,
         correlation_option::{self, CorrelationOptionKey as EntityCorrelationOptionKey},
+        correlation_verdict::VerdictStatus as EntityVerdictStatus,
+        correlation_verdict_freshness::{self, FreshnessStatus as EntityFreshnessStatus},
         remediation::RemediationCategory as EntityRemediationCategory,
         version_range,
     };
@@ -836,6 +844,18 @@ mod entity_conversions {
                 ScoreType::V3_0 => Self::V3_0,
                 ScoreType::V3_1 => Self::V3_1,
                 ScoreType::V4_0 => Self::V4_0,
+            }
+        }
+    }
+
+    impl From<VerdictStatus> for EntityVerdictStatus {
+        fn from(value: VerdictStatus) -> Self {
+            match value {
+                VerdictStatus::Affected => Self::Affected,
+                VerdictStatus::Fixed => Self::Fixed,
+                VerdictStatus::NotAffected => Self::NotAffected,
+                VerdictStatus::UnderInvestigation => Self::UnderInvestigation,
+                VerdictStatus::None => Self::None,
             }
         }
     }
@@ -860,6 +880,22 @@ mod entity_conversions {
                 // stored as `real`: round to the one decimal CVSS scores have
                 score: (f64::from(value.score) * 10.0).round() / 10.0,
                 severity: value.severity.into(),
+            }
+        }
+    }
+
+    impl From<correlation_verdict_freshness::Model> for VerdictFreshness {
+        fn from(value: correlation_verdict_freshness::Model) -> Self {
+            Self {
+                status: match value.status {
+                    EntityFreshnessStatus::Current => FreshnessStatus::Current,
+                    EntityFreshnessStatus::Stale => FreshnessStatus::Stale,
+                    EntityFreshnessStatus::Unknown => FreshnessStatus::Unknown,
+                },
+                generation: value.generation,
+                completed_at: value.completed_at,
+                required_revision: value.required_revision,
+                completed_revision: value.completed_revision,
             }
         }
     }
@@ -1000,6 +1036,9 @@ pub struct SbomVerdictCounts {
     pub sbom_id: Uuid,
     #[serde(default)]
     pub freshness: ExtractionFreshness,
+    /// Freshness of the completed verdicts used for these counts.
+    #[serde(default)]
+    pub verdict_freshness: VerdictFreshness,
     pub affected: u64,
     pub fixed: u64,
     pub not_affected: u64,

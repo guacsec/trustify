@@ -56,56 +56,69 @@ Response shape (each item is a complete verdict):
 ```json
 {
   "items": [],
-  "total": null
+  "total": null,
+  "freshness": {
+    "status": "unknown",
+    "generation": null,
+    "completed_at": null,
+    "required_revision": 1,
+    "completed_revision": null
+  }
 }
 ```
 
-The page envelope contains only `items` and `total`. Fetch SBOM metadata from
-`GET /api/v3/sbom/{id}` and per-SBOM freshness from the verdict-count endpoint or
-`GET /api/v3/correlation/freshness/sbom`.
+The verdict envelope also includes `freshness`: `status` (`current`, `stale`, or `unknown`),
+`generation`, `completed_at`, `required_revision`, and `completed_revision`. Unknown means no
+completed computation exists; an empty page is not evidence of no findings in that state.
+SBOM metadata remains available from `GET /api/v3/sbom/{id}`.
 
-### Unmatched components and remediations
+### Verdicts, remediations, and unmatched components
 
-These independently paginated lists use the same response envelope and pagination parameters:
+Default verdicts are materialized asynchronously, one row per component and vulnerability.
+A worker walks complete evidence groups in bounded batches and atomically publishes each
+SBOM's verdicts, evidence, remediation details, explanations, and completion metadata. Reads
+and counts use the last completed generation without rerunning the resolver. Temporary
+resolution previews and identifier queries remain computed on demand.
 
-```shell
-http GET localhost:8080/api/v3/correlation/sbom/{sbom_id}/unmatched total==true
-http GET localhost:8080/api/v3/correlation/sbom/{sbom_id}/remediations offset==0 limit==25 total==true
-```
+Verdict pages accept `node_id`, `vulnerability_id`, `status`, and `include_explanation=true`.
+Ordering is ascending by node ID and vulnerability ID with PostgreSQL C collation. Totals are
+optional and cached by generation and filters. Offset pagination is stable within an unchanged
+generation; compare `freshness.generation` to detect replacement between requests. Unknown query
+parameters are ignored. Invalid UUID syntax returns 404; unknown UUIDs return empty pages with
+unknown freshness.
 
-Unmatched components have no evidence anywhere in the SBOM and exclude its root. They are
-ordered by node ID and accept an optional `node_id` filter. Their item schema is `ComponentRef`.
+Remediations remain attached to their source advisory evidence. There is no separate SBOM
+`/remediations` endpoint. The UI shows one remediation directly in the verdict row and several
+as an expandable list, deduplicated within each advisory. Zero remediations means none reported,
+which is distinct from an explicit no-fix-planned statement.
 
-Remediations are distinct per component, vulnerability, advisory, category, details and URL.
-Each item includes `component`, `vulnerability`, the resolved verdict `status`, `remediation`,
-`advisory_id`, `advisory_identifier`, and `advisory_type`. They are ordered ascending by node ID,
-vulnerability ID, advisory UUID, category name, details and URL, with null optional values first.
-Status uses all evidence of the verdict, including evidence outside the remediation page.
-Only source assertions recorded in evidence contribute remediations, both in verdict details
-and summary counts. Every evidence record contains at least one source assertion reference.
+`GET /api/v3/correlation/sbom/{id}/unmatched` retains independent pagination and optional cached
+totals. It lists nodes without evidence, excluding the root, in node ID order, with optional
+`node_id`. This collection reflects extraction rather than the published verdict generation.
 
-Verdicts and remediations accept `node_id` and `vulnerability_id` filters; verdicts also accept
-`include_explanation=true`. Totals count matching items before offset/limit, including on empty
-pages beyond the end. Unknown query parameters are ignored, including misspelled filters:
-clients must use the documented parameter names to constrain results.
-Unknown UUIDs return empty pages. IDs are strings at the API boundary;
-IDs that cannot resolve to an internal UUID return HTTP 404. Text ordering is case-sensitive and
-uses PostgreSQL's `C` collation, matching Rust lexical ordering. Offset pagination is stable for
-unchanged data; extraction or document changes between requests can change page membership.
-Verdict and unmatched totals use the pagination cache and may lag changes by its
-configured TTL. Remediation pagination loads all matching evidence and its source-linked
-remediation identities, orders and deduplicates them in memory, then returns the requested slice.
-Its optional total is the size of that collection and is not cached. Only verdict groups in the
-requested slice are resolved. Count-only requests collect identities without resolving verdicts;
-`limit=0&total=false` skips collection loading entirely.
+`GET /api/v3/sbom?verdict_status=affected&verdict_vulnerability_id=CVE-2024-1234` finds SBOMs
+with a matching published verdict. Both optional filters apply to the same verdict, combine
+with existing SBOM filters, and run before pagination. Each SBOM appears once. Filtered items
+include `correlation` freshness; this operation requires correlation enabled and both SBOM and
+advisory read permissions. Searches include stale completed results. During a backlog, no
+matches means no matches in completed results, not an assurance of no affected SBOMs.
 
-Even a small remediation page materializes the full matching identity collection; its cost grows
-with the SBOM.
+The freshness overview includes `verdict_lag` with `pending`, `failed`, and `oldest_pending_at`.
+Pending includes in-flight computation and global invalidations even before workers process
+them. Failed work is a subset of pending work and retries automatically. Input changes invalidate
+snapshots transactionally. Alias and other shared metadata changes invalidate a global revision;
+workers discover this backlog without synchronously queuing every SBOM. Resolver upgrades must
+bump the database resolver version and revision together; older workers cannot acknowledge it.
 
-Unmatched components are available through `/unmatched`. Resolution preview responses and
-identifier queries are unpaginated.
-The correlation UI requests server pages independently for all three lists and uses the
-verdict-count endpoint for SBOM-wide summaries.
+A verdict is current only when its inputs and extraction are current. Pending advisory extraction
+conservatively marks verdicts stale because affected SBOMs are not yet known. Recomputing from
+stale evidence cannot make a verdict current. Failed computation keeps the previous generation.
+The UI polls freshness and backlog, reports failures, and offers to load a newer generation
+without automatically replacing expanded rows.
+
+Migration `m0002610` installs snapshot tables and invalidation metadata. It backfills only work
+metadata; existing SBOMs start uncomputed and the worker processes them asynchronously. It does
+not resolve verdicts inside the migration. Deploy matching backend and UI versions together.
 
 ### Query advisories by identifier
 
@@ -181,8 +194,8 @@ verdict counts include `freshness` with `status`,
 `required_revision`, `completed_revision`, and `completed_at`. Absent completion is unknown.
 The UI polls every five seconds while visible and preserves previously loaded data on errors.
 
-Migration `m0002570` preserves evidence and initializes existing SBOMs as unchecked. No refresh
-is started automatically. Downgrading removes freshness metadata and jobs while retaining
+Migration `m0002570` preserves evidence and initializes existing SBOMs as unchecked. Settings
+changes schedule background refreshes automatically. Downgrading removes freshness metadata and jobs while retaining
 the evidence, including any changes made by completed refreshes. Deploy backend and UI together.
 
 Migration `m0002590` installs durable ingestion tracking and queues all existing SBOMs and

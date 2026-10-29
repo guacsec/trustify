@@ -11,7 +11,7 @@ autobenches = false
 long_running = [] # enable long-running tests
 
 [dependencies]
-trustify-api = { workspace = true, features = ["openapi"] }
+trustify-api = { workspace = true, features = ["openapi", "entity"] }
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
 trustify-entity = { workspace = true }

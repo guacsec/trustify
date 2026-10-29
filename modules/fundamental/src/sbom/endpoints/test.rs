@@ -39,6 +39,84 @@ use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn verdict_filters_require_correlation_and_advisory_access(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use actix_web::{App, HttpMessage, test::init_service, web};
+    use trustify_auth::{
+        authenticator::user::{UserDetails, UserInformation},
+        authorizer::{Authorizer, AuthorizerConfig},
+    };
+    use trustify_common::{
+        capability::{ActiveCapabilities, Capability},
+        db::{ReadOnly, ReadWrite, pagination_cache::PaginationCache},
+    };
+    use utoipa_actix_web::AppExt;
+
+    for enabled in [false, true] {
+        let capabilities =
+            ActiveCapabilities::from_iter(enabled.then_some(Capability::Correlation));
+        let app = init_service(
+            App::new()
+                .app_data(web::Data::new(Authorizer::new(Some(
+                    AuthorizerConfig::default(),
+                ))))
+                .app_data(web::Data::new(capabilities))
+                .into_utoipa_app()
+                .configure(|svc| {
+                    super::configure(
+                        svc,
+                        ReadWrite::new(ctx.db.clone()),
+                        ReadOnly::new(ctx.db.clone()),
+                        1024,
+                        PaginationCache::for_test(),
+                    )
+                })
+                .into_app(),
+        )
+        .await;
+        for permissions in [
+            vec!["read.sbom"],
+            vec!["read.advisory"],
+            vec!["read.sbom", "read.advisory"],
+        ] {
+            for query in [
+                "",
+                "?verdict_status=affected",
+                "?verdict_vulnerability_id=CVE-2024-1234",
+            ] {
+                let request = TestRequest::get()
+                    .uri(&format!("/v3/sbom{query}"))
+                    .to_request();
+                request
+                    .extensions_mut()
+                    .insert(UserInformation::Authenticated(UserDetails {
+                        id: "reader".into(),
+                        permissions: permissions.iter().map(|p| (*p).into()).collect(),
+                    }));
+                let expected = if !permissions.contains(&"read.sbom")
+                    || (!query.is_empty() && !permissions.contains(&"read.advisory"))
+                {
+                    StatusCode::FORBIDDEN
+                } else if !query.is_empty() && !enabled {
+                    StatusCode::UNPROCESSABLE_ENTITY
+                } else {
+                    StatusCode::OK
+                };
+                let response = app.call_service(request).await;
+                assert_eq!(
+                    response.status(),
+                    expected,
+                    "enabled={enabled}, permissions={permissions:?}, query={query}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let id = ctx
