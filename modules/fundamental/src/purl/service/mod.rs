@@ -809,6 +809,12 @@ impl PurlService {
             .zip(remediations)
         {
             if let (Some(v), Some(advisory)) = (vuln, advisory) {
+                // Superseded revisions of a republished advisory keep their `purl_status` rows but
+                // are marked deprecated. Reporting them would surface a stale assessment under the
+                // same advisory identifier, so only the current revision's statuses are eligible.
+                if advisory.deprecated {
+                    continue;
+                }
                 let slug = status_slug_map
                     .get(&ps.status_id)
                     .cloned()
