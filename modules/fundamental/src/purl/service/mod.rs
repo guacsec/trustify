@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     iter::once,
 };
 
@@ -1214,10 +1214,9 @@ impl PurlService {
         // Using one call per winner rather than a single batch call avoids cross-version
         // contamination: when the same base PURL appears with two different upstream versions
         // (two different winner_vp_ids), a batch call groups both versions' statuses under
-        // the same base_purl_id bucket. The best_by_vuln picker then selects by advisory date
-        // across both versions, which can assign a status from the wrong version to a winner.
-        // Isolating each winner to its own query ensures version-range matching is scoped to
-        // that winner's specific versioned PURL.
+        // the same base_purl_id bucket, so a status from one version can be attached to the
+        // other winner. Isolating each winner to its own query ensures version-range matching
+        // is scoped to that winner's specific versioned PURL.
         let mut statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
         for winner in &winners {
             let per_winner = Self::fetch_vulnerability_statuses(
@@ -1248,40 +1247,40 @@ impl PurlService {
         let mut packages: Vec<RecommendReportPackage> = Vec::with_capacity(winners.len());
 
         for winner in &winners {
-            // Pick the best StatusInfo per vulnerability (most recent advisory wins).
-            let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-            for info in statuses_by_vp
+            let statuses = statuses_by_vp
                 .get(&winner.winner_vp_id)
-                .into_iter()
-                .flatten()
-            {
-                best_by_vuln
-                    .entry(&info.vuln_id)
-                    .and_modify(|existing| {
-                        if info.advisory_date > existing.advisory_date {
-                            *existing = info;
-                        }
-                    })
-                    .or_insert(info);
-            }
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+
+            // A recommended version is addressed when *any* applicable advisory says so, even if
+            // another source disagrees. `/recommend` reports every advisory's assessment (TC-6908),
+            // so the report must match: a CVE that a vendor marks `fixed` while upstream still
+            // marks `known_affected` counts as addressed. Picking a single newest status per CVE
+            // would let the newer upstream assessment erase the vendor fix.
+            let addressing: Vec<&StatusInfo> = statuses
+                .iter()
+                .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
+                .collect();
 
             // Only include vulnerabilities the recommended PURL actually addresses
             // (fixed or not_affected). CVEs where the recommended version is still
             // affected or under investigation are not remediated and must be excluded.
-            let vulnerabilities: Vec<String> = best_by_vuln
+            // Collecting through a BTreeSet keeps one entry per CVE in a stable order.
+            let vulnerabilities: Vec<String> = addressing
                 .iter()
-                .filter(|(_, info)| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
-                .map(|(id, _)| id.to_string())
+                .map(|info| info.vuln_id.as_str())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .map(str::to_owned)
                 .collect();
 
             if vulnerabilities.is_empty() {
                 continue;
             }
 
-            // Advisory ID from the most recent advisory among addressed vulnerabilities.
-            let advisory_id = best_by_vuln
-                .values()
-                .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
+            // Advisory ID from the most recent advisory among addressing assessments.
+            let advisory_id = addressing
+                .iter()
                 .max_by(|a, b| a.advisory_date.cmp(&b.advisory_date))
                 .and_then(|info| info.advisory_id.clone());
 

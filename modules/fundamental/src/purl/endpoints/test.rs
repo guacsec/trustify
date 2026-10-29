@@ -1820,6 +1820,95 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
     Ok(())
 }
 
+/// Verifies that the report counts a CVE as addressed when a vendor advisory fixes it, even
+/// though a newer upstream advisory still reports the recommended version as affected.
+/// This matches `/recommend`, which reports every advisory's assessment (TC-6908).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_vendor_fix_with_newer_upstream_affected(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given an older vendor advisory that backports a fix for the CVE
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "TEST-REPORT-VENDOR-FIX-001",
+        "2024-01-15T00:00:00+00:00",
+        "Vendor Product",
+        &[(
+            "crosslib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-50001", "fixed", &[0])],
+    ))
+    .await?;
+
+    // And a newer upstream advisory still reporting the same CVE as affected
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "TEST-REPORT-UPSTREAM-AFFECTED-001",
+        "2024-02-15T00:00:00+00:00",
+        "Upstream Product",
+        &[(
+            "crosslib-1.0.0.redhat-00001-upstream",
+            "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-50001", "known_affected", &[0])],
+    ))
+    .await?;
+
+    // And an SBOM containing the upstream package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-vendor-fix-newer-upstream",
+            "00000000-0000-0000-0000-300000000001",
+            &[("crosslib", "1.0.0", "pkg:maven/com.example/crosslib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // When requesting a recommendation, the vendor fix is reported alongside the upstream view
+    let recommendations = recommend(&app, &["pkg:maven/com.example/crosslib@1.0.0"]).await;
+    tracing::info!("{recommendations:#?}");
+
+    let statuses: Vec<&str> = recommendations["recommendations"]
+        ["pkg:maven/com.example/crosslib@1.0.0"][0]["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|vuln| vuln["status"].as_str())
+        .collect();
+    assert!(
+        statuses.contains(&"Fixed"),
+        "vendor fix should be reported, got: {statuses:?}"
+    );
+
+    // And the report counts the package as addressed despite the newer upstream assessment
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    tracing::info!("{report:#?}");
+
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1, "expected one addressable package");
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/com.example/crosslib@1.0.0.redhat-00001"
+    );
+    assert_eq!(
+        packages[0]["vulnerabilities"],
+        json!(["CVE-2099-50001"]),
+        "the vendor-fixed CVE should be counted once"
+    );
+    assert_eq!(
+        packages[0]["advisory_id"], "https://test.example.com/#TEST-REPORT-VENDOR-FIX-001",
+        "advisory id should come from the addressing assessment, not the newer upstream one"
+    );
+
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
 /// Verifies that a package with zero fixed/not_affected CVEs is excluded from the report.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
