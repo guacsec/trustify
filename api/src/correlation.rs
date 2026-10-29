@@ -130,6 +130,71 @@ pub struct VulnerabilityRef {
     /// CVEs of a distribution's OSV record. They are different vulnerabilities, not aliases.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub upstream: Vec<String>,
+    /// The CVSS scores the advisory states for the vulnerability, the newest CVSS version first,
+    /// and within a version the highest score first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scores: Vec<ScoreRef>,
+}
+
+/// A CVSS score an advisory states for a vulnerability.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ScoreRef {
+    pub version: CvssVersion,
+    pub vector: String,
+    pub score: f64,
+    pub severity: ScoreSeverity,
+}
+
+/// A CVSS specification version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum CvssVersion {
+    #[serde(rename = "2.0")]
+    V2_0,
+    #[serde(rename = "3.0")]
+    V3_0,
+    #[serde(rename = "3.1")]
+    V3_1,
+    #[serde(rename = "4.0")]
+    V4_0,
+}
+
+impl CvssVersion {
+    /// The version number, e.g. `3.1`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::V2_0 => "2.0",
+            Self::V3_0 => "3.0",
+            Self::V3_1 => "3.1",
+            Self::V4_0 => "4.0",
+        }
+    }
+}
+
+/// The qualitative severity rating of a CVSS score.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ScoreSeverity {
+    None,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl ScoreSeverity {
+    /// The rating, capitalized, e.g. `Critical`.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::None => "None",
+            Self::Low => "Low",
+            Self::Medium => "Medium",
+            Self::High => "High",
+            Self::Critical => "Critical",
+        }
+    }
 }
 
 /// One piece of evidence from the correlation engine.
@@ -643,6 +708,10 @@ pub struct QueryVerdict {
     pub status: VerdictStatus,
     #[serde(flatten, default)]
     pub resolution: ResolutionSummary,
+    /// The CVSS scores the deciding advisory states for the vulnerability, ordered as
+    /// [`VulnerabilityRef::scores`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scores: Vec<ScoreRef>,
     pub matches: Vec<QueryMatch>,
 }
 
@@ -735,6 +804,7 @@ mod entity_conversions {
     use super::*;
     use trustify_entity::{
         advisory_vulnerability_product_identifier::ProductIdentifierType as EntityProductIdentifierType,
+        advisory_vulnerability_score::{self, ScoreType, Severity as EntitySeverity},
         assertion_context::AssertionContextCategory as EntityCategory,
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
         correlation_evidence_context::ContextSource as EntityContextSource,
@@ -742,6 +812,41 @@ mod entity_conversions {
         remediation::RemediationCategory as EntityRemediationCategory,
         version_range,
     };
+
+    impl From<ScoreType> for CvssVersion {
+        fn from(value: ScoreType) -> Self {
+            match value {
+                ScoreType::V2_0 => Self::V2_0,
+                ScoreType::V3_0 => Self::V3_0,
+                ScoreType::V3_1 => Self::V3_1,
+                ScoreType::V4_0 => Self::V4_0,
+            }
+        }
+    }
+
+    impl From<EntitySeverity> for ScoreSeverity {
+        fn from(value: EntitySeverity) -> Self {
+            match value {
+                EntitySeverity::None => Self::None,
+                EntitySeverity::Low => Self::Low,
+                EntitySeverity::Medium => Self::Medium,
+                EntitySeverity::High => Self::High,
+                EntitySeverity::Critical => Self::Critical,
+            }
+        }
+    }
+
+    impl From<advisory_vulnerability_score::Model> for ScoreRef {
+        fn from(value: advisory_vulnerability_score::Model) -> Self {
+            Self {
+                version: value.r#type.into(),
+                vector: value.vector,
+                // stored as `real`: round to the one decimal CVSS scores have
+                score: (f64::from(value.score) * 10.0).round() / 10.0,
+                severity: value.severity.into(),
+            }
+        }
+    }
 
     impl From<EntityRemediationCategory> for RemediationCategory {
         fn from(value: EntityRemediationCategory) -> Self {

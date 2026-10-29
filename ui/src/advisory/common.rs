@@ -1,9 +1,13 @@
 //! The information about an advisory stored in the database, the same for all formats.
 
 use super::{card_grid, field_card, statements::VulnerabilityStatements};
-use crate::sort::{missing_last, ordered, text, use_sort};
+use crate::{
+    score::severity_color,
+    sort::{missing_last, ordered, text, use_sort},
+};
 use patternfly_yew::prelude::*;
 use std::{cmp::Ordering, rc::Rc};
+use trustify_api::correlation::ScoreSeverity;
 use trustify_client::api::types::{AdvisoryDetails, AdvisoryVulnerabilitySummary, Severity};
 use yew::prelude::*;
 
@@ -185,12 +189,12 @@ fn optional(value: Option<impl ToString>) -> String {
 }
 
 fn severity_label(severity: &Severity) -> Html {
-    let (label, color) = match severity {
-        Severity::Critical => ("Critical", Color::Red),
-        Severity::High => ("High", Color::Orange),
-        Severity::Medium => ("Medium", Color::Yellow),
-        Severity::Low => ("Low", Color::Blue),
-        Severity::None => ("None", Color::Grey),
+    let severity = match severity {
+        Severity::Critical => ScoreSeverity::Critical,
+        Severity::High => ScoreSeverity::High,
+        Severity::Medium => ScoreSeverity::Medium,
+        Severity::Low => ScoreSeverity::Low,
+        Severity::None => ScoreSeverity::None,
     };
-    html! { <Label label={label} {color} /> }
+    html! { <Label label={severity.label()} color={severity_color(severity)} /> }
 }

@@ -2,6 +2,7 @@ use crate::{
     advisory::advisory_link,
     api,
     correlation::{confidence_label, matched_value, status_color},
+    score::primary_score,
 };
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
@@ -135,6 +136,7 @@ struct QueryResultsProps {
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum VerdictColumn {
     Vulnerability,
+    Score,
     Status,
     Evidence,
 }
@@ -155,6 +157,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
+            VerdictColumn::Score => primary_score(&self.0.scores).into(),
             VerdictColumn::Status => html! {
                 <span style="display: inline-flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
                     {status_label(self.0.status)}
@@ -308,6 +311,7 @@ fn query_results(props: &QueryResultsProps) -> Html {
     let header = html_nested! {
         <TableHeader<VerdictColumn>>
             <TableColumn<VerdictColumn> label="Vulnerability" index={VerdictColumn::Vulnerability} />
+            <TableColumn<VerdictColumn> label="Score" index={VerdictColumn::Score} />
             <TableColumn<VerdictColumn> label="Verdict" index={VerdictColumn::Status} />
             <TableColumn<VerdictColumn> label="Evidence" index={VerdictColumn::Evidence} />
         </TableHeader<VerdictColumn>>

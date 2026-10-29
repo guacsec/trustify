@@ -4,7 +4,8 @@ use crate::{
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, EvidenceRemediation,
         IdentifierRef, MatchedRange, MatchedValue, QueryMatch, QueryResult, QueryVerdict,
-        ResolutionRequest, SbomVerdictCounts, VerdictStatus, VerdictSummary, VulnerabilityRef,
+        ResolutionRequest, SbomVerdictCounts, ScoreRef, VerdictStatus, VerdictSummary,
+        VulnerabilityRef,
     },
 };
 use sea_orm::{
@@ -15,9 +16,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::purl::Purl;
 use trustify_entity::{
-    advisory, advisory_vulnerability_upstream, assertion_context, correlation_evidence,
-    correlation_evidence::AssertionStatus, correlation_evidence_context, qualified_purl,
-    remediation::RemediationCategory, sbom, sbom_node, version_range,
+    advisory, advisory_vulnerability_score, advisory_vulnerability_upstream, assertion_context,
+    correlation_evidence, correlation_evidence::AssertionStatus, correlation_evidence_context,
+    qualified_purl, remediation::RemediationCategory, sbom, sbom_node, version_range,
     version_scheme::VersionScheme, vulnerability,
 };
 use uuid::Uuid;
@@ -264,6 +265,7 @@ impl CorrelationService {
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
         let mut remediations = load_evidence_remediations(&evidence_rows, connection).await?;
         let upstream = load_upstream(&evidence_rows, connection).await?;
+        let mut scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
 
         // Group evidence by (node_id, vulnerability_id).
         let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence::Model>> = BTreeMap::new();
@@ -368,6 +370,9 @@ impl CorrelationService {
                         .collect::<BTreeSet<_>>()
                         .into_iter()
                         .collect(),
+                    scores: scores
+                        .remove(&(first.advisory_id, vuln_id.to_string()))
+                        .unwrap_or_default(),
                 },
                 status,
                 resolution,
@@ -456,6 +461,7 @@ impl CorrelationService {
         let component_provider =
             snapshot.component_provider(None, None, &provider_identifiers, &context);
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
+        let mut scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
 
         let remediations = remediation::Remediations::load(
             matches
@@ -529,6 +535,10 @@ impl CorrelationService {
             verdicts.push(QueryVerdict {
                 vulnerability_id: vuln_id.into(),
                 vulnerability_title: vuln_titles.get(vuln_id).cloned().flatten(),
+                scores: decision
+                    .winning_advisory
+                    .and_then(|advisory_id| scores.remove(&(advisory_id, vuln_id.to_string())))
+                    .unwrap_or_default(),
                 status: decision.status,
                 resolution: decision.summary,
                 matches: items.into_iter().map(|(_, m)| m).collect(),
@@ -713,6 +723,43 @@ async fn load_upstream(
             .entry((row.advisory_id, row.vulnerability_id))
             .or_default()
             .push(row.upstream_id);
+    }
+    Ok(result)
+}
+
+/// Load the CVSS scores of the advisories' vulnerabilities, keyed by advisory and vulnerability,
+/// ordered as [`VulnerabilityRef::scores`].
+async fn load_scores(
+    advisory_ids: &[Uuid],
+    vuln_ids: &[&str],
+    connection: &impl ConnectionTrait,
+) -> Result<HashMap<(Uuid, String), Vec<ScoreRef>>, Error> {
+    let rows = advisory_vulnerability_score::Entity::find()
+        .filter(
+            advisory_vulnerability_score::Column::AdvisoryId.is_in(advisory_ids.iter().copied()),
+        )
+        .filter(
+            advisory_vulnerability_score::Column::VulnerabilityId.is_in(vuln_ids.iter().copied()),
+        )
+        .all(connection)
+        .instrument(info_span!("loading scores"))
+        .await?;
+
+    let mut result = HashMap::<_, Vec<ScoreRef>>::new();
+    for row in rows {
+        result
+            .entry((row.advisory_id, row.vulnerability_id.clone()))
+            .or_default()
+            .push(row.into());
+    }
+    for scores in result.values_mut() {
+        scores.sort_by(|a, b| {
+            b.version
+                .cmp(&a.version)
+                .then_with(|| b.score.total_cmp(&a.score))
+        });
+        // e.g. CSAF states a score per product group, often with the same vector
+        scores.dedup_by(|a, b| a.version == b.version && a.vector == b.vector);
     }
     Ok(result)
 }

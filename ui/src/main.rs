@@ -15,6 +15,7 @@ mod provider_alias;
 mod query;
 mod resolution;
 mod sbom_list;
+mod score;
 mod sort;
 mod stored;
 mod tools;

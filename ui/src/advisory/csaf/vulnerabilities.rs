@@ -4,6 +4,7 @@ use super::{
     Doc, none, notes::notes_list, product_ref, status::StatusCategory, vulnerability_name,
 };
 use crate::{
+    score::{ScoreLabel, parse_severity, rating},
     sort::{missing_last, ordered, text, use_sort},
     tools::InlineCvss,
 };
@@ -82,14 +83,19 @@ impl TableEntryRenderer<VulnColumn> for VulnEntry {
                 let mut scores = vuln
                     .scores
                     .iter()
-                    .filter_map(|score| Cvss::from_score(score).map(|cvss| cvss.short()))
+                    .filter_map(Cvss::from_score)
                     .collect::<Vec<_>>();
-                scores.sort();
-                scores.dedup();
+                scores.sort_by_key(|cvss| cvss.short());
+                scores.dedup_by_key(|cvss| cvss.short());
                 if scores.is_empty() {
                     none().into()
                 } else {
-                    html!(scores.join(", ")).into()
+                    html! {
+                        <Flex space_items={[SpaceItems::Small]}>
+                            { for scores.iter().map(|cvss| html_nested!(<FlexItem>{ cvss.label() }</FlexItem>)) }
+                        </Flex>
+                    }
+                    .into()
                 }
             }
             VulnColumn::Status => match &vuln.product_status {
@@ -144,6 +150,20 @@ impl<'a> Cvss<'a> {
             base_severity: map.get("baseSeverity").and_then(Value::as_str),
             vector: map.get("vectorString").and_then(Value::as_str),
         })
+    }
+
+    /// The base score as a label colored by its severity, the stated one or else its rating.
+    fn label(&self) -> Html {
+        let Some(score) = self.base_score else {
+            return html!("?");
+        };
+        let severity = self
+            .base_severity
+            .and_then(parse_severity)
+            .unwrap_or_else(|| rating(score, self.version.starts_with("2.")));
+        html! {
+            <ScoreLabel {score} {severity} version={AttrValue::from(self.version.to_string())} />
+        }
     }
 
     fn short(&self) -> String {
@@ -230,7 +250,7 @@ fn vulnerability_details(doc: &Doc, n: usize, vuln: &Vulnerability) -> Html {
                                     <p>
                                         if let Some(cvss) = &cvss {
                                             <strong>{ format!("CVSS {}", cvss.version) }</strong>
-                                            { " " }{ cvss.short() }
+                                            { " " }{ cvss.label() }
                                             if let Some(vector) = cvss.vector {
                                                 { " " }<InlineCvss value={vector.to_string()} />
                                             }

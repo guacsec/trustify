@@ -8,6 +8,7 @@ use crate::{
         VerdictSummary,
     },
     resolution::{confidence_cell, product_names, provider_view},
+    score::primary_score,
     tools::{InlineCpe, InlinePurl, inline_identifier},
 };
 use patternfly_yew::prelude::*;
@@ -130,6 +131,7 @@ struct CorrelationContentProps {
 enum VerdictColumn {
     Component,
     Vulnerability,
+    Score,
     Advisory,
     Status,
     Evidence,
@@ -167,6 +169,7 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
+            VerdictColumn::Score => primary_score(&self.0.vulnerability.scores).into(),
             VerdictColumn::Advisory => advisory_link(
                 self.0.vulnerability.advisory_id,
                 &self.0.vulnerability.advisory_identifier,
@@ -543,6 +546,7 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
         <TableHeader<VerdictColumn>>
             <TableColumn<VerdictColumn> label="Component" index={VerdictColumn::Component} />
             <TableColumn<VerdictColumn> label="Vulnerability" index={VerdictColumn::Vulnerability} />
+            <TableColumn<VerdictColumn> label="Score" index={VerdictColumn::Score} />
             <TableColumn<VerdictColumn> label="Advisory" index={VerdictColumn::Advisory} />
             <TableColumn<VerdictColumn> label="Status" index={VerdictColumn::Status} />
             <TableColumn<VerdictColumn> label="Evidence" index={VerdictColumn::Evidence} />

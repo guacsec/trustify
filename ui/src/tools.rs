@@ -1,7 +1,10 @@
 //! Local validators and reusable inline links for Explore.
 //! CVSS metric groups follow scm-rs/cvss-rs web/src/main.rs.
 
-use crate::AppRoute;
+use crate::{
+    AppRoute,
+    score::{ScoreLabel, rating},
+};
 use cpe::{cpe::Cpe as _, uri::OwnedUri};
 use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use patternfly_yew::prelude::*;
@@ -112,21 +115,17 @@ inline!(InlineCvss, inline_cvss, Tool::Cvss, "Inspect CVSS");
 fn fields(rows: Vec<(&str, String)>) -> Html {
     html! { <DescriptionList>{for rows.into_iter().map(|(k,v)| html!{<DescriptionGroup term={k.to_owned()}><code class="trustify-break-all">{v}</code></DescriptionGroup>})}</DescriptionList> }
 }
-fn severity(score: f64, v2: bool) -> &'static str {
-    if !v2 && score == 0.0 {
-        "None"
-    } else if score < 4.0 {
-        "Low"
-    } else if score < 7.0 {
-        "Medium"
-    } else if v2 || score < 9.0 {
-        "High"
-    } else {
-        "Critical"
-    }
-}
 fn score_row(label: &'static str, score: Option<f64>, v2: bool) -> Html {
-    html! {<p><strong>{label}{": "}</strong>{score.map(|s| format!("{s:.1} ({})",severity(s,v2))).unwrap_or_else(|| "N/A".into())}</p>}
+    html! {
+        <p>
+            <strong>{label}{": "}</strong>
+            if let Some(score) = score {
+                <ScoreLabel {score} severity={rating(score, v2)} />
+            } else {
+                {"N/A"}
+            }
+        </p>
+    }
 }
 macro_rules! collect_metrics {
     ($cvss:expr, $( ($field:ident, $abbr:expr, $name:expr) ),* $(,)?) => {{

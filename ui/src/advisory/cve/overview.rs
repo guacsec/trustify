@@ -1,7 +1,10 @@
 //! A summary of a CVE record.
 
 use super::{Doc, english, none, provider_label, timestamp};
-use crate::advisory::{card_grid, field_card};
+use crate::{
+    advisory::{card_grid, field_card},
+    score::{ScoreLabel, rating},
+};
 use ::cve::{Cve, common::Description, published::Metric};
 use patternfly_yew::prelude::*;
 use serde_json::Value;
@@ -13,18 +16,20 @@ pub struct OverviewProps {
 }
 
 /// The CVSS scores of a metric: version, base score, and vector.
-fn cvss(metric: &Metric) -> Vec<(&'static str, Option<f64>, Option<&str>)> {
+/// The CVSS metrics: the version, whether it is CVSS 2.0, the base score and the vector.
+fn cvss(metric: &Metric) -> Vec<(&'static str, bool, Option<f64>, Option<&str>)> {
     [
-        ("CVSS 4.0", &metric.cvss_v4_0),
-        ("CVSS 3.1", &metric.cvss_v3_1),
-        ("CVSS 3.0", &metric.cvss_v3_0),
-        ("CVSS 2.0", &metric.cvss_v2_0),
+        ("CVSS 4.0", false, &metric.cvss_v4_0),
+        ("CVSS 3.1", false, &metric.cvss_v3_1),
+        ("CVSS 3.0", false, &metric.cvss_v3_0),
+        ("CVSS 2.0", true, &metric.cvss_v2_0),
     ]
     .into_iter()
-    .filter_map(|(version, value)| {
+    .filter_map(|(version, v2, value)| {
         let value = value.as_ref()?;
         Some((
             version,
+            v2,
             value.get("baseScore").and_then(Value::as_f64),
             value.get("vectorString").and_then(Value::as_str),
         ))
@@ -101,17 +106,19 @@ pub fn overview(props: &OverviewProps) -> Html {
         .flat_map(|(provider, metric)| {
             cvss(metric)
                 .into_iter()
-                .map(move |(version, score, vector)| (provider.clone(), version, score, vector))
+                .map(move |(version, v2, score, vector)| {
+                    (provider.clone(), version, v2, score, vector)
+                })
         })
         .collect::<Vec<_>>();
     if !scores.is_empty() {
         cards.push(field_card(
             "Severity",
             html! {
-                { for scores.into_iter().map(|(provider, version, score, vector)| html! {
+                { for scores.into_iter().map(|(provider, version, v2, score, vector)| html! {
                     <DescriptionGroup term={format!("{version} ({provider})")}>
                         if let Some(score) = score {
-                            <strong>{ format!("{score:.1}") }</strong>
+                            <ScoreLabel {score} severity={rating(score, v2)} />
                             <br />
                         }
                         <small><crate::tools::InlineCvss value={vector.unwrap_or_default().to_string()} /></small>
@@ -246,10 +253,13 @@ mod test {
                     .map(move |score| (provider.clone(), score)))
                 .collect::<Vec<_>>(),
             [
-                ("Linux".to_string(), ("CVSS 3.1", Some(7.8), Some(VECTOR))),
+                (
+                    "Linux".to_string(),
+                    ("CVSS 3.1", false, Some(7.8), Some(VECTOR))
+                ),
                 (
                     "CISA-ADP".to_string(),
-                    ("CVSS 3.1", Some(7.8), Some(VECTOR))
+                    ("CVSS 3.1", false, Some(7.8), Some(VECTOR))
                 ),
             ]
         );

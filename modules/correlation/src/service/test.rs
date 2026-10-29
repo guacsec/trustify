@@ -2,8 +2,9 @@ use crate::extractor::Extractors;
 use crate::{
     model::{
         ApiAssertionStatus, AssertionOrigin, ComponentRef, ConfidenceFactor, ConfidenceReason,
-        CorrelationResult, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue, QueryMatch,
-        QueryResult, QueryVerdict, RangeBound, SbomVerdictCounts, VerdictStatus, combine,
+        CorrelationResult, CvssVersion, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue,
+        QueryMatch, QueryResult, QueryVerdict, RangeBound, SbomVerdictCounts, ScoreRef,
+        ScoreSeverity, VerdictStatus, combine,
     },
     service::CorrelationService,
 };
@@ -173,6 +174,12 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
             vulnerability_id: "CVE-2025-41768".into(),
             vulnerability_title: None,
             status: VerdictStatus::Fixed,
+            scores: vec![ScoreRef {
+                version: CvssVersion::V3_1,
+                vector: "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:C/C:L/I:L/A:N".into(),
+                score: 5.5,
+                severity: ScoreSeverity::Medium,
+            }],
             matches: vec![QueryMatch {
                 remediations: vec![],
                 kind: IdentifierKind::Digest,
@@ -243,6 +250,12 @@ async fn query_wildcard_model_number(ctx: &TrustifyContext) -> anyhow::Result<()
                 vulnerability_id: "CVE-2026-50001".into(),
                 vulnerability_title: None,
                 status: VerdictStatus::Affected,
+                scores: vec![ScoreRef {
+                    version: CvssVersion::V3_1,
+                    vector: "CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H".into(),
+                    score: 8.8,
+                    severity: ScoreSeverity::High,
+                }],
                 matches: vec![QueryMatch {
                     remediations: vec![],
                     kind: IdentifierKind::ModelNumber,

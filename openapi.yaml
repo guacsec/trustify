@@ -7008,6 +7008,14 @@ components:
               format: int32
               minimum: 0
             uniqueItems: true
+    CvssVersion:
+      type: string
+      description: A CVSS specification version.
+      enum:
+      - '2.0'
+      - '3.0'
+      - '3.1'
+      - '4.0'
     CweImporter:
       allOf:
       - $ref: '#/components/schemas/CommonImporter'
@@ -9773,6 +9781,13 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/QueryMatch'
+          scores:
+            type: array
+            items:
+              $ref: '#/components/schemas/ScoreRef'
+            description: |-
+              The CVSS scores the deciding advisory states for the vulnerability, ordered as
+              [`VulnerabilityRef::scores`].
           status:
             $ref: '#/components/schemas/VerdictStatus'
           vulnerability_id:
@@ -10653,6 +10668,33 @@ components:
         type: '3.1'
         value: 7.5
         severity: high
+    ScoreRef:
+      type: object
+      description: A CVSS score an advisory states for a vulnerability.
+      required:
+      - version
+      - vector
+      - score
+      - severity
+      properties:
+        score:
+          type: number
+          format: double
+        severity:
+          $ref: '#/components/schemas/ScoreSeverity'
+        vector:
+          type: string
+        version:
+          $ref: '#/components/schemas/CvssVersion'
+    ScoreSeverity:
+      type: string
+      description: The qualitative severity rating of a CVSS score.
+      enum:
+      - none
+      - low
+      - medium
+      - high
+      - critical
     ScoreType:
       type: string
       description: The type of score, indicating the scoring system and version used.
@@ -11235,6 +11277,13 @@ components:
           description: The format of the advisory (its `type` label), e.g. `csaf`, `cve` or `osv`.
         id:
           type: string
+        scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreRef'
+          description: |-
+            The CVSS scores the advisory states for the vulnerability, the newest CVSS version first,
+            and within a version the highest score first.
         title:
           type:
           - string

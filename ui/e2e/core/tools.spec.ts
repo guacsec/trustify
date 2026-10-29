@@ -85,11 +85,11 @@ test('inline advisory vectors link to their prefilled inspector', async ({ page,
 });
 
 for (const [vector, score] of [
-  ['CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N', 'Base: 0.0 (None)'],
-  ['CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', 'Base: 9.8 (Critical)'],
+  ['CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N', '0.0 None'],
+  ['CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H', '9.8 Critical'],
 ]) {
   test('CVSS detects severity for ' + score, async ({ page }) => {
     await page.goto('/tools/cvss/' + encodeURIComponent(vector));
-    await expect(page.getByText(score, { exact: true })).toBeVisible();
+    await expect(page.locator('.pf-v6-c-label').filter({ hasText: score }).first()).toBeVisible();
   });
 }

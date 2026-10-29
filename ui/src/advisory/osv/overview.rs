@@ -1,7 +1,10 @@
 //! A summary of an OSV record.
 
 use super::{Doc, id_list, json_section, none, stated};
-use crate::advisory::{card_grid, field_card};
+use crate::{
+    advisory::{card_grid, field_card},
+    score::{ScoreLabel, rating},
+};
 use ::osv::schema::{Severity, SeverityType};
 use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use patternfly_yew::prelude::*;
@@ -28,7 +31,7 @@ fn severity(severity: &Severity) -> Html {
     html! {
         <DescriptionGroup term={stated(&severity.severity_type)}>
             if let Some(score) = cvss_score(severity) {
-                <strong>{ format!("{score:.1}") }</strong>
+                <ScoreLabel {score} severity={rating(score, matches!(severity.severity_type, SeverityType::CVSSv2))} />
                 <br />
             }
             <small>
