@@ -229,7 +229,12 @@ fn vulnerability_details(doc: &Doc, n: usize, vuln: &Vulnerability) -> Html {
                             ),
                             None => "Unknown score".into(),
                         };
-                        products_section(doc, title, resolve(doc, Some(&score.products), None))
+                        html!{<>
+                            {if let Some(vector) = Cvss::from_score(score).and_then(|c|c.vector) {
+                                html!{<crate::tools::InlineCvss value={vector.to_string()} />}
+                            } else {html!{}}}
+                            {products_section(doc, title, resolve(doc, Some(&score.products), None))}
+                        </>}
                     }) }
                 </StackItem>
             }

@@ -9,7 +9,7 @@ rust-version.workspace = true
 [features]
 default = ["web"]
 web = [
-    "dep:browser-panic-hook", "dep:csaf-rs", "dep:cve", "dep:cvss", "dep:gloo-file",
+    "dep:cpe", "dep:packageurl", "dep:browser-panic-hook", "dep:csaf-rs", "dep:cve", "dep:cvss", "dep:gloo-file",
     "dep:gloo-net", "dep:gloo-timers", "dep:gloo-utils", "dep:js-sys", "dep:log",
     "dep:monaco", "dep:osv", "dep:patternfly-yew", "dep:serde", "dep:serde_json",
     "dep:serde-saphyr", "dep:thiserror", "dep:time", "dep:trustify-api",
@@ -54,7 +54,10 @@ uuid = { workspace = true, features = ["serde"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
 wasm-logger = { version = "0.2", optional = true }
-web-sys = { version = "0.3", features = ["HtmlInputElement", "File", "FileList", "DragEvent", "DataTransfer", "Storage", "Window"], optional = true }
+web-sys = { version = "0.3", features = ["HtmlInputElement", "File", "FileList", "DragEvent", "DataTransfer", "Storage", "Window", "History", "Navigator", "Clipboard", "Location"], optional = true }
 yew = { version = "0.23", features = ["csr"], optional = true }
 yew-nested-router = { version = "0.9", optional = true }
 yew-oauth2 = { version = "0.14", features = ["openid", "yew-nested-router"], optional = true }
+
+cpe = { workspace = true, optional = true }
+packageurl = { workspace = true, optional = true }

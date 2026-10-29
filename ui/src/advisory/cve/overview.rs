@@ -114,7 +114,7 @@ pub fn overview(props: &OverviewProps) -> Html {
                             <strong>{ format!("{score:.1}") }</strong>
                             <br />
                         }
-                        <small><code>{ vector.unwrap_or_default() }</code></small>
+                        <small><crate::tools::InlineCvss value={vector.unwrap_or_default().to_string()} /></small>
                     </DescriptionGroup>
                 }) }
             },

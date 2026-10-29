@@ -129,7 +129,7 @@ impl TableEntryRenderer<AffectedColumn> for AffectedEntry {
                 </>
             },
             AffectedColumn::Package => match (&product.package_url, &product.package_name) {
-                (Some(purl), _) => html!(<code>{ purl }</code>),
+                (Some(purl), _) => html!(<crate::tools::InlinePurl value={purl.to_string()} />),
                 (None, Some(name)) => html! {
                     <>
                         <code>{ name }</code>
@@ -171,7 +171,7 @@ fn values(term: &'static str, values: &[String]) -> Html {
     html! {
         <DescriptionGroup {term}>
             <Flex space_items={[SpaceItems::Small]}>
-                { for values.iter().map(|v| html_nested!(<FlexItem><code>{ v }</code></FlexItem>)) }
+                { for values.iter().map(|v| html_nested!(<FlexItem>{crate::tools::inline_identifier(v)}</FlexItem>)) }
             </Flex>
         </DescriptionGroup>
     }

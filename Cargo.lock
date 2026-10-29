@@ -9849,6 +9849,7 @@ name = "trustify-correlation-ui"
 version = "0.7.0-rc.1"
 dependencies = [
  "browser-panic-hook",
+ "cpe",
  "csaf-rs",
  "cve",
  "cvss-rs 0.5.0",
@@ -9860,6 +9861,7 @@ dependencies = [
  "log",
  "monaco",
  "osv",
+ "packageurl 0.7.1",
  "patternfly-yew",
  "serde",
  "serde-saphyr",

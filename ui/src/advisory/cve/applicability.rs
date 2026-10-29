@@ -69,7 +69,7 @@ fn configuration_card(n: usize, configuration: &Configuration) -> Html {
                                             <Label label="not vulnerable" color={Color::Grey} compact=true />
                                         }
                                         { " " }
-                                        <code>{ &cpe_match.criteria }</code>
+                                        <crate::tools::InlineCpe value={cpe_match.criteria.clone()} />
                                         if let Some(versions) = match_versions(cpe_match) {
                                             { " " }<code>{ versions }</code>
                                         }

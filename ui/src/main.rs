@@ -17,6 +17,7 @@ mod resolution;
 mod sbom_list;
 mod sort;
 mod stored;
+mod tools;
 
 use advisory::AdvisoryPage;
 use advisory_list::AdvisoryList;
@@ -52,6 +53,9 @@ pub enum AppRoute {
         id: String,
     },
     Query,
+    Tools {
+        tool: String,
+    },
     Ingest,
     Options,
     CorrelationStatus,
@@ -248,6 +252,7 @@ fn switch_route(target: AppRoute, correlation_enabled: bool) -> Html {
         };
     }
     match target {
+        AppRoute::Tools { tool } => html! { <AppPage><tools::ToolPage {tool} /></AppPage> },
         AppRoute::CorrelationStatus => html! { <AppPage><freshness::FreshnessPage /></AppPage> },
         AppRoute::Confidence => html! { <AppPage><confidence::ConfidencePage /></AppPage> },
         AppRoute::SbomList => html! {
@@ -325,13 +330,16 @@ fn page(props: &PageProps) -> Html {
                         <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
-                        if correlation_enabled {
-                            <NavExpandable title="Explore">
+                        <NavExpandable title="Explore">
+                            <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "cvss".into() }}>{ "CVSS" }</NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "purl".into() }}>{ "Package URL" }</NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "cpe".into() }}>{ "CPE" }</NavRouterItem<AppRoute>>
+                            if correlation_enabled {
                                 <NavRouterItem<AppRoute> to={AppRoute::Query}>
                                     { "Query" }
                                 </NavRouterItem<AppRoute>>
-                            </NavExpandable>
-                        }
+                            }
+                        </NavExpandable>
                         <NavExpandable title="Administration">
                             <NavRouterItem<AppRoute> to={AppRoute::Importers}>
                                 { "Importers" }

@@ -31,7 +31,13 @@ fn severity(severity: &Severity) -> Html {
                 <strong>{ format!("{score:.1}") }</strong>
                 <br />
             }
-            <small><code>{ &severity.score }</code></small>
+            <small>
+            if matches!(severity.severity_type, SeverityType::CVSSv2 | SeverityType::CVSSv3 | SeverityType::CVSSv4) {
+                <crate::tools::InlineCvss value={severity.score.clone()} />
+            } else {
+                <code>{&severity.score}</code>
+            }
+            </small>
         </DescriptionGroup>
     }
 }

@@ -43,3 +43,11 @@ test('legacy discovery without a correlation capability fails closed', async ({ 
   await expect(page.getByRole('heading', { name: 'Correlation is disabled on this instance' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Query', exact: true })).toHaveCount(0);
 });
+
+test('inspection tools remain available without correlation', async ({ page }) => {
+  for (const [tool, title] of [['cvss', 'CVSS'], ['purl', 'Package URL'], ['cpe', 'CPE']]) {
+    await page.goto('/tools/' + tool);
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Query', exact: true })).toHaveCount(0);
+  }
+});

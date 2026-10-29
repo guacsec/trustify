@@ -689,7 +689,7 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
 pub(crate) fn matched_value(value: &MatchedValue) -> Html {
     html! {
         <>
-            <code>{ &value.identifier }</code>
+            { crate::tools::inline_identifier(&value.identifier) }
             if !value.ranges.is_empty() {
                 <ul style="margin:0;padding-left:1em">
                     { for value.ranges.iter().map(|range| html!(<li>{ range.to_string() }</li>)) }

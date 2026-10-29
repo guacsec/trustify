@@ -167,7 +167,7 @@ impl TableEntryRenderer<AffectedColumn> for AffectedEntry {
                 .into(),
             AffectedColumn::Purl => package
                 .and_then(|package| package.purl.as_ref())
-                .map(|purl| html!(<code>{ purl }</code>))
+                .map(|purl| html!(<crate::tools::InlinePurl value={purl.to_string()} />))
                 .unwrap_or_else(none)
                 .into(),
             AffectedColumn::Ranges => count(affected.ranges.as_ref().map(Vec::len)).into(),

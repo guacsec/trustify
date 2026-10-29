@@ -213,10 +213,10 @@ fn product_definition(doc: &Doc, product: &Product) -> Html {
         <DescriptionList mode={[DescriptionListMode::Horizontal.all()]} compact=true>
             <DescriptionGroup term="Defined by">{ origin }</DescriptionGroup>
             if let Some(purl) = &helper.purl {
-                <DescriptionGroup term="PURL"><code>{ purl.to_string() }</code></DescriptionGroup>
+                <DescriptionGroup term="PURL"><crate::tools::InlinePurl value={purl.to_string()} /></DescriptionGroup>
             }
             if let Some(cpe) = &helper.cpe {
-                <DescriptionGroup term="CPE"><code>{ cpe.to_string() }</code></DescriptionGroup>
+                <DescriptionGroup term="CPE"><crate::tools::InlineCpe value={cpe.to_string()} /></DescriptionGroup>
             }
             if !helper.hashes.is_empty() {
                 <DescriptionGroup term="Hashes">

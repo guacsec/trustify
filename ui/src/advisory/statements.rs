@@ -199,8 +199,10 @@ fn status_label(status: &str) -> Html {
 
 fn subject(subject: &StatementSubject) -> Html {
     match subject {
-        StatementSubject::Purl { purl } => html!(<code>{ purl }</code>),
-        StatementSubject::Cpe { cpe } => html!(<code>{ cpe }</code>),
+        StatementSubject::Purl { purl } => {
+            html!(<crate::tools::InlinePurl value={purl.to_string()} />)
+        }
+        StatementSubject::Cpe { cpe } => html!(<crate::tools::InlineCpe value={cpe.to_string()} />),
         StatementSubject::Product {
             name,
             cpe_key,
