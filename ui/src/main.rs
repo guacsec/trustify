@@ -30,6 +30,7 @@ use options::OptionsPage;
 use patternfly_yew::prelude::*;
 use query::QueryPage;
 use sbom_list::SbomList;
+use tools::{Tool, ToolRoute};
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -53,9 +54,7 @@ pub enum AppRoute {
         id: String,
     },
     Query,
-    Tools {
-        tool: String,
-    },
+    Tools(ToolRoute),
     Ingest,
     Options,
     CorrelationStatus,
@@ -252,7 +251,7 @@ fn switch_route(target: AppRoute, correlation_enabled: bool) -> Html {
         };
     }
     match target {
-        AppRoute::Tools { tool } => html! { <AppPage><tools::ToolPage {tool} /></AppPage> },
+        AppRoute::Tools(route) => html! { <AppPage><tools::ToolPage {route} /></AppPage> },
         AppRoute::CorrelationStatus => html! { <AppPage><freshness::FreshnessPage /></AppPage> },
         AppRoute::Confidence => html! { <AppPage><confidence::ConfidencePage /></AppPage> },
         AppRoute::SbomList => html! {
@@ -331,9 +330,9 @@ fn page(props: &PageProps) -> Html {
                             { "Ingest" }
                         </NavRouterItem<AppRoute>>
                         <NavExpandable title="Tools">
-                            <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "cvss".into() }}>{ "CVSS" }</NavRouterItem<AppRoute>>
-                            <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "purl".into() }}>{ "Package URL" }</NavRouterItem<AppRoute>>
-                            <NavRouterItem<AppRoute> to={AppRoute::Tools { tool: "cpe".into() }}>{ "CPE" }</NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::Tools(ToolRoute::empty(Tool::Cvss))} predicate={ToolRoute::is_active(Tool::Cvss)}>{ "CVSS" }</NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::Tools(ToolRoute::empty(Tool::Purl))} predicate={ToolRoute::is_active(Tool::Purl)}>{ "Package URL" }</NavRouterItem<AppRoute>>
+                            <NavRouterItem<AppRoute> to={AppRoute::Tools(ToolRoute::empty(Tool::Cpe))} predicate={ToolRoute::is_active(Tool::Cpe)}>{ "CPE" }</NavRouterItem<AppRoute>>
                             if correlation_enabled {
                                 <NavRouterItem<AppRoute> to={AppRoute::Query}>
                                     { "Query" }

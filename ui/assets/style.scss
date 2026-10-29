@@ -27,6 +27,10 @@
   word-break: break-all;
 }
 
+.trustify-overflow-anywhere {
+  overflow-wrap: anywhere;
+}
+
 // Keep explanation content within the modal, including long policy and provider identifiers.
 .pf-v6-c-modal-box:has(.trustify-verdict-explanation) {
   width: min(68rem, calc(100vw - 4rem));

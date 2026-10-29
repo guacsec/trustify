@@ -1,39 +1,113 @@
 //! Local validators and reusable inline links for Explore.
 //! CVSS metric groups follow scm-rs/cvss-rs web/src/main.rs.
 
+use crate::AppRoute;
 use cpe::{cpe::Cpe as _, uri::OwnedUri};
 use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use patternfly_yew::prelude::*;
 use std::str::FromStr;
 use yew::prelude::*;
+use yew_nested_router::{
+    components::Link,
+    prelude::{Target, use_router},
+};
 
-pub fn tool_url(tool: &str, value: &str) -> String {
-    let base = gloo_utils::document()
-        .base_uri()
-        .ok()
-        .flatten()
-        .unwrap_or_default();
-    let mut url = url::Url::parse(&base).expect("document base URL");
-    url.set_path(&format!("{}tools/{tool}", url.path()));
-    let key = if tool == "cvss" { "vector" } else { tool };
-    url.query_pairs_mut().append_pair(key, value);
-    url.into()
+/// An inspection tool.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tool {
+    Cvss,
+    Purl,
+    Cpe,
 }
+
+impl Tool {
+    fn segment(self) -> &'static str {
+        match self {
+            Self::Cvss => "cvss",
+            Self::Purl => "purl",
+            Self::Cpe => "cpe",
+        }
+    }
+
+    fn from_segment(segment: &str) -> Option<Self> {
+        match segment {
+            "cvss" => Some(Self::Cvss),
+            "purl" => Some(Self::Purl),
+            "cpe" => Some(Self::Cpe),
+            _ => None,
+        }
+    }
+}
+
+/// A tool, with the value to inspect as an optional last path segment: `/tools/<tool>[/<value>]`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ToolRoute {
+    pub tool: Tool,
+    pub value: String,
+}
+
+impl ToolRoute {
+    /// The tool, without a value.
+    pub fn empty(tool: Tool) -> Self {
+        Self {
+            tool,
+            value: String::new(),
+        }
+    }
+
+    /// Whether a route is the tool, with any value, for highlighting its navigation item.
+    pub fn is_active(tool: Tool) -> Callback<AppRoute, bool> {
+        Callback::from(move |route| matches!(route, AppRoute::Tools(route) if route.tool == tool))
+    }
+}
+
+impl Target for ToolRoute {
+    fn render_self_into(&self, path: &mut Vec<String>) {
+        path.push(self.tool.segment().into());
+        if !self.value.is_empty() {
+            path.push(self.value.clone());
+        }
+    }
+
+    fn render_path_into(&self, path: &mut Vec<String>) {
+        self.render_self_into(path);
+    }
+
+    fn parse_path(path: &[&str]) -> Option<Self> {
+        match path {
+            [tool] => Tool::from_segment(tool).map(Self::empty),
+            [tool, value] => Tool::from_segment(tool).map(|tool| Self {
+                tool,
+                value: value.to_string(),
+            }),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Properties, PartialEq)]
 pub struct InlineProps {
     pub value: AttrValue,
 }
 macro_rules! inline {
-    ($name:ident, $fun:ident, $tool:literal, $label:literal) => {
+    ($name:ident, $fun:ident, $tool:expr, $label:literal) => {
         #[function_component($name)]
         pub fn $fun(props: &InlineProps) -> Html {
-            html! { <a href={tool_url($tool, &props.value)} title={$label} style="overflow-wrap:anywhere"><code>{&props.value}</code></a> }
+            let to = AppRoute::Tools(ToolRoute {
+                tool: $tool,
+                value: props.value.to_string(),
+            });
+            html! {
+                <Link<AppRoute> {to} class="trustify-overflow-anywhere">
+                    <code title={$label}>{&props.value}</code>
+                </Link<AppRoute>>
+            }
         }
-    }
+    };
 }
-inline!(InlinePurl, inline_purl, "purl", "Inspect Package URL");
-inline!(InlineCpe, inline_cpe, "cpe", "Inspect CPE");
-inline!(InlineCvss, inline_cvss, "cvss", "Inspect CVSS");
+inline!(InlinePurl, inline_purl, Tool::Purl, "Inspect Package URL");
+inline!(InlineCpe, inline_cpe, Tool::Cpe, "Inspect CPE");
+inline!(InlineCvss, inline_cvss, Tool::Cvss, "Inspect CVSS");
 
 fn fields(rows: Vec<(&str, String)>) -> Html {
     html! { <DescriptionList>{for rows.into_iter().map(|(k,v)| html!{<DescriptionGroup term={k.to_owned()}><code class="trustify-break-all">{v}</code></DescriptionGroup>})}</DescriptionList> }
@@ -249,10 +323,10 @@ fn render_v4(cvss: CvssV4) -> Html {
     html! {<>{scores}{extra}<h2>{"Base metrics"}</h2>{fields(base)}<h2>{"Threat metrics"}</h2>{fields(threat)}<h2>{"Environmental metrics"}</h2>{fields(environmental)}<h2>{"Supplemental metrics"}</h2>{fields(supplemental)}</>}
 }
 
-fn inspect(tool: &str, input: &str) -> Result<Html, String> {
+fn inspect(tool: Tool, input: &str) -> Result<Html, String> {
     let value = input.trim();
     match tool {
-        "cvss" => {
+        Tool::Cvss => {
             let upper = value.to_ascii_uppercase();
             let result = if upper.starts_with("CVSS:4.") {
                 CvssV4::from_str(value).map(render_v4)
@@ -263,7 +337,7 @@ fn inspect(tool: &str, input: &str) -> Result<Html, String> {
             };
             result.map_err(|e| e.to_string())
         }
-        "purl" => {
+        Tool::Purl => {
             let p = packageurl::PackageUrl::from_str(value).map_err(|e| e.to_string())?;
             Ok(fields(vec![
                 ("Canonical", p.to_string()),
@@ -282,8 +356,7 @@ fn inspect(tool: &str, input: &str) -> Result<Html, String> {
                 ("Subpath", p.subpath().unwrap_or("(none)").into()),
             ]))
         }
-        "cpe" => inspect_cpe(value),
-        _ => Err("Unknown tool".into()),
+        Tool::Cpe => inspect_cpe(value),
     }
 }
 fn split_cpe23(s: &str) -> Vec<String> {
@@ -461,84 +534,44 @@ fn inspect_cpe(value: &str) -> Result<Html, String> {
 }
 #[derive(Properties, PartialEq)]
 pub struct ToolProps {
-    pub tool: String,
+    pub route: ToolRoute,
 }
 #[function_component(ToolPage)]
 pub fn tool_page(props: &ToolProps) -> Html {
-    let key = if props.tool == "cvss" {
-        "vector"
-    } else {
-        &props.tool
-    };
-    let initial = read_input(key);
-    let input = use_state(|| initial);
+    let router = use_router::<AppRoute>();
     let message = use_state(String::new);
-    {
-        let input = input.clone();
-        let tool = props.tool.clone();
-        use_effect_with(tool.clone(), move |_| {
-            input.set(read_input(if tool == "cvss" { "vector" } else { &tool }));
-            || ()
-        });
-    }
-    {
-        let input = input.clone();
-        let key = key.to_string();
-        use_effect_with(key.clone(), move |_| {
-            let callback =
-                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::Event)>::new(move |_| {
-                    let value = url::Url::parse(
-                        &gloo_utils::window().location().href().unwrap_or_default(),
-                    )
-                    .ok()
-                    .and_then(|u| {
-                        u.query_pairs()
-                            .find(|(k, _)| k == &key)
-                            .map(|(_, v)| v.into_owned())
-                    })
-                    .unwrap_or_default();
-                    input.set(value);
-                });
-            use wasm_bindgen::JsCast;
-            let _ = gloo_utils::window()
-                .add_event_listener_with_callback("popstate", callback.as_ref().unchecked_ref());
-            move || {
-                let _ = gloo_utils::window().remove_event_listener_with_callback(
-                    "popstate",
-                    callback.as_ref().unchecked_ref(),
-                );
-            }
-        });
-    }
+    let tool = props.route.tool;
+    let input = &props.route.value;
     let onchange = {
-        let input = input.clone();
-        let tool = props.tool.clone();
+        let router = router.clone();
         let message = message.clone();
-        Callback::from(move |v: String| {
-            let _ = gloo_utils::window().history().and_then(|h| {
-                h.replace_state_with_url(
-                    &wasm_bindgen::JsValue::NULL,
-                    "",
-                    Some(&tool_url(&tool, &v)),
-                )
-            });
-            input.set(v);
+        Callback::from(move |value: String| {
+            if let Some(router) = &router {
+                router.replace(AppRoute::Tools(ToolRoute { tool, value }));
+            }
             message.set(String::new());
         })
     };
     let onclick = {
-        let input = input.clone();
-        let tool = props.tool.clone();
+        let link = router.as_ref().map(|router| {
+            let path = router.render_target(AppRoute::Tools(props.route.clone()));
+            format!(
+                "{}{path}",
+                gloo_utils::window().location().origin().unwrap_or_default()
+            )
+        });
         let message = message.clone();
         Callback::from(move |_| {
-            let url = tool_url(&tool, &input);
+            let Some(link) = link.clone() else {
+                return;
+            };
             let message = message.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let result = wasm_bindgen_futures::JsFuture::from(
                     gloo_utils::window()
                         .navigator()
                         .clipboard()
-                        .write_text(&url),
+                        .write_text(&link),
                 )
                 .await;
                 message.set(if result.is_ok() {
@@ -549,34 +582,63 @@ pub fn tool_page(props: &ToolProps) -> Html {
             });
         })
     };
-    let title = match props.tool.as_str() {
-        "cvss" => "CVSS",
-        "purl" => "Package URL",
-        _ => "CPE",
+    let (title, placeholder) = match tool {
+        Tool::Cvss => ("CVSS", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"),
+        Tool::Purl => ("Package URL", "pkg:maven/org.example/demo@1.0"),
+        Tool::Cpe => ("CPE", "cpe:2.3:a:vendor:product:1.0:*:*:*:*:*:*:*"),
+    };
+    let empty = input.trim().is_empty();
+    let result = (!empty).then(|| inspect(tool, input));
+    let (state, helper_text) = match &result {
+        Some(Err(error)) => (
+            InputState::Error,
+            Some(FormHelperText::from((
+                format!("Invalid value: {error}"),
+                InputState::Error,
+            ))),
+        ),
+        _ => (InputState::Default, None),
+    };
+    let copy_text = if message.is_empty() {
+        "Copy link".to_string()
+    } else {
+        (*message).clone()
     };
     html! {
         <PageSection>
             <Title level={Level::H1}>{title}</Title>
             <p>{"Validate and inspect a value. Share the current browser address or copy its link."}</p>
             <br />
-            <div class="pf-v6-c-form__group">
-                <label for="tool-input" class="pf-v6-c-form__label">{format!("{title} value")}</label>
-                <TextInput id="tool-input" value={(*input).clone()} {onchange} />
-            </div>
-            <br />
-            <Button label="Copy link" {onclick} disabled={input.trim().is_empty()} />
-            <p role="status">{&*message}</p>
-            if input.trim().is_empty() {
-                <p>{"Enter a value to inspect it."}</p>
-            } else {
-                {match inspect(&props.tool, &input) {
-                    Ok(result) => result,
-                    Err(error) => html! {
-                        <Alert inline=true r#type={AlertType::Danger} title="Invalid value">
-                            <p>{error}</p>
-                        </Alert>
-                    },
-                }}
+            <Form onsubmit={Callback::from(|e: SubmitEvent| e.prevent_default())}>
+                <FormGroup label={format!("{title} value")} {helper_text}>
+                    <InputGroup>
+                        <InputGroupItem fill=true>
+                            <TextInput
+                                id="tool-input"
+                                value={input.clone()}
+                                placeholder={placeholder}
+                                {state}
+                                {onchange}
+                            />
+                        </InputGroupItem>
+                        <InputGroupItem plain=true>
+                            <Tooltip text={copy_text}>
+                                <Button
+                                    variant={ButtonVariant::Plain}
+                                    icon={Icon::Copy}
+                                    aria_label="Copy link"
+                                    {onclick}
+                                    disabled={empty}
+                                />
+                            </Tooltip>
+                        </InputGroupItem>
+                    </InputGroup>
+                </FormGroup>
+            </Form>
+            <span class="pf-v6-screen-reader" role="status">{&*message}</span>
+            if let Some(Ok(result)) = result {
+                <br />
+                {result}
             }
         </PageSection>
     }
@@ -591,17 +653,6 @@ pub fn inline_identifier(value: &str) -> Html {
     } else {
         html! {<code>{value}</code>}
     }
-}
-
-fn read_input(key: &str) -> String {
-    url::Url::parse(&gloo_utils::window().location().href().unwrap_or_default())
-        .ok()
-        .and_then(|u| {
-            u.query_pairs()
-                .find(|(k, _)| k == key)
-                .map(|(_, v)| v.into_owned())
-        })
-        .unwrap_or_default()
 }
 
 fn component_text(value: cpe::component::Component<'_>) -> String {
