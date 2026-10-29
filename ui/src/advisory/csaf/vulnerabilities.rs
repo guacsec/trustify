@@ -3,7 +3,10 @@
 use super::{
     Doc, none, notes::notes_list, product_ref, status::StatusCategory, vulnerability_name,
 };
-use crate::sort::{missing_last, ordered, text, use_sort};
+use crate::{
+    sort::{missing_last, ordered, text, use_sort},
+    tools::InlineCvss,
+};
 use ::csaf::schema::csaf2_0::schema::{
     CategoryOfTheRemediation, ProductGroupsT, ProductsT, Remediation, Score, Vulnerability,
 };
@@ -219,23 +222,27 @@ fn vulnerability_details(doc: &Doc, n: usize, vuln: &Vulnerability) -> Html {
             if !vuln.scores.is_empty() {
                 <StackItem>
                     <Title level={Level::H4}>{ "Scores" }</Title>
-                    { for vuln.scores.iter().map(|score| {
-                        let title = match Cvss::from_score(score) {
-                            Some(cvss) => format!(
-                                "CVSS {} {} {}",
-                                cvss.version,
-                                cvss.short(),
-                                cvss.vector.unwrap_or_default(),
-                            ),
-                            None => "Unknown score".into(),
-                        };
-                        html!{<>
-                            {if let Some(vector) = Cvss::from_score(score).and_then(|c|c.vector) {
-                                html!{<crate::tools::InlineCvss value={vector.to_string()} />}
-                            } else {html!{}}}
-                            {products_section(doc, title, resolve(doc, Some(&score.products), None))}
-                        </>}
-                    }) }
+                    <Stack gutter=true>
+                        { for vuln.scores.iter().map(|score| {
+                            let cvss = Cvss::from_score(score);
+                            html! {
+                                <StackItem>
+                                    <p>
+                                        if let Some(cvss) = &cvss {
+                                            <strong>{ format!("CVSS {}", cvss.version) }</strong>
+                                            { " " }{ cvss.short() }
+                                            if let Some(vector) = cvss.vector {
+                                                { " " }<InlineCvss value={vector.to_string()} />
+                                            }
+                                        } else {
+                                            { "Unknown score" }
+                                        }
+                                    </p>
+                                    { products_section(doc, "Applies to products".into(), resolve(doc, Some(&score.products), None)) }
+                                </StackItem>
+                            }
+                        }) }
+                    </Stack>
                 </StackItem>
             }
             if !vuln.remediations.is_empty() {
