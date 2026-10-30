@@ -1,12 +1,13 @@
 use crate::{
     AppRoute, api,
-    correlation::status_color,
+    correlation::{processing::ProcessingStatus, status_color},
     ingest_drop::use_ingested_documents,
     model::{SbomSummary, SbomVerdictCounts, VerdictStatus},
     stored::{use_stored_pagination, use_stored_text},
 };
 use patternfly_yew::prelude::*;
 use std::collections::HashMap;
+use trustify_api::correlation::FreshnessStatus;
 use uuid::Uuid;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -49,9 +50,10 @@ fn sbom_uuid(sbom: &SbomSummary) -> Option<Uuid> {
 fn remediation_count(counts: Option<&SbomVerdictCounts>) -> Html {
     match counts {
         None => html!("…"),
+        Some(counts) if counts.verdict_freshness.generation.is_none() => html!("Not computed yet"),
         Some(counts) if counts.remediations == 0 => html!("-"),
         Some(counts) => html! {
-            <Tooltip text="Remediations the advisories state, e.g. the versions fixing the vulnerabilities. See the Remediations tab of the SBOM.">
+            <Tooltip text="Remediations stated by advisories. Expand a verdict in the SBOM to see the details and source advisories.">
                 <span>
                     <i class="fas fa-wrench pf-v6-u-mr-xs" aria-hidden="true"/>
                     { counts.remediations }
@@ -66,6 +68,9 @@ fn verdict_counts(counts: Option<&SbomVerdictCounts>) -> Html {
     let Some(counts) = counts else {
         return html!("…");
     };
+    if counts.verdict_freshness.generation.is_none() {
+        return html!("Not computed yet");
+    }
 
     let labels = [
         (VerdictStatus::Affected, counts.affected),
@@ -91,8 +96,17 @@ fn verdict_counts(counts: Option<&SbomVerdictCounts>) -> Html {
     })
     .collect::<Vec<_>>();
 
+    let freshness_label = match counts.verdict_freshness.status {
+        FreshnessStatus::Current => None,
+        FreshnessStatus::Stale => Some("Stale"),
+        FreshnessStatus::Unknown => Some("Not computed yet"),
+    };
+
     html! {
         <Flex space_items={[SpaceItems::Small]}>
+            { for freshness_label.map(|label| html_nested! {
+                <FlexItem><Label {label} compact=true /></FlexItem>
+            }) }
             { for labels }
         </Flex>
     }
@@ -107,9 +121,17 @@ pub fn sbom_list() -> Html {
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
     let search = use_stored_text("sbom-list", "search");
+    let verdict_status = use_state_eq(|| None::<VerdictStatus>);
+    let vulnerability = use_state_eq(String::new);
     // the total number of matching SBOMs, kept while the next page loads
     let total = use_state_eq(|| Option::<usize>::None);
     let pagination = use_stored_pagination("sbom-list", *total);
+    {
+        let pagination = pagination.clone();
+        use_effect_with((*verdict_status, (*vulnerability).clone()), move |_| {
+            pagination.onnavigation.emit(Navigation::First);
+        });
+    }
     let router = use_router::<AppRoute>();
     let ingested = use_ingested_documents();
 
@@ -129,17 +151,32 @@ pub fn sbom_list() -> Html {
                 pagination.control,
                 ingested,
                 correlation_enabled,
+                *verdict_status,
+                (*vulnerability).clone(),
             ),
-            move |(query, control, _, correlation_enabled)| {
+            move |(query, control, _, correlation_enabled, status, vulnerability)| {
                 let correlation_enabled = *correlation_enabled;
+                let status = if correlation_enabled { *status } else { None };
+                let vulnerability = if correlation_enabled {
+                    vulnerability.clone()
+                } else {
+                    String::new()
+                };
                 let query = query.clone();
                 let (offset, limit) = (control.page * control.per_page, control.per_page);
                 spawn_local(async move {
                     loading.set(true);
                     error.set(None);
                     counts.set(None);
-                    let items = match api::fetch_sboms(&query, offset, limit, token.as_deref())
-                        .await
+                    let items = match api::fetch_sboms(
+                        &query,
+                        status,
+                        &vulnerability,
+                        offset,
+                        limit,
+                        token.as_deref(),
+                    )
+                    .await
                     {
                         Ok(result) => {
                             total.set(result.total.and_then(|total| usize::try_from(total).ok()));
@@ -225,11 +262,25 @@ pub fn sbom_list() -> Html {
                             value={(*search).clone()}
                         />
                     </ToolbarItem>
+                        <ToolbarItem>
+                        if correlation_enabled {
+                            <ToggleGroup>
+                                {for [None, Some(VerdictStatus::Affected), Some(VerdictStatus::Fixed), Some(VerdictStatus::NotAffected), Some(VerdictStatus::UnderInvestigation), Some(VerdictStatus::None)].into_iter().map(|status| {
+                                    let selected = verdict_status.clone();
+                                    html_nested!(<ToggleGroupItem text={status.map(|s| s.label()).unwrap_or("All verdict statuses")} selected={*selected == status} onchange={Callback::from(move |()| selected.set(status))} />)
+                                })}
+                            </ToggleGroup>
+                        }
+                        </ToolbarItem>
+                        <ToolbarItem>
+                            if correlation_enabled { <TextInput placeholder="Vulnerability ID (exact)" value={(*vulnerability).clone()} onchange={{let value = vulnerability.clone(); Callback::from(move |s: String| value.set(s))}} /> }
+                        </ToolbarItem>
                     <ToolbarItem r#type={ToolbarItemType::Pagination}>
                         <SimplePagination pagination={pagination.clone()} total={*total} />
                     </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
+            if correlation_enabled { <ProcessingStatus /> }
 
             if *loading {
                 <Bullseye>
@@ -241,7 +292,7 @@ pub fn sbom_list() -> Html {
                 </Alert>
             } else if sboms.is_empty() {
                 <EmptyState
-                    title="No SBOMs found"
+                    title={if correlation_enabled && (verdict_status.is_some() || !vulnerability.is_empty()) { "No matches in completed results" } else { "No SBOMs found" }}
                     icon={Icon::Search}
                     size={Size::XXXXLarge}
                 >

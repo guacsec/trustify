@@ -1,6 +1,6 @@
 use crate::{
     extractor::Extractors,
-    service::{extraction, freshness},
+    service::{extraction, freshness, projection},
 };
 use tokio::sync::broadcast;
 use trustify_common::db::{self, change::ChangeBroadcaster};
@@ -39,6 +39,13 @@ pub async fn run_extraction_worker(
             Ok(pending) => pending,
             Err(err) => {
                 tracing::warn!(error = %err, "correlation refresh worker failed");
+                false
+            }
+        };
+        pending |= match projection::run_step(&db).await {
+            Ok(pending) => pending,
+            Err(err) => {
+                tracing::warn!(error = %err, "verdict worker failed");
                 false
             }
         };

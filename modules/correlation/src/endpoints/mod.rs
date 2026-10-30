@@ -1,8 +1,9 @@
 use crate::{
     error::Error,
     model::{
-        AdvisoryStatement, ConfidenceCatalog, CorrelationResult, IdentifierKind, IdentifierRef,
-        QueryResult, SbomVerdictCounts, StatementKind, VerdictCountsRequest,
+        AdvisoryStatement, ComponentRef, ConfidenceCatalog, IdentifierKind, IdentifierRef,
+        QueryResult, SbomVerdictCounts, SbomVerdictPage, StatementKind, VerdictCountsRequest,
+        VerdictStatus,
     },
     service::{CorrelationService, confidence, option::OptionService, statement::StatementService},
 };
@@ -11,19 +12,15 @@ use serde::Deserialize;
 use trustify_auth::{ReadAdvisory, ReadSbom, all, authorizer::Require};
 use trustify_common::capability::{Correlation, RequireCapability};
 use trustify_common::{
-    db::{self, pagination_cache::PaginationCache},
-    model::Paginated,
+    db::{self, DatabaseExt, pagination_cache::PaginationCache},
+    model::{Paginated, PaginatedResults},
 };
 use utoipa::IntoParams;
 use uuid::Uuid;
 
 /// Query parameters for SBOM correlation.
 #[derive(Debug, Default, Deserialize, IntoParams)]
-#[serde(deny_unknown_fields)]
 struct SbomCorrelationParams {
-    /// When true, include components that have no correlation evidence.
-    #[serde(default)]
-    include_unmatched: bool,
     /// When true, include an explanation of how each verdict was resolved.
     #[serde(default)]
     include_explanation: bool,
@@ -31,6 +28,14 @@ struct SbomCorrelationParams {
     node_id: Option<String>,
     /// Only the verdicts for this vulnerability, e.g. `CVE-2024-1234`.
     vulnerability_id: Option<String>,
+    /// Only verdicts with this resolved status.
+    status: Option<VerdictStatus>,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+struct UnmatchedParams {
+    /// Only this SBOM node.
+    node_id: Option<String>,
 }
 
 mod freshness;
@@ -52,9 +57,11 @@ pub fn configure(
         .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(db_rw))
         .app_data(web::Data::new(service))
+        .app_data(web::Data::new(cache.clone()))
         .app_data(web::Data::new(OptionService::new(cache.clone())))
         .app_data(web::Data::new(StatementService::new(cache)))
         .service(get_sbom_correlation)
+        .service(get_sbom_unmatched)
         .service(list_advisory_statements)
         .service(count_verdicts)
         .service(query_correlation)
@@ -64,44 +71,87 @@ pub fn configure(
         .configure(resolution::configure);
 }
 
-/// Get correlation verdicts for an SBOM.
+/// Get correlation verdicts for an SBOM, ordered by node ID and vulnerability ID.
+/// Each item contains all evidence for one complete verdict.
+/// A zero limit returns no items; the total is computed only when requested.
 #[utoipa::path(
     tag = "correlation",
     operation_id = "getSbomCorrelation",
     params(
-        ("id" = Uuid, Path, description = "SBOM ID"),
+        ("id" = String, Path, description = "SBOM ID"),
         SbomCorrelationParams,
+        Paginated,
     ),
     responses(
         (status = 422, description = "Correlation capability disabled"),
-        (status = 200, description = "Correlation verdicts for the SBOM", body = CorrelationResult),
+        (status = 200, description = "Correlation verdicts for the SBOM", body = SbomVerdictPage),
+        (status = 400, description = "Invalid pagination or query parameters"),
+        (status = 404, description = "SBOM ID not found"),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "Insufficient permissions"),
     ),
 )]
 #[get("/v3/correlation/sbom/{id}")]
+#[allow(clippy::too_many_arguments)]
 async fn get_sbom_correlation(
     _gate: RequireCapability<Correlation>,
-    sbom_id: web::Path<Uuid>,
+    sbom_id: web::Path<String>,
     params: web::Query<SbomCorrelationParams>,
+    web::Query(paginated): web::Query<Paginated>,
+    cache: web::Data<PaginationCache>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
     _: Require<ReadSbomCorrelation>,
 ) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    freshness::snapshot(&tx).await?;
+    let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
+    let tx = db.begin_read().await?;
     let result = service
-        .correlate_sbom_with(
-            *sbom_id,
-            params.include_unmatched,
+        .filtered_verdict_page(
+            sbom_id,
             &crate::model::ResolutionRequest {
                 include_explanation: params.include_explanation,
                 node_id: params.node_id.clone(),
                 vulnerability_id: params.vulnerability_id.clone(),
                 ..Default::default()
             },
+            params.status,
+            paginated,
+            &cache,
             &tx,
         )
+        .await?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// List components without correlation evidence, excluding the SBOM root.
+/// Ordered by node ID. Evidence is checked independently of verdict filters.
+#[utoipa::path(tag = "correlation", operation_id = "getSbomUnmatched",
+    params(("id" = String, Path, description = "SBOM ID"), UnmatchedParams, Paginated),
+    responses(
+        (status = 200, description = "A page of unmatched components", body = inline(PaginatedResults<ComponentRef>)),
+        (status = 400, description = "Invalid pagination or query parameters"),
+        (status = 404, description = "SBOM ID not found"),
+        (status = 422, description = "Correlation capability disabled"),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Insufficient permissions")
+    )
+)]
+#[get("/v3/correlation/sbom/{id}/unmatched")]
+#[allow(clippy::too_many_arguments)]
+async fn get_sbom_unmatched(
+    _gate: RequireCapability<Correlation>,
+    sbom_id: web::Path<String>,
+    params: web::Query<UnmatchedParams>,
+    web::Query(paginated): web::Query<Paginated>,
+    service: web::Data<CorrelationService>,
+    cache: web::Data<PaginationCache>,
+    db: web::Data<db::ReadOnly>,
+    _: Require<ReadSbomCorrelation>,
+) -> Result<impl Responder, Error> {
+    let sbom_id = Uuid::parse_str(&sbom_id).map_err(|_| Error::NotFound(sbom_id.into_inner()))?;
+    let tx = db.begin_read().await?;
+    let result = service
+        .unmatched_page(sbom_id, params.node_id.as_deref(), paginated, &cache, &tx)
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }
@@ -162,8 +212,7 @@ async fn count_verdicts(
         )));
     }
 
-    let tx = db.begin().await?;
-    freshness::snapshot(&tx).await?;
+    let tx = db.begin_read().await?;
     let result = service.count_verdicts(&request.sbom_ids, &tx).await?;
     Ok(HttpResponse::Ok().json(result))
 }

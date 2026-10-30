@@ -12,7 +12,7 @@ use trustify_auth::{
     authorizer::{Authorizer, Require, Requirement},
 };
 use trustify_common::capability::{Correlation, RequireCapability};
-use trustify_common::db;
+use trustify_common::db::{self, DatabaseExt};
 use uuid::Uuid;
 
 /// List provider aliases
@@ -124,8 +124,7 @@ async fn preview(
     if matches!(&target, PreviewTarget::Sbom { .. }) {
         super::ReadSbomCorrelation::enforce(&authorizer, &user)?;
     }
-    let tx = db.begin().await.map_err(Error::from)?;
-    super::freshness::snapshot(&tx).await?;
+    let tx = db.begin_read().await.map_err(Error::from)?;
     let result = match target {
         PreviewTarget::Sbom { sbom_id } => PreviewResult::Sbom(
             service

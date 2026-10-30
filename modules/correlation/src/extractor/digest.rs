@@ -9,7 +9,7 @@ use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, Qu
 use std::collections::HashMap;
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::hashing::normalize_algorithm;
-use trustify_entity::{advisory_vulnerability_hash, sbom_node_checksum};
+use trustify_entity::{advisory_vulnerability_hash, query::ForNodes, sbom_node_checksum};
 use uuid::Uuid;
 
 /// Extracts correlation evidence by matching checksums/digests.
@@ -45,10 +45,12 @@ impl Extractor for DigestExtractor {
     async fn sbom_identifiers(
         &self,
         sbom_id: Uuid,
+        nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
         let checksums = sbom_node_checksum::Entity::find()
             .filter(sbom_node_checksum::Column::SbomId.eq(sbom_id))
+            .for_nodes(nodes)
             .all(tx)
             .await?;
 

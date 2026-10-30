@@ -22,7 +22,7 @@ use rds_iam::{RDS_IAM_TOKEN_REFRESH, generate_rds_iam_token};
 use sea_orm::{
     AccessMode, ConnectOptions, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
     DbBackend, DbErr, ExecResult, IsolationLevel, QueryResult, RuntimeErr, SqlxPostgresConnector,
-    Statement, StreamTrait, TransactionError, TransactionOptions, TransactionTrait,
+    Statement, StreamTrait, TransactionError, TransactionOptions, TransactionTrait, Value,
     prelude::async_trait,
 };
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManagerConnection};
@@ -38,6 +38,11 @@ use std::{
 use tokio::{spawn, sync::oneshot, time};
 use tracing::instrument;
 use url::Url;
+
+/// Build a PostgreSQL statement with bound parameter values.
+pub fn sql(query: &str, values: Vec<Value>) -> Statement {
+    Statement::from_sql_and_values(DbBackend::Postgres, query, values)
+}
 
 /// Begin a REPEATABLE READ transaction for consistent read operations.
 ///
@@ -713,6 +718,13 @@ impl ResponseError for DbError {
 /// through that transaction, which PostgreSQL enforces as read-only.
 #[derive(Clone, Debug)]
 pub struct ReadOnly(Database);
+
+#[async_trait::async_trait]
+impl DatabaseExt for ReadOnly {
+    async fn begin_read(&self) -> Result<DatabaseTransaction, DbErr> {
+        self.0.begin_read().await
+    }
+}
 
 impl ReadOnly {
     /// Wraps an existing database connection for read-only access.

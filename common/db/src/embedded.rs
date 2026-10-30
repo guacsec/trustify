@@ -1,7 +1,10 @@
 use anyhow::Context;
 use migration::Migrator;
 use postgresql_embedded::{PostgreSQL, Settings, VersionReq};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use tracing::{Instrument, info_span};
 use trustify_common::{db::Database, decompress::decompress_async_read};
 
@@ -15,6 +18,8 @@ pub fn default_settings() -> anyhow::Result<Settings> {
         username: "postgres".to_string(),
         password: "trustify".to_string(),
         temporary: true,
+        // Allow time for embedded PostgreSQL operations on busy CI runners.
+        timeout: Some(Duration::from_secs(30)),
         ..Default::default()
     })
 }
@@ -61,7 +66,7 @@ pub async fn create_for(
     options: Options,
     migrator: &Migrator,
 ) -> anyhow::Result<(Database, PostgreSQL)> {
-    log::info!("creating embedded database - version: {}", settings.version);
+    tracing::info!("creating embedded database - version: {}", settings.version);
 
     let postgresql = async {
         let mut postgresql = PostgreSQL::new(settings);
@@ -85,7 +90,7 @@ pub async fn create_for(
             .await
             .context("Bootstrapping the test database")?,
         Source::Import(path) => {
-            log::info!("Importing database from: {}", path.display());
+            tracing::info!("Importing database from: {}", path.display());
 
             let source = decompress_async_read(path).await?;
 

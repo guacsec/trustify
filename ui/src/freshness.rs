@@ -1,5 +1,5 @@
 //! Settings freshness and manually initiated, durable background refreshes.
-use crate::{AppRoute, api, stored::use_stored_pagination};
+use crate::{AppRoute, api, correlation::timestamp, stored::use_stored_pagination};
 use patternfly_yew::prelude::*;
 use std::{
     cell::Cell,
@@ -309,8 +309,8 @@ pub fn freshness_page() -> Html {
                             { "All queued ingestion changes have finished processing as of the last status check." }
                         </Alert>
                     }
-                    if let Some(oldest) = lag.oldest_pending_at {
-                        <p>{ format!("Oldest pending change: {oldest}") }</p>
+                    if let Some(oldest) = &lag.oldest_pending_at {
+                        <p>{ "Oldest pending change: " }{ timestamp(oldest) }</p>
                     }
                     if lag.failed > 0 {
                         <Alert title={format!("{} pending changes are waiting for retry", lag.failed)} r#type={AlertType::Warning} inline=true>
@@ -320,7 +320,10 @@ pub fn freshness_page() -> Html {
                 } else {
                     <Alert title="Background extraction lag is unavailable" r#type={AlertType::Info} inline=true />
                 }
-                <p>{ format!("Status checked at {}", data.overview.checked_at) }</p>
+                <p>{ "Status checked at " }{ timestamp(&data.overview.checked_at) }</p>
+                <Title level={Level::H2}>{"Verdict computation"}</Title>
+                <p>{format!("{} SBOMs outstanding, including {} awaiting retry.", data.overview.verdict_lag.pending, data.overview.verdict_lag.failed)}</p>
+                if let Some(oldest) = &data.overview.verdict_lag.oldest_pending_at { <p>{ "Oldest outstanding verdict work: " }{ timestamp(oldest) }</p> }
                 <Title level={Level::H2}>{ "Matching settings" }</Title>
                 <Gallery gutter=true>
                     { for [("Current", data.overview.current), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {

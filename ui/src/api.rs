@@ -1,14 +1,14 @@
 use crate::model::{
-    AdvisoryStatement, CorrelationOption, CorrelationOptionData, CorrelationResult, Created,
-    IdentifierKind, Importer, ImporterReport, IngestResult, PaginatedResults, QueryResult,
-    SbomSummary, SbomVerdictCounts, StatementKind, VerdictCountsRequest, WellKnownInfo,
+    AdvisoryStatement, CorrelationOption, CorrelationOptionData, Created, IdentifierKind, Importer,
+    ImporterReport, IngestResult, PaginatedResults, QueryResult, SbomSummary, SbomVerdictCounts,
+    StatementKind, VerdictCountsRequest, WellKnownInfo,
 };
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
     ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob,
-    RefreshJobDetails,
+    RefreshJobDetails, VerdictFreshness, VerdictStatus,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -103,6 +103,8 @@ pub async fn fetch_refresh_job(
 /// Fetch a page of SBOMs matching a query, with the total.
 pub async fn fetch_sboms(
     query: &str,
+    verdict_status: Option<VerdictStatus>,
+    vulnerability: &str,
     offset: usize,
     limit: usize,
     token: Option<&str>,
@@ -112,15 +114,49 @@ pub async fn fetch_sboms(
         let encoded: String = js_sys::encode_uri_component(query).into();
         url.push_str(&format!("&q={encoded}"));
     }
+    if let Some(status) = verdict_status {
+        url.push_str(&format!("&verdict_status={status}"));
+    }
+    if !vulnerability.is_empty() {
+        let encoded: String = js_sys::encode_uri_component(vulnerability).into();
+        url.push_str(&format!("&verdict_vulnerability_id={encoded}"));
+    }
     fetch_json(&url, token).await
 }
 
-pub async fn fetch_correlation(
+/// One independently paginated correlation collection; an empty suffix selects verdicts.
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct CorrelationPage<T> {
+    pub items: Vec<T>,
+    pub total: Option<u64>,
+    #[serde(default)]
+    pub freshness: Option<VerdictFreshness>,
+}
+
+/// Read a correlation page and its generation metadata, if applicable.
+pub async fn fetch_correlation_page<T: DeserializeOwned>(
     sbom_id: &str,
+    collection: &str,
+    offset: usize,
+    limit: usize,
+    total: bool,
     token: Option<&str>,
-) -> Result<CorrelationResult, ApiError> {
-    let url = format!("/api/v3/correlation/sbom/{sbom_id}?include_unmatched=true");
+) -> Result<CorrelationPage<T>, ApiError> {
+    let url = format!(
+        "/api/v3/correlation/sbom/{sbom_id}{collection}?offset={offset}&limit={limit}&total={total}"
+    );
     fetch_json(&url, token).await
+}
+
+/// Fetch SBOM metadata for the correlation view header.
+pub async fn fetch_sbom(sbom_id: &str, token: Option<&str>) -> Result<SbomSummary, ApiError> {
+    let id = if sbom_id.contains(':') {
+        sbom_id.to_string()
+    } else {
+        format!("urn:uuid:{sbom_id}")
+    };
+    let encoded: String = js_sys::encode_uri_component(&id).into();
+    fetch_json(&format!("/api/v3/sbom/{encoded}"), token).await
 }
 
 pub async fn count_verdicts(

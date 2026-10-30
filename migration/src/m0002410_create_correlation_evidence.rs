@@ -26,7 +26,9 @@ CREATE TABLE correlation_evidence (
     extractor         TEXT NOT NULL,
     matched_value     JSONB,
     confidence_factors JSONB NOT NULL DEFAULT '[]',
-    source_assertions JSONB NOT NULL DEFAULT '[]',
+    source_assertions JSONB NOT NULL CHECK (
+        jsonb_typeof(source_assertions) = 'array' AND jsonb_array_length(source_assertions) > 0
+    ),
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

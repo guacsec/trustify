@@ -53,16 +53,16 @@ async function seedData(request: APIRequestContext): Promise<Seed> {
     await expect.poll(async () => {
       const response = await request.get(`${apiURL}/api/v3/correlation/freshness`);
       const data = await response.json();
-      return data.extraction_lag?.pending_advisories + data.extraction_lag?.pending_sboms;
+      return data.extraction_lag?.pending_advisories + data.extraction_lag?.pending_sboms + data.verdict_lag.pending;
     }, { timeout: 60_000 }).toBe(0);
     await expect.poll(async () => {
-      const response = await request.get(`${apiURL}/api/v3/correlation/sbom/${affected}`);
+      const response = await request.get(`${apiURL}/api/v3/correlation/sbom/${affected}?vulnerability_id=CVE-2023-45803`);
       if (!response.ok()) return [];
-      return (await response.json()).verdicts.map((verdict: { status: string }) => verdict.status);
+      return (await response.json()).items.map((verdict: { status: string }) => verdict.status);
     }, { timeout: 60_000 }).toContain('affected');
     await expect.poll(async () => {
-      const response = await request.get(`${apiURL}/api/v3/correlation/sbom/${atFix}`);
-      return response.ok() ? (await response.json()).verdicts.map((v: { status: string }) => v.status) : [];
+      const response = await request.get(`${apiURL}/api/v3/correlation/sbom/${atFix}?vulnerability_id=CVE-2022-4304`);
+      return response.ok() ? (await response.json()).items.map((v: { status: string }) => v.status) : [];
     }, { timeout: 60_000 }).toContain('fixed');
   }
   return { affected, patched, belowFix, atFix, osv, cve, csaf };

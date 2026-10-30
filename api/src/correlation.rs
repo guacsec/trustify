@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use strum::IntoStaticStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -24,6 +25,15 @@ pub struct CorrelationResult {
     /// `None` when not requested, `Some(vec)` when `include_unmatched=true`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unmatched_components: Option<Vec<ComponentRef>>,
+}
+
+/// A page from one completed verdict generation, including its current freshness.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SbomVerdictPage {
+    pub items: Vec<VerdictSummary>,
+    pub total: Option<u64>,
+    pub freshness: VerdictFreshness,
 }
 
 /// Resolved determination per (component, vulnerability) pair.
@@ -316,9 +326,10 @@ pub struct EvidenceRemediation {
 }
 
 /// The kind of a remediation, as CSAF defines them (OSV's fixed versions are vendor fixes).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, IntoStaticStr)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum RemediationCategory {
     VendorFix,
     Workaround,
@@ -642,10 +653,11 @@ impl RangeBound {
     }
 }
 
-/// Resolved verdict status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Resolved verdict status. It displays as its stable serialized name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum VerdictStatus {
     Affected,
     Fixed,
@@ -809,6 +821,8 @@ mod entity_conversions {
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
         correlation_evidence_context::ContextSource as EntityContextSource,
         correlation_option::{self, CorrelationOptionKey as EntityCorrelationOptionKey},
+        correlation_verdict::VerdictStatus as EntityVerdictStatus,
+        correlation_verdict_freshness::{self, FreshnessStatus as EntityFreshnessStatus},
         remediation::RemediationCategory as EntityRemediationCategory,
         version_range,
     };
@@ -820,6 +834,18 @@ mod entity_conversions {
                 ScoreType::V3_0 => Self::V3_0,
                 ScoreType::V3_1 => Self::V3_1,
                 ScoreType::V4_0 => Self::V4_0,
+            }
+        }
+    }
+
+    impl From<VerdictStatus> for EntityVerdictStatus {
+        fn from(value: VerdictStatus) -> Self {
+            match value {
+                VerdictStatus::Affected => Self::Affected,
+                VerdictStatus::Fixed => Self::Fixed,
+                VerdictStatus::NotAffected => Self::NotAffected,
+                VerdictStatus::UnderInvestigation => Self::UnderInvestigation,
+                VerdictStatus::None => Self::None,
             }
         }
     }
@@ -844,6 +870,22 @@ mod entity_conversions {
                 // stored as `real`: round to the one decimal CVSS scores have
                 score: (f64::from(value.score) * 10.0).round() / 10.0,
                 severity: value.severity.into(),
+            }
+        }
+    }
+
+    impl From<correlation_verdict_freshness::Model> for VerdictFreshness {
+        fn from(value: correlation_verdict_freshness::Model) -> Self {
+            Self {
+                status: match value.status {
+                    EntityFreshnessStatus::Current => FreshnessStatus::Current,
+                    EntityFreshnessStatus::Stale => FreshnessStatus::Stale,
+                    EntityFreshnessStatus::Unknown => FreshnessStatus::Unknown,
+                },
+                generation: value.generation,
+                completed_at: value.completed_at,
+                required_revision: value.required_revision,
+                completed_revision: value.completed_revision,
             }
         }
     }
@@ -984,6 +1026,9 @@ pub struct SbomVerdictCounts {
     pub sbom_id: Uuid,
     #[serde(default)]
     pub freshness: ExtractionFreshness,
+    /// Freshness of the completed verdicts used for these counts.
+    #[serde(default)]
+    pub verdict_freshness: VerdictFreshness,
     pub affected: u64,
     pub fixed: u64,
     pub not_affected: u64,

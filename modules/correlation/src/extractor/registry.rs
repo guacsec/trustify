@@ -56,7 +56,7 @@ impl Extractors {
         let mut total = 0;
         let mut scoper = Scoper::default();
         for extractor in &self.0 {
-            let node_identifiers = extractor.sbom_identifiers(sbom_id, tx).await?;
+            let node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
             if node_identifiers.is_empty() {
                 continue;
             }
@@ -123,15 +123,19 @@ impl Extractors {
         Ok(total)
     }
 
-    /// All identifiers of all nodes of an SBOM, keyed by node ID, sorted by kind and value.
+    /// Identifiers of an SBOM's nodes, keyed by node ID, sorted by kind and value.
+    ///
+    /// `None` selects all nodes; `Some(nodes)` restricts the lookup to those node IDs.
+    /// An empty node list selects no identifiers.
     pub async fn component_identifiers(
         &self,
         sbom_id: Uuid,
+        nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<HashMap<String, Vec<IdentifierRef>>, Error> {
         let mut result = HashMap::<_, Vec<_>>::new();
         for extractor in &self.0 {
-            for n in extractor.sbom_identifiers(sbom_id, tx).await? {
+            for n in extractor.sbom_identifiers(sbom_id, nodes, tx).await? {
                 result.entry(n.node.node_id).or_default().push(n.identifier);
             }
         }

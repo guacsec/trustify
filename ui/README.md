@@ -13,7 +13,8 @@ A web UI for the correlation engine and the advisories behind it, written in Rus
 
 Trunk's pre-build hook runs `npm ci` automatically on the first build and whenever
 `package.json` or `package-lock.json` changes. It reuses the installation for other
-rebuilds. Removing `node_modules` forces a fresh install.
+rebuilds. Removing `node_modules` forces a fresh install. Cargo builds use their own
+installation (see [Embedding in the server](#embedding-in-the-server)).
 
 ## Running
 
@@ -88,10 +89,23 @@ both embedded UI features.
 With `ui-console`, Cargo automatically invokes Trunk, including during `cargo check`.
 Debug backend builds use debug frontend builds; other profiles use frontend release
 builds. The generated distribution is embedded from Cargo's `OUT_DIR`, with an isolated
-nested Cargo target directory. It does not require or modify the manual `dist/` directory.
+nested Cargo target directory. Cargo stages `index.html`, `assets/`, and the npm manifests
+in `OUT_DIR` and installs the runtime npm dependencies there, without development
+dependencies or the development hook. It does not use or modify `node_modules/` or the
+manual `dist/` directory, so it can run alongside `trunk serve` and builds in other target
+directories.
 Source, asset, manifest, and lockfile changes trigger a rebuild; unchanged Cargo builds
 reuse the existing output. Missing tools or a failed frontend build fail the backend build.
 Builds without `ui-console` do not require Node, Trunk, or the Wasm target for this console.
+
+To embed a pre-built distribution instead, set `TRUSTIFY_UI_DIST` to the absolute path of a
+directory built with `trunk build --public-url ./` (add `--release` for production). Cargo
+then skips npm and Trunk, and rebuilds when the directory or the variable changes:
+
+```sh
+trunk build --release --public-url ./ --dist /tmp/console-dist
+TRUSTIFY_UI_DIST=/tmp/console-dist cargo build -p trustify-trustd --release
+```
 
 The console uses its mount as the HTML base for routes and assets, and as its OIDC login
 and logout callback. Configure your OIDC client to allow both the origin root and

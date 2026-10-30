@@ -39,6 +39,87 @@ Example:
 http GET localhost:8080/api/v3/correlation/sbom/550e8400-e29b-41d4-a716-446655440000
 ```
 
+The verdict response is a page, ordered ascending by component node ID and vulnerability ID.
+Every item contains the complete evidence for one verdict. All SBOM correlation lists accept
+`offset` (default `0`), `limit` (default `25`), and `total` (default `false`). A zero limit returns
+no items; use `limit=0&total=true` for a count-only request. Without `total=true`, `total` is
+JSON `null` and the server skips computing the count. The configured pagination maximum
+applies; excessive limits return HTTP 400 with `X-Pagination-Max-Limit`.
+
+```shell
+http GET localhost:8080/api/v3/correlation/sbom/{sbom_id} offset==25 limit==25 total==true
+http GET localhost:8080/api/v3/correlation/sbom/{sbom_id} limit==0 total==true
+```
+
+Response shape (each item is a complete verdict):
+
+```json
+{
+  "items": [],
+  "total": null,
+  "freshness": {
+    "status": "unknown",
+    "generation": null,
+    "completed_at": null,
+    "required_revision": 1,
+    "completed_revision": null
+  }
+}
+```
+
+The verdict envelope also includes `freshness`: `status` (`current`, `stale`, or `unknown`),
+`generation`, `completed_at`, `required_revision`, and `completed_revision`. Unknown means no
+completed computation exists; an empty page is not evidence of no findings in that state.
+SBOM metadata remains available from `GET /api/v3/sbom/{id}`.
+
+### Verdicts, remediations, and unmatched components
+
+Default verdicts are materialized asynchronously, one row per component and vulnerability.
+A worker walks complete evidence groups in bounded batches and atomically publishes each
+SBOM's verdicts, evidence, remediation details, explanations, and completion metadata. Reads
+and counts use the last completed generation without rerunning the resolver. Temporary
+resolution previews and identifier queries remain computed on demand.
+
+Verdict pages accept `node_id`, `vulnerability_id`, `status`, and `include_explanation=true`.
+Ordering is ascending by node ID and vulnerability ID with PostgreSQL C collation. Totals are
+optional and cached by generation and filters. Offset pagination is stable within an unchanged
+generation; compare `freshness.generation` to detect replacement between requests. Unknown query
+parameters are ignored. Invalid UUID syntax returns 404; unknown UUIDs return empty pages with
+unknown freshness.
+
+Remediations remain attached to their source advisory evidence. There is no separate SBOM
+`/remediations` endpoint. The UI shows one remediation directly in the verdict row and several
+as an expandable list, deduplicated within each advisory. Zero remediations means none reported,
+which is distinct from an explicit no-fix-planned statement.
+
+`GET /api/v3/correlation/sbom/{id}/unmatched` retains independent pagination and optional cached
+totals. It lists nodes without evidence, excluding the root, in node ID order, with optional
+`node_id`. This collection reflects extraction rather than the published verdict generation.
+
+`GET /api/v3/sbom?verdict_status=affected&verdict_vulnerability_id=CVE-2024-1234` finds SBOMs
+with a matching published verdict. Both optional filters apply to the same verdict, combine
+with existing SBOM filters, and run before pagination. Each SBOM appears once. Filtered items
+include `correlation` freshness; this operation requires correlation enabled and both SBOM and
+advisory read permissions. Searches include stale completed results. During a backlog, no
+matches means no matches in completed results, not an assurance of no affected SBOMs.
+
+The freshness overview includes `verdict_lag` with `pending`, `failed`, and `oldest_pending_at`.
+Pending includes in-flight computation and global invalidations even before workers process
+them. Failed work is a subset of pending work and retries automatically. Input changes invalidate
+snapshots transactionally. Alias and other shared metadata changes invalidate a global revision;
+workers discover this backlog without synchronously queuing every SBOM. Resolver upgrades must
+bump the database resolver version and revision together; older workers cannot acknowledge it.
+
+A verdict is current only when its inputs and extraction are current. Pending advisory extraction
+conservatively marks verdicts stale because affected SBOMs are not yet known. Recomputing from
+stale evidence cannot make a verdict current. Failed computation keeps the previous generation.
+The UI polls freshness and backlog, reports failures, and offers to load a newer generation
+without automatically replacing expanded rows.
+
+Migration `m0002610` installs snapshot tables and invalidation metadata. It backfills only work
+metadata; existing SBOMs start uncomputed and the worker processes them asynchronously. It does
+not resolve verdicts inside the migration. Deploy matching backend and UI versions together.
+
 ### Query advisories by identifier
 
 ```shell
@@ -106,12 +187,15 @@ The API exposes:
 
 Read endpoints require `read.advisory`; starting refresh requires `update.correlationOption`.
 Document lists use the usual `offset`, `limit`, and `total` parameters, with a maximum page size
-of 1000. Correlation results and batched verdict counts add `freshness` with `status`,
+of 1000 for refresh-job failures. The freshness SBOM list uses the configured pagination
+maximum; excessive limits return HTTP 400 with `X-Pagination-Max-Limit`. Its optional total
+comes from maintained revision counters and is not cached. Resolution previews and batched
+verdict counts include `freshness` with `status`,
 `required_revision`, `completed_revision`, and `completed_at`. Absent completion is unknown.
 The UI polls every five seconds while visible and preserves previously loaded data on errors.
 
-Migration `m0002570` preserves evidence and initializes existing SBOMs as unchecked. No refresh
-is started automatically. Downgrading removes freshness metadata and jobs while retaining
+Migration `m0002570` preserves evidence and initializes existing SBOMs as unchecked. Settings
+changes schedule background refreshes automatically. Downgrading removes freshness metadata and jobs while retaining
 the evidence, including any changes made by completed refreshes. Deploy backend and UI together.
 
 Migration `m0002590` installs durable ingestion tracking and queues all existing SBOMs and

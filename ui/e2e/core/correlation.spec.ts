@@ -24,8 +24,9 @@ test('affected and fixed verdicts, evidence, advisory links, and temporary resol
   await expect(dialog.getByRole('heading', { name: 'Temporary preview' }).first()).toBeVisible();
   await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
   // Preview must not persist its temporary provider or change the stored verdict.
-  const result = await request.get(`${apiURL}/api/v3/correlation/sbom/${seed.belowFix}`);
-  expect((await result.json()).verdicts.find((v: { vulnerability: { id: string } }) => v.vulnerability.id === 'CVE-2022-4304').status).toBe('affected');
+  const result = await request.get(`${apiURL}/api/v3/correlation/sbom/${seed.belowFix}?vulnerability_id=CVE-2022-4304`);
+  expect(result.ok(), await result.text()).toBeTruthy();
+  expect((await result.json()).items.find((v: { vulnerability: { id: string } }) => v.vulnerability.id === 'CVE-2022-4304').status).toBe('affected');
   await page.goto(`/correlation/${seed.atFix}`);
   await expect(page.getByRole('row').filter({ hasText: 'CVE-2022-4304' }).first()).toContainText('Fixed');
 });
@@ -35,6 +36,31 @@ test('unmatched components are shown without an affected verdict', async ({ page
   await expect(page.getByText('Unmatched components', { exact: false })).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: 'urllib3' }).first()).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: 'CVE-2023-45803' })).toHaveCount(0);
+});
+
+test('SBOM verdict filters use published results', async ({ page, seed }) => {
+  await page.goto('/');
+  const pending = page.waitForResponse(r => r.url().includes('/api/v3/sbom?') && r.url().includes('verdict_status=affected'));
+  await page.getByRole('button', { name: 'Affected', exact: true }).click();
+  const response = await pending;
+  expect(response.ok(), await response.text()).toBeTruthy();
+  const result = await response.json();
+  expect(result.items.length).toBeGreaterThan(0);
+  expect(result.items.every((item: { correlation: { generation: string } }) => item.correlation.generation)).toBeTruthy();
+  await page.getByPlaceholder('Vulnerability ID (exact)').fill('CVE-nonexistent');
+  await page.getByPlaceholder('Vulnerability ID (exact)').press('Tab');
+  await expect(page.getByRole('heading', { name: 'No matches in completed results' })).toBeVisible();
+});
+
+test('verdict remediations keep advisory provenance and only show in the expanded row', async ({ page, seed }) => {
+  await page.goto(`/correlation/${seed.affected}`);
+  await expect(page.getByRole('tab', { name: 'Remediations', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('columnheader', { name: 'Remediations', exact: true })).toHaveCount(0);
+  const row = page.getByRole('row').filter({ hasText: 'CVE-2023-45803' }).first();
+  await row.getByRole('button').first().click();
+  await expect(page.getByRole('heading', { name: 'Matched advisory assertions' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Remediations', exact: true })).toBeVisible();
+  await expect(page.getByText(/Computed at/)).toBeVisible();
 });
 
 for (const [kind, identifier] of [

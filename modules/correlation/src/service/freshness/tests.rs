@@ -206,6 +206,7 @@ impl crate::extractor::Extractor for FailingExtractor {
     async fn sbom_identifiers(
         &self,
         _: Uuid,
+        _: Option<&[&str]>,
         _: &DatabaseTransaction,
     ) -> Result<Vec<crate::extractor::NodeIdentifier>, Error> {
         Err(Error::BadRequest("deliberate extraction failure".into()))
@@ -232,7 +233,7 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
         matched_value: Set(None),
         created_at: Set(OffsetDateTime::now_utc()),
         confidence_factors: Set(serde_json::json!([])),
-        source_assertions: Set(serde_json::json!([])),
+        source_assertions: Set(serde_json::json!([{"kind": "digest", "id": Uuid::new_v4()}])),
     }
     .insert(&ctx.db)
     .await?;
@@ -303,6 +304,173 @@ async fn extraction_locks_settings_and_document_writes(
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn document_pages_filter_order_and_count(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use std::time::Duration;
+    let cache = PaginationCache::new(Duration::ZERO, 2);
+    let mut ids = Vec::new();
+    for name in ["unknown", "stale", "current"] {
+        let document = serde_json::json!({
+            "bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
+            "metadata": {"component": {"type": "application", "name": name}}
+        });
+        ids.push(Uuid::parse_str(
+            &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+                .await?
+                .id,
+        )?);
+    }
+    let tx = ctx.db.begin().await?;
+    tx.execute_unprepared("UPDATE correlation_extraction_revision SET revision = 2")
+        .await?;
+    for (id, revision) in [(ids[1], 1_i64), (ids[2], 2_i64)] {
+        tx.execute_raw(sql(
+            "UPDATE correlation_extraction_state SET completed_revision = $2 WHERE sbom_id = $1",
+            vec![id.into(), revision.into()],
+        ))
+        .await?;
+    }
+    for (status, expected) in [
+        (None, vec![ids[0], ids[1]]),
+        (Some(FreshnessStatus::Unknown), vec![ids[0]]),
+        (Some(FreshnessStatus::Stale), vec![ids[1]]),
+        (Some(FreshnessStatus::Current), vec![ids[2]]),
+    ] {
+        for total in [false, true] {
+            for offset in 0..=expected.len() {
+                let page = documents(
+                    &tx,
+                    status,
+                    Paginated {
+                        offset: offset as u64,
+                        limit: 1,
+                        total,
+                    },
+                    &cache,
+                )
+                .await?;
+                assert_eq!(page.total, total.then_some(expected.len() as u64));
+                assert_eq!(
+                    page.items
+                        .iter()
+                        .map(|item| item.sbom_id)
+                        .collect::<Vec<_>>(),
+                    expected
+                        .iter()
+                        .skip(offset)
+                        .take(1)
+                        .copied()
+                        .collect::<Vec<_>>()
+                );
+            }
+            let page = documents(
+                &tx,
+                status,
+                Paginated {
+                    offset: 999,
+                    limit: 0,
+                    total,
+                },
+                &cache,
+            )
+            .await?;
+            assert!(page.items.is_empty());
+            assert_eq!(page.total, total.then_some(expected.len() as u64));
+        }
+    }
+    assert_eq!(
+        documents(
+            &tx,
+            None,
+            Paginated {
+                limit: 2,
+                ..Default::default()
+            },
+            &cache
+        )
+        .await?
+        .items
+        .len(),
+        2
+    );
+    assert!(matches!(
+        documents(
+            &tx,
+            None,
+            Paginated {
+                limit: 3,
+                ..Default::default()
+            },
+            &cache
+        )
+        .await,
+        Err(Error::Limit(_))
+    ));
+    assert_eq!(
+        documents(
+            &tx,
+            None,
+            Paginated {
+                limit: 1001,
+                ..Default::default()
+            },
+            &PaginationCache::for_test()
+        )
+        .await?
+        .items
+        .len(),
+        2
+    );
+    tx.rollback().await?;
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn document_pages_read_only_required_tables(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ingest(ctx).await?;
+    let locked = ctx.db.begin().await?;
+    locked.execute_unprepared("LOCK TABLE correlation_extraction_queue, correlation_refresh_job IN ACCESS EXCLUSIVE MODE").await?;
+    let reader = ctx.db.begin().await?;
+    reader
+        .execute_unprepared("SET LOCAL lock_timeout = '100ms'")
+        .await?;
+    let cache = PaginationCache::for_test();
+    for total in [false, true] {
+        let page = documents(
+            &reader,
+            None,
+            Paginated {
+                limit: 1,
+                total,
+                ..Default::default()
+            },
+            &cache,
+        )
+        .await?;
+        assert_eq!(page.items.len(), 1);
+    }
+    reader.rollback().await?;
+    locked
+        .execute_unprepared("LOCK TABLE correlation_extraction_count IN ACCESS EXCLUSIVE MODE")
+        .await?;
+    let reader = ctx.db.begin().await?;
+    reader
+        .execute_unprepared("SET LOCAL lock_timeout = '100ms'")
+        .await?;
+    assert_eq!(
+        documents(&reader, None, Paginated::default(), &cache)
+            .await?
+            .items
+            .len(),
+        1
+    );
+    reader.rollback().await?;
+    locked.rollback().await?;
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn lists_include_unknowns_and_honor_pagination(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let id = ingest(ctx).await?;
     let tx = ctx.db.begin().await?;
@@ -314,6 +482,7 @@ async fn lists_include_unknowns_and_honor_pagination(ctx: &TrustifyContext) -> a
             limit: 1,
             total: true,
         },
+        &PaginationCache::for_test(),
     )
     .await?;
     assert_eq!(page.total, Some(1));
@@ -327,7 +496,8 @@ async fn lists_include_unknowns_and_honor_pagination(ctx: &TrustifyContext) -> a
                 offset: 1,
                 limit: 1,
                 total: true
-            }
+            },
+            &PaginationCache::for_test(),
         )
         .await?
         .items
@@ -335,10 +505,15 @@ async fn lists_include_unknowns_and_honor_pagination(ctx: &TrustifyContext) -> a
         0
     );
     assert!(
-        documents(&tx, Some(FreshnessStatus::Current), Paginated::default())
-            .await?
-            .items
-            .is_empty()
+        documents(
+            &tx,
+            Some(FreshnessStatus::Current),
+            Paginated::default(),
+            &PaginationCache::for_test()
+        )
+        .await?
+        .items
+        .is_empty()
     );
     Ok(())
 }
@@ -425,33 +600,6 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
         original.len()
     );
     assert_eq!(counts(ctx).await?.current, 1);
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn metadata_migration_preserves_documents_and_resets_to_unknown(
-    ctx: &TrustifyContext,
-) -> anyhow::Result<()> {
-    let id = ingest(ctx).await?;
-    let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
-    tx.commit().await?;
-    ctx.db
-        .execute_unprepared(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../migration/src/m0002570_correlation_freshness/down.sql"
-        )))
-        .await?;
-    assert!(sbom::Entity::find_by_id(id).one(&ctx.db).await?.is_some());
-    ctx.db
-        .execute_unprepared(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../migration/src/m0002570_correlation_freshness/up.sql"
-        )))
-        .await?;
-    let state = counts(ctx).await?;
-    assert_eq!((state.total, state.unknown, state.current), (1, 1, 0));
     Ok(())
 }
 

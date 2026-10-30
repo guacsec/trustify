@@ -63,6 +63,7 @@ async fn correlation_capability_disabled(
     let alias = json!({"provider":"example", "aliases":[{"kind":"name","value":"Example"}]});
     let cases = [
         (Method::GET, format!("sbom/{id}"), None),
+        (Method::GET, format!("sbom/{id}/unmatched"), None),
         (
             Method::POST,
             "verdict-counts".into(),
@@ -146,6 +147,7 @@ async fn correlation_read_permissions(
     let id = Uuid::new_v4();
     let cases = [
         (format!("/v3/correlation/sbom/{id}"), None, true),
+        (format!("/v3/correlation/sbom/{id}/unmatched"), None, true),
         (
             "/v3/correlation/verdict-counts".into(),
             Some(json!({"sbom_ids": [id]})),
@@ -322,7 +324,9 @@ async fn empty_sbom_returns_empty_verdicts(ctx: &TrustifyContext) -> anyhow::Res
     assert_eq!(resp.status(), 200);
 
     let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
-    assert_eq!(body["verdicts"], serde_json::json!([]));
+    assert_eq!(body["items"], serde_json::json!([]));
+    assert!(body["total"].is_null());
+    assert!(body.get("verdicts").is_none());
 
     Ok(())
 }
@@ -391,7 +395,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "not_affected": 0,
             "under_investigation": 0,
             "none": 0,
-            "remediations": 0,
+            "remediations": 0, "verdict_freshness": {"status":"unknown", "generation":null, "completed_at":null, "required_revision":0, "completed_revision":null},
             "freshness": {"status":"unknown", "required_revision":1, "completed_revision":null, "completed_at":null},
         })
     };
@@ -507,9 +511,15 @@ async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow:
             .await;
         assert_eq!(response.status(), 400);
     }
-    for path in [
-        format!("sbom/{}?group_id={}", Uuid::nil(), Uuid::nil()),
-        "query?kind=purl&q=pkg:generic/absent@1&direct=2".into(),
+    for (path, status) in [
+        (
+            format!("sbom/{}?group_id={}", Uuid::nil(), Uuid::nil()),
+            200,
+        ),
+        (
+            "query?kind=purl&q=pkg:generic/absent@1&direct=2".into(),
+            400,
+        ),
     ] {
         let response = app
             .call_service(
@@ -518,7 +528,7 @@ async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow:
                     .to_request(),
             )
             .await;
-        assert_eq!(response.status(), 400);
+        assert_eq!(response.status(), status);
     }
     for request in [
         TestRequest::get().uri(&format!("{base}/weight-policy")),
@@ -883,5 +893,125 @@ async fn explained_query_matches_preview(ctx: &TrustifyContext) -> anyhow::Resul
     assert_eq!(trace["evidence"][0]["match_confidence"], 1.0);
     assert!(trace["evidence"][0].get("weight").is_none());
     assert_eq!(ordinary, explained);
+    Ok(())
+}
+
+/// Normal query extractors accept shared pagination fields and ignore unknown parameters.
+#[test]
+fn sbom_page_query_parameters() {
+    use super::SbomCorrelationParams;
+    use trustify_common::model::Paginated;
+    let defaults = web::Query::<Paginated>::from_query("").unwrap();
+    assert_eq!(defaults.into_inner(), Paginated::default());
+    let query = "offset=7&limit=0&total=true&include_explanation=true&node_id=node&vulnerability_id=CVE-1&unknown=value";
+    let paginated = web::Query::<Paginated>::from_query(query).unwrap();
+    let filters = web::Query::<SbomCorrelationParams>::from_query(query).unwrap();
+    assert_eq!(paginated.offset, 7);
+    assert_eq!(paginated.limit, 0);
+    assert!(paginated.total);
+    assert!(filters.include_explanation);
+    assert_eq!(filters.node_id.as_deref(), Some("node"));
+    for invalid in ["limit=-1", "offset=-1", "total=maybe"] {
+        assert!(
+            web::Query::<Paginated>::from_query(invalid).is_err(),
+            "{invalid}"
+        );
+    }
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use std::time::Duration;
+    let app = actix_web::test::init_service(
+        App::new()
+            .app_data(web::Data::new(Authorizer::new(None)))
+            .into_utoipa_app()
+            .configure(|svc| {
+                svc.app_data(web::Data::new(ActiveCapabilities::from_iter([
+                    Capability::Correlation,
+                ])));
+                super::configure(
+                    svc,
+                    ReadOnly::new(ctx.db.clone()),
+                    ReadWrite::new(ctx.db.clone()),
+                    PaginationCache::new(Duration::ZERO, 25),
+                );
+            })
+            .into_app(),
+    )
+    .await;
+    for limit in [0, 25, 26] {
+        let response = call_service(
+            &app,
+            TestRequest::get()
+                .uri(&format!("/v3/correlation/freshness/sbom?limit={limit}"))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), if limit > 25 { 400 } else { 200 });
+        if limit > 25 {
+            assert_eq!(
+                response.headers().get("X-Pagination-Max-Limit").unwrap(),
+                "25"
+            );
+            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            assert_eq!(body["error"], "LimitExceeded");
+        }
+    }
+    let id = Uuid::new_v4();
+    for suffix in ["", "/unmatched"] {
+        for id in ["not-a-uuid", "123", "urn:uuid:not-a-uuid"] {
+            let uri = format!("/v3/correlation/sbom/{id}{suffix}");
+            let response = call_service(&app, TestRequest::get().uri(&uri).to_request()).await;
+            assert_eq!(response.status(), 404, "{uri}");
+            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            assert_eq!(body["error"], "NotFound");
+        }
+        for query in [
+            "",
+            "?limit=0",
+            "?offset=999&limit=0&total=true",
+            "?offset=999&limit=1&total=true",
+            "?unknown=true&include_unmatched=true",
+        ] {
+            let uri = format!("/v3/correlation/sbom/{id}{suffix}{query}");
+            let response = call_service(&app, TestRequest::get().uri(&uri).to_request()).await;
+            assert_eq!(response.status(), 200, "{uri}");
+            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            assert_eq!(body["items"], serde_json::json!([]), "{uri}");
+            assert_eq!(
+                body["total"],
+                if query.contains("total=true") {
+                    serde_json::json!(0)
+                } else {
+                    serde_json::Value::Null
+                },
+                "{uri}"
+            );
+            assert_eq!(
+                body.as_object().unwrap().len(),
+                if suffix.is_empty() { 3 } else { 2 }
+            );
+        }
+        for query in ["?limit=26", "?limit=-1", "?offset=-1", "?total=maybe"] {
+            let response = call_service(
+                &app,
+                TestRequest::get()
+                    .uri(&format!("/v3/correlation/sbom/{id}{suffix}{query}"))
+                    .to_request(),
+            )
+            .await;
+            assert_eq!(response.status(), 400, "{suffix}{query}");
+            if query == "?limit=26" {
+                assert_eq!(
+                    response.headers().get("X-Pagination-Max-Limit").unwrap(),
+                    "25"
+                );
+                let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+                assert_eq!(body["error"], "LimitExceeded");
+            }
+        }
+    }
     Ok(())
 }

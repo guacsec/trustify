@@ -2,10 +2,10 @@ use serde::Deserialize;
 
 pub use trustify_api::correlation::{
     AdvisoryStatement, ComponentRef, CorrelationOption, CorrelationOptionData,
-    CorrelationOptionKey, CorrelationResult, EvidenceDetail, EvidenceRemediation, IdentifierKind,
-    IdentifierRef, MatchedRange, MatchedValue, ProviderMatch, QueryResult, RangeBound,
-    RemediationCategory, SbomVerdictCounts, StatementKind, StatementSubject, VerdictCountsRequest,
-    VerdictStatus, VerdictSummary,
+    CorrelationOptionKey, EvidenceDetail, EvidenceRemediation, IdentifierKind, IdentifierRef,
+    MatchedRange, MatchedValue, ProviderMatch, QueryResult, RangeBound, RemediationCategory,
+    SbomVerdictCounts, StatementKind, StatementSubject, VerdictCountsRequest, VerdictStatus,
+    VerdictSummary,
 };
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]

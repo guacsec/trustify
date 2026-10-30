@@ -17,6 +17,7 @@ use std::collections::{BTreeSet, HashMap};
 use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
     advisory_vulnerability_product_identifier::{self, ProductIdentifierType},
+    query::ForNodes,
     sbom_node_product_identifier, version_range,
 };
 use uuid::Uuid;
@@ -104,10 +105,12 @@ impl Extractor for ProductIdentifierExtractor {
     async fn sbom_identifiers(
         &self,
         sbom_id: Uuid,
+        nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
         let rows = sbom_node_product_identifier::Entity::find()
             .filter(sbom_node_product_identifier::Column::SbomId.eq(sbom_id))
+            .for_nodes(nodes)
             .all(tx)
             .await?;
 

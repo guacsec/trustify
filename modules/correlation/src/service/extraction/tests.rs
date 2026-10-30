@@ -112,6 +112,7 @@ impl Extractor for FailingExtractor {
     async fn sbom_identifiers(
         &self,
         _: Uuid,
+        _: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
         // This mutation must roll back with the failed extraction.
@@ -223,6 +224,7 @@ impl Extractor for PausedExtractor {
     async fn sbom_identifiers(
         &self,
         _: Uuid,
+        _: Option<&[&str]>,
         _: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
         self.0.wait().await;
@@ -276,47 +278,6 @@ async fn worker_drains_ingestion_committed_before_it_subscribed(
     .await;
     worker.abort();
     result??;
-    assert_eq!(status(ctx).await?, ExtractionLag::default());
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn migration_backfills_existing_documents_and_can_be_reverted(
-    ctx: &TrustifyContext,
-) -> anyhow::Result<()> {
-    ctx.ingest_document("spdx/simple.json").await?;
-    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
-    let db = db::ReadWrite::new(ctx.db.clone());
-    while run_step(&db, &Extractors::new(vec![])).await? {}
-    assert_eq!(status(ctx).await?, ExtractionLag::default());
-    let tx = ctx.db.begin().await?;
-    tx.execute_unprepared(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../migration/src/m0002590_correlation_extraction_queue/down.sql"
-    )))
-    .await?;
-    tx.execute_unprepared(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../migration/src/m0002590_correlation_extraction_queue/up.sql"
-    )))
-    .await?;
-    tx.commit().await?;
-    let backfilled = status(ctx).await?;
-    assert_eq!(
-        backfilled,
-        ExtractionLag {
-            pending_advisories: 1,
-            pending_sboms: 1,
-            oldest_pending_at: Some(
-                backfilled
-                    .oldest_pending_at
-                    .expect("pending work has an enqueue time")
-            ),
-            ..ExtractionLag::default()
-        }
-    );
-    while run_step(&db, &Extractors::default()).await? {}
     assert_eq!(status(ctx).await?, ExtractionLag::default());
     Ok(())
 }

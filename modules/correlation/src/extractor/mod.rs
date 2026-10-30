@@ -110,9 +110,12 @@ pub trait Extractor: Send + Sync {
     /// Identifiers of this type attached to the nodes of an SBOM.
     ///
     /// Used for SBOM-direction extraction as well as for presenting components.
+    /// `None` selects all nodes; `Some(nodes)` restricts the lookup to those node IDs.
+    /// An empty node list selects no identifiers.
     async fn sbom_identifiers(
         &self,
         sbom_id: Uuid,
+        nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error>;
 

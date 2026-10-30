@@ -1809,7 +1809,10 @@ paths:
     get:
       tags:
       - correlation
-      summary: Get correlation verdicts for an SBOM.
+      summary: |-
+        Get correlation verdicts for an SBOM, ordered by node ID and vulnerability ID.
+        Each item contains all evidence for one complete verdict.
+        A zero limit returns no items; the total is computed only when requested.
       operationId: getSbomCorrelation
       parameters:
       - name: id
@@ -1818,13 +1821,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
-      - name: include_unmatched
-        in: query
-        description: When true, include components that have no correlation evidence.
-        required: false
-        schema:
-          type: boolean
       - name: include_explanation
         in: query
         description: When true, include an explanation of how each verdict was resolved.
@@ -1847,17 +1843,152 @@ paths:
           type:
           - string
           - 'null'
+      - name: status
+        in: query
+        description: Only verdicts with this resolved status.
+        required: false
+        schema:
+          oneOf:
+          - $ref: '#/components/schemas/VerdictStatus'
+          - type: 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Correlation verdicts for the SBOM
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CorrelationResult'
+                $ref: '#/components/schemas/SbomVerdictPage'
+        '400':
+          description: Invalid pagination or query parameters
         '401':
           description: The user was not authenticated
         '403':
           description: Insufficient permissions
+        '404':
+          description: SBOM ID not found
+        '422':
+          description: Correlation capability disabled
+  /api/v3/correlation/sbom/{id}/unmatched:
+    get:
+      tags:
+      - correlation
+      summary: |-
+        List components without correlation evidence, excluding the SBOM root.
+        Ordered by node ID. Evidence is checked independently of verdict filters.
+      operationId: getSbomUnmatched
+      parameters:
+      - name: id
+        in: path
+        description: SBOM ID
+        required: true
+        schema:
+          type: string
+      - name: node_id
+        in: query
+        description: Only this SBOM node.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: A page of unmatched components
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: A component and the identifiers attached to it.
+                      required:
+                      - node_id
+                      - name
+                      - identifiers
+                      properties:
+                        identifiers:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/IdentifierRef'
+                        name:
+                          type: string
+                        node_id:
+                          type: string
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '400':
+          description: Invalid pagination or query parameters
+        '401':
+          description: Not authenticated
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: SBOM ID not found
         '422':
           description: Correlation capability disabled
   /api/v3/correlation/verdict-counts:
@@ -4100,6 +4231,22 @@ paths:
         required: false
         schema:
           type: boolean
+      - name: verdict_status
+        in: query
+        description: Find SBOMs containing a published verdict with this resolved status.
+        required: false
+        schema:
+          oneOf:
+          - $ref: '#/components/schemas/VerdictStatus'
+          - type: 'null'
+      - name: verdict_vulnerability_id
+        in: query
+        description: Exact vulnerability ID; matches the same verdict as verdict_status.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
       responses:
         '200':
           description: Matching SBOMs
@@ -7619,6 +7766,9 @@ components:
           type: integer
           format: int64
           minimum: 0
+        verdict_lag:
+          $ref: '#/components/schemas/VerdictLag'
+          description: Verdict work, including global invalidations not yet processed by a worker.
     FreshnessStatus:
       type: string
       enum:
@@ -8982,6 +9132,11 @@ components:
               properties:
                 advisories:
                   $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
+                correlation:
+                  oneOf:
+                  - $ref: '#/components/schemas/VerdictFreshness'
+                    description: Freshness of stored verdicts, included when filtering by correlation results.
+                  - type: 'null'
                 described_by:
                   type: array
                   items:
@@ -9009,6 +9164,11 @@ components:
               properties:
                 advisories:
                   $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
+                correlation:
+                  oneOf:
+                  - $ref: '#/components/schemas/VerdictFreshness'
+                    description: Freshness of stored verdicts, included when filtering by correlation results.
+                  - type: 'null'
                 described_by:
                   type: array
                   items:
@@ -9086,6 +9246,11 @@ components:
               properties:
                 advisories:
                   $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
+                correlation:
+                  oneOf:
+                  - $ref: '#/components/schemas/VerdictFreshness'
+                    description: Freshness of stored verdicts, included when filtering by correlation results.
+                  - type: 'null'
                 described_by:
                   type: array
                   items:
@@ -10599,6 +10764,11 @@ components:
         properties:
           advisories:
             $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
+          correlation:
+            oneOf:
+            - $ref: '#/components/schemas/VerdictFreshness'
+              description: Freshness of stored verdicts, included when filtering by correlation results.
+            - type: 'null'
           described_by:
             type: array
             items:
@@ -10644,6 +10814,28 @@ components:
           format: uuid
         under_investigation:
           type: integer
+          format: int64
+          minimum: 0
+        verdict_freshness:
+          $ref: '#/components/schemas/VerdictFreshness'
+          description: Freshness of the completed verdicts used for these counts.
+    SbomVerdictPage:
+      type: object
+      description: A page from one completed verdict generation, including its current freshness.
+      required:
+      - items
+      - freshness
+      properties:
+        freshness:
+          $ref: '#/components/schemas/VerdictFreshness'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerdictSummary'
+        total:
+          type:
+          - integer
+          - 'null'
           format: int64
           minimum: 0
     Score:
@@ -10930,9 +11122,58 @@ components:
             type: string
             format: uuid
           description: The SBOMs to summarize.
+    VerdictFreshness:
+      type: object
+      description: Freshness of a published verdict snapshot, including upstream extraction lag.
+      required:
+      - status
+      - required_revision
+      properties:
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_revision:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        generation:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        required_revision:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/FreshnessStatus'
+          description: Unknown means no completed computation, not zero findings.
+    VerdictLag:
+      type: object
+      description: Durable outstanding verdict work. Failed work is a subset of pending work.
+      required:
+      - pending
+      - failed
+      properties:
+        failed:
+          type: integer
+          format: int64
+          minimum: 0
+        oldest_pending_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        pending:
+          type: integer
+          format: int64
+          description: Includes work currently being processed and work implied by global invalidation.
+          minimum: 0
     VerdictStatus:
       type: string
-      description: Resolved verdict status.
+      description: Resolved verdict status. It displays as its stable serialized name.
       enum:
       - affected
       - fixed
