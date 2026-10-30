@@ -17,7 +17,13 @@ rebuilds. Removing `node_modules` forces a fresh install.
 
 ## Running
 
-Start the Trustify server on port 8080, e.g. from the repository root:
+Start PostgreSQL with Podman Compose from the repository root:
+
+```sh
+podman compose -f etc/deploy/compose/compose.yaml up -d
+```
+
+Then start the Trustify server on port 8080 from the repository root:
 
 ```sh
 cargo run -p trustify-trustd -- api --devmode --embedded-oidc
