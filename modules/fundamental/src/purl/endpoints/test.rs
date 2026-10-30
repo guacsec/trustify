@@ -569,6 +569,65 @@ async fn get_recommendations_multi_advisory_statuses(
     Ok(())
 }
 
+/// Verifies that a same-advisory derived affected status does not contradict a direct fixed
+/// status for the same target, while derived statuses without a direct assessment remain visible.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_stated_fixed_not_contradicted_by_derived_affected(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given one Red Hat advisory fixing the same package at two versions. Red Hat's fixed
+    // versions imply affected ranges below each fix. The first CVE is stated fixed at both
+    // versions; the second is only stated fixed at the higher version.
+    let mut advisory = minimal_csaf_vex(
+        "TEST-RH-OVERLAPPING-FIXES-001",
+        "Test Product Overlapping Fixes",
+        &[
+            (
+                "overlaplib-1.0.0.redhat-00001",
+                "pkg:maven/com.example/overlaplib@1.0.0.redhat-00001",
+            ),
+            (
+                "overlaplib-1.0.1.redhat-00001",
+                "pkg:maven/com.example/overlaplib@1.0.1.redhat-00001",
+            ),
+        ],
+        &[
+            ("CVE-2099-69081", "fixed", &[0, 1]),
+            ("CVE-2099-69082", "fixed", &[1]),
+        ],
+    );
+    advisory["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
+    ctx.ingest_json(advisory).await?;
+
+    // When requesting a recommendation for the lower vendor version
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &["pkg:maven/com.example/overlaplib@1.0.0"]).await;
+
+    // Then the direct fixed assessment wins over the same advisory's derived affected status.
+    // The unrelated CVE still has only the higher-version statement, so its derived affected
+    // status remains visible for the lower target.
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/com.example/overlaplib@1.0.0"][0]["vulnerabilities"],
+        json!([
+            {
+                "id": "CVE-2099-69081",
+                "status": "Fixed",
+                "remediations": [],
+                "advisory_id": "https://www.redhat.com/#TEST-RH-OVERLAPPING-FIXES-001",
+            },
+            {
+                "id": "CVE-2099-69082",
+                "status": "Affected",
+                "remediations": [],
+                "advisory_id": "https://www.redhat.com/#TEST-RH-OVERLAPPING-FIXES-001",
+            },
+        ])
+    );
+
+    Ok(())
+}
+
 /// Verifies that statuses from superseded advisory revisions are not returned: republishing an
 /// advisory (revision 1 affected, revision 2 fixed) only yields the current revision's status.
 #[test_context(TrustifyContext)]

@@ -24,7 +24,7 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
 use sea_query::{
-    Asterisk, ColumnType, Expr, ExprTrait, Func,
+    Alias, Asterisk, ColumnType, Expr, ExprTrait, Func,
     JoinType::{self, InnerJoin},
     Order, SimpleExpr, UnionType,
 };
@@ -61,11 +61,25 @@ struct StatusInfo {
     vuln_id: String,
     status_slug: String,
     remediations: Vec<remediation::Model>,
-    /// The most recent date from the advisory that reported this status, used to pick the
-    /// latest assessment when the same vulnerability appears in multiple advisories.
+    /// The advisory date used to select report provenance when several assessments address a
+    /// vulnerability.
     advisory_date: Option<time::OffsetDateTime>,
     /// The advisory identifier that reported this status, used for report provenance.
     advisory_id: Option<String>,
+    advisory_pk: Uuid,
+    derived: bool,
+    stated_id: Uuid,
+    context_cpe_id: Option<Uuid>,
+    assertion_context_id: Option<Uuid>,
+}
+
+/// The effective-view PURL status plus its view-only origin metadata.
+#[derive(FromQueryResult)]
+struct EffectivePurlStatus {
+    #[sea_orm(nested)]
+    status: purl_status::Model,
+    derived: bool,
+    stated_id: Uuid,
 }
 
 /// A PURL-to-SBOM association row fetched for the recommendation report endpoint.
@@ -694,7 +708,7 @@ impl PurlService {
 
         let base_chunks = chunked_with(1, winner_base_ids.into_iter());
         for base_chunk in base_chunks {
-            let all_statuses = purl_status::find_effective()
+            let all_statuses: Vec<EffectivePurlStatus> = purl_status::find_effective()
                 .columns([
                     version_range::Column::Id,
                     version_range::Column::LowVersion,
@@ -702,6 +716,14 @@ impl PurlService {
                     version_range::Column::HighVersion,
                     version_range::Column::HighInclusive,
                 ])
+                .column_as(
+                    Expr::col((purl_status::Entity, Alias::new("derived"))),
+                    "derived",
+                )
+                .column_as(
+                    Expr::col((purl_status::Entity, Alias::new("stated_id"))),
+                    "stated_id",
+                )
                 .left_join(base_purl::Entity)
                 .join(
                     JoinType::LeftJoin,
@@ -715,6 +737,7 @@ impl PurlService {
                         .arg(Expr::col(versioned_purl::Column::Version))
                         .arg(Expr::col((version_range::Entity, Asterisk))),
                 ))
+                .into_model()
                 .all(connection)
                 .instrument(info_span!("querying purl statuses"))
                 .await?;
@@ -743,7 +766,7 @@ impl PurlService {
         version: &str,
         connection: &C,
     ) -> Result<Vec<StatusInfo>, Error> {
-        let all_statuses = purl_status::find_effective()
+        let all_statuses: Vec<EffectivePurlStatus> = purl_status::find_effective()
             .columns([
                 version_range::Column::Id,
                 version_range::Column::LowVersion,
@@ -751,6 +774,14 @@ impl PurlService {
                 version_range::Column::HighVersion,
                 version_range::Column::HighInclusive,
             ])
+            .column_as(
+                Expr::col((purl_status::Entity, Alias::new("derived"))),
+                "derived",
+            )
+            .column_as(
+                Expr::col((purl_status::Entity, Alias::new("stated_id"))),
+                "stated_id",
+            )
             .join(JoinType::LeftJoin, purl_status::effective_version_range())
             .filter(purl_status::Column::BasePurlId.eq(base_purl_id))
             .filter(SimpleExpr::FunctionCall(
@@ -758,6 +789,7 @@ impl PurlService {
                     .arg(Expr::value(version))
                     .arg(Expr::col((version_range::Entity, Asterisk))),
             ))
+            .into_model()
             .all(connection)
             .instrument(info_span!("querying purl statuses for synthetic winner"))
             .await?;
@@ -770,27 +802,31 @@ impl PurlService {
     /// Loads vulnerability status associations for PURL status rows, grouped by base PURL ID.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn load_status_infos_by_base<C: ConnectionTrait>(
-        all_statuses: Vec<purl_status::Model>,
+        all_statuses: Vec<EffectivePurlStatus>,
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
-        let vulns = all_statuses
+        let status_models = all_statuses
+            .iter()
+            .map(|row| row.status.clone())
+            .collect::<Vec<_>>();
+        let vulns = status_models
             .load_one(vulnerability::Entity, connection)
             .instrument(info_span!("loading vulnerabilities"))
             .await?;
-        let advisories_loaded = all_statuses
+        let advisories_loaded = status_models
             .load_one(advisory::Entity, connection)
             .instrument(info_span!("loading advisories"))
             .await?;
-        let status_models = all_statuses
+        let loaded_statuses = status_models
             .load_one(status::Entity, connection)
             .instrument(info_span!("loading statuses"))
             .await?;
-        let status_slug_map = status_models
+        let status_slug_map = loaded_statuses
             .into_iter()
             .flatten()
             .map(|s| (s.id, s.slug))
             .collect::<HashMap<_, _>>();
-        let remediations = all_statuses
+        let remediations = status_models
             .load_many_to_many(
                 remediation::Entity,
                 remediation_purl_status::Entity,
@@ -801,7 +837,7 @@ impl PurlService {
 
         let status_capacity = all_statuses.len();
         let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
-        for (((vuln, advisory), ps), rems) in vulns
+        for (((vuln, advisory), effective), rems) in vulns
             .into_iter()
             .zip(advisories_loaded)
             .zip(all_statuses)
@@ -815,11 +851,11 @@ impl PurlService {
                     continue;
                 }
                 let slug = status_slug_map
-                    .get(&ps.status_id)
+                    .get(&effective.status.status_id)
                     .cloned()
                     .unwrap_or_else(|| "unknown".to_string());
                 statuses_by_base
-                    .entry(ps.base_purl_id)
+                    .entry(effective.status.base_purl_id)
                     .or_insert_with(|| Vec::with_capacity(status_capacity))
                     .push(StatusInfo {
                         vuln_id: v.id,
@@ -827,6 +863,11 @@ impl PurlService {
                         remediations: rems,
                         advisory_date: advisory.modified.or(advisory.published),
                         advisory_id: Some(advisory.identifier),
+                        advisory_pk: effective.status.advisory_id,
+                        derived: effective.derived,
+                        stated_id: effective.stated_id,
+                        context_cpe_id: effective.status.context_cpe_id,
+                        assertion_context_id: effective.status.assertion_context_id,
                     });
             }
         }
@@ -863,11 +904,27 @@ impl PurlService {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
+        statuses.retain(|status| {
+            !status.derived
+                || !statuses_by_vp
+                    .get(&winner.versioned_purl.id)
+                    .into_iter()
+                    .flatten()
+                    .any(|direct| {
+                        !direct.derived
+                            && direct.stated_id != status.stated_id
+                            && direct.vuln_id == status.vuln_id
+                            && direct.advisory_pk == status.advisory_pk
+                            && direct.context_cpe_id == status.context_cpe_id
+                            && direct.assertion_context_id == status.assertion_context_id
+                    })
+        });
         statuses.sort_by(|a, b| {
-            (&a.vuln_id, &a.status_slug, &a.advisory_id).cmp(&(
+            (&a.vuln_id, &a.status_slug, &a.advisory_id, a.stated_id).cmp(&(
                 &b.vuln_id,
                 &b.status_slug,
                 &b.advisory_id,
+                b.stated_id,
             ))
         });
         statuses.dedup_by(|a, b| {
