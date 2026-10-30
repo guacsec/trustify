@@ -11321,6 +11321,10 @@ components:
       - id
       - remediations
       properties:
+        advisory_id:
+          type:
+          - string
+          - 'null'
         id:
           type: string
         justification:

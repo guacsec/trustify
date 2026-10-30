@@ -153,6 +153,8 @@ pub struct VulnerabilityStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub justification: Option<VexJustification>,
     pub remediations: Vec<RemediationSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub advisory_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]

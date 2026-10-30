@@ -420,15 +420,24 @@ async fn get_recommendations(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
         "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002",
     );
 
-    let mut cves = recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]
-        [0]["vulnerabilities"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|val| val["id"].as_str().unwrap())
-        .collect::<Vec<_>>();
-    cves.sort();
-    assert_eq!(cves, vec!["CVE-2022-45787", "CVE-2023-28867"]);
+    // Then each CVE is reported exactly once, tied to its source advisory
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"][0]["vulnerabilities"],
+        json!([
+            {
+                "id": "CVE-2022-45787",
+                "status": "NotAffected",
+                "remediations": [],
+                "advisory_id": "https://www.redhat.com/#CVE-2022-45787",
+            },
+            {
+                "id": "CVE-2023-28867",
+                "status": "NotAffected",
+                "remediations": [],
+                "advisory_id": "https://www.redhat.com/#CVE-2023-28867",
+            },
+        ])
+    );
 
     Ok(())
 }
@@ -498,6 +507,112 @@ async fn get_recommendations_multi_stream(ctx: &TrustifyContext) -> Result<(), a
     let vuln_2 = &rec_2[0]["vulnerabilities"].as_array().unwrap()[0];
     assert_eq!(vuln_2["id"], "CVE-2099-10001");
     assert_eq!(vuln_2["status"], "Affected");
+
+    Ok(())
+}
+
+/// Verifies that /recommend reports all advisory statuses per CVE with advisory_id,
+/// without collapsing conflicting assessments from different sources.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_multi_advisory_statuses(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given two advisories for the same CVE: one says "fixed", the other says "known_affected"
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-VENDOR-FIX-001",
+        "Vendor Product",
+        &[(
+            "crosslib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-30001", "fixed", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-UPSTREAM-001",
+        "Upstream Product",
+        &[(
+            "crosslib-1.0.0.redhat-00001-upstream",
+            "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-30001", "known_affected", &[0])],
+    ))
+    .await?;
+
+    // When requesting a recommendation
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &["pkg:maven/com.example/crosslib@1.0.0"]).await;
+
+    tracing::info!("{recommendations:#?}");
+
+    // Then both advisory statuses appear for the same CVE, each tied to its own source
+    let rec = &recommendations["recommendations"]["pkg:maven/com.example/crosslib@1.0.0"];
+    assert_eq!(
+        rec[0]["vulnerabilities"],
+        json!([
+            {
+                "id": "CVE-2099-30001",
+                "status": "Affected",
+                "remediations": [],
+                "advisory_id": "https://test.example.com/#TEST-UPSTREAM-001",
+            },
+            {
+                "id": "CVE-2099-30001",
+                "status": "Fixed",
+                "remediations": [],
+                "advisory_id": "https://test.example.com/#TEST-VENDOR-FIX-001",
+            },
+        ])
+    );
+
+    Ok(())
+}
+
+/// Verifies that statuses from superseded advisory revisions are not returned: republishing an
+/// advisory (revision 1 affected, revision 2 fixed) only yields the current revision's status.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_ignores_deprecated_revisions(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given the same advisory is ingested twice for the same vendor rebuild: the older revision
+    // marks it affected, the newer revision marks it fixed
+    let component = "revlib-1.0.0.redhat-00001";
+    let purl = "pkg:maven/com.example/revlib@1.0.0.redhat-00001";
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "REV-1",
+        "2024-01-15T00:00:00+00:00",
+        "Test Product Rev 1",
+        &[(component, purl)],
+        &[("CVE-2099-40001", "known_affected", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "REV-1",
+        "2024-02-15T00:00:00+00:00",
+        "Test Product Rev 2",
+        &[(component, purl)],
+        &[("CVE-2099-40001", "fixed", &[0])],
+    ))
+    .await?;
+
+    // When requesting a recommendation
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &["pkg:maven/com.example/revlib@1.0.0"]).await;
+
+    tracing::info!("{recommendations:#?}");
+
+    // Then only the current (non-deprecated) revision's status is reported
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/com.example/revlib@1.0.0"][0]["vulnerabilities"],
+        json!([{
+            "id": "CVE-2099-40001",
+            "status": "Fixed",
+            "remediations": [],
+            "advisory_id": "https://test.example.com/#REV-1",
+        }])
+    );
 
     Ok(())
 }
@@ -682,7 +797,8 @@ async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), any
     Ok(())
 }
 
-/// Verifies that duplicate advisories for the same CVE produce a single vulnerability entry.
+/// Verifies that duplicate advisories for the same CVE are each reported once, keyed by their
+/// advisory source rather than collapsed into a single entry.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -706,15 +822,56 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
 
     tracing::info!("{recommendations:#?}");
 
-    // Then the recommendation contains a single deduplicated vulnerability
+    // Then each advisory is reported exactly once for the CVE
     let entry =
         &recommendations["recommendations"].as_object().unwrap()["pkg:cargo/hyper@0.14.1"][0];
-    assert_eq!(entry["vulnerabilities"].as_array().unwrap().len(), 1);
     assert_eq!(
-        entry["vulnerabilities"].as_array().unwrap()[0]["id"]
-            .as_str()
-            .unwrap(),
-        "CVE-2021-32714"
+        entry["vulnerabilities"],
+        json!([
+            {
+                "id": "CVE-2021-32714",
+                "status": "Affected",
+                "remediations": [],
+                "advisory_id": "DUPLICATE",
+            },
+            {
+                "id": "CVE-2021-32714",
+                "status": "Affected",
+                "remediations": [],
+                "advisory_id": "RUSTSEC-2021-0079",
+            },
+        ])
+    );
+
+    Ok(())
+}
+
+/// Verifies that a purl listed under several product streams by the same VEX yields one entry per
+/// (vulnerability, status, advisory) instead of one entry per product context.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_no_duplicates_for_multi_stream_vex(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given a VEX listing cron-utils under two product streams (each with its own CPE)
+    ctx.ingest_documents(["csaf/RHSA-CVE-2024-29025.json.bz2"])
+        .await?;
+
+    // When requesting a recommendation for the upstream package
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &["pkg:maven/com.cronutils/cron-utils@9.2.1"]).await;
+
+    tracing::info!("{recommendations:#?}");
+
+    // Then the CVE appears exactly once, not once per product context
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/com.cronutils/cron-utils@9.2.1"][0]["vulnerabilities"],
+        json!([{
+            "id": "CVE-2024-29025",
+            "status": "NotAffected",
+            "remediations": [],
+            "advisory_id": "https://www.redhat.com/#CVE-2024-29025",
+        }])
     );
 
     Ok(())
@@ -875,9 +1032,15 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
         entry[0]["package"],
         "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
     );
+    // And the known PURL carries exactly its advisory's assessment
     assert_eq!(
         entry[0]["vulnerabilities"],
-        json!([{"id": "CVE-2022-45787", "status": "NotAffected", "remediations": []}])
+        json!([{
+            "id": "CVE-2022-45787",
+            "status": "NotAffected",
+            "remediations": [],
+            "advisory_id": "https://www.redhat.com/#CVE-2022-45787",
+        }])
     );
     assert_eq!(
         recommendations["recommendations"]["pkg:maven/com.example/nonexistent@1.0.0"],
@@ -1463,6 +1626,9 @@ async fn recommend_report_filters_to_addressed_vulns(
     Ok(())
 }
 
+/// The release date used by [`minimal_csaf_vex`] for single-revision test advisories.
+const MINIMAL_CSAF_RELEASE_DATE: &str = "2024-01-15T00:00:00+00:00";
+
 /// Builds a minimal CSAF VEX advisory JSON with given product and vulnerability statuses.
 ///
 /// `tracking_id` must be unique across ingested documents.
@@ -1473,6 +1639,26 @@ async fn recommend_report_filters_to_addressed_vulns(
 /// and `component_indices` indexes into the `components` slice.
 fn minimal_csaf_vex(
     tracking_id: &str,
+    product_name: &str,
+    components: &[(&str, &str)],
+    vulns: &[(&str, &str, &[usize])],
+) -> Value {
+    minimal_csaf_vex_at(
+        tracking_id,
+        MINIMAL_CSAF_RELEASE_DATE,
+        product_name,
+        components,
+        vulns,
+    )
+}
+
+/// Same as [`minimal_csaf_vex`], but with an explicit release date.
+///
+/// Republishing an advisory means ingesting the same `tracking_id` again with a newer
+/// `release_date`; ingestion then marks the older revision as deprecated.
+fn minimal_csaf_vex_at(
+    tracking_id: &str,
+    release_date: &str,
     product_name: &str,
     components: &[(&str, &str)],
     vulns: &[(&str, &str, &[usize])],
@@ -1534,9 +1720,9 @@ fn minimal_csaf_vex(
             },
             "title": format!("Test VEX {tracking_id}"),
             "tracking": {
-                "current_release_date": "2024-01-15T00:00:00+00:00",
+                "current_release_date": release_date,
                 "id": tracking_id,
-                "initial_release_date": "2024-01-15T00:00:00+00:00",
+                "initial_release_date": MINIMAL_CSAF_RELEASE_DATE,
                 "revision_history": [{
                     "date": "2024-01-15T00:00:00+00:00",
                     "number": "1",
@@ -1628,6 +1814,95 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
     );
 
     // And counts reflect addressed vulnerabilities only
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
+/// Verifies that the report counts a CVE as addressed when a vendor advisory fixes it, even
+/// though a newer upstream advisory still reports the recommended version as affected.
+/// This matches `/recommend`, which reports every advisory's assessment (TC-6908).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_vendor_fix_with_newer_upstream_affected(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given an older vendor advisory that backports a fix for the CVE
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "TEST-REPORT-VENDOR-FIX-001",
+        "2024-01-15T00:00:00+00:00",
+        "Vendor Product",
+        &[(
+            "crosslib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-50001", "fixed", &[0])],
+    ))
+    .await?;
+
+    // And a newer upstream advisory still reporting the same CVE as affected
+    ctx.ingest_json(minimal_csaf_vex_at(
+        "TEST-REPORT-UPSTREAM-AFFECTED-001",
+        "2024-02-15T00:00:00+00:00",
+        "Upstream Product",
+        &[(
+            "crosslib-1.0.0.redhat-00001-upstream",
+            "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-50001", "known_affected", &[0])],
+    ))
+    .await?;
+
+    // And an SBOM containing the upstream package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-vendor-fix-newer-upstream",
+            "00000000-0000-0000-0000-300000000001",
+            &[("crosslib", "1.0.0", "pkg:maven/com.example/crosslib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // When requesting a recommendation, the vendor fix is reported alongside the upstream view
+    let recommendations = recommend(&app, &["pkg:maven/com.example/crosslib@1.0.0"]).await;
+    tracing::info!("{recommendations:#?}");
+
+    let statuses: Vec<&str> = recommendations["recommendations"]
+        ["pkg:maven/com.example/crosslib@1.0.0"][0]["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|vuln| vuln["status"].as_str())
+        .collect();
+    assert!(
+        statuses.contains(&"Fixed"),
+        "vendor fix should be reported, got: {statuses:?}"
+    );
+
+    // And the report counts the package as addressed despite the newer upstream assessment
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    tracing::info!("{report:#?}");
+
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1, "expected one addressable package");
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/com.example/crosslib@1.0.0.redhat-00001"
+    );
+    assert_eq!(
+        packages[0]["vulnerabilities"],
+        json!(["CVE-2099-50001"]),
+        "the vendor-fixed CVE should be counted once"
+    );
+    assert_eq!(
+        packages[0]["advisory_id"], "https://test.example.com/#TEST-REPORT-VENDOR-FIX-001",
+        "advisory id should come from the addressing assessment, not the newer upstream one"
+    );
+
     assert_eq!(report["impact_summary"]["addressable_packages"], 1);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
 
