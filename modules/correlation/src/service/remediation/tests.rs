@@ -7,7 +7,7 @@ use crate::{
     service::{CorrelationService, projection::publish_for_test},
 };
 use rstest::rstest;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, TransactionTrait};
+use sea_orm::{ColumnTrait, DatabaseTransaction, EntityTrait, QueryFilter, TransactionTrait};
 use serde_json::{Value, json};
 use std::time::Duration;
 use test_context::test_context;
@@ -155,76 +155,14 @@ async fn component_identifiers_respect_borrowed_node_filter(
     Ok(())
 }
 
-#[test_context(TrustifyContext)]
-#[rstest]
-#[case::direct("direct")]
-#[case::groups("groups")]
-#[case::mixed("mixed")]
-#[test_log::test(actix_web::test)]
-async fn remediation_scopes(
-    ctx: &TrustifyContext,
-    #[case] form: &str,
-    #[values(false, true)] from_advisory: bool,
+/// Asserts paging and filtering of the published verdicts of the `remediation_scopes` SBOM.
+async fn assert_verdict_pages(
+    service: &CorrelationService,
+    sbom_id: Uuid,
+    cache: &PaginationCache,
+    tx: &DatabaseTransaction,
 ) -> anyhow::Result<()> {
-    let document = advisory(form).await?;
-    let advisory = ctx
-        .ingest_read(serde_json::to_vec(&document)?.as_slice())
-        .await?;
-    let advisory_id = Uuid::parse_str(&advisory.id)?;
-    let sbom_result = ctx
-        .ingest_read(serde_json::to_vec(&sbom(PLATFORM))?.as_slice())
-        .await?;
-    let sbom_id = Uuid::parse_str(&sbom_result.id)?;
-    let tx = ctx.db.begin().await?;
-    let extractors = Extractors::default();
-    if from_advisory {
-        extractors.extract_for_advisory(advisory_id, &tx).await?;
-    } else {
-        extractors.extract_for_sbom(sbom_id, &tx).await?;
-    }
-    // Repeat extraction must preserve the exact source set, including ON CONFLICT handling.
-    extractors.extract_for_sbom(sbom_id, &tx).await?;
-    tx.commit().await?;
-    let service = CorrelationService::default();
-    let tx = ctx.db.begin().await?;
-    let request = ResolutionRequest {
-        include_explanation: true,
-        ..Default::default()
-    };
-    let result = service
-        .correlate_sbom_with(sbom_id, false, &request, &tx)
-        .await?;
-    assert_eq!(result.verdicts.len(), 2);
-    for verdict in &result.verdicts {
-        let version = if verdict.component.node_id == "widget-1" {
-            1
-        } else {
-            2
-        };
-        assert_eq!(verdict.status, VerdictStatus::Affected);
-        let kinds = verdict
-            .evidence
-            .iter()
-            .map(|e| e.extractor.as_str())
-            .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(
-            kinds,
-            ["purl", "cpe", "digest", "product_identifier"].into()
-        );
-        for evidence in &verdict.evidence {
-            assert_eq!(evidence.remediations, vec![fix(version)], "{evidence:?}");
-        }
-        for evidence in &verdict.resolution.explanation.as_ref().unwrap().evidence {
-            assert_eq!(evidence.remediations, vec![fix(version)]);
-        }
-    }
-    publish_for_test(sbom_id, &tx).await?;
-    assert_eq!(
-        service.count_verdicts(&[sbom_id], &tx).await?[0].remediations,
-        2
-    );
     // Multiple matching extractors and duplicate source groups must produce one paginated row.
-    let cache = PaginationCache::new(Duration::from_secs(60), 1000);
     for total in [false, true] {
         for offset in 0..=3 {
             let page = service
@@ -236,8 +174,8 @@ async fn remediation_scopes(
                         limit: 1,
                         total,
                     },
-                    &cache,
-                    &tx,
+                    cache,
+                    tx,
                 )
                 .await?;
             assert_eq!(page.total, total.then_some(2));
@@ -260,8 +198,8 @@ async fn remediation_scopes(
                     limit: 0,
                     total,
                 },
-                &cache,
-                &tx,
+                cache,
+                tx,
             )
             .await?;
         assert!(page.items.is_empty());
@@ -279,8 +217,8 @@ async fn remediation_scopes(
                 total: true,
                 ..Default::default()
             },
-            &cache,
-            &tx,
+            cache,
+            tx,
         )
         .await?;
     assert_eq!(page.total, Some(1));
@@ -307,15 +245,94 @@ async fn remediation_scopes(
                     total: true,
                     ..Default::default()
                 },
-                &cache,
-                &tx,
+                cache,
+                tx,
             )
             .await?;
         assert_eq!(page.total, Some(0));
     }
+    Ok(())
+}
+
+/// Ingests the `remediation_scopes` documents and extracts their evidence, returning the SBOM id.
+async fn ingest_and_extract(
+    ctx: &TrustifyContext,
+    form: &str,
+    from_advisory: bool,
+) -> anyhow::Result<Uuid> {
+    let document = serde_json::to_vec(&advisory(form).await?)?;
+    let advisory = Box::pin(ctx.ingest_read(document.as_slice())).await?;
+    let advisory_id = Uuid::parse_str(&advisory.id)?;
+    let document = serde_json::to_vec(&sbom(PLATFORM))?;
+    let sbom_result = Box::pin(ctx.ingest_read(document.as_slice())).await?;
+    let sbom_id = Uuid::parse_str(&sbom_result.id)?;
+    let tx = ctx.db.begin().await?;
+    let extractors = Extractors::default();
+    if from_advisory {
+        extractors.extract_for_advisory(advisory_id, &tx).await?;
+    } else {
+        extractors.extract_for_sbom(sbom_id, &tx).await?;
+    }
+    // Repeat extraction must preserve the exact source set, including ON CONFLICT handling.
+    extractors.extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+    Ok(sbom_id)
+}
+
+/// Asserts the correlated verdicts and their remediations of the `remediation_scopes` SBOM.
+async fn assert_verdicts(
+    service: &CorrelationService,
+    sbom_id: Uuid,
+    tx: &DatabaseTransaction,
+) -> anyhow::Result<()> {
+    let request = ResolutionRequest {
+        include_explanation: true,
+        ..Default::default()
+    };
+    let result = service
+        .correlate_sbom_with(sbom_id, false, &request, tx)
+        .await?;
+    assert_eq!(result.verdicts.len(), 2);
+    for verdict in &result.verdicts {
+        let version = if verdict.component.node_id == "widget-1" {
+            1
+        } else {
+            2
+        };
+        assert_eq!(verdict.status, VerdictStatus::Affected);
+        let kinds = verdict
+            .evidence
+            .iter()
+            .map(|e| e.extractor.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            kinds,
+            ["purl", "cpe", "digest", "product_identifier"].into()
+        );
+        for evidence in &verdict.evidence {
+            assert_eq!(evidence.remediations, vec![fix(version)], "{evidence:?}");
+        }
+        for evidence in &verdict.resolution.explanation.as_ref().unwrap().evidence {
+            assert_eq!(evidence.remediations, vec![fix(version)]);
+        }
+    }
+    publish_for_test(sbom_id, tx).await?;
+    assert_eq!(
+        service.count_verdicts(&[sbom_id], tx).await?[0].remediations,
+        2
+    );
+    Ok(())
+}
+
+/// Asserts the stored evidence sources and the remediations returned by identifier queries.
+async fn assert_stored_remediations(
+    service: &CorrelationService,
+    sbom_id: Uuid,
+    tx: &DatabaseTransaction,
+) -> anyhow::Result<()> {
     let evidence = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-        .all(&tx)
+        .all(tx)
         .await?;
     for row in &evidence {
         let sources: std::collections::BTreeSet<SourceAssertionRef> =
@@ -334,15 +351,12 @@ async fn remediation_scopes(
     // associations are covered with product-version CSAF fixtures in the ingestor tests.
     use trustify_entity::{remediation_product_status, remediation_purl_status};
     assert_eq!(
-        remediation_purl_status::Entity::find()
-            .all(&tx)
-            .await?
-            .len(),
+        remediation_purl_status::Entity::find().all(tx).await?.len(),
         2
     );
     assert_eq!(
         remediation_product_status::Entity::find()
-            .all(&tx)
+            .all(tx)
             .await?
             .len(),
         0
@@ -366,7 +380,7 @@ async fn remediation_scopes(
                     }],
                     ..Default::default()
                 },
-                &tx,
+                tx,
             )
             .await?;
         assert_eq!(query.verdicts.len(), 1, "{kind:?}");
@@ -399,7 +413,15 @@ async fn remediation_scopes(
             assert_eq!(explained.remediations.len(), 1);
         }
     }
-    tx.commit().await?;
+    Ok(())
+}
+
+/// Asserts that the same subject on a contradictory platform inherits no remediation.
+async fn assert_wrong_platform(
+    ctx: &TrustifyContext,
+    service: &CorrelationService,
+    cache: &PaginationCache,
+) -> anyhow::Result<()> {
     // The same subject on a contradictory platform must not inherit either remediation.
     let wrong = ctx
         .ingest_read(
@@ -407,6 +429,7 @@ async fn remediation_scopes(
         )
         .await?;
     let tx = ctx.db.begin().await?;
+    let extractors = Extractors::default();
     let wrong_id = Uuid::parse_str(&wrong.id)?;
     extractors.extract_for_sbom(wrong_id, &tx).await?;
     publish_for_test(wrong_id, &tx).await?;
@@ -419,7 +442,7 @@ async fn remediation_scopes(
                 total: true,
                 ..Default::default()
             },
-            &cache,
+            cache,
             &tx,
         )
         .await?;
@@ -432,6 +455,30 @@ async fn remediation_scopes(
             .is_empty()
     );
     Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::direct("direct")]
+#[case::groups("groups")]
+#[case::mixed("mixed")]
+#[test_log::test(actix_web::test)]
+async fn remediation_scopes(
+    ctx: &TrustifyContext,
+    #[case] form: &str,
+    #[values(false, true)] from_advisory: bool,
+) -> anyhow::Result<()> {
+    // Each phase is boxed: in debug builds, inlining them all into one future overflows the
+    // 2 MiB test thread stack on top of the deep ingestion call chain.
+    let sbom_id = Box::pin(ingest_and_extract(ctx, form, from_advisory)).await?;
+    let service = CorrelationService::default();
+    let cache = PaginationCache::new(Duration::from_secs(60), 1000);
+    let tx = ctx.db.begin().await?;
+    Box::pin(assert_verdicts(&service, sbom_id, &tx)).await?;
+    Box::pin(assert_verdict_pages(&service, sbom_id, &cache, &tx)).await?;
+    Box::pin(assert_stored_remediations(&service, sbom_id, &tx)).await?;
+    tx.commit().await?;
+    Box::pin(assert_wrong_platform(ctx, &service, &cache)).await
 }
 
 #[test_context(TrustifyContext)]
