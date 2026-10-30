@@ -16,7 +16,7 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QuerySelect,
     RelationTrait,
 };
-use trustify_entity::{base_purl, purl_status};
+use trustify_entity::{base_purl, purl_status, versioned_purl};
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
@@ -652,6 +652,163 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     );
     assert_eq!(report["impact_summary"]["addressable_packages"], 1);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
+/// Verifies that an advisory-only OSV fixed event synthesizes a recommendation and report entry.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_osv_fixed_event_advisory_only(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.springframework/spring-expression@5.3.18";
+    const FIXED_PURL: &str = "pkg:maven/org.springframework/spring-expression@5.3.18.rhlw-00010";
+    const FIXED_VERSION: &str = "5.3.18.rhlw-00010";
+
+    // Given an upstream SBOM and an OSV fixed event, without a persisted vendor PURL
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "springexpr-5.3.18-base",
+            "00000000-0000-0000-0000-726300000001",
+            &[("spring-expression", "5.3.18", UPSTREAM_PURL)],
+        ))
+        .await?
+        .id,
+    )?;
+
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "x_RHLW-CVE-2023-20861-5.3.18",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2023-20861"],
+        "affected": [{
+            "package": {
+                "ecosystem": "Maven",
+                "name": "org.springframework:spring-expression",
+                "purl": "pkg:maven/org.springframework/spring-expression"
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [
+                    {"introduced": "5.3.18"},
+                    {"fixed": FIXED_VERSION}
+                ]
+            }]
+        }]
+    }))
+    .await?;
+
+    let persisted_vendor_purls = versioned_purl::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            versioned_purl::Relation::BasePurl.def(),
+        )
+        .filter(base_purl::Column::Name.eq("spring-expression"))
+        .filter(versioned_purl::Column::Version.eq(FIXED_VERSION))
+        .count(&ctx.db)
+        .await?;
+    assert_eq!(
+        persisted_vendor_purls, 0,
+        "the fixed candidate must come from advisory metadata, not a persisted vendor PURL"
+    );
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting recommendations for the upstream package
+    let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
+
+    // Then the fixed-event candidate and its remediation are returned
+    let entries = recommendations["recommendations"][UPSTREAM_PURL]
+        .as_array()
+        .unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["package"], FIXED_PURL);
+    let vulnerabilities = entries[0]["vulnerabilities"].as_array().unwrap();
+    assert_eq!(vulnerabilities.len(), 1);
+    assert_eq!(vulnerabilities[0]["id"], "CVE-2023-20861");
+    assert_eq!(vulnerabilities[0]["status"], "Fixed");
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["category"],
+        "vendor_fix"
+    );
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["details"],
+        "Fixed in 5.3.18.rhlw-00010"
+    );
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["data"]["fixed"],
+        FIXED_VERSION
+    );
+
+    // And the report marks that package and vulnerability as addressed
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    assert_eq!(report["packages"].as_array().unwrap().len(), 1);
+    assert_eq!(report["packages"][0]["purl"], UPSTREAM_PURL);
+    assert_eq!(report["packages"][0]["recommended_purl"], FIXED_PURL);
+    assert_eq!(
+        report["packages"][0]["vulnerabilities"],
+        json!(["CVE-2023-20861"])
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 1);
+
+    Ok(())
+}
+
+/// Verifies that a `last_affected` boundary does not synthesize a fixed recommendation.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_osv_last_affected_is_not_candidate(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given an OSV range ending at a last_affected version, with no fixed event
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "GHSA-test-rhlw-last-affected",
+        "modified": "2025-01-01T00:00:00Z",
+        "affected": [{
+            "package": {
+                "ecosystem": "Maven",
+                "name": "org.example:last-affected",
+                "purl": "pkg:maven/org.example/last-affected"
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [
+                    {"introduced": "0"},
+                    {"last_affected": "1.0.0.rhlw-00001"}
+                ]
+            }]
+        }]
+    }))
+    .await?;
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting a recommendation for the upstream package
+    let upstream_purl = "pkg:maven/org.example/last-affected@1.0.0";
+    let recommendations = recommend(&app, &[upstream_purl]).await;
+
+    // Then the last_affected boundary is not presented as fixed
+    assert_eq!(recommendations["recommendations"][upstream_purl], json!([]));
 
     Ok(())
 }

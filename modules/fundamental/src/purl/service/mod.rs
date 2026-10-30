@@ -57,6 +57,7 @@ struct PurlKey<'a> {
 }
 
 /// Vulnerability status record linking a vulnerability ID to its VEX status and remediations.
+#[derive(Clone)]
 struct StatusInfo {
     vuln_id: String,
     status_slug: String,
@@ -111,8 +112,18 @@ struct Winner<'a> {
     base: &'a base_purl::Model,
 }
 
-/// Versioned PURLs grouped by base ID and the IDs synthesized from advisory data.
-type AdvisoryVersionedPurls = (HashMap<Uuid, Vec<versioned_purl::Model>>, HashSet<Uuid>);
+/// Candidate PURLs and status metadata synthesized from advisory data.
+type AdvisoryVersionedPurls = (
+    HashMap<Uuid, Vec<versioned_purl::Model>>,
+    HashSet<Uuid>,
+    HashMap<Uuid, Vec<StatusInfo>>,
+);
+
+/// Synthetic version IDs and status metadata derived from advisory VendorFix remediations.
+struct AdvisoryCandidateMetadata {
+    synthesized_vp_ids: HashSet<Uuid>,
+    vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>>,
+}
 
 impl<'a> PurlKey<'a> {
     fn from_purl(purl: &'a Purl) -> Self {
@@ -598,7 +609,7 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let (versioned_by_base, advisory_synthesized_vp_ids) =
+        let (versioned_by_base, advisory_synthesized_vp_ids, vendor_fix_statuses_by_vp) =
             Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         let base_purl_map: HashMap<_, _> = base_purls
@@ -658,18 +669,24 @@ impl PurlService {
                 connection,
             )
             .await?;
-            if let Some(infos) = per_winner.into_values().next() {
-                statuses_by_vp.insert(winner.versioned_purl.id, infos);
-            } else if advisory_synthesized_vp_ids.contains(&winner.versioned_purl.id) {
-                let infos = Self::fetch_vulnerability_statuses_by_version(
+            let mut infos = per_winner.into_values().next().unwrap_or_default();
+            if infos.is_empty() && advisory_synthesized_vp_ids.contains(&winner.versioned_purl.id) {
+                infos = Self::fetch_vulnerability_statuses_by_version(
                     winner.base.id,
                     &winner.versioned_purl.version,
                     connection,
                 )
                 .await?;
-                if !infos.is_empty() {
-                    statuses_by_vp.insert(winner.versioned_purl.id, infos);
-                }
+            }
+            // VendorFix records their fixed version at an exclusive range boundary, so ordinary
+            // version matching does not return the status for this candidate.
+            if let Some(vendor_fix_statuses) =
+                vendor_fix_statuses_by_vp.get(&winner.versioned_purl.id)
+            {
+                infos.extend(vendor_fix_statuses.iter().cloned());
+            }
+            if !infos.is_empty() {
+                statuses_by_vp.insert(winner.versioned_purl.id, infos);
             }
         }
 
@@ -923,8 +940,8 @@ impl PurlService {
 
     /// Loads all versioned PURLs for the given base PURLs, grouped by base PURL ID.
     /// Chunks the IN clause to stay within Postgres bind parameter limits.
-    /// Also returns the IDs of versions synthesized from advisory data, which cannot be
-    /// distinguished from persisted rows by UUID alone.
+    /// Also returns IDs of versions synthesized from advisory data and Fixed status metadata for
+    /// OSV VendorFix remediations.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn fetch_versioned_purls_by_base<C: ConnectionTrait>(
         base_purls: &[base_purl::Model],
@@ -944,39 +961,44 @@ impl PurlService {
             }
         }
 
-        // Supplement with exact-version advisory entries (status `not_affected` or `fixed`).
-        // In advisory-only deployments without vendor SBOMs, these purl_status rows are the
-        // only source of vendor-rebuilt version strings. Using a deterministic UUID (v5 of
-        // base_purl_id + version) lets the rest of the pipeline treat them uniformly. The
-        // returned ID set tracks which entries were added here because persisted rows use the
-        // same UUID scheme and UUID equality alone cannot distinguish their source.
-        let advisory_synthesized_vp_ids = Self::extend_with_advisory_versions(
+        // Supplement with exact-version advisory entries and explicit VendorFix versions. In
+        // advisory-only deployments without vendor SBOMs, these rows are the only source of
+        // vendor-rebuilt versions. Deterministic IDs let the rest of the pipeline treat synthetic
+        // candidates uniformly with persisted versioned PURLs.
+        let AdvisoryCandidateMetadata {
+            synthesized_vp_ids: advisory_synthesized_vp_ids,
+            vendor_fix_statuses_by_vp,
+        } = Self::extend_with_advisory_versions(
             base_purls.iter().map(|bp| bp.id),
             &mut by_base,
             connection,
         )
         .await?;
 
-        Ok((by_base, advisory_synthesized_vp_ids))
+        Ok((
+            by_base,
+            advisory_synthesized_vp_ids,
+            vendor_fix_statuses_by_vp,
+        ))
     }
 
-    /// Fetches exact-version `not_affected` and `fixed` purl_status entries and adds any
-    /// version strings not already present in `by_base` as synthetic versioned_purl models.
-    /// Returns the IDs of the rows it synthesized so callers do not infer provenance from UUIDs.
+    /// Fetches exact-status advisory versions and explicit OSV VendorFix versions, adding missing
+    /// candidates to `by_base` and associating fixed status metadata with each VendorFix version.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn extend_with_advisory_versions<C: ConnectionTrait>(
         base_purl_ids: impl IntoIterator<Item = Uuid>,
         by_base: &mut HashMap<Uuid, Vec<versioned_purl::Model>>,
         connection: &C,
-    ) -> Result<HashSet<Uuid>, Error> {
+    ) -> Result<AdvisoryCandidateMetadata, Error> {
         #[derive(FromQueryResult)]
         struct AdvisoryVersion {
             base_purl_id: Uuid,
             version: String,
         }
 
+        let base_purl_ids = base_purl_ids.into_iter().collect::<Vec<_>>();
         let mut synthesized_ids = HashSet::new();
-        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        let id_chunks = chunked_with(1, base_purl_ids.iter().copied());
         for chunk in id_chunks {
             let rows: Vec<AdvisoryVersion> = purl_status::Entity::find()
                 .select_only()
@@ -1010,7 +1032,89 @@ impl PurlService {
             }
         }
 
-        Ok(synthesized_ids)
+        let mut vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
+        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        for chunk in id_chunks {
+            let affected_statuses = purl_status::Entity::find()
+                .join(InnerJoin, purl_status::Relation::Status.def())
+                .filter(purl_status::Column::BasePurlId.is_in(chunk))
+                .filter(purl_status::Column::IsDefault.eq(false))
+                .filter(status::Column::Slug.eq("affected"))
+                .all(connection)
+                .await?;
+            let advisories = affected_statuses
+                .load_one(advisory::Entity, connection)
+                .await?;
+            let ranges = affected_statuses
+                .load_one(version_range::Entity, connection)
+                .await?;
+            let remediations = affected_statuses
+                .load_many_to_many(
+                    remediation::Entity,
+                    remediation_purl_status::Entity,
+                    connection,
+                )
+                .await?;
+
+            for (((purl_status, advisory), range), remediations) in affected_statuses
+                .into_iter()
+                .zip(advisories)
+                .zip(ranges)
+                .zip(remediations)
+            {
+                let (Some(advisory), Some(range)) = (advisory, range) else {
+                    continue;
+                };
+
+                for remediation in remediations {
+                    if remediation.category != remediation::RemediationCategory::VendorFix {
+                        continue;
+                    }
+                    let Some(fixed_version) =
+                        remediation.data.get("fixed").and_then(|v| v.as_str())
+                    else {
+                        continue;
+                    };
+                    if range.high_version.as_deref() != Some(fixed_version)
+                        || range.high_inclusive != Some(false)
+                    {
+                        continue;
+                    }
+
+                    let entry = by_base.entry(purl_status.base_purl_id).or_default();
+                    let id = if let Some(versioned_purl) =
+                        entry.iter().find(|vp| vp.version == fixed_version)
+                    {
+                        versioned_purl.id
+                    } else {
+                        let id = Uuid::new_v5(&purl_status.base_purl_id, fixed_version.as_bytes());
+                        synthesized_ids.insert(id);
+                        entry.push(versioned_purl::Model {
+                            id,
+                            base_purl_id: purl_status.base_purl_id,
+                            version: fixed_version.to_string(),
+                        });
+                        id
+                    };
+
+                    vendor_fix_statuses_by_vp
+                        .entry(id)
+                        .or_default()
+                        .push(StatusInfo {
+                            vuln_id: purl_status.vulnerability_id.clone(),
+                            status_slug: "fixed".to_string(),
+                            remediations: vec![remediation],
+                            advisory_date: advisory.modified.or(advisory.published),
+                            advisory_id: Some(advisory.identifier.clone()),
+                        });
+                }
+            }
+        }
+
+        Ok(AdvisoryCandidateMetadata {
+            synthesized_vp_ids: synthesized_ids,
+            vendor_fix_statuses_by_vp,
+        })
     }
 
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
@@ -1128,7 +1232,7 @@ impl PurlService {
             .filter(base_purl::Column::Id.is_in(base_purl_ids_vec))
             .all(connection)
             .await?;
-        let (versioned_by_base, advisory_synthesized_vp_ids) =
+        let (versioned_by_base, advisory_synthesized_vp_ids, vendor_fix_statuses_by_vp) =
             Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         // Pattern-match each (base, version) to find the highest vendor patch.
@@ -1215,18 +1319,22 @@ impl PurlService {
                 connection,
             )
             .await?;
-            if let Some(infos) = per_winner.into_values().next() {
-                statuses_by_vp.insert(winner.winner_vp_id, infos);
-            } else if advisory_synthesized_vp_ids.contains(&winner.winner_vp_id) {
-                let infos = Self::fetch_vulnerability_statuses_by_version(
+            let mut infos = per_winner.into_values().next().unwrap_or_default();
+            if infos.is_empty() && advisory_synthesized_vp_ids.contains(&winner.winner_vp_id) {
+                infos = Self::fetch_vulnerability_statuses_by_version(
                     winner.base_purl_id,
                     &winner.winner_version,
                     connection,
                 )
                 .await?;
-                if !infos.is_empty() {
-                    statuses_by_vp.insert(winner.winner_vp_id, infos);
-                }
+            }
+            // VendorFix records their fixed version at an exclusive range boundary, so ordinary
+            // version matching does not return the status for this candidate.
+            if let Some(vendor_fix_statuses) = vendor_fix_statuses_by_vp.get(&winner.winner_vp_id) {
+                infos.extend(vendor_fix_statuses.iter().cloned());
+            }
+            if !infos.is_empty() {
+                statuses_by_vp.insert(winner.winner_vp_id, infos);
             }
         }
 
