@@ -432,6 +432,7 @@ impl CorrelationService {
                     .and_then(|advisory_id| scores.remove(&(advisory_id, vuln_id.to_string())))
                     .unwrap_or_default(),
                 status: decision.status,
+                winning_advisory_id: decision.winning_advisory,
                 resolution: decision.summary,
                 matches: items.into_iter().map(|(_, m)| m).collect(),
             });

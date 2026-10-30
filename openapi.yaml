@@ -9935,6 +9935,12 @@ components:
             type:
             - string
             - 'null'
+          winning_advisory_id:
+            type:
+            - string
+            - 'null'
+            format: uuid
+            description: The advisory whose evidence won the resolver decision.
       description: Resolved verdict for a single vulnerability from an ad-hoc identifier query.
     RangeBound:
       type: object

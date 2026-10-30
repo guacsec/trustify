@@ -718,6 +718,9 @@ pub struct QueryVerdict {
     pub vulnerability_id: String,
     pub vulnerability_title: Option<String>,
     pub status: VerdictStatus,
+    /// The advisory whose evidence won the resolver decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub winning_advisory_id: Option<Uuid>,
     #[serde(flatten, default)]
     pub resolution: ResolutionSummary,
     /// The CVSS scores the deciding advisory states for the vulnerability, ordered as
