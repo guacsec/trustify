@@ -180,6 +180,7 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 score: 5.5,
                 severity: ScoreSeverity::Medium,
             }],
+            winning_advisory_id: Some(advisory_id),
             matches: vec![QueryMatch {
                 remediations: vec![],
                 kind: IdentifierKind::Digest,
@@ -256,6 +257,7 @@ async fn query_wildcard_model_number(ctx: &TrustifyContext) -> anyhow::Result<()
                     score: 8.8,
                     severity: ScoreSeverity::High,
                 }],
+                winning_advisory_id: Some(advisory_id),
                 matches: vec![QueryMatch {
                     remediations: vec![],
                     kind: IdentifierKind::ModelNumber,
@@ -860,6 +862,70 @@ async fn provider_aliases_and_context_preview(ctx: &TrustifyContext) -> anyhow::
         .all(&tx)
         .await?;
     assert_eq!(evidence_after, rows);
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn query_identifier_exposes_winning_advisory_id(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use super::resolution::store;
+    use crate::model::ResolutionRequest;
+
+    let tx = ctx.db.begin().await?;
+    for provider in ["A", "B"] {
+        store::save_alias(
+            None,
+            crate::model::ProviderAliasData {
+                provider: provider.into(),
+                aliases: vec![crate::model::ProviderAliasIdentifier::Name(format!(
+                    "Provider {provider}"
+                ))],
+            },
+            &tx,
+        )
+        .await?;
+    }
+    tx.commit().await?;
+
+    let provider_a = ctx
+        .ingest_document("scenarios/S29_provider_weighting/cve/providers.json")
+        .await?;
+    let provider_b = ctx
+        .ingest_document("scenarios/S29_provider_weighting/osv/generic.json")
+        .await?;
+    let sbom = ctx
+        .ingest_document("scenarios/S29_provider_weighting/sbom/providers.cdx.json")
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+
+    let service = CorrelationService::default();
+    let tx = ctx.db.begin().await?;
+    let query = service
+        .query_identifier_with(
+            IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: "pkg:generic/demo-weighting@1.0.0".into(),
+            },
+            &ResolutionRequest {
+                include_explanation: true,
+                component_provider: Some("B".into()),
+                ..Default::default()
+            },
+            &tx,
+        )
+        .await?;
+    let actual = serde_json::to_value(query)?;
+
+    assert_eq!(actual["verdicts"][0]["status"], "not_affected");
+    assert_eq!(
+        actual["verdicts"][0]["winning_advisory_id"],
+        serde_json::Value::String(provider_a.id.clone())
+    );
+    assert_ne!(provider_a.id, provider_b.id);
+
     Ok(())
 }
 
