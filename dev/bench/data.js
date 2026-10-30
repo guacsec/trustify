@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793297252523,
+  "lastUpdate": 1793379422587,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24324,6 +24324,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "211e9330a692f43c5295d48d64d1d5b909b13c8c",
+          "message": "chore: removing unused dependencies",
+          "timestamp": "2026-10-30T15:20:15Z",
+          "tree_id": "c32ea1182fb3d7ffe6ab0c9833e51f02476df6e5",
+          "url": "https://github.com/guacsec/trustify/commit/211e9330a692f43c5295d48d64d1d5b909b13c8c"
+        },
+        "date": 1793379419951,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
