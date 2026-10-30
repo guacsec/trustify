@@ -42,9 +42,11 @@ CREATE TABLE correlation_verdict (
 CREATE INDEX correlation_verdict_status ON correlation_verdict(status, sbom_id);
 CREATE INDEX correlation_verdict_vulnerability ON correlation_verdict(vulnerability_id, status, sbom_id);
 
-CREATE FUNCTION correlation_verdict_dirty(id uuid) RETURNS void LANGUAGE sql AS $$
+-- Marks each SBOM dirty once per call. Sorted ids keep the lock order stable across
+-- concurrent writers.
+CREATE FUNCTION correlation_verdict_dirty(ids uuid[]) RETURNS void LANGUAGE sql AS $$
     INSERT INTO correlation_verdict_state(sbom_id)
-        SELECT sbom_id FROM sbom WHERE sbom_id = id
+        SELECT sbom_id FROM sbom WHERE sbom_id = ANY(ids) ORDER BY sbom_id
     ON CONFLICT(sbom_id) DO UPDATE SET
         input_revision = correlation_verdict_state.input_revision + 1,
         queued_at = CASE WHEN correlation_verdict_state.input_revision = correlation_verdict_state.completed_input_revision
@@ -52,14 +54,32 @@ CREATE FUNCTION correlation_verdict_dirty(id uuid) RETURNS void LANGUAGE sql AS 
         attempts = 0, retry_at = clock_timestamp();
 $$;
 
-CREATE FUNCTION correlation_verdict_evidence_changed() RETURNS trigger LANGUAGE plpgsql AS $$
+-- Statement level: a per-row trigger would update the same state row once per inserted row,
+-- which makes ingesting a large SBOM super-linear. PostgreSQL only allows transition tables
+-- on single-event triggers, so each table gets one trigger per operation.
+CREATE FUNCTION correlation_verdict_rows_changed() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    IF TG_OP <> 'INSERT' THEN PERFORM correlation_verdict_dirty(OLD.sbom_id); END IF;
-    IF TG_OP <> 'DELETE' THEN PERFORM correlation_verdict_dirty(NEW.sbom_id); END IF;
+    IF TG_OP = 'INSERT' THEN
+        PERFORM correlation_verdict_dirty(ARRAY(SELECT sbom_id FROM new_rows));
+    ELSIF TG_OP = 'DELETE' THEN
+        PERFORM correlation_verdict_dirty(ARRAY(SELECT sbom_id FROM old_rows));
+    ELSE
+        PERFORM correlation_verdict_dirty(ARRAY(
+            SELECT sbom_id FROM old_rows UNION SELECT sbom_id FROM new_rows));
+    END IF;
     RETURN NULL;
 END $$;
-CREATE TRIGGER correlation_verdict_evidence_changed AFTER INSERT OR UPDATE OR DELETE ON correlation_evidence
-    FOR EACH ROW EXECUTE FUNCTION correlation_verdict_evidence_changed();
+
+-- Creates the insert, update and delete statement triggers `<name>_ins|_upd|_del` on a table.
+CREATE FUNCTION correlation_verdict_create_triggers(tbl text, name text, func text) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    EXECUTE format('CREATE TRIGGER %I AFTER INSERT ON %I REFERENCING NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION %I()', name || '_ins', tbl, func);
+    EXECUTE format('CREATE TRIGGER %I AFTER UPDATE ON %I REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION %I()', name || '_upd', tbl, func);
+    EXECUTE format('CREATE TRIGGER %I AFTER DELETE ON %I REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION %I()', name || '_del', tbl, func);
+END $$;
+
+SELECT correlation_verdict_create_triggers('correlation_evidence', 'correlation_verdict_evidence_changed', 'correlation_verdict_rows_changed');
 
 CREATE FUNCTION correlation_verdict_global_changed() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -88,27 +108,28 @@ CREATE TRIGGER correlation_verdict_global_changed AFTER UPDATE ON sbom_node
     FOR EACH STATEMENT EXECUTE FUNCTION correlation_verdict_global_changed();
 CREATE FUNCTION correlation_verdict_context_changed() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    IF TG_OP <> 'INSERT' THEN
-        PERFORM correlation_verdict_dirty(sbom_id) FROM correlation_evidence WHERE id = OLD.evidence_id;
-    END IF;
-    IF TG_OP <> 'DELETE' THEN
-        PERFORM correlation_verdict_dirty(sbom_id) FROM correlation_evidence WHERE id = NEW.evidence_id;
+    IF TG_OP = 'INSERT' THEN
+        PERFORM correlation_verdict_dirty(ARRAY(SELECT e.sbom_id FROM new_rows n
+            JOIN correlation_evidence e ON e.id = n.evidence_id));
+    ELSIF TG_OP = 'DELETE' THEN
+        PERFORM correlation_verdict_dirty(ARRAY(SELECT e.sbom_id FROM old_rows o
+            JOIN correlation_evidence e ON e.id = o.evidence_id));
+    ELSE
+        PERFORM correlation_verdict_dirty(ARRAY(SELECT e.sbom_id FROM correlation_evidence e
+            WHERE e.id IN (SELECT evidence_id FROM old_rows UNION SELECT evidence_id FROM new_rows)));
     END IF;
     RETURN NULL;
 END $$;
-CREATE TRIGGER correlation_verdict_context_changed AFTER INSERT OR UPDATE OR DELETE ON correlation_evidence_context
-    FOR EACH ROW EXECUTE FUNCTION correlation_verdict_context_changed();
+SELECT correlation_verdict_create_triggers('correlation_evidence_context', 'correlation_verdict_context_changed', 'correlation_verdict_context_changed');
 
 -- Identifier and package graph changes also affect provider resolution and displayed details.
-DO $$ DECLARE t text; BEGIN
-    FOREACH t IN ARRAY ARRAY['sbom_node_purl_ref', 'sbom_node_cpe_ref', 'sbom_node_product_identifier', 'package_relates_to_package'] LOOP
-        EXECUTE format('CREATE TRIGGER correlation_verdict_local_changed AFTER INSERT OR UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION correlation_verdict_evidence_changed()', t);
-    END LOOP;
-END $$;
+SELECT correlation_verdict_create_triggers(t, 'correlation_verdict_local_changed', 'correlation_verdict_rows_changed')
+    FROM unnest(ARRAY['sbom_node_purl_ref', 'sbom_node_cpe_ref', 'sbom_node_product_identifier', 'package_relates_to_package']) t;
+DROP FUNCTION correlation_verdict_create_triggers(text, text, text);
 
 CREATE FUNCTION correlation_verdict_sbom_added() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    PERFORM correlation_verdict_dirty(NEW.sbom_id);
+    PERFORM correlation_verdict_dirty(ARRAY[NEW.sbom_id]);
     RETURN NEW;
 END $$;
 CREATE TRIGGER correlation_verdict_sbom_added AFTER INSERT ON sbom
