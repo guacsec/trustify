@@ -11173,7 +11173,7 @@ components:
           minimum: 0
     VerdictStatus:
       type: string
-      description: Resolved verdict status.
+      description: Resolved verdict status. It displays as its stable serialized name.
       enum:
       - affected
       - fixed
