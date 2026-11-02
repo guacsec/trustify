@@ -23,7 +23,7 @@ use crate::{
 };
 use sea_orm::{
     ActiveEnum, ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait,
-    FromQueryResult, LoaderTrait, QueryFilter, Statement, TryIntoModel,
+    FromQueryResult, QueryFilter, Statement, TryIntoModel,
 };
 use serde_json::json;
 use std::{
@@ -207,21 +207,18 @@ impl Extractor for CpeExtractor {
         nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
+        // joined instead of `load_one`, which binds one parameter per ref and exceeds the
+        // parameter limit for large SBOMs
         let cpe_refs = sbom_node_cpe_ref::Entity::find()
             .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
             .for_nodes(nodes)
+            .find_also_related(cpe::Entity)
             .all(tx)
             .instrument(info_span!("loading cpe refs"))
             .await?;
 
-        let cpes = cpe_refs
-            .load_one(cpe::Entity, tx)
-            .instrument(info_span!("loading cpes"))
-            .await?;
-
         Ok(cpe_refs
             .into_iter()
-            .zip(cpes)
             .filter_map(|(cpe_ref, cpe)| {
                 Some(NodeIdentifier {
                     identifier: IdentifierRef {
@@ -530,7 +527,7 @@ mod test {
         extractor::Extractors,
         model::{MatchedRange, RangeBound},
     };
-    use sea_orm::{QueryOrder, TransactionTrait};
+    use sea_orm::{LoaderTrait, QueryOrder, TransactionTrait};
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::advisory_vulnerability_cpe;
