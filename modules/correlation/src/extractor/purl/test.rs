@@ -6,10 +6,14 @@ use crate::{
         StreamRelation,
     },
 };
-use sea_orm::{LoaderTrait, QueryOrder, TransactionTrait};
+use sea_orm::{
+    LoaderTrait, QueryOrder, TransactionTrait,
+    sea_query::{PostgresQueryBuilder, Query},
+};
 use serde_json::json;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::rpm::{Evr, stream_major};
 use trustify_entity::{
     correlation_evidence, correlation_evidence_context,
     correlation_evidence_context::ContextSource,
@@ -1618,5 +1622,207 @@ async fn confidence_factors(ctx: &TrustifyContext) -> anyhow::Result<()> {
         )]
     );
 
+    Ok(())
+}
+
+/// Batches of any size match like a single batch: each target's rows stay together, including
+/// identifiers sharing a versioned PURL with different qualifiers.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn batches_match_like_a_single_batch(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom_id = Uuid::parse_str(&ctx.ingest_document(S5_SBOM).await?.id)?;
+    ctx.ingest_document(S5_VEX).await?;
+    let tx = ctx.db.begin().await?;
+    let mut identifiers = PurlExtractor
+        .sbom_identifiers(sbom_id, None, &tx)
+        .await?
+        .into_iter()
+        .map(|node| node.identifier)
+        .collect::<Vec<_>>();
+    identifiers.extend([
+        IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1".into(),
+        },
+        IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=aarch64&epoch=1".into(),
+        },
+    ]);
+    let sorted = |mut matches: Vec<IdentifierMatch>| {
+        matches.sort_by_cached_key(|m| format!("{m:?}"));
+        matches
+    };
+    let single = sorted(match_batched(&identifiers, usize::MAX, &tx).await?);
+    assert!(single.iter().any(|m| m.index == identifiers.len() - 1));
+    for batch_size in [1, 2] {
+        assert_eq!(
+            sorted(match_batched(&identifiers, batch_size, &tx).await?),
+            single,
+            "batch size {batch_size}"
+        );
+    }
+    assert_eq!(
+        match_batched(&[], 1, &tx).await?,
+        Vec::<IdentifierMatch>::new()
+    );
+    Ok(())
+}
+
+/// RPM versions for comparing the SQL stream functions with the Rust ones.
+const RPM_VERSIONS: &[&str] = &[
+    "1:1.1.1k-9.el8_6",
+    "1.1.1k-9.el8_6",
+    "1.1.1k-7.el8",
+    "1.1.1k",
+    "1.0-1.module+el8.4.0+123+abc",
+    "2.4-1.fc39",
+    "2.4-1.fc39.1",
+    "1.0-2.amzn2",
+    "1.0-rc1-2.el9",
+    "x:1.0-1",
+    "+1:1.0-1.el9",
+    "99999999999:1.0-1.el9",
+    "5.14.0-427.13.1.el9_4",
+    "3.0.7-1.el9",
+    "3.1.4-150600.5.39.1",
+    "1.0-lp155.2.1",
+    "1.0-a.b1.el7",
+    "1.0-1",
+    "1.0",
+    "-",
+    "",
+];
+
+/// The SQL stream functions agree with the Rust ones, so the SQL pre-filter of other streams
+/// never drops a range which [`Ecosystem::stream_match`] keeps.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn sql_streams_agree_with_rust(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let tx = ctx.db.begin().await?;
+    let query = |select: &mut SelectStatement| {
+        let (sql, values) = select.build(PostgresQueryBuilder);
+        Statement::from_sql_and_values(DbBackend::Postgres, sql, values)
+    };
+    for version in RPM_VERSIONS {
+        let row = tx
+            .query_one_raw(query(
+                Query::select()
+                    .expr(Func::cust("rpm_stream").arg(*version))
+                    .expr(Func::cust("rpm_stream_major").arg(SimpleExpr::FunctionCall(
+                        Func::cust("rpm_stream").arg(*version),
+                    ))),
+            ))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no row"))?;
+        let stream = Evr::parse(version).stream();
+        assert_eq!(
+            (
+                row.try_get_by_index::<Option<String>>(0)?,
+                row.try_get_by_index::<Option<String>>(1)?
+            ),
+            (
+                stream.map(str::to_string),
+                stream.map(|stream| stream_major(stream).to_string())
+            ),
+            "{version}"
+        );
+    }
+    for sbom in RPM_VERSIONS {
+        for range in RPM_VERSIONS {
+            let row = tx
+                .query_one_raw(query(Query::select().expr(ecosystem::rpm::other_stream(
+                    Expr::val(*sbom),
+                    Expr::val(*range),
+                ))))
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("no row"))?;
+            assert_eq!(
+                row.try_get_by_index::<bool>(0)?,
+                ecosystem::rpm::stream_match(sbom, Some(range)).is_none(),
+                "{sbom} / {range}"
+            );
+        }
+    }
+    for (ty, namespace) in [
+        ("rpm", Some("redhat")),
+        ("rpm", None),
+        ("rpm", Some("suse")),
+        ("deb", Some("debian")),
+        ("npm", None),
+    ] {
+        let row = tx
+            .query_one_raw(query(
+                Query::select().expr(Ecosystem::is_rpm(Expr::val(ty), Expr::val(namespace))),
+            ))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no row"))?;
+        assert_eq!(
+            row.try_get_by_index::<bool>(0)?,
+            Ecosystem::of(ty, namespace) == Ecosystem::Rpm,
+            "{ty} {namespace:?}"
+        );
+    }
+    Ok(())
+}
+
+/// Grouping the advisory's rows per node while reading them gives the same matches as grouping
+/// all rows at once, also with several SBOMs sharing versions and node IDs.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn advisory_rows_group_per_node(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    for sbom in [
+        S5_SBOM,
+        "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_below-fix.spdx.json",
+        "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_at-fix.cdx.json",
+        "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_at-fix.spdx.json",
+    ] {
+        ctx.ingest_document(sbom).await?;
+    }
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document(S5_VEX).await?.id)?;
+    let tx = ctx.db.begin().await?;
+    let rules = rules(&tx).await?;
+    let sources = sources(&rules).collect::<Vec<_>>();
+
+    let (sql, values) = purl_status_matches(&Scope::Advisory(advisory_id), &sources)
+        .ok_or_else(|| anyhow::anyhow!("no statement"))?
+        .build(PostgresQueryBuilder);
+    let rows = AdvisoryPurlMatch::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        values,
+    ))
+    .all(&tx)
+    .await?
+    .into_iter()
+    .map(|row| {
+        let node = NodeRef {
+            sbom_id: row.sbom_id,
+            node_id: row.node_id,
+        };
+        Ok((node, source_of(&sources, row.source)?, row.status))
+    })
+    .collect::<Result<Vec<_>, Error>>()?;
+    let sorted = |mut matches: Vec<NodeMatch>| {
+        matches.sort_by_cached_key(|m| format!("{m:?}"));
+        matches
+    };
+    let at_once = sorted(
+        group(rows)
+            .map(|(node, assertion)| NodeMatch { node, assertion })
+            .collect(),
+    );
+    assert!(
+        at_once
+            .iter()
+            .map(|m| m.node.sbom_id)
+            .collect::<BTreeSet<_>>()
+            .len()
+            > 1
+    );
+    assert_eq!(
+        sorted(load_advisory_purl_matches(advisory_id, &sources, &tx).await?),
+        at_once
+    );
     Ok(())
 }

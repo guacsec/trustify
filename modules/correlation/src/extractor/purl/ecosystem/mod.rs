@@ -9,6 +9,7 @@ pub(crate) mod rpm;
 
 use super::{CONFIDENCE, PLAIN, STREAM};
 use crate::model::{ConfidenceFactor, ConfidenceReason, StreamRelation};
+use sea_orm::sea_query::{Expr, ExprTrait, SimpleExpr};
 use std::collections::BTreeMap;
 
 /// PURL namespace of SUSE packages, scoped by their codestream.
@@ -33,6 +34,15 @@ impl Ecosystem {
             ("rpm", _) => Self::Rpm,
             _ => Self::Other,
         }
+    }
+
+    /// SQL condition: the PURL type and namespace expressions are of [`Self::Rpm`], as decided by
+    /// [`Self::of`].
+    pub fn is_rpm(ty: SimpleExpr, namespace: SimpleExpr) -> SimpleExpr {
+        Expr::expr(ty).eq("rpm").and(Expr::cust_with_exprs(
+            "$1 IS DISTINCT FROM $2",
+            [namespace, Expr::val(SUSE)],
+        ))
     }
 
     /// If the qualifiers of an SBOM package are compatible with the ones stated by an advisory.
