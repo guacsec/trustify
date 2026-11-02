@@ -404,6 +404,47 @@ mod test {
     }
 
     #[test(tokio::test)]
+    async fn detect_osv_lightwell() -> anyhow::Result<()> {
+        let mut source: serde_json::Value =
+            serde_json::from_slice(&document_bytes("osv/RHLW-2026-02416b185203289c.json").await?)?;
+        let pypi: serde_json::Value =
+            serde_json::from_slice(&document_bytes("osv/RHLW-2026-821eaab8409c2a61.json").await?)?;
+        let affected = source["affected"].as_array_mut().unwrap();
+        affected.push(pypi["affected"][0].clone());
+        let mut ordinary = pypi["affected"][0].clone();
+        ordinary["package"]["ecosystem"] = "PyPI".into();
+        affected.push(ordinary);
+
+        // A single document can contain both Lightwell and ordinary packages. Neither
+        // detection nor serialization should replace the original ecosystem values.
+        for (wire, bytes) in [
+            (WireFormat::Json, serde_json::to_vec(&source)?),
+            (
+                WireFormat::Yaml,
+                serde_saphyr::to_string(&source)?.into_bytes(),
+            ),
+        ] {
+            for hint in [Format::Unknown, Format::Advisory, Format::OSV] {
+                let detector = DocumentDetector::detect_as(&bytes, hint)?;
+                assert_eq!(detector.format(), Format::OSV);
+                assert_eq!(detector.wire_format(), wire);
+                let DetectedDocument::Osv(osv) = detector.into_document() else {
+                    panic!("expected an OSV document");
+                };
+                let parsed = serde_json::to_value(osv)?;
+                assert_eq!(parsed["affected"].as_array().unwrap().len(), 3);
+                for index in 0..3 {
+                    assert_eq!(
+                        parsed["affected"][index]["package"],
+                        source["affected"][index]["package"]
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test(tokio::test)]
     async fn detect_osv_yaml() -> Result<(), anyhow::Error> {
         let bytes = document_bytes("osv/RSEC-2023-6.yaml").await?;
         let detector = DocumentDetector::detect(&bytes)?;

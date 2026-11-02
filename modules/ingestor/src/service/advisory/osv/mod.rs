@@ -1,3 +1,4 @@
+mod ecosystem;
 mod prefix;
 
 pub mod loader;
