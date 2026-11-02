@@ -1,4 +1,5 @@
-//! Durable ingestion backlog. Notifications only wake the worker; PostgreSQL owns the work.
+//! Durable advisory ingestion backlog. Notifications only wake the worker; PostgreSQL owns
+//! the work. SBOMs are extracted by the automatically scheduled refresh jobs instead.
 use crate::{error::Error, extractor::Extractors, model::ExtractionLag, service::freshness};
 use sea_orm::{
     ConnectionTrait, DatabaseTransaction, DbBackend, FromQueryResult, Statement, TransactionTrait,
@@ -10,7 +11,6 @@ use uuid::Uuid;
 #[derive(FromQueryResult)]
 struct Lag {
     pending_advisories: i64,
-    pending_sboms: i64,
     failed: i64,
     oldest_pending_at: Option<OffsetDateTime>,
 }
@@ -19,8 +19,7 @@ pub async fn lag(tx: &DatabaseTransaction) -> Result<ExtractionLag, Error> {
     let row = tx
         .query_one_raw(Statement::from_string(
             DbBackend::Postgres,
-            "SELECT count(*) FILTER (WHERE entity_type = 'advisory') pending_advisories, \
-             count(*) FILTER (WHERE entity_type = 'sbom') pending_sboms, \
+            "SELECT count(*) pending_advisories, \
              count(*) FILTER (WHERE attempts > 0) failed, min(queued_at) oldest_pending_at \
              FROM correlation_extraction_queue",
         ))
@@ -29,7 +28,6 @@ pub async fn lag(tx: &DatabaseTransaction) -> Result<ExtractionLag, Error> {
     let row = Lag::from_query_result(&row, "")?;
     Ok(ExtractionLag {
         pending_advisories: row.pending_advisories as u64,
-        pending_sboms: row.pending_sboms as u64,
         failed: row.failed as u64,
         oldest_pending_at: row.oldest_pending_at,
     })
@@ -91,17 +89,15 @@ async fn extract(
     entity_type: &str,
     entity_id: Uuid,
 ) -> Result<(), Error> {
-    // A document deleted before processing has no remaining extraction work.
+    if entity_type != "advisory" {
+        return Err(Error::BadRequest("Unknown extraction entity type".into()));
+    }
+    // An advisory deleted before processing has no remaining extraction work.
     // Lock its parent while extracting, matching the evidence writers' lock order.
-    let query = match entity_type {
-        "sbom" => "SELECT sbom_id FROM sbom WHERE sbom_id = $1 FOR KEY SHARE",
-        "advisory" => "SELECT id FROM advisory WHERE id = $1 FOR KEY SHARE",
-        _ => return Err(Error::BadRequest("Unknown extraction entity type".into())),
-    };
     if tx
         .query_one_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,
-            query,
+            "SELECT id FROM advisory WHERE id = $1 FOR KEY SHARE",
             vec![entity_id.into()],
         ))
         .await?
@@ -109,13 +105,7 @@ async fn extract(
     {
         return Ok(());
     }
-    match entity_type {
-        "sbom" => freshness::refresh_sbom(extractors, entity_id, tx).await?,
-        "advisory" => {
-            extractors.extract_for_advisory(entity_id, tx).await?;
-        }
-        _ => unreachable!(),
-    }
+    extractors.extract_for_advisory(entity_id, tx).await?;
     Ok(())
 }
 

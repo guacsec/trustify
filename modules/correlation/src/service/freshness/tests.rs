@@ -1,7 +1,10 @@
 use super::*;
+use crate::extractor::{Extractor, NodeIdentifier};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use std::{sync::Arc, time::Duration as StdDuration};
 use test_context::test_context;
 use test_log::test;
+use tokio::{sync::Barrier, time::timeout};
 use trustify_entity::{correlation_evidence, sbom};
 use trustify_test_context::TrustifyContext;
 
@@ -126,7 +129,7 @@ async fn durable_jobs_are_deduplicated_and_resumable(ctx: &TrustifyContext) -> a
     assert_eq!(queued.id, queue(ctx).await?.id);
     let db = db::ReadWrite::new(ctx.db.clone());
     assert!(run_step(&db, &Extractors::default()).await?);
-    // A new registry/worker instance resumes from the committed job cursor.
+    // A new registry/worker instance resumes from the committed job outcomes.
     assert!(!run_step(&db, &Extractors::default()).await?);
     let tx = ctx.db.begin().await?;
     let details = job(&tx, queued.id, Paginated::default()).await?;
@@ -138,6 +141,169 @@ async fn durable_jobs_are_deduplicated_and_resumable(ctx: &TrustifyContext) -> a
     );
     tx.rollback().await?;
     assert_eq!(counts(ctx).await?.needs_refresh, 0);
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn ingested_sboms_are_refreshed_by_an_automatic_job(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let db = db::ReadWrite::new(ctx.db.clone());
+    // Nothing to do: no job is scheduled.
+    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert_eq!(counts(ctx).await?.latest_job, None);
+    let id = ingest(ctx).await?;
+    // Ingestion does not use the advisory queue for SBOMs.
+    let lag = counts(ctx).await?.extraction_lag.unwrap_or_default();
+    assert_eq!(lag, ExtractionLag::default());
+    assert!(run_step(&db, &Extractors::default()).await?);
+    let scheduled = counts(ctx).await?;
+    let active = scheduled.active_job.unwrap();
+    assert_eq!(
+        (
+            active.status,
+            active.remaining,
+            active.estimated_completion_at
+        ),
+        (RefreshJobStatus::Queued, 1, None)
+    );
+    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default()).await?);
+    let done = counts(ctx).await?;
+    assert_eq!(done.active_job, None);
+    let latest = done.latest_job.unwrap();
+    assert_eq!(
+        (
+            latest.id,
+            latest.status,
+            latest.processed,
+            latest.remaining,
+            latest.estimated_completion_at
+        ),
+        (active.id, RefreshJobStatus::Completed, 1, 0, None)
+    );
+    let tx = ctx.db.begin().await?;
+    assert_eq!(
+        for_sboms(&tx, &[id]).await?[&id].status,
+        FreshnessStatus::Current
+    );
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn documents_ingested_during_a_job_are_processed_by_it(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let first = ingest(ctx).await?;
+    let tx = ctx.db.begin().await?;
+    refresh_sbom(&Extractors::default(), first, &tx).await?;
+    tx.commit().await?;
+    option_change(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default()).await?);
+    let queued = counts(ctx).await?.active_job.unwrap();
+    // The stale document is behind, but a new document is picked up first.
+    let second = Uuid::parse_str(
+        &ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
+            .await?
+            .id,
+    )?;
+    assert!(run_step(&db, &Extractors::default()).await?);
+    let tx = ctx.db.begin().await?;
+    assert_eq!(
+        for_sboms(&tx, &[second]).await?[&second].status,
+        FreshnessStatus::Current
+    );
+    assert_eq!(
+        for_sboms(&tx, &[first]).await?[&first].status,
+        FreshnessStatus::Stale
+    );
+    tx.rollback().await?;
+    let running = counts(ctx).await?.active_job.unwrap();
+    assert_eq!(
+        (
+            running.id,
+            running.status,
+            running.processed,
+            running.remaining
+        ),
+        (queued.id, RefreshJobStatus::Running, 1, 1)
+    );
+    assert!(running.estimated_completion_at.is_some());
+    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default()).await?);
+    let state = counts(ctx).await?;
+    assert_eq!((state.current, state.needs_refresh), (2, 0));
+    assert_eq!(state.latest_job.map(|job| job.id), Some(queued.id));
+    Ok(())
+}
+
+struct PausedExtractor(Arc<Barrier>);
+
+#[async_trait::async_trait]
+impl Extractor for PausedExtractor {
+    fn id(&self) -> &'static str {
+        "paused"
+    }
+    async fn sbom_identifiers(
+        &self,
+        _: Uuid,
+        _: Option<&[&str]>,
+        _: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
+        self.0.wait().await;
+        self.0.wait().await;
+        Ok(vec![])
+    }
+}
+
+/// While a long document is extracted, the job reports it as running with that document,
+/// although the job's own updates commit only with the document.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn the_current_document_is_visible_while_extracting(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let id = ingest(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default()).await?);
+    let queued = counts(ctx).await?.active_job.unwrap();
+    assert_eq!(
+        (queued.status, queued.current),
+        (RefreshJobStatus::Queued, None)
+    );
+
+    let barrier = Arc::new(Barrier::new(2));
+    let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
+    let worker = {
+        let db = db.clone();
+        tokio::spawn(async move { run_step(&db, &extractors).await })
+    };
+    timeout(StdDuration::from_secs(10), barrier.wait()).await?;
+    let running = counts(ctx).await?.active_job.unwrap();
+    let current = running.current.clone().unwrap();
+    assert_eq!(
+        (
+            running.id,
+            running.status,
+            running.processed,
+            current.sbom_id
+        ),
+        (queued.id, RefreshJobStatus::Running, 0, id)
+    );
+    // The current document does not block other workers from skipping the claimed job.
+    assert!(!run_step(&db, &Extractors::default()).await?);
+    barrier.wait().await;
+    assert!(worker.await??);
+
+    let done = counts(ctx).await?.active_job.unwrap();
+    assert_eq!(
+        (done.status, done.processed, done.current),
+        (RefreshJobStatus::Running, 1, None)
+    );
+    assert!(!run_step(&db, &Extractors::default()).await?);
     Ok(())
 }
 
@@ -187,19 +353,30 @@ async fn changed_settings_supersede_a_job(ctx: &TrustifyContext) -> anyhow::Resu
     let queued = queue(ctx).await?;
     option_change(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default()).await?);
     let tx = ctx.db.begin().await?;
     let details = job(&tx, queued.id, Paginated::default()).await?;
     assert_eq!(details.job.status, RefreshJobStatus::Superseded);
-    assert_eq!(details.job.processed, 0);
+    assert_eq!(
+        (
+            details.job.processed,
+            details.job.remaining,
+            details.job.estimated_completion_at
+        ),
+        (0, 0, None)
+    );
     tx.rollback().await?;
-    assert_ne!(queue(ctx).await?.id, queued.id);
+    // A follow-up job for the new settings is scheduled automatically.
+    assert!(run_step(&db, &Extractors::default()).await?);
+    let next = counts(ctx).await?.active_job.unwrap();
+    assert_ne!(next.id, queued.id);
+    assert_eq!(next.revision, queued.revision + 1);
     Ok(())
 }
 
 struct FailingExtractor;
 #[async_trait::async_trait]
-impl crate::extractor::Extractor for FailingExtractor {
+impl Extractor for FailingExtractor {
     fn id(&self) -> &'static str {
         "test_failure"
     }
@@ -208,7 +385,7 @@ impl crate::extractor::Extractor for FailingExtractor {
         _: Uuid,
         _: Option<&[&str]>,
         _: &DatabaseTransaction,
-    ) -> Result<Vec<crate::extractor::NodeIdentifier>, Error> {
+    ) -> Result<Vec<NodeIdentifier>, Error> {
         Err(Error::BadRequest("deliberate extraction failure".into()))
     }
 }
@@ -242,6 +419,12 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
     let failing = Extractors::new(vec![Box::new(FailingExtractor)]);
     assert!(run_step(&db, &failing).await?);
     assert!(!run_step(&db, &failing).await?);
+    // Failed documents are retried automatically, but only after a back-off.
+    assert!(!run_step(&db, &failing).await?);
+    assert_eq!(
+        counts(ctx).await?.latest_job.map(|job| job.id),
+        Some(queued.id)
+    );
     assert!(
         correlation_evidence::Entity::find_by_id(evidence.id)
             .one(&ctx.db)
@@ -263,7 +446,16 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
         FreshnessStatus::Unknown
     );
     tx.rollback().await?;
-    assert_ne!(queue(ctx).await?.id, queued.id);
+    ctx.db
+        .execute_unprepared(
+            "UPDATE correlation_refresh_job SET finished_at = finished_at - interval '1 minute'",
+        )
+        .await?;
+    assert!(run_step(&db, &Extractors::default()).await?);
+    assert_ne!(
+        counts(ctx).await?.active_job.map(|job| job.id),
+        Some(queued.id)
+    );
     assert!(run_step(&db, &Extractors::default()).await?);
     assert!(!run_step(&db, &Extractors::default()).await?);
     assert!(
@@ -628,11 +820,7 @@ async fn overview_uses_counters_and_discovery_can_use_the_completion_index(
     let row = tx
         .query_one_raw(sql(
             &format!("EXPLAIN (FORMAT JSON) {NEXT_DOCUMENT_SQL}"),
-            vec![
-                1_i64.into(),
-                Option::<Uuid>::None.into(),
-                Option::<i64>::None.into(),
-            ],
+            vec![1_i64.into(), Uuid::nil().into()],
         ))
         .await?
         .unwrap();
@@ -642,4 +830,36 @@ async fn overview_uses_counters_and_discovery_can_use_the_completion_index(
             .contains("correlation_extraction_state_revision")
     );
     Ok(())
+}
+
+fn refresh_job(processed: u64, failed: u64, created_at: OffsetDateTime) -> RefreshJob {
+    RefreshJob {
+        id: Uuid::nil(),
+        revision: 1,
+        status: RefreshJobStatus::Running,
+        processed,
+        failed,
+        remaining: 0,
+        estimated_completion_at: None,
+        created_at,
+        finished_at: None,
+        current: None,
+    }
+}
+
+/// The estimate extrapolates the average rate, excluding documents failed in this job.
+#[test]
+fn estimate_extrapolates_the_average_rate() {
+    let now = OffsetDateTime::UNIX_EPOCH + Duration::days(1);
+    let started = now - Duration::minutes(10);
+    assert_eq!(estimate(&refresh_job(0, 0, started), 5, now), (5, None));
+    assert_eq!(
+        estimate(&refresh_job(4, 1, started), 11, now),
+        (10, Some(now + Duration::minutes(20)))
+    );
+    assert_eq!(
+        estimate(&refresh_job(2, 0, started), 0, now),
+        (0, Some(now))
+    );
+    assert_eq!(estimate(&refresh_job(1, 0, now), 1, now), (1, None));
 }

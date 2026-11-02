@@ -1,7 +1,7 @@
 //! Endpoints managing the options of the correlation engine.
 //!
-//! Matching changes mark existing correlation results outdated. Refresh them through
-//! `/v3/correlation/refresh`; changing an option does not start a refresh automatically.
+//! Matching changes mark existing correlation results outdated. The background worker
+//! schedules a refresh job for them automatically; see `/v3/correlation/freshness`.
 
 use crate::{
     error::Error,

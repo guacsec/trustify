@@ -1,12 +1,20 @@
 use super::*;
-use crate::{extractor::Extractors, model::FreshnessStatus, service::extraction};
+use crate::{
+    extractor::Extractors,
+    model::FreshnessStatus,
+    service::{extraction, freshness},
+};
 use test_context::test_context;
 use trustify_common::model::Paginated;
 use trustify_test_context::TrustifyContext;
 
+/// Drain advisory ingestion work and the automatically scheduled SBOM refresh.
 async fn drain_extraction(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    while extraction::run_step(&db::ReadWrite::new(ctx.db.clone()), &Extractors::default()).await? {
-    }
+    let db = db::ReadWrite::new(ctx.db.clone());
+    let extractors = Extractors::default();
+    while extraction::run_step(&db, &extractors).await?
+        | freshness::run_step(&db, &extractors).await?
+    {}
     Ok(())
 }
 

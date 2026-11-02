@@ -17,7 +17,9 @@ use tokio::fs;
 use trustify_common::{db::ReadWrite, model::BinaryByteSize};
 use trustify_db::embedded;
 use trustify_module_correlation::{
-    extractor::Extractors, model::ExtractionLag, service::extraction,
+    extractor::Extractors,
+    model::ExtractionLag,
+    service::{extraction, freshness},
 };
 use trustify_module_importer::{
     model::{
@@ -194,23 +196,30 @@ impl GenerateDump {
             let start = Instant::now();
             let db_rw = ReadWrite::new(db.clone());
             let extractors = Extractors::default();
+            // Advisories are extracted from the ingestion queue, SBOMs by refresh jobs.
             let mut events = 0u64;
-            while extraction::run_step(&db_rw, &extractors).await? {
+            loop {
+                let advisory = extraction::run_step(&db_rw, &extractors).await?;
+                let sbom = freshness::run_step(&db_rw, &extractors).await?;
+                if !advisory && !sbom {
+                    break;
+                }
                 events += 1;
             }
             let elapsed = start.elapsed();
 
-            // Failed extractions stay queued for retry. Do not export a dump
+            // Failed extractions stay pending for retry. Do not export a dump
             // advertised as correlated while some ingestion work is unfinished.
-            let lag = db_rw
-                .transaction(async |tx| extraction::lag(tx).await)
+            let overview = db_rw
+                .transaction(async |tx| freshness::overview(tx).await)
                 .await?;
+            let lag = overview.extraction_lag.unwrap_or_default();
             anyhow::ensure!(
-                lag == ExtractionLag::default(),
-                "Correlation extraction is incomplete: {} advisory changes and {} SBOM changes pending ({} failed)",
+                lag == ExtractionLag::default() && overview.needs_refresh == 0,
+                "Correlation extraction is incomplete: {} advisory changes ({} failed) and {} SBOMs pending",
                 lag.pending_advisories,
-                lag.pending_sboms,
                 lag.failed,
+                overview.needs_refresh,
             );
             let rate = match elapsed.as_secs_f64() {
                 secs if secs > 0.0 => events as f64 / secs,

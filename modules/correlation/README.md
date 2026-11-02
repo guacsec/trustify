@@ -131,8 +131,13 @@ CPE 2.2 URIs (`cpe:/o:wago:wago_os_linux:4.8.9`) are accepted as well.
 
 ## Freshness and background refresh
 
+SBOMs and advisories are extracted on different paths. Advisory extraction is incremental:
+each ingested advisory is matched against the existing SBOMs through a durable queue. SBOM
+extraction is a full replacement against all advisories. It is handled by refresh jobs,
+for newly ingested SBOMs and for SBOMs outdated by a settings change alike.
+
 The **Background extraction** section of the **Correlation status** page shows pending
-advisory and SBOM ingestion changes, the oldest pending enqueue time, and changes waiting
+advisory ingestion changes, the oldest pending enqueue time, and changes waiting
 for retry. For example, ingesting 2000 advisories queues 2000 changes; the advisory count
 reaches zero only after every extraction has committed, including those with no matches.
 Counts include work currently running and failures. They count ingestion events, so
@@ -144,7 +149,7 @@ locks and acknowledge them in the same transaction as evidence updates. Restarti
 missed notifications, and change-log retention cannot discard work. Multiple API instances
 can process different events; failures roll back evidence and retry after 30 seconds
 without blocking other events. Notifications wake the worker, with a one-second polling
-fallback. Manually requested refresh jobs also get a turn during continuous ingestion.
+fallback. Refresh jobs also get a turn during continuous ingestion.
 
 Zero ingestion lag means all committed ingestion work visible at `checked_at` has been
 handled. It does not mean matching settings are current or that external advisory feeds
@@ -160,14 +165,21 @@ a global extraction revision. This conservatively makes all previously extracted
 outdated, even for a publisher-specific change. Changing only the reason does not invalidate
 results. Provider aliases still take effect during verdict resolution without extraction.
 
-Select **Refresh outdated results** to process outdated and unchecked SBOMs in the background.
-This operation uses the stored document data; it does not download or ingest documents again.
-Each document's evidence and context links are replaced atomically, including when there are
-no remaining matches. Failures retain previous results and stay in the backlog. Start another
-refresh to retry them. Jobs resume after restart; repeated requests return the active job.
-If matching settings change during a job, it finishes the current document and becomes
-superseded. Start another refresh to apply the new settings to the remaining backlog.
-Documents added during traversal can remain in the backlog for the next refresh.
+Whenever an SBOM is unchecked or outdated, the worker schedules a refresh job automatically;
+there is no manual action. At most one job is active. It uses the stored document data; it
+does not download or ingest documents again. Each document's evidence and context links are
+replaced atomically, including when there are no remaining matches. A job processes unchecked
+documents first, so SBOMs ingested during a long refresh are picked up by the running job.
+Failures retain previous results and stay in the backlog; a new job retries them 30 seconds
+after a job with failures finished. Jobs resume after restart. If matching settings change
+during a job, it finishes the current document, becomes superseded, and a job for the new
+settings is scheduled.
+
+Active jobs report their `remaining` documents and an `estimated_completion_at`,
+extrapolated from the job's average rate so far. Document sizes vary, so this is a rough
+estimate; it is absent until the first document has been processed. While a document is extracted, the job
+also reports it as `current`, with its start time. The job's own progress commits only with
+the document, so workers publish the current document from a separate, short transaction.
 
 Freshness describes matching settings, not completion of newly ingested advisory events.
 Partial advisory extraction does not mark an outdated SBOM current. A read of an SBOM result
@@ -177,15 +189,15 @@ an outdated/unchecked indicator until a full extraction succeeds.
 The API exposes:
 
 - `GET /api/v3/correlation/freshness`: exact counts, settings revision, observation time,
-  active/latest job summaries, and `extraction_lag` with `pending_advisories`, `pending_sboms`,
+  active/latest job summaries, and `extraction_lag` with `pending_advisories`,
   `failed`, and `oldest_pending_at`. `failed` is a subset of pending changes. A missing
   `extraction_lag` from an older server means unavailable, rather than caught up.
 - `GET /api/v3/correlation/freshness/sbom`: paginated SBOMs; optional `status=current|stale|unknown`,
   defaulting to outdated and unchecked documents together.
-- `POST /api/v3/correlation/refresh`: HTTP 202 with the new or existing active job and its Location.
-- `GET /api/v3/correlation/refresh/{id}`: job progress and failures, paginated with `offset`/`limit`.
+- `GET /api/v3/correlation/refresh/{id}`: job progress, remaining documents, estimated
+  completion, and failures, paginated with `offset`/`limit`.
 
-Read endpoints require `read.advisory`; starting refresh requires `update.correlationOption`.
+These endpoints require `read.advisory`.
 Document lists use the usual `offset`, `limit`, and `total` parameters, with a maximum page size
 of 1000 for refresh-job failures. The freshness SBOM list uses the configured pagination
 maximum; excessive limits return HTTP 400 with `X-Pagination-Max-Limit`. Its optional total
@@ -202,8 +214,12 @@ Migration `m0002590` installs durable ingestion tracking and queues all existing
 advisories once, because earlier processing had no durable acknowledgement. Expect an initial
 backlog after upgrading. Downgrading removes the ingestion queue while preserving evidence.
 
-`cargo xtask generate-dump` drains correlation extraction after ingestion and before writing
-the database dump. The dump includes correlation evidence and completion metadata. If any
+Migration `m0002620` stops queuing SBOMs for ingestion extraction and removes their queued
+events: their unchecked or outdated state already schedules a refresh job. Downgrading
+requeues never-extracted SBOMs.
+
+`cargo xtask generate-dump` drains the advisory queue and SBOM refresh jobs after ingestion
+and before writing the database dump. The dump includes correlation evidence and completion metadata. If any
 extraction remains pending or has failed, generation fails before exporting the dump.
 Use `cargo xtask generate-dump --no-correlation` to skip extraction and retain queued work
 for processing after the dump is restored.

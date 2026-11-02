@@ -43,9 +43,10 @@ async fn extraction_queue_migration_backfills_existing_documents(
     let steps = since(&migrator, &ctx.db, "m0002590_correlation_extraction_queue").await?;
     migrator.down(&ctx.db, Some(steps)).await?;
     migrator.up(&ctx.db, Some(steps)).await?;
+    // Later, m0002620 leaves SBOMs to refresh jobs and keeps only advisories queued.
     let rows = ctx.db.query_all_raw(sql("SELECT entity_id, entity_type, attempts, queued_at IS NOT NULL AS queued FROM correlation_extraction_queue ORDER BY entity_type", vec![])).await?;
-    assert_eq!(rows.len(), 2);
-    for (row, (id, kind)) in rows.iter().zip([(advisory, "advisory"), (sbom, "sbom")]) {
+    assert_eq!(rows.len(), 1);
+    for (row, (id, kind)) in rows.iter().zip([(advisory, "advisory")]) {
         assert_eq!(row.try_get::<Uuid>("", "entity_id")?, id);
         assert_eq!(row.try_get::<String>("", "entity_type")?, kind);
         assert_eq!(row.try_get::<i64>("", "attempts")?, 0);
@@ -53,6 +54,46 @@ async fn extraction_queue_migration_backfills_existing_documents(
     }
     let state = ctx.db.query_one_raw(sql("SELECT generation IS NULL AND completed_at IS NULL AND completed_revision=0 AND completed_input_revision=0 AS uncomputed FROM correlation_verdict_state WHERE sbom_id=$1", vec![sbom.into()])).await?.unwrap();
     assert!(state.try_get::<bool>("", "uncomputed")?);
+    Ok(())
+}
+
+/// SBOMs leave the ingestion queue for refresh jobs, and downgrading requeues unchecked ones.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn unified_refresh_migration_moves_sboms_to_refresh_jobs(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::{ConnectionTrait, DbErr};
+    use trustify_common::db::sql;
+    use uuid::Uuid;
+
+    let queued = async || -> anyhow::Result<Vec<(String, Uuid)>> {
+        Ok(ctx
+            .db
+            .query_all_raw(sql(
+                "SELECT entity_type, entity_id FROM correlation_extraction_queue ORDER BY entity_type",
+                vec![],
+            ))
+            .await?
+            .iter()
+            .map(|row| Ok((row.try_get("", "entity_type")?, row.try_get("", "entity_id")?)))
+            .collect::<Result<_, DbErr>>()?)
+    };
+    let sbom = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    let advisory = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
+    assert_eq!(queued().await?, vec![("advisory".to_string(), advisory)]);
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let steps = since(&migrator, &ctx.db, "m0002620_correlation_unified_refresh").await?;
+    migrator.down(&ctx.db, Some(steps)).await?;
+    assert_eq!(
+        queued().await?,
+        vec![
+            ("advisory".to_string(), advisory),
+            ("sbom".to_string(), sbom)
+        ]
+    );
+    migrator.up(&ctx.db, Some(steps)).await?;
+    assert_eq!(queued().await?, vec![("advisory".to_string(), advisory)]);
     Ok(())
 }
 

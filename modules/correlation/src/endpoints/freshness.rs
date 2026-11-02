@@ -1,10 +1,9 @@
 use crate::{error::Error, model::*, service::freshness};
-use actix_web::{HttpResponse, Responder, get, post, web};
-use sea_orm::TransactionTrait;
+use actix_web::{HttpResponse, Responder, get, web};
 use serde::Deserialize;
-use trustify_auth::{ReadAdvisory, UpdateCorrelationOption, authorizer::Require};
-use trustify_common::capability::{Correlation, RequireCapability};
+use trustify_auth::{ReadAdvisory, authorizer::Require};
 use trustify_common::{
+    capability::{Correlation, RequireCapability},
     db::{self, DatabaseExt, pagination_cache::PaginationCache},
     model::{Paginated, PaginatedResults},
 };
@@ -59,37 +58,11 @@ async fn documents(
     Ok(HttpResponse::Ok().json(freshness::documents(&tx, filter.status, page, &cache).await?))
 }
 
-/// Start a correlation refresh
-///
-/// Queues a background job re-extracting the correlation evidence of all SBOMs needing a
-/// refresh. Only one job is active at a time: if one is already queued or running, it is
-/// returned instead. The `Location` header points to the job.
-#[utoipa::path(tag="correlation-operations", operation_id="startCorrelationRefresh", responses(
-    (status = 422, description = "Correlation capability disabled"),
-    (status=202, description="Refresh queued, or existing active job", body=RefreshJob),
-    (status=401, description="Unauthenticated"), (status=403, description="Forbidden"),
-    (status=503, description="Write database unavailable")
-))]
-#[post("/v3/correlation/refresh")]
-async fn start(
-    _gate: RequireCapability<Correlation>,
-    db: web::Data<db::ReadWrite>,
-    _: Require<UpdateCorrelationOption>,
-) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
-    let job = freshness::start(&tx).await?;
-    tx.commit().await?;
-    Ok(HttpResponse::Accepted()
-        .append_header((
-            "Location",
-            format!("/api/v3/correlation/refresh/{}", job.id),
-        ))
-        .json(job))
-}
-
 /// Get a correlation refresh job
 ///
-/// Returns the progress of the job and a page of the SBOMs it failed to refresh.
+/// Refresh jobs are scheduled automatically whenever SBOMs have not been extracted under
+/// the current matching settings. Returns the progress of the job, including an estimated
+/// completion time, and a page of the SBOMs it failed to refresh.
 #[utoipa::path(tag="correlation-operations", operation_id="getCorrelationRefresh", params(("id"=Uuid, Path, description="ID of the refresh job"), Paginated), responses(
     (status = 422, description = "Correlation capability disabled"),
     (status=200, description="Refresh progress and paginated failures", body=RefreshJobDetails),
@@ -109,9 +82,5 @@ async fn get_job(
 }
 
 pub(super) fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig) {
-    config
-        .service(overview)
-        .service(documents)
-        .service(start)
-        .service(get_job);
+    config.service(overview).service(documents).service(get_job);
 }

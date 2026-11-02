@@ -151,12 +151,6 @@ fn outstanding(overview: &FreshnessOverview) -> Option<String> {
                 )
             ));
         }
-        if lag.pending_sboms > 0 {
-            parts.push(format!(
-                "{} awaiting extraction",
-                count(lag.pending_sboms, "SBOM change", "SBOM changes")
-            ));
-        }
         failed += lag.failed;
     }
     if overview.needs_refresh > 0 {
@@ -227,7 +221,6 @@ mod test {
             },
             Some(ExtractionLag {
                 pending_advisories: 5,
-                pending_sboms: 0,
                 failed: 2,
                 oldest_pending_at: None,
             }),
