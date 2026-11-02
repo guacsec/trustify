@@ -6,7 +6,7 @@ use crate::{
         StreamRelation,
     },
 };
-use sea_orm::{QueryOrder, TransactionTrait};
+use sea_orm::{LoaderTrait, QueryOrder, TransactionTrait};
 use serde_json::json;
 use test_context::test_context;
 use test_log::test;

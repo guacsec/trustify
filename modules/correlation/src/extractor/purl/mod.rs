@@ -51,8 +51,8 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, JoinType,
-    LoaderTrait, QueryFilter, QuerySelect, RelationTrait,
-    sea_query::{Alias, Expr, Func, SimpleExpr},
+    QueryFilter, QuerySelect, RelationTrait,
+    sea_query::{Alias, Expr, ExprTrait, Func, PgFunc, SimpleExpr},
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -557,21 +557,18 @@ impl Extractor for PurlExtractor {
         nodes: Option<&[&str]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
+        // joined instead of `load_one`, which binds one parameter per ref and exceeds the
+        // parameter limit for large SBOMs
         let purl_refs = sbom_node_purl_ref::Entity::find()
             .filter(sbom_node_purl_ref::Column::SbomId.eq(sbom_id))
             .for_nodes(nodes)
+            .find_also_related(qualified_purl::Entity)
             .all(tx)
             .instrument(info_span!("loading purl refs"))
             .await?;
 
-        let qualified_purls = purl_refs
-            .load_one(qualified_purl::Entity, tx)
-            .instrument(info_span!("loading qualified purls"))
-            .await?;
-
         Ok(purl_refs
             .into_iter()
-            .zip(qualified_purls)
             .filter_map(|(purl_ref, qp)| {
                 Some(NodeIdentifier {
                     identifier: IdentifierRef {
@@ -619,14 +616,12 @@ impl Extractor for PurlExtractor {
         let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
-            for chunk in vp_ids.chunks(5000) {
-                rows.extend(
-                    load_purl_status_matches(chunk, &candidates, tx)
-                        .await?
-                        .into_iter()
-                        .map(|row| (source, row)),
-                );
-            }
+            rows.extend(
+                load_purl_status_matches(&vp_ids, &candidates, tx)
+                    .await?
+                    .into_iter()
+                    .map(|row| (source, row)),
+            );
         }
 
         let targets = rows.into_iter().flat_map(|(source, row)| {
@@ -710,7 +705,11 @@ async fn load_purl_status_matches(
             purl_status::Relation::QualifiedPurl.def(),
             Alias::new("assertion_purl"),
         )
-        .filter(versioned_purl::Column::Id.is_in(versioned_purl_ids.iter().copied()))
+        // a single array parameter, as the number of IDs is unbounded
+        .filter(
+            Expr::col((versioned_purl::Entity, versioned_purl::Column::Id))
+                .eq(PgFunc::any(versioned_purl_ids.to_vec())),
+        )
         .into_model::<PurlStatusMatch>()
         .all(connection)
         .instrument(info_span!("loading purl status matches"))

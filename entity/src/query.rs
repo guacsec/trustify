@@ -3,7 +3,10 @@
 use crate::{
     sbom_node_checksum, sbom_node_cpe_ref, sbom_node_product_identifier, sbom_node_purl_ref,
 };
-use sea_orm::{ColumnTrait, QueryFilter, Select};
+use sea_orm::{
+    QueryFilter, Select,
+    sea_query::{Expr, ExprTrait, PgFunc},
+};
 
 /// Restrict a query to an optional selection of SBOM nodes.
 pub trait ForNodes: Sized {
@@ -18,7 +21,12 @@ macro_rules! impl_for_nodes {
             impl ForNodes for Select<$entity::Entity> {
                 fn for_nodes(self, nodes: Option<&[&str]>) -> Self {
                     match nodes {
-                        Some(nodes) => self.filter($entity::Column::NodeId.is_in(nodes.iter().copied())),
+                        // a single array parameter, as the number of nodes is unbounded
+                        Some(nodes) => self.filter(
+                            Expr::col(($entity::Entity, $entity::Column::NodeId)).eq(PgFunc::any(
+                                nodes.iter().map(|node| node.to_string()).collect::<Vec<_>>(),
+                            )),
+                        ),
                         None => self,
                     }
                 }
