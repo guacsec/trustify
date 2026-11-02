@@ -1,5 +1,5 @@
 use super::*;
-use crate::extractor::{Extractor, NodeIdentifier, worker::run_extraction_worker};
+use crate::extractor::{Extractor, NodeIdentifier, NodeMatch, worker::run_extraction_worker};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::change::{
@@ -97,6 +97,8 @@ async fn enqueue_is_atomic_and_ignores_deletion_and_unknown_ids(
         ChangeOperation::Deleted,
     )
     .await?;
+    // SBOMs are extracted by refresh jobs, not through the ingestion queue.
+    ctx.ingest_document("spdx/simple.json").await?;
     assert_eq!(status(ctx).await?, ExtractionLag::default());
     Ok(())
 }
@@ -113,8 +115,16 @@ impl Extractor for FailingExtractor {
         &self,
         _: Uuid,
         _: Option<&[&str]>,
-        tx: &DatabaseTransaction,
+        _: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
+        Ok(vec![])
+    }
+
+    async fn match_advisory(
+        &self,
+        _: Uuid,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeMatch>, Error> {
         // This mutation must roll back with the failed extraction.
         tx.execute_unprepared("UPDATE correlation_extraction_state SET completed_revision = 99")
             .await?;
@@ -127,7 +137,8 @@ impl Extractor for FailingExtractor {
 async fn failures_stay_in_lag_and_retry_without_partial_completion(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
-    let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    let sbom = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     let failing = Extractors::new(vec![Box::new(FailingExtractor)]);
     assert!(run_step(&db, &failing).await?);
@@ -135,23 +146,28 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
     assert_eq!(
         failed,
         ExtractionLag {
-            pending_sboms: 1,
+            pending_advisories: 1,
             failed: 1,
             oldest_pending_at: Some(
                 failed
                     .oldest_pending_at
                     .expect("pending work has an enqueue time")
             ),
-            ..ExtractionLag::default()
         }
     );
     assert_eq!(
-        freshness::for_sboms(&ctx.db.begin().await?, &[id]).await?[&id].status,
+        freshness::for_sboms(&ctx.db.begin().await?, &[sbom]).await?[&sbom].status,
         crate::model::FreshnessStatus::Unknown
     );
     // Retry is delayed, preventing a bad document from spinning or starving others.
     assert!(!run_step(&db, &failing).await?);
-    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
+    record_change(
+        &ctx.db,
+        ChangeEntity::Advisory,
+        Some(Uuid::new_v4()),
+        ChangeOperation::Added,
+    )
+    .await?;
     assert!(run_step(&db, &Extractors::default()).await?);
     assert_eq!(status(ctx).await?, failed);
     ctx.db
@@ -159,10 +175,6 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
         .await?;
     assert!(run_step(&db, &Extractors::default()).await?);
     assert_eq!(status(ctx).await?, ExtractionLag::default());
-    assert_eq!(
-        freshness::for_sboms(&ctx.db.begin().await?, &[id]).await?[&id].status,
-        crate::model::FreshnessStatus::Current
-    );
     Ok(())
 }
 
@@ -171,13 +183,14 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
 async fn claims_are_exclusive_and_deleted_documents_do_not_block_the_queue(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
-    let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     let claim = ctx.db.begin().await?;
     claim
         .execute_unprepared("SELECT id FROM correlation_extraction_queue FOR UPDATE")
         .await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     assert!(!run_step(&db, &Extractors::default()).await?);
+    // An advisory deleted (or never stored) before processing has nothing to extract.
     record_change(
         &ctx.db,
         ChangeEntity::Advisory,
@@ -191,7 +204,7 @@ async fn claims_are_exclusive_and_deleted_documents_do_not_block_the_queue(
     assert_eq!(
         pending,
         ExtractionLag {
-            pending_sboms: 1,
+            pending_advisories: 1,
             oldest_pending_at: Some(
                 pending
                     .oldest_pending_at
@@ -201,13 +214,6 @@ async fn claims_are_exclusive_and_deleted_documents_do_not_block_the_queue(
         }
     );
     claim.rollback().await?;
-    ctx.db
-        .execute_raw(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            "DELETE FROM sbom WHERE sbom_id = $1",
-            vec![id.into()],
-        ))
-        .await?;
     assert!(run_step(&db, &Extractors::default()).await?);
     assert_eq!(status(ctx).await?, ExtractionLag::default());
     Ok(())
@@ -227,6 +233,14 @@ impl Extractor for PausedExtractor {
         _: Option<&[&str]>,
         _: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error> {
+        Ok(vec![])
+    }
+
+    async fn match_advisory(
+        &self,
+        _: Uuid,
+        _: &DatabaseTransaction,
+    ) -> Result<Vec<NodeMatch>, Error> {
         self.0.wait().await;
         self.0.wait().await;
         Ok(vec![])
@@ -238,7 +252,7 @@ impl Extractor for PausedExtractor {
 async fn running_extraction_stays_visible_until_evidence_and_acknowledgement_commit(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
-    ctx.ingest_document("spdx/simple.json").await?;
+    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     let pending = status(ctx).await?;
     let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
     let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
@@ -269,8 +283,14 @@ async fn worker_drains_ingestion_committed_before_it_subscribed(
         std::time::Duration::from_secs(300),
     )?;
     let worker = tokio::spawn(run_extraction_worker(broadcaster, db));
+    // The same worker drains the advisory queue and refreshes never-extracted SBOMs.
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), async {
-        while status(ctx).await? != ExtractionLag::default() {
+        while status(ctx).await? != ExtractionLag::default()
+            || freshness::overview(&ctx.db.begin().await?)
+                .await?
+                .needs_refresh
+                > 0
+        {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
         anyhow::Ok(())

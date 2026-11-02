@@ -1,11 +1,14 @@
 //! Indexed completion metadata, revision counters, and durable refresh jobs.
+//!
+//! Never-extracted SBOMs and SBOMs outdated by a settings change are handled alike:
+//! whenever any document is behind the current revision, the worker schedules a job.
 use crate::{error::Error, extractor::Extractors, model::*};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, FromQueryResult,
     JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait, TransactionTrait,
 };
 use std::collections::HashMap;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 use trustify_common::{
     db::{self, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::{Paginated, PaginatedResults},
@@ -27,11 +30,37 @@ LEFT JOIN correlation_extraction_count c ON true
 GROUP BY r.revision
 "#;
 
+/// The next document behind the revision which this job has not attempted yet. Successful
+/// documents become current and leave the set; failed ones are skipped by their outcome.
+/// Never-extracted documents sort first, so new SBOMs are picked up during a long refresh.
 const NEXT_DOCUMENT_SQL: &str = r#"
-SELECT sbom_id, completed_revision FROM correlation_extraction_state
+SELECT sbom_id FROM correlation_extraction_state s
 WHERE completed_revision < $1
-  AND ($2::uuid IS NULL OR (completed_revision, sbom_id) > ($3, $2))
+  AND NOT EXISTS (
+    SELECT 1 FROM correlation_refresh_outcome o WHERE o.job_id = $2 AND o.sbom_id = s.sbom_id
+  )
 ORDER BY completed_revision, sbom_id LIMIT 1
+"#;
+
+/// Schedule a job when a document is behind the revision. After a job with failures,
+/// wait before retrying them, so persistently failing documents do not spin the worker.
+const NEEDS_JOB_SQL: &str = r#"
+SELECT 1 FROM correlation_extraction_state
+WHERE completed_revision < $1
+  AND NOT EXISTS (
+    SELECT 1 FROM correlation_refresh_job
+    WHERE status IN ('queued','running')
+       OR (failed > 0 AND finished_at > now() - interval '30 seconds')
+  )
+LIMIT 1
+"#;
+
+/// The document a job is extracting, published outside the job's own transaction.
+const CURRENT_SQL: &str = r#"
+SELECT c.sbom_id, n.name, c.started_at FROM correlation_refresh_current c
+JOIN sbom s USING (sbom_id)
+LEFT JOIN sbom_node n ON n.sbom_id = s.sbom_id AND n.node_id = s.node_id
+WHERE c.job_id = $1
 "#;
 
 #[derive(FromQueryResult)]
@@ -143,8 +172,6 @@ struct JobRow {
     id: Uuid,
     revision: i64,
     status: String,
-    cursor: Option<Uuid>,
-    cursor_revision: Option<i64>,
     processed: i64,
     failed: i64,
     created_at: OffsetDateTime,
@@ -152,8 +179,16 @@ struct JobRow {
 }
 
 impl JobRow {
-    fn model(&self) -> Result<RefreshJob, Error> {
-        Ok(RefreshJob {
+    /// Convert into the API model. `pending` is the number of documents behind the
+    /// current revision, used to estimate the remaining work of an active job, and
+    /// `current` the document it is extracting.
+    fn model(
+        &self,
+        pending: u64,
+        now: OffsetDateTime,
+        current: Option<RefreshCurrent>,
+    ) -> Result<RefreshJob, Error> {
+        let mut job = RefreshJob {
             id: self.id,
             revision: self.revision,
             status: match self.status.as_str() {
@@ -167,10 +202,70 @@ impl JobRow {
             },
             processed: self.processed as u64,
             failed: self.failed as u64,
+            remaining: 0,
+            estimated_completion_at: None,
             created_at: self.created_at,
             finished_at: self.finished_at,
-        })
+            current: None,
+        };
+        if matches!(
+            job.status,
+            RefreshJobStatus::Queued | RefreshJobStatus::Running
+        ) {
+            (job.remaining, job.estimated_completion_at) = estimate(&job, pending, now);
+            if current.is_some() {
+                // The status change commits with the first document; the current
+                // document is published right away.
+                job.status = RefreshJobStatus::Running;
+                job.current = current;
+            }
+        }
+        Ok(job)
     }
+
+    /// Convert into the API model, loading the document an active job is extracting.
+    async fn load(
+        &self,
+        tx: &DatabaseTransaction,
+        pending: u64,
+        now: OffsetDateTime,
+    ) -> Result<RefreshJob, Error> {
+        let current = tx
+            .query_one_raw(sql(CURRENT_SQL, vec![self.id.into()]))
+            .await?
+            .map(|row| CurrentRow::from_query_result(&row, ""))
+            .transpose()?
+            .map(|row| RefreshCurrent {
+                sbom_id: row.sbom_id,
+                name: row.name,
+                started_at: row.started_at,
+            });
+        self.model(pending, now, current)
+    }
+}
+
+#[derive(FromQueryResult)]
+struct CurrentRow {
+    sbom_id: Uuid,
+    name: Option<String>,
+    started_at: OffsetDateTime,
+}
+
+/// Estimate the remaining documents and completion time of an active job.
+///
+/// Documents which failed in this job stay behind the revision but are not retried by it.
+/// The rate is the job's average so far, so there is no estimate before the first document.
+fn estimate(job: &RefreshJob, pending: u64, now: OffsetDateTime) -> (u64, Option<OffsetDateTime>) {
+    let remaining = pending.saturating_sub(job.failed);
+    let done = job.processed + job.failed;
+    let elapsed = now - job.created_at;
+    if done == 0 || !elapsed.is_positive() {
+        return (remaining, None);
+    }
+    let eta =
+        Duration::checked_seconds_f64(elapsed.as_seconds_f64() * remaining as f64 / done as f64)
+            .and_then(|left| now.checked_add(left));
+    (remaining, eta)
 }
 
 /// Read the current extraction revision and document totals from maintained counters.
@@ -184,14 +279,16 @@ async fn load_counts(tx: &DatabaseTransaction) -> Result<Counts, Error> {
 
 pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Error> {
     let counts = load_counts(tx).await?;
+    let now = OffsetDateTime::now_utc();
+    let pending = (counts.stale + counts.unknown) as u64;
     let mut result = FreshnessOverview {
         revision: counts.revision,
-        checked_at: OffsetDateTime::now_utc(),
+        checked_at: now,
         total: counts.total as u64,
         current: counts.current as u64,
         stale: counts.stale as u64,
         unknown: counts.unknown as u64,
-        needs_refresh: (counts.stale + counts.unknown) as u64,
+        needs_refresh: pending,
         extraction_lag: Some(super::extraction::lag(tx).await?),
         verdict_lag: super::projection::lag(tx).await?,
         active_job: None,
@@ -204,7 +301,9 @@ pub async fn overview(tx: &DatabaseTransaction) -> Result<FreshnessOverview, Err
         ))
         .await?
     {
-        let job = JobRow::from_query_result(&row, "")?.model()?;
+        let job = JobRow::from_query_result(&row, "")?
+            .load(tx, pending, now)
+            .await?;
         if matches!(
             job.status,
             RefreshJobStatus::Queued | RefreshJobStatus::Running
@@ -297,7 +396,8 @@ pub async fn documents(
     Ok(PaginatedResults { items, total })
 }
 
-pub async fn start(tx: &DatabaseTransaction) -> Result<RefreshJob, Error> {
+/// Schedule a refresh job, or return the active one. Called by the worker only.
+async fn start(tx: &DatabaseTransaction) -> Result<RefreshJob, Error> {
     // Serialize requests without blocking extraction's shared revision lock.
     tx.execute_raw(sql("SELECT pg_advisory_xact_lock(2680, 1)", vec![]))
         .await?;
@@ -309,11 +409,11 @@ pub async fn start(tx: &DatabaseTransaction) -> Result<RefreshJob, Error> {
         ))
         .await?
     {
-        return JobRow::from_query_result(&row, "")?.model();
+        return JobRow::from_query_result(&row, "")?.model(0, OffsetDateTime::now_utc(), None);
     }
     let row = tx.query_one_raw(sql("INSERT INTO correlation_refresh_job(id, revision, status) VALUES ($1,$2,'queued') RETURNING *", vec![Uuid::now_v7().into(), revision.into()])).await?
         .ok_or_else(|| DbErr::Custom("failed to create refresh job".into()))?;
-    JobRow::from_query_result(&row, "")?.model()
+    JobRow::from_query_result(&row, "")?.model(0, OffsetDateTime::now_utc(), None)
 }
 
 pub async fn job(
@@ -328,7 +428,14 @@ pub async fn job(
         ))
         .await?
         .ok_or_else(|| Error::NotFound(id.to_string()))?;
-    let job = JobRow::from_query_result(&row, "")?.model()?;
+    let counts = load_counts(tx).await?;
+    let job = JobRow::from_query_result(&row, "")?
+        .load(
+            tx,
+            (counts.stale + counts.unknown) as u64,
+            OffsetDateTime::now_utc(),
+        )
+        .await?;
     let mut failures = Vec::new();
     for row in tx.query_all_raw(sql("SELECT sbom_id, error FROM correlation_refresh_outcome WHERE job_id = $1 AND error IS NOT NULL ORDER BY sbom_id LIMIT $2 OFFSET $3", vec![id.into(), (page.limit.min(1000) as i64).into(), (page.offset.min(i64::MAX as u64) as i64).into()])).await? {
         failures.push(RefreshFailure { sbom_id: row.try_get("", "sbom_id")?, error: row.try_get("", "error")? });
@@ -340,43 +447,50 @@ pub async fn job(
     })
 }
 
-/// Process one document while holding the durable job row. A crash rolls back both
-/// evidence and the cursor, so any instance can resume it without a lease timeout.
+/// Process one document while holding the durable job row, scheduling a job first when
+/// documents are behind the revision. A crash rolls back both evidence and the outcome,
+/// so any instance can resume the job without a lease timeout.
 pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<bool, Error> {
     let tx = db.begin().await?;
     let revision = lock_revision(&tx).await?;
-    let Some(row) = tx.query_one_raw(sql("SELECT * FROM correlation_refresh_job WHERE status IN ('queued','running') FOR UPDATE SKIP LOCKED", vec![])).await? else {
-        // Settings changes schedule their refresh automatically. Failed sweeps wait before retry.
-        let needed = tx.query_one_raw(sql("SELECT 1 FROM correlation_extraction_state WHERE completed_revision > 0 AND completed_revision < $1 AND NOT EXISTS (SELECT 1 FROM correlation_refresh_job WHERE status IN ('queued','running') OR (failed > 0 AND finished_at > now()-interval '30 seconds')) LIMIT 1", vec![revision.into()])).await?.is_some();
+    // NO KEY UPDATE excludes other workers, but not the key share taken by publishing
+    // the current document from a separate transaction.
+    let Some(row) = tx.query_one_raw(sql("SELECT * FROM correlation_refresh_job WHERE status IN ('queued','running') FOR NO KEY UPDATE SKIP LOCKED", vec![])).await? else {
+        let needed = tx
+            .query_one_raw(sql(NEEDS_JOB_SQL, vec![revision.into()]))
+            .await?
+            .is_some();
         if needed { start(&tx).await?; tx.commit().await?; }
         return Ok(needed);
     };
     let job = JobRow::from_query_result(&row, "")?;
     if job.revision != revision {
         tx.execute_raw(sql("UPDATE correlation_refresh_job SET status = 'superseded', finished_at = clock_timestamp() WHERE id = $1", vec![job.id.into()])).await?;
+        clear_current(&tx, job.id).await?;
         tx.commit().await?;
-        return Ok(false);
+        // The next step schedules a job for the new revision.
+        return Ok(true);
     }
     let row = tx
-        .query_one_raw(sql(
-            NEXT_DOCUMENT_SQL,
-            vec![
-                revision.into(),
-                job.cursor.into(),
-                job.cursor_revision.into(),
-            ],
-        ))
+        .query_one_raw(sql(NEXT_DOCUMENT_SQL, vec![revision.into(), job.id.into()]))
         .await?;
     let Some(row) = row else {
         tx.execute_raw(sql("UPDATE correlation_refresh_job SET status = 'completed', finished_at = clock_timestamp() WHERE id = $1", vec![job.id.into()])).await?;
+        clear_current(&tx, job.id).await?;
         tx.commit().await?;
         return Ok(false);
     };
     let id: Uuid = row.try_get("", "sbom_id")?;
-    let cursor_revision: i64 = row.try_get("", "completed_revision")?;
     tx.execute_raw(sql(
         "UPDATE correlation_refresh_job SET status = 'running' WHERE id = $1",
         vec![job.id.into()],
+    ))
+    .await?;
+    // Make the document visible while it is extracted; this transaction commits after.
+    db.execute_raw(sql(
+        "INSERT INTO correlation_refresh_current(job_id, sbom_id, started_at) VALUES ($1, $2, clock_timestamp()) \
+         ON CONFLICT (job_id) DO UPDATE SET sbom_id = EXCLUDED.sbom_id, started_at = EXCLUDED.started_at",
+        vec![job.id.into(), id.into()],
     ))
     .await?;
     // A savepoint preserves the job lock while rolling back a failed extraction.
@@ -390,7 +504,7 @@ pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<boo
             tracing::warn!(sbom_id = %id, job_id = %job.id, error = %err, "correlation refresh failed");
             work.rollback().await?;
             // Keep internal database details in the server log, not the public API.
-            Some("Extraction failed; see server logs and retry the refresh".to_string())
+            Some("Extraction failed and is retried automatically; see server logs".to_string())
         }
     };
     tx.execute_raw(sql(
@@ -398,7 +512,18 @@ pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<boo
         vec![job.id.into(), id.into(), error.clone().into()],
     ))
     .await?;
-    tx.execute_raw(sql("UPDATE correlation_refresh_job SET cursor = $2, processed = processed + $3, failed = failed + $4, cursor_revision = $5 WHERE id = $1", vec![job.id.into(), id.into(), i64::from(error.is_none()).into(), i64::from(error.is_some()).into(), cursor_revision.into()])).await?;
+    tx.execute_raw(sql("UPDATE correlation_refresh_job SET processed = processed + $2, failed = failed + $3 WHERE id = $1", vec![job.id.into(), i64::from(error.is_none()).into(), i64::from(error.is_some()).into()])).await?;
+    clear_current(&tx, job.id).await?;
     tx.commit().await?;
     Ok(true)
+}
+
+/// Remove the published current document, together with the job's own update.
+async fn clear_current(tx: &DatabaseTransaction, job: Uuid) -> Result<(), Error> {
+    tx.execute_raw(sql(
+        "DELETE FROM correlation_refresh_current WHERE job_id = $1",
+        vec![job.into()],
+    ))
+    .await?;
+    Ok(())
 }

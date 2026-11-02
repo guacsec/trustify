@@ -1,4 +1,4 @@
-//! Settings freshness and manually initiated, durable background refreshes.
+//! Settings freshness and the automatically scheduled, durable background refreshes.
 use crate::{AppRoute, api, correlation::timestamp, stored::use_stored_pagination};
 use patternfly_yew::prelude::*;
 use std::{
@@ -6,7 +6,9 @@ use std::{
     fmt::{Display, Formatter},
     rc::Rc,
 };
+use time::{Duration, OffsetDateTime};
 use trustify_api::correlation::*;
+use uuid::Uuid;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_nested_router::components::Link;
@@ -77,7 +79,7 @@ pub fn freshness_banner(freshness: &ExtractionFreshness, refreshing: bool) -> Ht
 
     html! {
         <Alert title={message} r#type={AlertType::Warning} inline=true>
-            <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View correlation status and refresh results" }</Link<AppRoute>>
+            <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View refresh progress" }</Link<AppRoute>>
         </Alert>
     }
 }
@@ -94,7 +96,56 @@ struct View {
     overview: FreshnessOverview,
     documents: Vec<FreshnessDocument>,
     total: Option<usize>,
-    job: Option<RefreshJobDetails>,
+    /// Failures of the latest job, loaded only when it has any.
+    failures: Option<RefreshJobDetails>,
+    /// What the documents and failures were loaded for, to skip unchanged reloads.
+    loaded: Loaded,
+}
+
+/// The inputs the documents and failures depend on. The overview is polled; the other
+/// requests are only repeated when their inputs change.
+#[derive(Clone, PartialEq)]
+struct Loaded {
+    documents: (
+        Option<FreshnessStatus>,
+        usize,
+        usize,
+        i64,
+        u64,
+        u64,
+        u64,
+        u64,
+    ),
+    failures: Option<(Uuid, u64, usize)>,
+}
+
+impl Loaded {
+    fn new(
+        overview: &FreshnessOverview,
+        filter: Option<FreshnessStatus>,
+        offset: usize,
+        limit: usize,
+        failure_page: usize,
+    ) -> Self {
+        Self {
+            // Document states change only together with these counters.
+            documents: (
+                filter,
+                offset,
+                limit,
+                overview.revision,
+                overview.total,
+                overview.current,
+                overview.stale,
+                overview.unknown,
+            ),
+            failures: overview
+                .latest_job
+                .as_ref()
+                .filter(|job| job.failed > 0)
+                .map(|job| (job.id, job.failed, failure_page)),
+        }
+    }
 }
 
 fn job_label(status: RefreshJobStatus) -> &'static str {
@@ -102,28 +153,57 @@ fn job_label(status: RefreshJobStatus) -> &'static str {
         RefreshJobStatus::Queued => "Queued",
         RefreshJobStatus::Running => "Running",
         RefreshJobStatus::Completed => "Completed",
-        RefreshJobStatus::Superseded => "Settings changed — start another refresh",
+        RefreshJobStatus::Superseded => "Restarted for new settings",
     }
 }
 
-/// The progress of the active refresh job, or an empty bar when no refresh is running.
+/// Whether the job is still queued or running.
+fn is_active(job: &RefreshJob) -> bool {
+    matches!(
+        job.status,
+        RefreshJobStatus::Queued | RefreshJobStatus::Running
+    )
+}
+
+/// A coarse, human readable duration such as "about 2 h 15 min".
+fn approximate(duration: Duration) -> String {
+    let minutes = duration.whole_minutes();
+    match minutes {
+        ..1 => "less than a minute".to_string(),
+        1..60 => format!("about {minutes} min"),
+        60..1440 => format!("about {} h {} min", minutes / 60, minutes % 60),
+        _ => format!("about {} d {} h", minutes / 1440, minutes % 1440 / 60),
+    }
+}
+
+/// The remaining time of an active job, measured against the server's clock.
+fn eta(job: &RefreshJob, checked_at: OffsetDateTime) -> String {
+    match job.estimated_completion_at {
+        Some(at) => format!("{} remaining", approximate(at - checked_at)),
+        None => "Estimating remaining time…".to_string(),
+    }
+}
+
+/// The progress of the active refresh job, or of the current documents when idle.
 ///
-/// The job does not record how many documents it will refresh. Failed documents stay
-/// outdated, so the total is estimated as the processed documents plus those currently
-/// needing a refresh.
-fn job_progress(job: Option<&RefreshJob>, needs_refresh: u64) -> Html {
-    let Some(job) = job.filter(|job| {
-        matches!(
-            job.status,
-            RefreshJobStatus::Queued | RefreshJobStatus::Running
-        )
-    }) else {
+/// Documents ingested or invalidated while the job runs are added to its remaining work.
+fn job_progress(job: Option<&RefreshJob>, overview: &FreshnessOverview) -> Html {
+    let Some(job) = job.filter(|job| is_active(job)) else {
+        let value = match overview.total {
+            0 => 1.0,
+            total => overview.current as f64 / total as f64,
+        };
         return html! {
-            <Progress value={0.0} description="No refresh running" value_text="" size={ProgressSize::Small} />
+            <Progress
+                {value}
+                description="No refresh running"
+                value_text={format!("{} of {} current", overview.current, overview.total)}
+                size={ProgressSize::Small}
+            />
         };
     };
     let done = job.processed + job.failed;
-    let total = (job.processed + needs_refresh).max(done);
+    let total = done + job.remaining;
     let value = if total == 0 {
         1.0
     } else {
@@ -148,13 +228,157 @@ fn job_progress(job: Option<&RefreshJob>, needs_refresh: u64) -> Html {
     }
 }
 
+/// The state of a processing stage, shown as a label in its card.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StageState {
+    CaughtUp,
+    Processing,
+    Retrying,
+    Unavailable,
+}
+
+impl StageState {
+    /// Derive the state from outstanding and failed work.
+    fn of(pending: u64, failed: u64) -> Self {
+        match (pending, failed) {
+            (_, 1..) => Self::Retrying,
+            (0, 0) => Self::CaughtUp,
+            _ => Self::Processing,
+        }
+    }
+
+    /// Busy stages show no label: the pending count and progress already say so.
+    fn label(self) -> Html {
+        let (text, color) = match self {
+            Self::CaughtUp => ("Caught up", Color::Green),
+            Self::Processing => return Html::default(),
+            Self::Retrying => ("Retrying failures", Color::Orange),
+            Self::Unavailable => ("Unavailable", Color::Grey),
+        };
+        html! { <Label label={text} {color} compact=true /> }
+    }
+}
+
+/// One processing stage: a headline count with its state, followed by details.
+fn stage_card(title: &str, state: StageState, headline: String, details: Html) -> Html {
+    html! {
+        <GridItem cols={[12.all(), 4.lg()]}>
+            <Card full_height=true>
+                <CardHeader>
+                    <Flex modifiers={[FlexModifier::Align(Alignment::Center), FlexModifier::Justify(Justify::SpaceBetween)]} >
+                        <FlexItem><CardTitle>{ title }</CardTitle></FlexItem>
+                        <FlexItem>{ state.label() }</FlexItem>
+                    </Flex>
+                </CardHeader>
+                <CardBody>
+                    <Stack gutter=true>
+                        <StackItem><Title level={Level::H2}>{ headline }</Title></StackItem>
+                        { details }
+                    </Stack>
+                </CardBody>
+            </Card>
+        </GridItem>
+    }
+}
+
+/// The document a job is extracting, and for how long, measured against the server's clock.
+fn current_document(current: &RefreshCurrent, checked_at: OffsetDateTime) -> Html {
+    let id = current.sbom_id.to_string();
+    let name = current.name.clone().unwrap_or_else(|| id.clone());
+    html! {
+        <>
+            { "Refreshing " }
+            <Link<AppRoute> to={AppRoute::Correlation { id }}>{ name }</Link<AppRoute>>
+            { format!(", started {} ago", approximate(checked_at - current.started_at)) }
+        </>
+    }
+}
+
+/// "Oldest pending: <timestamp>", or nothing when caught up.
+fn oldest(label: &str, at: Option<&OffsetDateTime>) -> Html {
+    match at {
+        Some(at) => html! { <StackItem>{ label }{ ": " }{ timestamp(at) }</StackItem> },
+        None => Html::default(),
+    }
+}
+
+/// SBOM extraction: freshness against matching settings and the refresh job.
+fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
+    let active = job.filter(|job| is_active(job));
+    let failed = active.map_or(0, |job| job.failed);
+    let details = html! {
+        <>
+            <StackItem>{ job_progress(job, overview) }</StackItem>
+            if let Some(job) = active {
+                <StackItem>{ eta(job, overview.checked_at) }</StackItem>
+                if let Some(current) = &job.current {
+                    <StackItem>{ current_document(current, overview.checked_at) }</StackItem>
+                }
+            } else if overview.needs_refresh > 0 {
+                <StackItem>{ "Waiting to retry failed documents." }</StackItem>
+            }
+        </>
+    };
+    stage_card(
+        "SBOM extraction",
+        StageState::of(overview.needs_refresh, failed),
+        format!("{} pending", overview.needs_refresh),
+        details,
+    )
+}
+
+/// Advisory extraction: the ingestion queue matching new advisories against SBOMs.
+fn advisory_card(lag: Option<&ExtractionLag>) -> Html {
+    let Some(lag) = lag else {
+        return stage_card(
+            "Advisory extraction",
+            StageState::Unavailable,
+            "–".into(),
+            Html::default(),
+        );
+    };
+    let details = html! {
+        <>
+            { oldest("Oldest pending change", lag.oldest_pending_at.as_ref()) }
+            if lag.failed > 0 {
+                <StackItem>{ format!("{} waiting for retry; see server logs.", lag.failed) }</StackItem>
+            }
+        </>
+    };
+    stage_card(
+        "Advisory extraction",
+        StageState::of(lag.pending_advisories, lag.failed),
+        format!("{} pending", lag.pending_advisories),
+        details,
+    )
+}
+
+/// Verdict computation: snapshots resolved from the extracted evidence.
+fn verdict_card(lag: &VerdictLag) -> Html {
+    let details = html! {
+        <>
+            { oldest("Oldest outstanding work", lag.oldest_pending_at.as_ref()) }
+            if lag.failed > 0 {
+                <StackItem>{ format!("{} waiting for retry; see server logs.", lag.failed) }</StackItem>
+            }
+        </>
+    };
+    stage_card(
+        "Verdicts",
+        StageState::of(lag.pending, lag.failed),
+        format!("{} pending", lag.pending),
+        details,
+    )
+}
+
 #[function_component(FreshnessPage)]
 pub fn freshness_page() -> Html {
     let view = use_state(|| None::<View>);
     let error = use_state(|| None::<String>);
-    let starting = use_state(|| false);
     let generation = use_state(|| 0u64);
     let in_flight = use_mut_ref(|| 0usize);
+    // The last loaded view, readable by the request without re-running the effect.
+    let last = use_mut_ref(|| None::<View>);
     let filter = use_state(|| None::<FreshnessStatus>);
     let total = view.as_ref().and_then(|v| v.total);
     let pagination = use_stored_pagination("correlation-status", total);
@@ -180,6 +404,7 @@ pub fn freshness_page() -> Html {
         let error = error.clone();
         let token = token.clone();
         let in_flight = in_flight.clone();
+        let last = last.clone();
         use_effect_with(
             (
                 *generation,
@@ -194,32 +419,42 @@ pub fn freshness_page() -> Html {
                 *in_flight.borrow_mut() += 1;
                 let (filter, control, failure_page) = (*filter, *control, *failure_page);
                 spawn_local(async move {
+                    let previous = last.borrow().clone();
                     let loaded = async {
                         let overview = api::fetch_freshness(token.as_deref()).await?;
-                        let docs = api::fetch_freshness_documents(
-                            filter,
-                            control.page * control.per_page,
-                            control.per_page,
-                            token.as_deref(),
-                        )
-                        .await?;
-                        let job = match &overview.latest_job {
-                            Some(job) => Some(
-                                api::fetch_refresh_job(
-                                    job.id,
-                                    failure_page * 20,
-                                    20,
+                        let (offset, limit) = (control.page * control.per_page, control.per_page);
+                        let loaded = Loaded::new(&overview, filter, offset, limit, failure_page);
+                        let (documents, total) = match &previous {
+                            Some(view) if view.loaded.documents == loaded.documents => {
+                                (view.documents.clone(), view.total)
+                            }
+                            _ => {
+                                let docs = api::fetch_freshness_documents(
+                                    filter,
+                                    offset,
+                                    limit,
                                     token.as_deref(),
                                 )
-                                .await?,
+                                .await?;
+                                (docs.items, docs.total.map(|t| t as usize))
+                            }
+                        };
+                        let failures = match (&previous, loaded.failures) {
+                            (Some(view), Some(_)) if view.loaded.failures == loaded.failures => {
+                                view.failures.clone()
+                            }
+                            (_, Some((job, _, page))) => Some(
+                                api::fetch_refresh_job(job, page * 20, 20, token.as_deref())
+                                    .await?,
                             ),
-                            None => None,
+                            (_, None) => None,
                         };
                         Ok::<_, api::ApiError>(View {
                             overview,
-                            documents: docs.items,
-                            total: docs.total.map(|t| t as usize),
-                            job,
+                            documents,
+                            total,
+                            failures,
+                            loaded,
                         })
                     }
                     .await;
@@ -227,6 +462,7 @@ pub fn freshness_page() -> Html {
                     if !pending.get() {
                         match loaded {
                             Ok(data) => {
+                                *last.borrow_mut() = Some(data.clone());
                                 view.set(Some(data));
                                 error.set(None);
                             }
@@ -238,34 +474,6 @@ pub fn freshness_page() -> Html {
             },
         );
     }
-
-    let start = {
-        let starting = starting.clone();
-        let error = error.clone();
-        let generation = generation.clone();
-        let failure_page = failure_page.clone();
-        let token = token.clone();
-        Callback::from(move |_: MouseEvent| {
-            let (starting, error, generation, failure_page, token) = (
-                starting.clone(),
-                error.clone(),
-                generation.clone(),
-                failure_page.clone(),
-                token.clone(),
-            );
-            starting.set(true);
-            spawn_local(async move {
-                match api::start_refresh(token.as_deref()).await {
-                    Ok(_) => {
-                        failure_page.set(0);
-                        generation.set(js_sys::Date::now() as u64);
-                    }
-                    Err(err) => error.set(Some(format!("Could not start refresh: {err}"))),
-                }
-                starting.set(false);
-            });
-        })
-    };
 
     let onfilter = {
         let filter = filter.clone();
@@ -284,84 +492,53 @@ pub fn freshness_page() -> Html {
         </TableHeader<Column>>
     };
 
+    let checked = match &*view {
+        Some(data) => html! { <>{ "Checked " }{ timestamp(&data.overview.checked_at) }</> },
+        None => Html::default(),
+    };
+
     html! {
         <PageSection>
-            <Title level={Level::H1}>{ "Correlation status" }</Title>
-            <p>{ "Track background processing of ingested documents and freshness against matching settings. Documents with no matches are included." }</p>
+            <Stack gutter=true>
+            <StackItem>
+                <Flex modifiers={[FlexModifier::Align(Alignment::Center), FlexModifier::Justify(Justify::SpaceBetween)]}>
+                    <FlexItem><Title level={Level::H1}>{ "Correlation status" }</Title></FlexItem>
+                    <FlexItem>{ checked }</FlexItem>
+                </Flex>
+                <p>{ "Ingested documents are processed automatically, also after matching settings change. Results show the latest completed computation." }</p>
+            </StackItem>
             if let Some(err) = &*error {
-                <Alert title="Could not update correlation status" r#type={AlertType::Danger} inline=true><p>{err}</p><p>{"Previously loaded data is retained."}</p></Alert>
+                <StackItem>
+                    <Alert title="Could not update correlation status" r#type={AlertType::Danger} inline=true><p>{err}</p><p>{"Previously loaded data is retained."}</p></Alert>
+                </StackItem>
             }
             if let Some(data) = &*view {
-                <Title level={Level::H2}>{ "Background extraction" }</Title>
-                if let Some(lag) = &data.overview.extraction_lag {
-                    <Gallery gutter=true>
-                        { for [("Advisory changes pending", lag.pending_advisories), ("SBOM changes pending", lag.pending_sboms)].into_iter().map(|(label, count)| html! {
-                            <Card><CardBody>
-                                <Flex space_items={[SpaceItems::Small]} modifiers={[FlexModifier::Align(Alignment::Center)]}>
-                                    <FlexItem>{ label }</FlexItem>
-                                    <FlexItem><Title level={Level::H3}>{ count.to_string() }</Title></FlexItem>
-                                </Flex>
-                            </CardBody></Card>
-                        }) }
-                    </Gallery>
-                    if lag == &ExtractionLag::default() {
-                        <Alert title="Background extraction is caught up" r#type={AlertType::Success} inline=true>
-                            { "All queued ingestion changes have finished processing as of the last status check." }
+                <StackItem>
+                    <Grid gutter=true>
+                        { sbom_card(&data.overview, data.overview.latest_job.as_ref()) }
+                        { advisory_card(data.overview.extraction_lag.as_ref()) }
+                        { verdict_card(&data.overview.verdict_lag) }
+                    </Grid>
+                </StackItem>
+                if let Some(details) = data.failures.as_ref().filter(|details| details.failure_total > 0) {
+                    <StackItem>
+                        <Alert title={format!("{} documents could not be refreshed", details.failure_total)} r#type={AlertType::Warning} inline=true>
+                            <p>{"Their previous results remain available. Failed documents are retried automatically."}</p>
+                            <ExpandableSection toggle_text_hidden="Show failures" toggle_text_expanded="Hide failures">
+                                <ul>{for details.failures.iter().map(|f| html! {
+                                    <li><Link<AppRoute> to={AppRoute::Correlation { id: f.sbom_id.to_string() }}>{ f.sbom_id.to_string() }</Link<AppRoute>>{format!(": {}", f.error)}</li>
+                                })}</ul>
+                                if details.failure_total > 20 {
+                                    <Flex>
+                                        <FlexItem><Button variant={ButtonVariant::Secondary} disabled={*failure_page == 0} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(page.saturating_sub(1))) }}>{"Previous failures"}</Button></FlexItem>
+                                        <FlexItem><Button variant={ButtonVariant::Secondary} disabled={((*failure_page + 1) * 20) as u64 >= details.failure_total} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(*page + 1)) }}>{"Next failures"}</Button></FlexItem>
+                                    </Flex>
+                                }
+                            </ExpandableSection>
                         </Alert>
-                    }
-                    if let Some(oldest) = &lag.oldest_pending_at {
-                        <p>{ "Oldest pending change: " }{ timestamp(oldest) }</p>
-                    }
-                    if lag.failed > 0 {
-                        <Alert title={format!("{} pending changes are waiting for retry", lag.failed)} r#type={AlertType::Warning} inline=true>
-                            { "Failed changes remain pending and are retried automatically. See server logs for details." }
-                        </Alert>
-                    }
-                } else {
-                    <Alert title="Background extraction lag is unavailable" r#type={AlertType::Info} inline=true />
+                    </StackItem>
                 }
-                <p>{ "Status checked at " }{ timestamp(&data.overview.checked_at) }</p>
-                <Title level={Level::H2}>{"Verdict computation"}</Title>
-                <p>{format!("{} SBOMs outstanding, including {} awaiting retry.", data.overview.verdict_lag.pending, data.overview.verdict_lag.failed)}</p>
-                if let Some(oldest) = &data.overview.verdict_lag.oldest_pending_at { <p>{ "Oldest outstanding verdict work: " }{ timestamp(oldest) }</p> }
-                <Title level={Level::H2}>{ "Matching settings" }</Title>
-                <Gallery gutter=true>
-                    { for [("Current", data.overview.current), ("Needs refreshing", data.overview.needs_refresh)].into_iter().map(|(label, count)| html! {
-                        <Card>
-                            <CardBody>
-                                <Flex space_items={[SpaceItems::Small]} modifiers={[FlexModifier::Align(Alignment::Center)]}>
-                                    <FlexItem>{ label }</FlexItem>
-                                    <FlexItem><Title level={Level::H3}>{ count.to_string() }</Title></FlexItem>
-                                </Flex>
-                            </CardBody>
-                        </Card>
-                    }) }
-                </Gallery>
-                <Flex modifiers={[FlexModifier::Align(Alignment::Center)]}>
-                    <FlexItem><Title level={Level::H2}>{ "Refresh" }</Title></FlexItem>
-                    <FlexItem modifiers={[FlexModifier::Align(Alignment::Right)]}>
-                        <Button
-                            variant={ButtonVariant::Primary}
-                            onclick={start}
-                            disabled={*starting || data.overview.active_job.is_some() || data.overview.needs_refresh == 0}
-                        >
-                            { "Refresh outdated results" }
-                        </Button>
-                    </FlexItem>
-                </Flex>
-                { job_progress(data.job.as_ref().map(|details| &details.job), data.overview.needs_refresh) }
-                if let Some(details) = &data.job {
-                    if details.failure_total > 0 {
-                        <Alert title="Some documents could not be refreshed" r#type={AlertType::Warning} inline=true>{"Their previous results remain available. Start another refresh to retry documents still needing work."}</Alert>
-                        <ul>{for details.failures.iter().map(|f| html! {
-                            <li><Link<AppRoute> to={AppRoute::Correlation { id: f.sbom_id.to_string() }}>{ f.sbom_id.to_string() }</Link<AppRoute>>{format!(": {}", f.error)}</li>
-                        })}</ul>
-                        <Flex>
-                            <FlexItem><Button variant={ButtonVariant::Secondary} disabled={*failure_page == 0} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(page.saturating_sub(1))) }}>{"Previous failures"}</Button></FlexItem>
-                            <FlexItem><Button variant={ButtonVariant::Secondary} disabled={((*failure_page + 1) * 20) as u64 >= details.failure_total} onclick={{ let page = failure_page.clone(); Callback::from(move |_: MouseEvent| page.set(*page + 1)) }}>{"Next failures"}</Button></FlexItem>
-                        </Flex>
-                    }
-                }
+                <StackItem>
                 <Title level={Level::H2}>{ "Documents" }</Title>
                 <Toolbar>
                     <ToolbarContent>
@@ -402,13 +579,42 @@ pub fn freshness_page() -> Html {
                                 </TableData>
                                 <TableData data_label="Status">{ freshness_badge(&doc.freshness) }</TableData>
                                 <TableData data_label="Last successful refresh">
-                                    { doc.freshness.completed_at.map(|t| t.to_string()).unwrap_or_else(|| "Never".into()) }
+                                    { doc.freshness.completed_at.as_ref().map(timestamp).unwrap_or_else(|| html!("Never")) }
                                 </TableData>
                             </TableRow>
                         }) }
                     </TableBody>
                 </ComposableTable>
-            } else if error.is_none() { <Spinner /> }
+                </StackItem>
+            } else if error.is_none() { <StackItem><Spinner /></StackItem> }
+            </Stack>
         </PageSection>
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::approximate;
+    use time::Duration;
+
+    #[test]
+    fn approximate_durations() {
+        assert_eq!(
+            [
+                Duration::seconds(-5),
+                Duration::seconds(59),
+                Duration::minutes(42),
+                Duration::minutes(135),
+                Duration::hours(50),
+            ]
+            .map(approximate),
+            [
+                "less than a minute",
+                "less than a minute",
+                "about 42 min",
+                "about 2 h 15 min",
+                "about 2 d 2 h",
+            ]
+        );
     }
 }

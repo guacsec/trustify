@@ -7,8 +7,8 @@ use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
-    ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJob,
-    RefreshJobDetails, VerdictFreshness, VerdictStatus,
+    ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJobDetails,
+    VerdictFreshness, VerdictStatus,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -81,10 +81,6 @@ pub async fn fetch_freshness_documents(
         token,
     )
     .await
-}
-
-pub async fn start_refresh(token: Option<&str>) -> Result<RefreshJob, ApiError> {
-    post_json("/api/v3/correlation/refresh", &serde_json::json!({}), token).await
 }
 
 pub async fn fetch_refresh_job(

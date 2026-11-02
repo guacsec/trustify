@@ -1722,37 +1722,15 @@ paths:
           description: Insufficient permissions
         '422':
           description: Correlation capability disabled
-  /api/v3/correlation/refresh:
-    post:
-      tags:
-      - correlation-operations
-      summary: Start a correlation refresh
-      description: |-
-        Queues a background job re-extracting the correlation evidence of all SBOMs needing a
-        refresh. Only one job is active at a time: if one is already queued or running, it is
-        returned instead. The `Location` header points to the job.
-      operationId: startCorrelationRefresh
-      responses:
-        '202':
-          description: Refresh queued, or existing active job
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RefreshJob'
-        '401':
-          description: Unauthenticated
-        '403':
-          description: Forbidden
-        '422':
-          description: Correlation capability disabled
-        '503':
-          description: Write database unavailable
   /api/v3/correlation/refresh/{id}:
     get:
       tags:
       - correlation-operations
       summary: Get a correlation refresh job
-      description: Returns the progress of the job and a page of the SBOMs it failed to refresh.
+      description: |-
+        Refresh jobs are scheduled automatically whenever SBOMs have not been extracted under
+        the current matching settings. Returns the progress of the job, including an estimated
+        completion time, and a page of the SBOMs it failed to refresh.
       operationId: getCorrelationRefresh
       parameters:
       - name: id
@@ -7651,7 +7629,6 @@ components:
       type: object
       required:
       - pending_advisories
-      - pending_sboms
       - failed
       properties:
         failed:
@@ -7668,12 +7645,9 @@ components:
         pending_advisories:
           type: integer
           format: int64
-          description: Pending advisory ingestion events, including failures awaiting retry.
-          minimum: 0
-        pending_sboms:
-          type: integer
-          format: int64
-          description: Pending SBOM ingestion events, including failures awaiting retry.
+          description: |-
+            Pending advisory ingestion events, including failures awaiting retry. SBOMs are
+            extracted by refresh jobs and counted as `needs_refresh` instead.
           minimum: 0
     Finding:
       type: object
@@ -10110,6 +10084,24 @@ components:
               $ref: '#/components/schemas/RecommendEntry'
           propertyNames:
             type: string
+    RefreshCurrent:
+      type: object
+      description: The document a refresh job is currently extracting.
+      required:
+      - sbom_id
+      - started_at
+      properties:
+        name:
+          type:
+          - string
+          - 'null'
+          description: The name of the SBOM's document node, if known.
+        sbom_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
     RefreshFailure:
       type: object
       required:
@@ -10134,6 +10126,19 @@ components:
         created_at:
           type: string
           format: date-time
+        current:
+          oneOf:
+          - $ref: '#/components/schemas/RefreshCurrent'
+            description: The document an active job is extracting right now, if any.
+          - type: 'null'
+        estimated_completion_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: |-
+            Estimated completion time, extrapolated from the job's average rate so far.
+            Absent before the first document is processed and once the job has finished.
         failed:
           type: integer
           format: int64
@@ -10150,6 +10155,11 @@ components:
           type: integer
           format: int64
           description: Successfully processed documents. Failures are counted separately.
+          minimum: 0
+        remaining:
+          type: integer
+          format: int64
+          description: Documents this job still has to process. Zero once the job has finished.
           minimum: 0
         revision:
           type: integer

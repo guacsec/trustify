@@ -1,6 +1,7 @@
+use crate::{extractor::Extractors, model::ExtractionLag, service::freshness::run_step};
 use actix_web::{
     App, HttpMessage,
-    test::{TestRequest, call_service},
+    test::{TestRequest, call_service, read_body_json},
     web,
 };
 use test_context::test_context;
@@ -97,7 +98,6 @@ async fn correlation_capability_disabled(
         ),
         (Method::GET, "freshness".into(), None),
         (Method::GET, "freshness/sbom".into(), None),
-        (Method::POST, "refresh".into(), None),
         (Method::GET, format!("refresh/{id}"), None),
     ];
     for (method, path, body) in cases {
@@ -113,7 +113,7 @@ async fn correlation_capability_disabled(
             StatusCode::UNPROCESSABLE_ENTITY,
             "{method} {path}"
         );
-        let body: Value = actix_web::test::read_body_json(response).await;
+        let body: Value = read_body_json(response).await;
         assert_eq!(body["error"], "CapabilityDisabled", "{method} {path}");
         assert_eq!(
             body["message"],
@@ -214,7 +214,7 @@ async fn correlation_read_permissions(
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> anyhow::Result<()> {
+async fn freshness_overview_and_refresh_jobs(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
     let app = App::new()
         .app_data(web::Data::new(Authorizer::new(Some(
@@ -228,10 +228,6 @@ async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> an
         id: "reader".into(),
         permissions: vec!["read.advisory".into()],
     });
-    let writer = UserInformation::Authenticated(UserDetails {
-        id: "writer".into(),
-        permissions: vec!["read.advisory".into(), "update.correlationOption".into()],
-    });
     let req = TestRequest::get()
         .uri("/v3/correlation/freshness")
         .to_request();
@@ -242,57 +238,42 @@ async fn freshness_overview_and_refresh_permissions(ctx: &TrustifyContext) -> an
     req.extensions_mut().insert(reader.clone());
     let resp = call_service(&app, req).await;
     assert_eq!(resp.status(), 200);
-    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let body: serde_json::Value = read_body_json(resp).await;
     assert_eq!(body["unknown"], 1);
     assert_eq!(body["needs_refresh"], 1);
-    let lag: crate::model::ExtractionLag = serde_json::from_value(body["extraction_lag"].clone())?;
-    assert_eq!(
-        lag,
-        crate::model::ExtractionLag {
-            pending_sboms: 1,
-            oldest_pending_at: Some(
-                lag.oldest_pending_at
-                    .expect("pending work has an enqueue time")
-            ),
-            ..Default::default()
-        }
-    );
+    let lag: ExtractionLag = serde_json::from_value(body["extraction_lag"].clone())?;
+    assert_eq!(lag, ExtractionLag::default());
     let req = TestRequest::get()
         .uri("/v3/correlation/freshness/sbom?status=unknown&limit=1&total=true")
         .to_request();
     req.extensions_mut().insert(reader.clone());
     let resp = call_service(&app, req).await;
     assert_eq!(resp.status(), 200);
-    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let body: serde_json::Value = read_body_json(resp).await;
     assert_eq!(body["total"], 1);
     assert_eq!(body["items"][0]["sbom_id"], id.to_string());
+    // Refreshes are not started by clients.
     let req = TestRequest::post()
         .uri("/v3/correlation/refresh")
         .to_request();
     req.extensions_mut().insert(reader.clone());
-    assert_eq!(call_service(&app, req).await.status(), 403);
-    let req = TestRequest::post()
-        .uri("/v3/correlation/refresh")
+    assert_eq!(call_service(&app, req).await.status(), 404);
+    // The worker schedules a job for the never-extracted SBOM.
+    assert!(run_step(&ReadWrite::new(ctx.db.clone()), &Extractors::default()).await?);
+    let req = TestRequest::get()
+        .uri("/v3/correlation/freshness")
         .to_request();
-    req.extensions_mut().insert(writer.clone());
-    let resp = call_service(&app, req).await;
-    assert_eq!(resp.status(), 202);
-    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
-    let job_id = body["id"].as_str().unwrap();
-    let req = TestRequest::post()
-        .uri("/v3/correlation/refresh")
-        .to_request();
-    req.extensions_mut().insert(writer);
-    let resp = call_service(&app, req).await;
-    let again: serde_json::Value = actix_web::test::read_body_json(resp).await;
-    assert_eq!(again["id"], job_id);
+    req.extensions_mut().insert(reader.clone());
+    let body: serde_json::Value = read_body_json(call_service(&app, req).await).await;
+    assert_eq!(body["active_job"]["remaining"], 1);
+    let job_id = body["active_job"]["id"].as_str().unwrap().to_string();
     let req = TestRequest::get()
         .uri(&format!("/v3/correlation/refresh/{job_id}?limit=0"))
         .to_request();
     req.extensions_mut().insert(reader.clone());
     let resp = call_service(&app, req).await;
     assert_eq!(resp.status(), 200);
-    let details: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let details: serde_json::Value = read_body_json(resp).await;
     assert_eq!(details["job"]["id"], job_id);
     assert_eq!(details["failures"], serde_json::json!([]));
     let req = TestRequest::get()
@@ -323,7 +304,7 @@ async fn empty_sbom_returns_empty_verdicts(ctx: &TrustifyContext) -> anyhow::Res
 
     assert_eq!(resp.status(), 200);
 
-    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let body: serde_json::Value = read_body_json(resp).await;
     assert_eq!(body["items"], serde_json::json!([]));
     assert!(body["total"].is_null());
     assert!(body.get("verdicts").is_none());
@@ -354,7 +335,7 @@ async fn query_requires_kind(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let resp = call_service(&app, req).await;
     assert_eq!(resp.status(), 200);
 
-    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let body: serde_json::Value = read_body_json(resp).await;
     assert_eq!(
         body,
         serde_json::json!({
@@ -386,7 +367,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
         .to_request();
     let resp = call_service(&app, req).await;
     assert_eq!(resp.status(), 200);
-    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    let body: serde_json::Value = read_body_json(resp).await;
     let zero = |id: Uuid| {
         serde_json::json!({
             "sbom_id": id,
@@ -428,7 +409,7 @@ async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow:
         )
         .await;
     assert_eq!(response.status(), 201);
-    let alias: Value = actix_web::test::read_body_json(response).await;
+    let alias: Value = read_body_json(response).await;
     assert_eq!(alias["provider"], "A");
     assert_eq!(alias["aliases"], json!([{"kind":"name","value":"acme"}]));
     let id = alias["id"].as_str().unwrap();
@@ -469,7 +450,7 @@ async fn aliases_and_read_only_context_preview(ctx: &TrustifyContext) -> anyhow:
         )
         .await;
     assert_eq!(response.status(), 200);
-    let updated: Value = actix_web::test::read_body_json(response).await;
+    let updated: Value = read_body_json(response).await;
     assert_ne!(updated["revision"], alias["revision"]);
     let before: Vec<Value> = app
         .call_and_read_body_json(
@@ -567,7 +548,7 @@ mod option {
     use super::configure;
     use crate::model::{CorrelationOption, CorrelationOptionData, CorrelationOptionKey};
     use actix_http::StatusCode;
-    use actix_web::test::TestRequest;
+    use actix_web::test::{TestRequest, read_body_json};
     use serde_json::{Value, json};
     use test_context::test_context;
     use test_log::test;
@@ -649,7 +630,7 @@ mod option {
             )
             .await;
         assert_eq!(response.status(), StatusCode::CREATED);
-        let created: Value = actix_web::test::read_body_json(response).await;
+        let created: Value = read_body_json(response).await;
         let id: Uuid = serde_json::from_value(created["id"].clone())?;
         let uri = format!("{BASE}/{id}");
 
@@ -955,7 +936,7 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 response.headers().get("X-Pagination-Max-Limit").unwrap(),
                 "25"
             );
-            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            let body: serde_json::Value = read_body_json(response).await;
             assert_eq!(body["error"], "LimitExceeded");
         }
     }
@@ -965,7 +946,7 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
             let uri = format!("/v3/correlation/sbom/{id}{suffix}");
             let response = call_service(&app, TestRequest::get().uri(&uri).to_request()).await;
             assert_eq!(response.status(), 404, "{uri}");
-            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            let body: serde_json::Value = read_body_json(response).await;
             assert_eq!(body["error"], "NotFound");
         }
         for query in [
@@ -978,7 +959,7 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
             let uri = format!("/v3/correlation/sbom/{id}{suffix}{query}");
             let response = call_service(&app, TestRequest::get().uri(&uri).to_request()).await;
             assert_eq!(response.status(), 200, "{uri}");
-            let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+            let body: serde_json::Value = read_body_json(response).await;
             assert_eq!(body["items"], serde_json::json!([]), "{uri}");
             assert_eq!(
                 body["total"],
@@ -1008,7 +989,7 @@ async fn sbom_page_http_contract(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     response.headers().get("X-Pagination-Max-Limit").unwrap(),
                     "25"
                 );
-                let body: serde_json::Value = actix_web::test::read_body_json(response).await;
+                let body: serde_json::Value = read_body_json(response).await;
                 assert_eq!(body["error"], "LimitExceeded");
             }
         }

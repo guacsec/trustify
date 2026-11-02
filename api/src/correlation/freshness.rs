@@ -68,10 +68,9 @@ pub struct VerdictLag {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ExtractionLag {
-    /// Pending advisory ingestion events, including failures awaiting retry.
+    /// Pending advisory ingestion events, including failures awaiting retry. SBOMs are
+    /// extracted by refresh jobs and counted as `needs_refresh` instead.
     pub pending_advisories: u64,
-    /// Pending SBOM ingestion events, including failures awaiting retry.
-    pub pending_sboms: u64,
     /// Pending events that have failed at least once and will be retried.
     pub failed: u64,
     /// Enqueue time of the oldest pending event; null when caught up.
@@ -105,8 +104,28 @@ pub struct RefreshJob {
     /// Successfully processed documents. Failures are counted separately.
     pub processed: u64,
     pub failed: u64,
+    /// Documents this job still has to process. Zero once the job has finished.
+    #[serde(default)]
+    pub remaining: u64,
+    /// Estimated completion time, extrapolated from the job's average rate so far.
+    /// Absent before the first document is processed and once the job has finished.
+    #[serde(default)]
+    pub estimated_completion_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,
     pub finished_at: Option<OffsetDateTime>,
+    /// The document an active job is extracting right now, if any.
+    #[serde(default)]
+    pub current: Option<RefreshCurrent>,
+}
+
+/// The document a refresh job is currently extracting.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RefreshCurrent {
+    pub sbom_id: Uuid,
+    /// The name of the SBOM's document node, if known.
+    pub name: Option<String>,
+    pub started_at: OffsetDateTime,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
