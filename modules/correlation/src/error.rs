@@ -24,6 +24,8 @@ pub enum Error {
     MatchedValue(#[source] serde_json::Error),
     #[error("invalid distance of a context: {0}")]
     Distance(#[from] TryFromIntError),
+    #[error("unknown candidate source of a PURL match: {0}")]
+    CandidateSource(i32),
 }
 
 impl From<DbErr> for Error {

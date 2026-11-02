@@ -10037,6 +10037,7 @@ dependencies = [
  "actix-web",
  "anyhow",
  "async-trait",
+ "futures-util",
  "rstest",
  "sea-orm",
  "serde",
