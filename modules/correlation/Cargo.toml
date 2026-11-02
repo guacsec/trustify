@@ -16,6 +16,7 @@ actix-http = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+futures-util = { workspace = true }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
