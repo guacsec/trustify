@@ -144,6 +144,7 @@ fn json_section(title: &'static str, value: Option<&Value>) -> Html {
 #[cfg(test)]
 mod test {
     use super::parse;
+    use ::osv::schema::Ecosystem;
 
     const DOCUMENT: &str = include_str!(
         "../../../../etc/test-data/scenarios/S6_positive_baseline_osv_urllib3/osv/GHSA-g4mx-q9vg-27p4.json"
@@ -196,6 +197,53 @@ mod test {
             (doc.id.as_str(), doc.affected.as_ref().map(Vec::len)),
             ("PYSEC-2024-55", Some(1))
         );
+    }
+
+    #[test]
+    fn parse_schema_version() {
+        for (source, expected) in [
+            (
+                r#"{"id":"OSV-2026-1","modified":"2026-01-01T00:00:00Z","schema_version":"1.9.0"}"#,
+                "1.9.0",
+            ),
+            (
+                r#"{"id":"OSV-2026-1","modified":"2026-01-01T00:00:00Z"}"#,
+                "1.0.0",
+            ),
+            (
+                "id: OSV-2026-1\nmodified: 2026-01-01T00:00:00Z\nschema_version: 1.9.0\n",
+                "1.9.0",
+            ),
+            ("id: OSV-2026-1\nmodified: 2026-01-01T00:00:00Z\n", "1.0.0"),
+        ] {
+            let doc = parse(source).expect("record parses");
+            assert_eq!(doc.schema_version, expected);
+        }
+    }
+
+    #[test]
+    fn parse_lightwell_records() {
+        for (source, expected) in [
+            (
+                include_str!("../../../../etc/test-data/osv/RHLW-2026-02416b185203289c.json"),
+                "Maven",
+            ),
+            (
+                include_str!("../../../../etc/test-data/osv/RHLW-2026-821eaab8409c2a61.json"),
+                "PyPI",
+            ),
+        ] {
+            let doc = parse(source).expect("Lightwell record parses");
+            assert_eq!(doc.schema_version, "1.9.0");
+            assert!(doc.affected.iter().flatten().any(|affected| {
+                affected.package.as_ref().is_some_and(|package| {
+                    matches!(
+                        &package.ecosystem,
+                        Ecosystem::RedHatLightwell(Some(native)) if native == expected
+                    )
+                })
+            }));
+        }
     }
 
     #[test]
