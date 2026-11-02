@@ -62,6 +62,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     iter,
     mem::take,
+    sync::Arc,
 };
 use tracing::{Instrument, Span, field, info_span, instrument};
 use trustify_common::{db::VersionMatches, purl::Purl};
@@ -191,109 +192,219 @@ fn sources(rules: &[Box<dyn RangeRule>]) -> impl Iterator<Item = (Source<'_>, Ca
     )
 }
 
-/// The advisory side of a matched `purl_status`, plus the SBOM version it matched.
-#[derive(Clone, FromQueryResult)]
-struct PurlStatusRow {
+/// What a stated `purl_status` row says, independent of the version it matched.
+///
+/// Loaded and prepared once per row, as one row matches many versions and nodes (e.g. one kernel
+/// advisory row matches the kernel nodes of every SBOM).
+struct Stated {
     source_id: Uuid,
     advisory_id: Uuid,
     vulnerability_id: String,
-    slug: String,
+    base_purl_type: String,
+    base_purl_namespace: Option<String>,
+    base_purl_name: String,
+    ecosystem: Ecosystem,
+    /// Qualifiers of the advisory PURL, `None` without one.
+    qualifiers: Option<BTreeMap<String, String>>,
+    /// The original advisory PURL, or the legacy base identity.
+    identifier: String,
+    /// The stated provider, serialized, distinguishing statements of different providers.
+    provider_key: String,
+    provider: Option<crate::model::ProviderIdentity>,
+    publisher_namespace: Option<String>,
+    assertion_context_id: Option<Uuid>,
+    is_default: bool,
+}
+
+/// The columns of [`Stated`], as loaded.
+#[derive(FromQueryResult)]
+struct StatedModel {
+    source_id: Uuid,
+    advisory_id: Uuid,
+    vulnerability_id: String,
     base_purl_type: String,
     base_purl_namespace: Option<String>,
     base_purl_name: String,
     source_purl: Option<qualified_purl::CanonicalPurl>,
     source_provider: Option<serde_json::Value>,
-    sbom_qualifiers: qualified_purl::Qualifiers,
     publisher_namespace: Option<String>,
     assertion_context_id: Option<Uuid>,
+    is_default: bool,
+}
+
+impl From<StatedModel> for Stated {
+    fn from(model: StatedModel) -> Self {
+        let ecosystem = Ecosystem::of(&model.base_purl_type, model.base_purl_namespace.as_deref());
+        let qualifiers = model
+            .source_purl
+            .as_ref()
+            .map(|purl| purl.qualifiers.clone());
+        let identifier = model
+            .source_purl
+            .map(Purl::from)
+            .unwrap_or_else(|| Purl {
+                ty: model.base_purl_type.clone(),
+                namespace: model.base_purl_namespace.clone(),
+                name: model.base_purl_name.clone(),
+                version: None,
+                qualifiers: Default::default(),
+            })
+            .to_string();
+        let provider_key = model
+            .source_provider
+            .as_ref()
+            .map(serde_json::Value::to_string)
+            .unwrap_or_default();
+        let provider = model.source_provider.map(|provider| {
+            serde_json::from_value(provider).unwrap_or(crate::model::ProviderIdentity {
+                unavailable: true,
+                ..Default::default()
+            })
+        });
+        Self {
+            source_id: model.source_id,
+            advisory_id: model.advisory_id,
+            vulnerability_id: model.vulnerability_id,
+            base_purl_type: model.base_purl_type,
+            base_purl_namespace: model.base_purl_namespace,
+            base_purl_name: model.base_purl_name,
+            ecosystem,
+            qualifiers,
+            identifier,
+            provider_key,
+            provider,
+            publisher_namespace: model.publisher_namespace,
+            assertion_context_id: model.assertion_context_id,
+            is_default: model.is_default,
+        }
+    }
+}
+
+/// The stated rows, by ID.
+type StatedRows = HashMap<Uuid, Arc<Stated>>;
+
+/// Stated rows of one package and range matching a version: their source's candidate status and
+/// range, and the version.
+#[derive(FromQueryResult)]
+struct MatchRow {
+    /// Index of the candidate source, see [`sources`].
+    source: i32,
+    /// The stated rows, which share everything else.
+    status_ids: Vec<Uuid>,
+    slug: String,
     range_id: Uuid,
     range_scheme: VersionScheme,
     range_low_version: Option<String>,
     range_low_inclusive: Option<bool>,
     range_high_version: Option<String>,
     range_high_inclusive: Option<bool>,
-    is_default: bool,
     sbom_version: String,
+}
+
+impl MatchRow {
+    /// One row per stated row, with the SBOM qualifiers. Stated rows which are gone are skipped.
+    ///
+    /// Empty if [`group`] can't use the rows for any target ([`PurlStatusRow::is_relevant`]).
+    /// That only depends on what the stated rows share (the package, the range and the
+    /// version), so it is decided once.
+    fn into_rows(
+        self,
+        stated: &StatedRows,
+        sbom_qualifiers: &qualified_purl::Qualifiers,
+    ) -> Vec<PurlStatusRow> {
+        let matched = Arc::new(self);
+        let rows = matched
+            .status_ids
+            .iter()
+            .filter_map(|id| stated.get(id))
+            .map(|stated| PurlStatusRow {
+                stated: stated.clone(),
+                matched: matched.clone(),
+                sbom_qualifiers: sbom_qualifiers.clone(),
+            })
+            .collect::<Vec<_>>();
+        if rows.first().is_some_and(PurlStatusRow::is_relevant) {
+            rows
+        } else {
+            Vec::new()
+        }
+    }
+}
+
+/// The advisory side of a matched `purl_status`, plus the SBOM version it matched.
+#[derive(Clone)]
+struct PurlStatusRow {
+    stated: Arc<Stated>,
+    matched: Arc<MatchRow>,
+    sbom_qualifiers: qualified_purl::Qualifiers,
 }
 
 impl PurlStatusRow {
     /// If [`group`] can use the row for any target: it is of the target's stream (or unscoped),
     /// and of a known status. Rows failing this are dropped before they are copied or grouped.
     fn is_relevant(&self) -> bool {
-        self.stream_match().is_some() && map_status(&self.slug).is_some()
+        self.stream_match().is_some() && map_status(&self.matched.slug).is_some()
     }
 
     /// If the qualifiers of the SBOM package are compatible with the ones of the advisory PURL.
     fn qualifiers_match(&self) -> bool {
-        self.source_purl.as_ref().is_none_or(|purl| {
-            self.ecosystem()
-                .qualifiers_match(&self.sbom_qualifiers.0, &purl.qualifiers)
+        self.stated.qualifiers.as_ref().is_none_or(|qualifiers| {
+            self.stated
+                .ecosystem
+                .qualifiers_match(&self.sbom_qualifiers.0, qualifiers)
         })
     }
 
     /// The package a listed status shadows the default of.
     fn package(&self) -> (Uuid, &str, &str, Option<&str>, &str) {
+        let stated = &self.stated;
         (
-            self.advisory_id,
-            self.vulnerability_id.as_str(),
-            self.base_purl_type.as_str(),
-            self.base_purl_namespace.as_deref(),
-            self.base_purl_name.as_str(),
+            stated.advisory_id,
+            stated.vulnerability_id.as_str(),
+            stated.base_purl_type.as_str(),
+            stated.base_purl_namespace.as_deref(),
+            stated.base_purl_name.as_str(),
         )
-    }
-
-    /// The ecosystem of the advisory's package.
-    fn ecosystem(&self) -> Ecosystem {
-        Ecosystem::of(&self.base_purl_type, self.base_purl_namespace.as_deref())
     }
 
     /// Relation of the streams of the SBOM version and the range.
     fn stream_match(&self) -> Option<StreamMatch> {
-        self.ecosystem().stream_match(
-            &self.sbom_version,
-            self.range_low_version.as_deref(),
-            self.range_high_version.as_deref(),
+        self.stated.ecosystem.stream_match(
+            &self.matched.sbom_version,
+            self.matched.range_low_version.as_deref(),
+            self.matched.range_high_version.as_deref(),
         )
     }
 
-    /// The original advisory PURL (or legacy base identity), and the matched version range.
-    fn into_match(self) -> (String, MatchedRange) {
-        let purl = self.source_purl.map(Purl::from).unwrap_or_else(|| Purl {
-            ty: self.base_purl_type,
-            namespace: self.base_purl_namespace,
-            name: self.base_purl_name,
-            version: None,
-            qualifiers: Default::default(),
-        });
-        let range = version_range::Model {
-            id: self.range_id,
-            version_scheme_id: self.range_scheme,
-            low_version: self.range_low_version,
-            low_inclusive: self.range_low_inclusive,
-            high_version: self.range_high_version,
-            high_inclusive: self.range_high_inclusive,
-        };
-        (purl.to_string(), range.into())
+    /// The matched version range.
+    fn range(&self) -> MatchedRange {
+        let matched = &self.matched;
+        version_range::Model {
+            id: matched.range_id,
+            version_scheme_id: matched.range_scheme,
+            low_version: matched.range_low_version.clone(),
+            low_inclusive: matched.range_low_inclusive,
+            high_version: matched.range_high_version.clone(),
+            high_inclusive: matched.range_high_inclusive,
+        }
+        .into()
     }
 }
 
 #[derive(FromQueryResult)]
 struct PurlStatusMatch {
-    /// Index of the candidate source, see [`sources`].
-    source: i32,
     versioned_purl_id: Uuid,
     #[sea_orm(nested)]
-    status: PurlStatusRow,
+    matched: MatchRow,
 }
 
 #[derive(FromQueryResult)]
 struct AdvisoryPurlMatch {
-    /// Index of the candidate source, see [`sources`].
-    source: i32,
     sbom_id: Uuid,
     node_id: String,
+    sbom_qualifiers: qualified_purl::Qualifiers,
     #[sea_orm(nested)]
-    status: PurlStatusRow,
+    matched: MatchRow,
 }
 
 /// Group the matching `purl_status` rows by target and assertion, merging their version ranges.
@@ -342,7 +453,7 @@ fn group<'a, K: Ord + Clone>(
             if !row.qualifiers_match() {
                 return None;
             }
-            let status = map_status(&row.slug)?;
+            let status = map_status(&row.matched.slug)?;
             let stream = row.stream_match()?;
             Some((target, source, row, status, stream))
         })
@@ -354,12 +465,9 @@ fn group<'a, K: Ord + Clone>(
         .map(|(target, _, row, ..)| {
             (
                 target.clone(),
-                row.advisory_id,
-                row.vulnerability_id.clone(),
-                row.source_provider
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
+                row.stated.advisory_id,
+                row.stated.vulnerability_id.clone(),
+                row.stated.provider_key.clone(),
             )
         })
         .collect::<BTreeSet<_>>();
@@ -368,30 +476,25 @@ fn group<'a, K: Ord + Clone>(
     let listed = rows
         .iter()
         .filter(|(_, source, row, ..)| {
-            !row.is_default && source.is_none_or(|rule| rule.origin() == AssertionOrigin::Stated)
+            !row.stated.is_default
+                && source.is_none_or(|rule| rule.origin() == AssertionOrigin::Stated)
         })
         .map(|(target, _, row, ..)| {
             (
                 target.clone(),
                 row.package(),
-                row.source_provider
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
+                row.stated.provider_key.clone(),
             )
         })
         .collect::<BTreeSet<_>>();
     let shadowed = rows
         .iter()
         .map(|(target, _, row, ..)| {
-            row.is_default
+            row.stated.is_default
                 && listed.contains(&(
                     target.clone(),
                     row.package(),
-                    row.source_provider
-                        .as_ref()
-                        .map(ToString::to_string)
-                        .unwrap_or_default(),
+                    row.stated.provider_key.clone(),
                 ))
         })
         .collect::<Vec<_>>();
@@ -403,18 +506,15 @@ fn group<'a, K: Ord + Clone>(
         if stream == StreamMatch::Minor
             && own_stream.contains(&(
                 target.clone(),
-                row.advisory_id,
-                row.vulnerability_id.clone(),
-                row.source_provider
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
+                row.stated.advisory_id,
+                row.stated.vulnerability_id.clone(),
+                row.stated.provider_key.clone(),
             ))
         {
             continue;
         }
         let (extractor, factors) = match source {
-            None if row.is_default => (
+            None if row.stated.is_default => (
                 DEFAULT,
                 vec![
                     stream.factor(),
@@ -439,11 +539,11 @@ fn group<'a, K: Ord + Clone>(
         let confidence = combine(&factors);
         let origin = match source {
             Some(rule) => rule.origin(),
-            None if row.is_default => AssertionOrigin::Default,
+            None if row.stated.is_default => AssertionOrigin::Default,
             None => AssertionOrigin::Stated,
         };
         let enabled_by =
-            source.and_then(|rule| rule.enabled_by(row.publisher_namespace.as_deref()));
+            source.and_then(|rule| rule.enabled_by(row.stated.publisher_namespace.as_deref()));
         // an equal RPM stream puts the node into the statement's product already, another minor
         // only applies within the product
         let requires_context = match stream {
@@ -453,39 +553,23 @@ fn group<'a, K: Ord + Clone>(
                 source.is_some_and(|rule| rule.requires_context())
             }
         };
-        let (advisory_id, vulnerability_id, slug, context_id) = (
-            row.advisory_id,
-            row.vulnerability_id.clone(),
-            row.slug.clone(),
-            row.assertion_context_id,
-        );
-        let row_provider_key = row
-            .source_provider
-            .as_ref()
-            .map(serde_json::Value::to_string)
-            .unwrap_or_default();
-        let source_provider = row.source_provider.clone().map(|p| {
-            serde_json::from_value(p).unwrap_or(crate::model::ProviderIdentity {
-                unavailable: true,
-                ..Default::default()
-            })
-        });
-        let source_id = row.source_id;
-        let (identifier, range) = row.into_match();
+        let stated = row.stated.clone();
+        let slug = row.matched.slug.clone();
+        let range = row.range();
         let entry = groups
             .entry((
                 target,
                 extractor,
-                advisory_id,
-                vulnerability_id,
+                stated.advisory_id,
+                stated.vulnerability_id.clone(),
                 slug,
-                identifier,
-                context_id,
-                row_provider_key,
+                stated.identifier.clone(),
+                stated.assertion_context_id,
+                stated.provider_key.clone(),
             ))
             .or_insert_with(|| Group {
                 status,
-                source_provider,
+                source_provider: stated.provider.clone(),
                 origin,
                 confidence,
                 factors: factors.clone(),
@@ -502,7 +586,7 @@ fn group<'a, K: Ord + Clone>(
         entry.ranges.insert(range);
         entry
             .source_assertions
-            .insert(super::SourceAssertionRef::Purl(source_id));
+            .insert(super::SourceAssertionRef::Purl(stated.source_id));
     }
 
     groups.into_iter().map(
@@ -660,20 +744,33 @@ async fn match_batched(
             continue;
         }
         let rows = load_purl_status_matches(take(&mut batch), &sources, tx).await?;
+        let ids = rows
+            .iter()
+            .flat_map(|row| row.matched.status_ids.iter().copied())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let stated = load_stated(
+            Expr::col((purl_status::Entity, purl_status::Column::Id)).eq(ids_param(&ids)),
+            tx,
+        )
+        .await?;
         let mut targets = Vec::new();
         for row in rows {
-            if !row.status.is_relevant() {
-                continue;
-            }
-            let source = source_of(&sources, row.source)?;
+            let source = source_of(&sources, row.matched.source)?;
+            let statuses = row
+                .matched
+                .into_rows(&stated, &qualified_purl::Qualifiers::default());
             let indices = vp_map
                 .get(&row.versioned_purl_id)
                 .map(Vec::as_slice)
                 .unwrap_or_default();
-            for (idx, qualifiers) in indices {
-                let mut status = row.status.clone();
-                status.sbom_qualifiers = qualifiers.clone();
-                targets.push((*idx, source, status));
+            for status in statuses {
+                for (idx, qualifiers) in indices {
+                    let mut status = status.clone();
+                    status.sbom_qualifiers = qualifiers.clone();
+                    targets.push((*idx, source, status));
+                }
             }
         }
         result
@@ -858,65 +955,17 @@ fn purl_status_matches(scope: &Scope, sources: &[(Source<'_>, Candidates)]) -> O
             ],
         ));
 
-    let assertion_purl = Alias::new("assertion_purl");
+    // One row per matched group, with its stated rows' IDs: they are expanded, and their own
+    // columns loaded once per row (see [`load_stated`]), as each one matches many versions and
+    // nodes.
     let mut rows = Query::select();
     rows.columns(
-        ["source", "sbom_version", "range_id", "slug"]
+        ["source", "sbom_version", "range_id", "slug", "status_ids"]
             .into_iter()
             .chain(range)
             .map(|name| (matched.clone(), Alias::new(name))),
     )
-    .expr_as(
-        Expr::col((purl_status::Entity, purl_status::Column::Id)),
-        Alias::new("source_id"),
-    )
-    .columns([
-        (purl_status::Entity, purl_status::Column::AdvisoryId),
-        (purl_status::Entity, purl_status::Column::VulnerabilityId),
-        (purl_status::Entity, purl_status::Column::IsDefault),
-        (purl_status::Entity, purl_status::Column::SourceProvider),
-        (purl_status::Entity, purl_status::Column::AssertionContextId),
-    ])
-    .expr_as(
-        Expr::col((base_purl::Entity, base_purl::Column::Type)),
-        Alias::new("base_purl_type"),
-    )
-    .expr_as(
-        Expr::col((base_purl::Entity, base_purl::Column::Namespace)),
-        Alias::new("base_purl_namespace"),
-    )
-    .expr_as(
-        Expr::col((base_purl::Entity, base_purl::Column::Name)),
-        Alias::new("base_purl_name"),
-    )
-    .expr_as(
-        Expr::col((assertion_purl.clone(), qualified_purl::Column::Purl)),
-        Alias::new("source_purl"),
-    )
-    .column((advisory::Entity, advisory::Column::PublisherNamespace))
-    .from(matched.clone())
-    .inner_join(
-        purl_status::Entity,
-        Expr::col((purl_status::Entity, purl_status::Column::Id))
-            .eq(PgFunc::any(column(&matched, "status_ids"))),
-    )
-    .inner_join(
-        base_purl::Entity,
-        Expr::col((base_purl::Entity, base_purl::Column::Id))
-            .equals((purl_status::Entity, purl_status::Column::BasePurlId)),
-    )
-    .inner_join(
-        advisory::Entity,
-        Expr::col((advisory::Entity, advisory::Column::Id))
-            .equals((purl_status::Entity, purl_status::Column::AdvisoryId)),
-    )
-    .join_as(
-        JoinType::LeftJoin,
-        qualified_purl::Entity,
-        assertion_purl.clone(),
-        Expr::col((assertion_purl.clone(), qualified_purl::Column::Id))
-            .equals((purl_status::Entity, purl_status::Column::QualifiedPurlId)),
-    );
+    .from(matched.clone());
     scope.targets(&mut rows, &matched);
 
     Some(
@@ -993,9 +1042,7 @@ impl Scope {
     fn targets(&self, rows: &mut SelectStatement, matched: &Alias) {
         match self {
             Self::Versions(_) => {
-                rows.column((matched.clone(), Alias::new("versioned_purl_id")))
-                    // replaced by the qualifiers of each input
-                    .expr_as(Expr::cust("'{}'::jsonb"), Alias::new("sbom_qualifiers"));
+                rows.column((matched.clone(), Alias::new("versioned_purl_id")));
             }
             Self::Advisory(_) => {
                 let sbom_purl = Alias::new("sbom_purl");
@@ -1048,6 +1095,77 @@ impl Scope {
     }
 }
 
+/// Load the stated rows matching a condition on `purl_status`.
+async fn load_stated(
+    condition: SimpleExpr,
+    connection: &impl ConnectionTrait,
+) -> Result<StatedRows, Error> {
+    let assertion_purl = Alias::new("assertion_purl");
+    let mut query = Query::select();
+    query
+        .expr_as(
+            Expr::col((purl_status::Entity, purl_status::Column::Id)),
+            Alias::new("source_id"),
+        )
+        .columns([
+            (purl_status::Entity, purl_status::Column::AdvisoryId),
+            (purl_status::Entity, purl_status::Column::VulnerabilityId),
+            (purl_status::Entity, purl_status::Column::IsDefault),
+            (purl_status::Entity, purl_status::Column::SourceProvider),
+            (purl_status::Entity, purl_status::Column::AssertionContextId),
+        ])
+        .expr_as(
+            Expr::col((base_purl::Entity, base_purl::Column::Type)),
+            Alias::new("base_purl_type"),
+        )
+        .expr_as(
+            Expr::col((base_purl::Entity, base_purl::Column::Namespace)),
+            Alias::new("base_purl_namespace"),
+        )
+        .expr_as(
+            Expr::col((base_purl::Entity, base_purl::Column::Name)),
+            Alias::new("base_purl_name"),
+        )
+        .expr_as(
+            Expr::col((assertion_purl.clone(), qualified_purl::Column::Purl)),
+            Alias::new("source_purl"),
+        )
+        .column((advisory::Entity, advisory::Column::PublisherNamespace))
+        .from(purl_status::Entity)
+        .inner_join(
+            base_purl::Entity,
+            Expr::col((base_purl::Entity, base_purl::Column::Id))
+                .equals((purl_status::Entity, purl_status::Column::BasePurlId)),
+        )
+        .inner_join(
+            advisory::Entity,
+            Expr::col((advisory::Entity, advisory::Column::Id))
+                .equals((purl_status::Entity, purl_status::Column::AdvisoryId)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            qualified_purl::Entity,
+            assertion_purl.clone(),
+            Expr::col((assertion_purl, qualified_purl::Column::Id))
+                .equals((purl_status::Entity, purl_status::Column::QualifiedPurlId)),
+        )
+        .and_where(condition);
+    let (sql, values) = query.build(PostgresQueryBuilder);
+    Ok(
+        StatedModel::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            sql,
+            values,
+        ))
+        .all(connection)
+        .instrument(info_span!("loading stated purl rows"))
+        .await?
+        .into_iter()
+        .map(|model| (model.source_id, Arc::new(Stated::from(model))))
+        .collect(),
+    )
+}
+
 /// A single array parameter, as the number of IDs is unbounded.
 fn ids_param(ids: &[Uuid]) -> SimpleExpr {
     SimpleExpr::FunctionCall(PgFunc::any(ids.to_vec()))
@@ -1075,6 +1193,11 @@ async fn load_advisory_purl_matches(
         matches = field::Empty
     );
     async {
+        let stated = load_stated(
+            Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId)).eq(advisory_id),
+            tx,
+        )
+        .await?;
         let mut stream = AdvisoryPurlMatch::find_by_statement(Statement::from_sql_and_values(
             DbBackend::Postgres,
             sql,
@@ -1101,9 +1224,13 @@ async fn load_advisory_purl_matches(
                 flush(&mut rows, &mut result);
                 node = Some(target.clone());
             }
-            if row.status.is_relevant() {
-                rows.push((target, source_of(sources, row.source)?, row.status));
-            }
+            let source = source_of(sources, row.matched.source)?;
+            rows.extend(
+                row.matched
+                    .into_rows(&stated, &row.sbom_qualifiers)
+                    .into_iter()
+                    .map(|status| (target.clone(), source, status)),
+            );
         }
         flush(&mut rows, &mut result);
 
