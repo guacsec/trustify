@@ -1787,6 +1787,11 @@ async fn advisory_rows_group_per_node(ctx: &TrustifyContext) -> anyhow::Result<(
     let (sql, values) = purl_status_matches(&Scope::Advisory(advisory_id), &sources)
         .ok_or_else(|| anyhow::anyhow!("no statement"))?
         .build(PostgresQueryBuilder);
+    let stated = load_stated(
+        Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId)).eq(advisory_id),
+        &tx,
+    )
+    .await?;
     let rows = AdvisoryPurlMatch::find_by_statement(Statement::from_sql_and_values(
         DbBackend::Postgres,
         sql,
@@ -1800,9 +1805,18 @@ async fn advisory_rows_group_per_node(ctx: &TrustifyContext) -> anyhow::Result<(
             sbom_id: row.sbom_id,
             node_id: row.node_id,
         };
-        Ok((node, source_of(&sources, row.source)?, row.status))
+        let source = source_of(&sources, row.matched.source)?;
+        Ok(row
+            .matched
+            .into_rows(&stated, &row.sbom_qualifiers)
+            .into_iter()
+            .map(|status| (node.clone(), source, status))
+            .collect::<Vec<_>>())
     })
-    .collect::<Result<Vec<_>, Error>>()?;
+    .collect::<Result<Vec<_>, Error>>()?
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
     let sorted = |mut matches: Vec<NodeMatch>| {
         matches.sort_by_cached_key(|m| format!("{m:?}"));
         matches
