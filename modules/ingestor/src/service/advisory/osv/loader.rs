@@ -18,7 +18,8 @@ use crate::{
     service::{
         Error, Warnings,
         advisory::osv::{
-            extract_scores, extract_vulnerability_ids, prefix::get_well_known_prefixes, translate,
+            ecosystem::native_ecosystem, extract_scores, extract_vulnerability_ids,
+            prefix::get_well_known_prefixes, translate,
         },
     },
 };
@@ -251,7 +252,8 @@ impl<'g> OsvLoader<'g> {
 /// The PURLs of a package: the one translated from its ecosystem and name, and the stated one.
 ///
 /// The stated PURL identifies the package "without the `@version` component". A version is
-/// ignored, with a warning.
+/// ignored, with a warning. For Lightwell, a valid stated PURL takes precedence over inference
+/// so its repository scope is not broadened.
 fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
     let mut purls = vec![];
     purls.extend(translate::to_purl(package).map(Purl::from));
@@ -263,6 +265,10 @@ fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
                 "The PURL of an OSV package must not have a version, ignoring it: {stated}"
             ));
         }
+        // Native naming alone cannot recover the repository scope of a stated Lightwell PURL.
+        if matches!(&package.ecosystem, Ecosystem::RedHatLightwell(_)) {
+            purls.clear();
+        }
         purls.push(purl);
     }
     purls
@@ -272,22 +278,25 @@ fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
 ///
 /// A range of an unknown scheme is evaluated on the enumerated `versions` instead.
 fn version_scheme(range_type: &RangeType, ecosystem: &Ecosystem) -> Option<VersionScheme> {
-    Some(match (range_type, ecosystem) {
-        (RangeType::Semver, _) => VersionScheme::Semver,
-        (RangeType::Git, _) => VersionScheme::Git,
-        (RangeType::Ecosystem, Ecosystem::Maven(_)) => VersionScheme::Maven,
-        (RangeType::Ecosystem, Ecosystem::PyPI | Ecosystem::Python) => VersionScheme::Python,
-        (RangeType::Ecosystem, Ecosystem::Go) => VersionScheme::Golang,
-        (RangeType::Ecosystem, Ecosystem::Npm) => VersionScheme::Npm,
-        (RangeType::Ecosystem, Ecosystem::Packagist) => VersionScheme::Packagist,
-        (RangeType::Ecosystem, Ecosystem::NuGet) => VersionScheme::NuGet,
-        (RangeType::Ecosystem, Ecosystem::RubyGems) => VersionScheme::Gem,
-        (RangeType::Ecosystem, Ecosystem::Hex) => VersionScheme::Hex,
-        (RangeType::Ecosystem, Ecosystem::SwiftURL) => VersionScheme::Swift,
-        (RangeType::Ecosystem, Ecosystem::Pub) => VersionScheme::Pub,
-        (RangeType::Ecosystem, Ecosystem::CratesIO) => VersionScheme::Cargo,
-        _ => return None,
-    })
+    match range_type {
+        RangeType::Semver => Some(VersionScheme::Semver),
+        RangeType::Git => Some(VersionScheme::Git),
+        RangeType::Ecosystem => Some(match native_ecosystem(ecosystem)?.as_ref() {
+            Ecosystem::Maven(_) => VersionScheme::Maven,
+            Ecosystem::PyPI | Ecosystem::Python => VersionScheme::Python,
+            Ecosystem::Go => VersionScheme::Golang,
+            Ecosystem::Npm => VersionScheme::Npm,
+            Ecosystem::Packagist => VersionScheme::Packagist,
+            Ecosystem::NuGet => VersionScheme::NuGet,
+            Ecosystem::RubyGems => VersionScheme::Gem,
+            Ecosystem::Hex => VersionScheme::Hex,
+            Ecosystem::SwiftURL => VersionScheme::Swift,
+            Ecosystem::Pub => VersionScheme::Pub,
+            Ecosystem::CratesIO => VersionScheme::Cargo,
+            _ => return None,
+        }),
+        _ => None,
+    }
 }
 
 /// An `affected` status of a package.
@@ -555,6 +564,91 @@ mod test {
     };
     use trustify_test_context::{TrustifyContext, document};
     use uuid::Uuid;
+
+    #[rstest]
+    #[case(RangeType::Ecosystem, "Maven", Some(VersionScheme::Maven))]
+    #[case(RangeType::Ecosystem, "PyPI", Some(VersionScheme::Python))]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:Maven",
+        Some(VersionScheme::Maven)
+    )]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:PyPI",
+        Some(VersionScheme::Python)
+    )]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:Maven:https://maven.google.com",
+        Some(VersionScheme::Maven)
+    )]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:npm",
+        Some(VersionScheme::Npm)
+    )]
+    #[case(RangeType::Ecosystem, "Red Hat:rhel_aus:8.4::appstream", None)]
+    #[case(RangeType::Ecosystem, "Red Hat Lightwell", None)]
+    #[case(RangeType::Ecosystem, "Red Hat Lightwell:", None)]
+    #[case(RangeType::Ecosystem, "Red Hat Lightwell:unknown", None)]
+    #[case(
+        RangeType::Semver,
+        "Red Hat Lightwell:Maven",
+        Some(VersionScheme::Semver)
+    )]
+    #[case(RangeType::Git, "Red Hat Lightwell:PyPI", Some(VersionScheme::Git))]
+    #[case(
+        RangeType::Semver,
+        "Red Hat Lightwell:unknown",
+        Some(VersionScheme::Semver)
+    )]
+    #[case(RangeType::Git, "Red Hat Lightwell", Some(VersionScheme::Git))]
+    #[test_log::test]
+    fn lightwell_version_scheme(
+        #[case] range_type: RangeType,
+        #[case] ecosystem: &str,
+        #[case] expected: Option<VersionScheme>,
+    ) -> anyhow::Result<()> {
+        let ecosystem = serde_json::from_value(ecosystem.into())?;
+        assert_eq!(version_scheme(&range_type, &ecosystem), expected);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("Red Hat Lightwell:Maven", None, vec!["pkg:maven/groupid/artifactid"])]
+    #[case("Red Hat Lightwell:Maven", Some("invalid"), vec!["pkg:maven/groupid/artifactid"])]
+    #[case(
+        "Red Hat Lightwell:Maven",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"]
+    )]
+    #[case(
+        "Maven",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
+        vec![
+            "pkg:maven/groupid/artifactid",
+            "pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"
+        ]
+    )]
+    #[test_log::test]
+    fn lightwell_package_purls(
+        #[case] ecosystem: &str,
+        #[case] stated: Option<&str>,
+        #[case] expected: Vec<&str>,
+    ) -> anyhow::Result<()> {
+        let package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem,
+            "name": "groupid:artifactid",
+            "purl": stated,
+        }))?;
+        let purls = package_purls(&package, &Warnings::new());
+        assert_eq!(
+            purls.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            expected
+        );
+        Ok(())
+    }
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]

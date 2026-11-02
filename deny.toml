@@ -83,6 +83,8 @@ unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
     "https://github.com/ctron/spdx-rs",
+    # Lightwell ecosystem support until https://github.com/gcmurphy/osv/pull/73 is released
+    "https://github.com/gcmurphy/osv",
     "https://github.com/guacsec/trustify-ui.git",
     # trustify-client with derived PartialEq, for the correlation UI, until
     # https://github.com/rh-jfuller/trustify-clients/pull/10 is released
