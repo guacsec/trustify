@@ -2,6 +2,10 @@
 
 == New features
 
+=== CycloneDX 1.7 SBOM ingestion
+
+Trustify now accepts CycloneDX 1.7 JSON SBOMs. This does not imply that every field in the CycloneDX 1.7 specification is represented in Trustify's data model.
+
 === PQC Readiness — Cryptography page
 
 Trustify now includes a dedicated *Cryptography* page for Post-Quantum Cryptography (PQC) readiness assessment.
