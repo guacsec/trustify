@@ -653,38 +653,17 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        // Fetch vulnerability statuses per winner, keyed by versioned PURL ID.
-        // Using one call per winner rather than a single batch call avoids cross-version
-        // contamination: when the same base PURL appears with two different upstream versions
-        // (two different winner versioned PURLs), a batch call groups both versions' statuses
-        // under the same base_purl_id bucket. The best_by_vuln picker then selects by advisory
-        // date across both versions, which can assign a status from the wrong version to a
-        // winner. Isolating each winner to its own query ensures version-range matching is
-        // scoped to that winner's specific versioned PURL.
         let mut statuses_by_vp = HashMap::new();
         for winner in &winners {
-            let per_winner = Self::fetch_vulnerability_statuses(
-                once(winner.base.id),
-                once(winner.versioned_purl.id),
+            let infos = Self::resolve_winner_statuses(
+                winner.base.id,
+                winner.versioned_purl.id,
+                &winner.versioned_purl.version,
+                &advisory_synthesized_vp_ids,
+                &vendor_fix_statuses_by_vp,
                 connection,
             )
             .await?;
-            let mut infos = per_winner.into_values().next().unwrap_or_default();
-            if infos.is_empty() && advisory_synthesized_vp_ids.contains(&winner.versioned_purl.id) {
-                infos = Self::fetch_vulnerability_statuses_by_version(
-                    winner.base.id,
-                    &winner.versioned_purl.version,
-                    connection,
-                )
-                .await?;
-            }
-            // VendorFix records their fixed version at an exclusive range boundary, so ordinary
-            // version matching does not return the status for this candidate.
-            if let Some(vendor_fix_statuses) =
-                vendor_fix_statuses_by_vp.get(&winner.versioned_purl.id)
-            {
-                infos.extend(vendor_fix_statuses.iter().cloned());
-            }
             if !infos.is_empty() {
                 statuses_by_vp.insert(winner.versioned_purl.id, infos);
             }
@@ -697,6 +676,39 @@ impl PurlService {
         }
 
         Ok(recommendations)
+    }
+
+    /// Resolves the vulnerability statuses of one recommendation winner, shared by
+    /// `/recommend` and `/recommend/report` so both endpoints report the same statuses.
+    ///
+    /// Statuses are fetched per winner rather than in one batch to avoid cross-version
+    /// contamination: when the same base PURL appears with two different upstream versions, a
+    /// batch call groups both winners' statuses under the same base PURL ID, and the
+    /// `best_by_vuln` picker could then assign a status of one version to the other. Synthetic winners (in `synthesized_vp_ids`, without
+    /// a persisted `versioned_purl` row) fall back to matching their version literally. VendorFix
+    /// statuses are appended last because a fixed version sits at an exclusive range boundary,
+    /// which ordinary version matching does not return.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn resolve_winner_statuses<C: ConnectionTrait>(
+        base_purl_id: Uuid,
+        vp_id: Uuid,
+        version: &str,
+        synthesized_vp_ids: &HashSet<Uuid>,
+        vendor_fix_statuses_by_vp: &HashMap<Uuid, Vec<StatusInfo>>,
+        connection: &C,
+    ) -> Result<Vec<StatusInfo>, Error> {
+        let per_winner =
+            Self::fetch_vulnerability_statuses(once(base_purl_id), once(vp_id), connection).await?;
+        let mut infos = per_winner.into_values().next().unwrap_or_default();
+        if infos.is_empty() && synthesized_vp_ids.contains(&vp_id) {
+            infos =
+                Self::fetch_vulnerability_statuses_by_version(base_purl_id, version, connection)
+                    .await?;
+        }
+        if let Some(vendor_fix_statuses) = vendor_fix_statuses_by_vp.get(&vp_id) {
+            infos.extend(vendor_fix_statuses.iter().cloned());
+        }
+        Ok(infos)
     }
 
     /// Batch-loads vulnerability statuses for the winning versioned PURLs, grouped by base PURL ID.
@@ -1303,36 +1315,17 @@ impl PurlService {
             });
         }
 
-        // Fetch vulnerability statuses per winner, keyed by winner_vp_id.
-        // Using one call per winner rather than a single batch call avoids cross-version
-        // contamination: when the same base PURL appears with two different upstream versions
-        // (two different winner_vp_ids), a batch call groups both versions' statuses under
-        // the same base_purl_id bucket. The best_by_vuln picker then selects by advisory date
-        // across both versions, which can assign a status from the wrong version to a winner.
-        // Isolating each winner to its own query ensures version-range matching is scoped to
-        // that winner's specific versioned PURL.
         let mut statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
         for winner in &winners {
-            let per_winner = Self::fetch_vulnerability_statuses(
-                std::iter::once(winner.base_purl_id),
-                std::iter::once(winner.winner_vp_id),
+            let infos = Self::resolve_winner_statuses(
+                winner.base_purl_id,
+                winner.winner_vp_id,
+                &winner.winner_version,
+                &advisory_synthesized_vp_ids,
+                &vendor_fix_statuses_by_vp,
                 connection,
             )
             .await?;
-            let mut infos = per_winner.into_values().next().unwrap_or_default();
-            if infos.is_empty() && advisory_synthesized_vp_ids.contains(&winner.winner_vp_id) {
-                infos = Self::fetch_vulnerability_statuses_by_version(
-                    winner.base_purl_id,
-                    &winner.winner_version,
-                    connection,
-                )
-                .await?;
-            }
-            // VendorFix records their fixed version at an exclusive range boundary, so ordinary
-            // version matching does not return the status for this candidate.
-            if let Some(vendor_fix_statuses) = vendor_fix_statuses_by_vp.get(&winner.winner_vp_id) {
-                infos.extend(vendor_fix_statuses.iter().cloned());
-            }
             if !infos.is_empty() {
                 statuses_by_vp.insert(winner.winner_vp_id, infos);
             }
