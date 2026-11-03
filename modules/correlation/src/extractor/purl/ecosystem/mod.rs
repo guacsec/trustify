@@ -45,6 +45,16 @@ impl Ecosystem {
         ))
     }
 
+    /// The qualifiers of an SBOM package that [`Self::qualifiers_match`] reads, for any ecosystem.
+    ///
+    /// Packages differing only in other qualifiers (e.g. an RPM's `repository_id`) match the same.
+    pub fn matched_qualifiers(sbom: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+        sbom.iter()
+            .filter(|(key, _)| rpm::QUALIFIERS.contains(&key.as_str()))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect()
+    }
+
     /// If the qualifiers of an SBOM package are compatible with the ones stated by an advisory.
     ///
     /// Qualifiers without a defined meaning are ignored.
