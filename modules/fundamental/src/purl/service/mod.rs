@@ -135,13 +135,13 @@ struct ReportPackageKey {
     recommended_purl: String,
     status: ReportVerdictStatus,
     advisory_id: Option<String>,
+    found_in: Vec<Uuid>,
 }
 
-/// Accumulated report data for contexts with the same selected status and advisory.
+/// Accumulated report data for matching PURL, context membership, status, and advisory.
 #[derive(Default)]
 struct ReportPackageAccumulator {
     vulnerabilities: BTreeSet<String>,
-    found_in: HashSet<Uuid>,
 }
 
 /// The highest Red Hat patch version selected for a given input PURL, used to build the recommendation.
@@ -1387,34 +1387,38 @@ impl PurlService {
                     recommended_purl: winner.recommended_purl.clone(),
                     status,
                     advisory_id,
+                    found_in: winner.found_in.clone(),
                 };
                 let package = package_rows.entry(key).or_default();
                 package.vulnerabilities.extend(vulnerabilities);
-                package.found_in.extend(winner.found_in.iter().copied());
             }
         }
 
         let mut package_rows = package_rows.into_iter().collect::<Vec<_>>();
         package_rows.sort_by(|(a, _), (b, _)| {
-            (&a.purl, &a.advisory_id, &a.recommended_purl, a.status).cmp(&(
-                &b.purl,
-                &b.advisory_id,
-                &b.recommended_purl,
-                b.status,
-            ))
+            (
+                &a.purl,
+                &a.advisory_id,
+                &a.recommended_purl,
+                &a.found_in,
+                a.status,
+            )
+                .cmp(&(
+                    &b.purl,
+                    &b.advisory_id,
+                    &b.recommended_purl,
+                    &b.found_in,
+                    b.status,
+                ))
         });
         let packages: Vec<RecommendReportPackage> = package_rows
             .into_iter()
-            .map(|(key, package)| {
-                let mut found_in = package.found_in.into_iter().collect::<Vec<_>>();
-                found_in.sort();
-                RecommendReportPackage {
-                    purl: key.purl,
-                    recommended_purl: key.recommended_purl,
-                    advisory_id: key.advisory_id,
-                    vulnerabilities: package.vulnerabilities.into_iter().collect(),
-                    found_in,
-                }
+            .map(|(key, package)| RecommendReportPackage {
+                purl: key.purl,
+                recommended_purl: key.recommended_purl,
+                advisory_id: key.advisory_id,
+                vulnerabilities: package.vulnerabilities.into_iter().collect(),
+                found_in: key.found_in,
             })
             .collect();
 
@@ -1430,7 +1434,11 @@ impl PurlService {
 
         let sboms_with_recommendations =
             sboms.iter().filter(|s| s.addressable_packages > 0).count();
-        let addressable_packages = packages.len();
+        let addressable_packages = packages
+            .iter()
+            .map(|package| package.purl.as_str())
+            .collect::<HashSet<_>>()
+            .len();
 
         Ok(RecommendReportResponse {
             impact_summary: RecommendReportImpactSummary {
