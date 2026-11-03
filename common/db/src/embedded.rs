@@ -11,7 +11,7 @@ use trustify_common::{db::Database, decompress::decompress_async_read};
 /// Create common default settings for the embedded database
 pub fn default_settings() -> anyhow::Result<Settings> {
     // **NOTE:** Changing the default version here, one should also change the env-var in the CI job
-    let version = VersionReq::parse(option_env!("POSTGRESQL_VERSION").unwrap_or("=17.2.0"))
+    let version = VersionReq::parse(option_env!("POSTGRESQL_VERSION").unwrap_or("=17.2.1"))
         .context("valid psql version")?;
     Ok(Settings {
         version,
