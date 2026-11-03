@@ -13,10 +13,13 @@ use actix_web::test::TestRequest;
 use regex::Regex;
 use rstest::rstest;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QuerySelect,
-    RelationTrait, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel, JoinType,
+    PaginatorTrait, QueryFilter, QuerySelect, RelationTrait, Set, TransactionTrait,
 };
-use trustify_entity::{base_purl, purl_status};
+use sea_query::Expr;
+use trustify_entity::{
+    assertion_context, base_purl, purl_status, status, version_range, versioned_purl,
+};
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
@@ -1870,21 +1873,306 @@ fn contextual_csaf_vex(
 /// Registers publisher namespaces as canonical providers for report precedence tests.
 async fn register_report_provider_aliases(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let tx = ctx.db.begin().await?;
+    let aliases = store::list_aliases(&tx).await?;
     for (provider, namespace) in [
-        ("Red Hat", "https://red-hat.example.com"),
+        ("https://www.redhat.com", "https://red-hat.example.com"),
         ("Upstream", "https://upstream.example.com"),
     ] {
+        let existing = aliases.iter().find(|alias| alias.data.provider == provider);
+        let mut identifiers = existing
+            .map(|alias| alias.data.aliases.clone())
+            .unwrap_or_else(|| vec![ProviderAliasIdentifier::Name(provider.into())]);
+        identifiers.push(ProviderAliasIdentifier::Namespace(namespace.into()));
         store::save_alias(
-            None,
+            existing.map(|alias| alias.id),
             ProviderAliasData {
                 provider: provider.into(),
-                aliases: vec![ProviderAliasIdentifier::Namespace(namespace.into())],
+                aliases: identifiers,
             },
             &tx,
         )
         .await?;
     }
     tx.commit().await?;
+    Ok(())
+}
+
+/// Display-name suppliers must use the shipped canonical alias, not a provider override.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_resolves_shipped_supplier_alias(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let purl = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    let cpe = "cpe:/a:example:crosslib:1.0";
+    let mut vendor = contextual_csaf_vex(
+        "REPORT-SHIPPED-ALIAS",
+        "2024-01-15T00:00:00+00:00",
+        "Red Hat",
+        "Product",
+        cpe,
+        &[("crosslib", purl)],
+        &[("CVE-2099-69086", "fixed", &[0])],
+    );
+    vendor["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
+    ctx.ingest_json(vendor).await?;
+    ctx.ingest_json(contextual_csaf_vex(
+        "REPORT-UNRELATED-SOURCE",
+        "2024-02-15T00:00:00+00:00",
+        "Upstream",
+        "Product",
+        cpe,
+        &[("crosslib", purl)],
+        &[("CVE-2099-69086", "known_affected", &[0])],
+    ))
+    .await?;
+    let sbom = ctx
+        .ingest_json(contextual_cdx(
+            "alias",
+            "00000000-0000-0000-0000-690800000007",
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Red Hat",
+            cpe,
+        ))
+        .await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[Uuid::parse_str(&sbom.id)?]).await;
+    assert_eq!(report["packages"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        report["packages"][0]["advisory_id"],
+        "https://www.redhat.com/#REPORT-SHIPPED-ALIAS"
+    );
+    Ok(())
+}
+
+/// A superseded affected revision cannot defeat the current fixed revision in reports.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_ignores_deprecated_revisions(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let purl = "pkg:maven/com.example/revlib@1.0.0.redhat-00001";
+    for (date, status) in [
+        ("2024-01-15T00:00:00+00:00", "known_affected"),
+        ("2024-02-15T00:00:00+00:00", "fixed"),
+    ] {
+        ctx.ingest_json(minimal_csaf_vex_at(
+            "REPORT-REVISIONS",
+            date,
+            "Product",
+            &[("revlib", purl)],
+            &[("CVE-2099-69087", status, &[0])],
+        ))
+        .await?;
+    }
+    let sbom = ctx
+        .ingest_json(minimal_cdx(
+            "revisions",
+            "00000000-0000-0000-0000-690800000008",
+            &[("revlib", "1.0.0", "pkg:maven/com.example/revlib@1.0.0")],
+        ))
+        .await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[Uuid::parse_str(&sbom.id)?]).await;
+    assert_eq!(report["packages"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        report["packages"][0]["vulnerabilities"],
+        json!(["CVE-2099-69087"])
+    );
+    assert_eq!(
+        report["packages"][0]["advisory_id"],
+        "https://test.example.com/#REPORT-REVISIONS"
+    );
+    Ok(())
+}
+
+/// Describing-component CPEs scope the same package to its own product version only.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_inherits_describing_product_context(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let purl = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    let mut sboms = Vec::new();
+    for (version, status, serial) in [
+        ("1.0", "fixed", "00000000-0000-0000-0000-690800000009"),
+        (
+            "2.0",
+            "known_affected",
+            "00000000-0000-0000-0000-690800000010",
+        ),
+    ] {
+        let cpe = format!("cpe:/a:example:product:{version}");
+        ctx.ingest_json(contextual_csaf_vex(
+            &format!("REPORT-ROOT-{version}"),
+            "2024-01-15T00:00:00+00:00",
+            "Upstream",
+            "Product",
+            &cpe,
+            &[("crosslib", purl)],
+            &[("CVE-2099-69088", status, &[0])],
+        ))
+        .await?;
+        let mut sbom = contextual_cdx(
+            "root-context",
+            serial,
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Upstream",
+            &cpe,
+        );
+        sbom["components"][0].as_object_mut().unwrap().remove("cpe");
+        sbom["metadata"]["component"]["cpe"] = json!(cpe);
+        sboms.push(Uuid::parse_str(&ctx.ingest_json(sbom).await?.id)?);
+    }
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &sboms).await;
+    assert_eq!(report["packages"].as_array().unwrap().len(), 1);
+    assert_eq!(report["packages"][0]["found_in"], json!([sboms[0]]));
+    assert_eq!(
+        report["packages"][0]["advisory_id"],
+        "https://upstream.example.com/#REPORT-ROOT-1_0"
+    );
+    Ok(())
+}
+
+/// Defaults suppress only same-context derived rows, without becoming response entries.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_default_suppresses_derived_only_in_matching_context(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let mut advisory = minimal_csaf_vex(
+        "REPORT-DEFAULT-DERIVED",
+        "Product",
+        &[
+            (
+                "lower",
+                "pkg:maven/com.example/defaultlib@1.0.0.redhat-00001",
+            ),
+            (
+                "higher",
+                "pkg:maven/com.example/defaultlib@1.0.1.redhat-00001",
+            ),
+        ],
+        &[
+            ("CVE-2099-69089", "fixed", &[1]),
+            ("CVE-2099-69090", "fixed", &[1]),
+            ("CVE-2099-69091", "fixed", &[0]),
+        ],
+    );
+    for index in [0, 1] {
+        advisory["vulnerabilities"][index]["product_status"]["known_not_affected"] =
+            json!(["Product:lower"]);
+    }
+    advisory["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
+    ctx.ingest_json(advisory).await?;
+    // Model defaults on the same product; move the second default to a different context.
+    let defaults = purl_status::Entity::find()
+        .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+        .filter(status::Column::Slug.eq("not_affected"))
+        .all(&ctx.db)
+        .await?;
+    assert_eq!(defaults.len(), 2);
+    for row in defaults {
+        let mut range = version_range::Entity::find_by_id(row.version_range_id)
+            .one(&ctx.db)
+            .await?
+            .unwrap()
+            .into_active_model();
+        let range_id = Uuid::now_v7();
+        range.id = Set(range_id);
+        range.low_version = Set(None);
+        range.low_inclusive = Set(None);
+        range.high_version = Set(None);
+        range.high_inclusive = Set(None);
+        range.insert(&ctx.db).await?;
+        let different_context = if row.vulnerability_id == "CVE-2099-69090" {
+            let mut context =
+                assertion_context::Entity::find_by_id(row.assertion_context_id.unwrap())
+                    .one(&ctx.db)
+                    .await?
+                    .unwrap()
+                    .into_active_model();
+            let id = Uuid::now_v7();
+            context.id = Set(id);
+            context.name = Set("Other Product".into());
+            context.insert(&ctx.db).await?;
+            Some(id)
+        } else {
+            None
+        };
+        let mut row = row.into_active_model();
+        row.is_default = Set(true);
+        row.version_range_id = Set(range_id);
+        if let Some(id) = different_context {
+            row.assertion_context_id = Set(Some(id));
+            row.context_cpe_id = Set(None);
+        }
+        row.update(&ctx.db).await?;
+    }
+    let lower = "pkg:maven/com.example/defaultlib@1.0.0.redhat-00001".parse::<Purl>()?;
+    purl_status::Entity::update_many()
+        .col_expr(
+            purl_status::Column::QualifiedPurlId,
+            Expr::value(None::<Uuid>),
+        )
+        .filter(purl_status::Column::QualifiedPurlId.eq(lower.qualifier_uuid()))
+        .exec(&ctx.db)
+        .await?;
+    versioned_purl::Entity::delete_by_id(lower.version_uuid())
+        .exec(&ctx.db)
+        .await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    // First exercise the synthetic target, then persist it and exercise the other loader.
+    for persisted in [false, true] {
+        if persisted {
+            ctx.ingest_json(minimal_cdx(
+                "default-target",
+                "00000000-0000-0000-0000-690800000011",
+                &[(
+                    "defaultlib",
+                    "1.0.0.redhat-00001",
+                    "pkg:maven/com.example/defaultlib@1.0.0.redhat-00001",
+                )],
+            ))
+            .await?;
+        }
+        assert_eq!(
+            versioned_purl::Entity::find_by_id(lower.version_uuid())
+                .one(&ctx.db)
+                .await?
+                .is_some(),
+            persisted,
+            "exercise both the synthetic and persisted recommendation loaders"
+        );
+        let response = recommend(
+            &app,
+            &[
+                "pkg:maven/com.example/defaultlib@1.0.0",
+                "pkg:maven/com.example/defaultlib@1.0.1",
+            ],
+        )
+        .await;
+        assert_eq!(
+            response["recommendations"]["pkg:maven/com.example/defaultlib@1.0.0"][0]["vulnerabilities"],
+            json!([{
+                "id": "CVE-2099-69090", "status": "Affected", "remediations": [],
+                "advisory_id": "https://www.redhat.com/#REPORT-DEFAULT-DERIVED"
+            }, {
+                "id": "CVE-2099-69091", "status": "Fixed", "remediations": [],
+                "advisory_id": "https://www.redhat.com/#REPORT-DEFAULT-DERIVED"
+            }]),
+            "persisted={persisted}: defaults are suppression-only and context-local"
+        );
+        let higher = response["recommendations"]["pkg:maven/com.example/defaultlib@1.0.1"][0]["vulnerabilities"].as_array().unwrap();
+        assert_eq!(higher.len(), 2);
+        assert!(
+            higher
+                .iter()
+                .all(|vulnerability| vulnerability["status"] == "Fixed"),
+            "defaults must not hide direct assessments of a different target version"
+        );
+    }
     Ok(())
 }
 

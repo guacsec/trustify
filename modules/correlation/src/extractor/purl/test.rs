@@ -210,6 +210,56 @@ async fn query_identifier_matches_synthetic_purl_version(
     Ok(())
 }
 
+/// Deprecated evidence is excluded for persisted and synthetic query versions alike.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn query_identifier_excludes_deprecated_purl_evidence(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let advisory = ctx.ingest_document(S5_VEX).await?;
+    ctx.ingest_document(S5_SBOM).await?;
+    let tx = ctx.db.begin().await?;
+    let identifiers = [
+        // The fixture SBOM persists this version; the other version stays synthetic.
+        IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1".into(),
+        },
+        IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: "pkg:rpm/redhat/openssl@1.1.1k-6.el8_5?arch=x86_64&distro=rhel-8.10&epoch=1"
+                .into(),
+        },
+    ];
+    for (index, identifier) in identifiers.iter().enumerate() {
+        assert_eq!(
+            versioned_purl::Entity::find_by_id(identifier.value.parse::<Purl>()?.version_uuid())
+                .one(&tx)
+                .await?
+                .is_some(),
+            index == 0
+        );
+        assert!(
+            !PurlExtractor
+                .match_identifiers(std::slice::from_ref(identifier), &tx)
+                .await?
+                .is_empty()
+        );
+    }
+    advisory::Entity::update_many()
+        .col_expr(advisory::Column::Deprecated, Expr::value(true))
+        .filter(advisory::Column::Id.eq(Uuid::parse_str(&advisory.id)?))
+        .exec(&tx)
+        .await?;
+    assert!(
+        PurlExtractor
+            .match_identifiers(&identifiers, &tx)
+            .await?
+            .is_empty()
+    );
+    Ok(())
+}
+
 /// Red Hat's `fixed`, read as `first_fixed`: affected before.
 const FIXED_AS_FIRST_FIXED_BEFORE: &str = "purl_fixed_as_first_fixed_before";
 
