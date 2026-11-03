@@ -11,7 +11,7 @@ use crate::{
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
 use regex::Regex;
-use sea_orm::prelude::Uuid;
+use sea_orm::{IsolationLevel, prelude::Uuid};
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
@@ -155,7 +155,9 @@ mod v3 {
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
-        let tx = db.begin().await?;
+        let tx = db
+            .begin_with_config(Some(IsolationLevel::RepeatableRead), None)
+            .await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
         let response = RecommendResponse { recommendations };
@@ -183,7 +185,9 @@ mod v3 {
         _: Require<ReadAdvisory>,
         _: Require<ReadSbom>,
     ) -> Result<impl Responder, Error> {
-        let tx = db.begin().await?;
+        let tx = db
+            .begin_with_config(Some(IsolationLevel::RepeatableRead), None)
+            .await?;
         let total = purl_service
             .count_sbom_packages(&request.sbom_ids, &tx)
             .await?;

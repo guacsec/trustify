@@ -12,6 +12,7 @@ use crate::{
 use actix_web::test::TestRequest;
 use regex::Regex;
 use rstest::rstest;
+use sea_orm::ConnectionTrait;
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
@@ -25,11 +26,16 @@ fn vendor_config() -> Config {
     }
 }
 use serde_json::{Value, json};
-use std::str::FromStr;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    str::FromStr,
+};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{
-    db::Database, db::pagination_cache::PaginationCache, model::PaginatedResults, purl::Purl,
+    db::{Database, pagination_cache::PaginationCache},
+    model::PaginatedResults,
+    purl::Purl,
 };
 use trustify_module_ingestor::graph::Graph;
 use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
@@ -460,6 +466,475 @@ async fn get_recommendations_multi_stream(ctx: &TrustifyContext) -> Result<(), a
     let vuln_2 = &rec_2[0]["vulnerabilities"].as_array().unwrap()[0];
     assert_eq!(vuln_2["id"], "CVE-2099-10001");
     assert_eq!(vuln_2["status"], "Affected");
+
+    Ok(())
+}
+
+/// Deletes the persisted versioned/qualified PURL rows so the winner is advisory-synthesized.
+async fn drop_persisted_version(
+    ctx: &TrustifyContext,
+    name: &str,
+    version: &str,
+) -> Result<(), anyhow::Error> {
+    ctx.db
+        .execute_unprepared(&format!(
+            "DELETE FROM qualified_purl WHERE versioned_purl_id IN ( \
+                 SELECT vp.id FROM versioned_purl vp \
+                 JOIN base_purl bp ON bp.id = vp.base_purl_id \
+                 WHERE bp.name = '{name}' AND vp.version = '{version}')"
+        ))
+        .await?;
+    let deleted = ctx
+        .db
+        .execute_unprepared(&format!(
+            "DELETE FROM versioned_purl WHERE version = '{version}' \
+             AND base_purl_id = (SELECT id FROM base_purl WHERE name = '{name}')"
+        ))
+        .await?;
+    assert_eq!(deleted.rows_affected(), 1);
+    Ok(())
+}
+
+/// Moves the status of `cve` onto a new version range with the given bounds.
+async fn set_status_range(
+    ctx: &TrustifyContext,
+    cve: &str,
+    (low, low_inclusive): (&str, bool),
+    (high, high_inclusive): (&str, bool),
+) -> Result<(), anyhow::Error> {
+    let range_id = Uuid::new_v4();
+    let updated = ctx
+        .db
+        .execute_unprepared(&format!(
+            "WITH new_range AS ( \
+                 INSERT INTO version_range \
+                     (id, version_scheme_id, low_version, low_inclusive, high_version, high_inclusive) \
+                 SELECT '{range_id}', version_scheme_id, '{low}', {low_inclusive}, \
+                        '{high}', {high_inclusive} \
+                 FROM version_range \
+                 WHERE id = (SELECT version_range_id FROM purl_status \
+                             WHERE vulnerability_id = '{cve}') \
+                 RETURNING id) \
+             UPDATE purl_status SET version_range_id = (SELECT id FROM new_range) \
+             WHERE vulnerability_id = '{cve}'"
+        ))
+        .await?;
+    assert_eq!(updated.rows_affected(), 1);
+    Ok(())
+}
+
+/// Returns `{cve -> status}` for the first recommendation of `input`, asserting the winner.
+async fn recommended_statuses(
+    ctx: &TrustifyContext,
+    input: &str,
+    expected_winner: &str,
+) -> Result<BTreeMap<String, String>, anyhow::Error> {
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &[input]).await;
+    let rec = &recommendations["recommendations"][input][0];
+    assert_eq!(rec["package"], expected_winner);
+    Ok(rec["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| {
+            (
+                v["id"].as_str().unwrap().to_string(),
+                v["status"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect())
+}
+
+/// Returns the reported vulnerabilities of `input` in the report for `sbom_id`, asserting the winner.
+async fn reported_vulnerabilities(
+    ctx: &TrustifyContext,
+    sbom_id: Uuid,
+    input: &str,
+    expected_winner: &str,
+) -> Result<BTreeSet<String>, anyhow::Error> {
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    let package = report["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|package| package["purl"] == input)
+        .unwrap();
+    assert_eq!(package["recommended_purl"], expected_winner);
+    Ok(package["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect())
+}
+
+/// Verifies advisory-only winners retain version-specific vulnerability metadata in recommendations and reports.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-ADVISORY-ONLY-001",
+        "Test Product Advisory Only",
+        &[
+            (
+                "advlib-1.0.0.redhat-00001",
+                "pkg:maven/com.example/advlib@1.0.0.redhat-00001",
+            ),
+            (
+                "advlib-2.0.0.redhat-00001",
+                "pkg:maven/com.example/advlib@2.0.0.redhat-00001",
+            ),
+        ],
+        &[
+            ("CVE-2099-20001", "fixed", &[0]),
+            ("CVE-2099-20002", "fixed", &[1]),
+        ],
+    ))
+    .await?;
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-advisory-only-report",
+            "00000000-0000-0000-0000-200000000002",
+            &[
+                ("advlib", "1.0.0", "pkg:maven/com.example/advlib@1.0.0"),
+                ("advlib", "2.0.0", "pkg:maven/com.example/advlib@2.0.0"),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+    drop_persisted_version(ctx, "advlib", "1.0.0.redhat-00001").await?;
+    drop_persisted_version(ctx, "advlib", "2.0.0.redhat-00001").await?;
+
+    for (input, winner, cve) in [
+        (
+            "pkg:maven/com.example/advlib@1.0.0",
+            "pkg:maven/com.example/advlib@1.0.0.redhat-00001",
+            "CVE-2099-20001",
+        ),
+        (
+            "pkg:maven/com.example/advlib@2.0.0",
+            "pkg:maven/com.example/advlib@2.0.0.redhat-00001",
+            "CVE-2099-20002",
+        ),
+    ] {
+        assert_eq!(
+            recommended_statuses(ctx, input, winner).await?,
+            [(cve.to_string(), "Fixed".to_string())].into()
+        );
+        assert_eq!(
+            reported_vulnerabilities(ctx, sbom_id, input, winner).await?,
+            [cve.to_string()].into()
+        );
+    }
+
+    Ok(())
+}
+
+/// Older CSAF marks the exact rebuild "fixed" for CVE-X; newer OSV marks the Maven range
+/// [1.0.0, 1.0.1), which contains 1.0.0.redhat-00001, "affected" for CVE-X and CVE-Y.
+async fn setup_range_scenario(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-RANGE-EXACT-001",
+        "Test Product Range",
+        &[(
+            "rangelib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/rangelib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-30001", "fixed", &[0])],
+    ))
+    .await?;
+    for (id, cve) in [
+        ("TEST-OSV-RANGE-0001", "CVE-2099-30001"),
+        ("TEST-OSV-RANGE-0002", "CVE-2099-30002"),
+    ] {
+        ctx.ingest_json(minimal_osv_maven_range(
+            id,
+            cve,
+            "2025-06-01T00:00:00Z",
+            "com.example:rangelib",
+            "1.0.0",
+            "1.0.1",
+        ))
+        .await?;
+    }
+    Ok(())
+}
+
+/// Expected statuses for [`setup_range_scenario`]: the newer range-based assessments win.
+fn expected_range_statuses() -> BTreeMap<String, String> {
+    [
+        ("CVE-2099-30001".to_string(), "Affected".to_string()),
+        ("CVE-2099-30002".to_string(), "Affected".to_string()),
+    ]
+    .into()
+}
+
+/// Control: persisted winner honours range-based statuses.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_range_statuses_persisted_winner(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    setup_range_scenario(ctx).await?;
+    let statuses = recommended_statuses(
+        ctx,
+        "pkg:maven/com.example/rangelib@1.0.0",
+        "pkg:maven/com.example/rangelib@1.0.0.redhat-00001",
+    )
+    .await?;
+    assert_eq!(statuses, expected_range_statuses());
+    Ok(())
+}
+
+/// Synthesized winner must see the same range-based statuses.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_range_statuses_synthesized_winner(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    setup_range_scenario(ctx).await?;
+    drop_persisted_version(ctx, "rangelib", "1.0.0.redhat-00001").await?;
+    let statuses = recommended_statuses(
+        ctx,
+        "pkg:maven/com.example/rangelib@1.0.0",
+        "pkg:maven/com.example/rangelib@1.0.0.redhat-00001",
+    )
+    .await?;
+    assert_eq!(statuses, expected_range_statuses());
+    Ok(())
+}
+
+/// An exact "fixed" status whose low bound is made exclusive: the empty range (v, v].
+async fn setup_exclusive_bound_scenario(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-BOUND-001",
+        "Test Product Bound",
+        &[(
+            "boundlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/boundlib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-31001", "fixed", &[0])],
+    ))
+    .await?;
+    let updated = ctx
+        .db
+        .execute_unprepared(
+            "UPDATE version_range SET low_inclusive = false WHERE id IN ( \
+                 SELECT ps.version_range_id FROM purl_status ps \
+                 JOIN base_purl bp ON bp.id = ps.base_purl_id \
+                 WHERE bp.name = 'boundlib')",
+        )
+        .await?;
+    assert_eq!(updated.rows_affected(), 1);
+    Ok(())
+}
+
+/// Control: VersionMatches rejects the empty range for a persisted winner.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_exclusive_bound_persisted_winner(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    setup_exclusive_bound_scenario(ctx).await?;
+    let statuses = recommended_statuses(
+        ctx,
+        "pkg:maven/com.example/boundlib@1.0.0",
+        "pkg:maven/com.example/boundlib@1.0.0.redhat-00001",
+    )
+    .await?;
+    assert!(statuses.is_empty(), "unexpected statuses: {statuses:?}");
+    Ok(())
+}
+
+/// Synthesized winner must not pick up the empty range's status.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_exclusive_bound_synthesized_winner(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    setup_exclusive_bound_scenario(ctx).await?;
+    drop_persisted_version(ctx, "boundlib", "1.0.0.redhat-00001").await?;
+    let statuses = recommended_statuses(
+        ctx,
+        "pkg:maven/com.example/boundlib@1.0.0",
+        "pkg:maven/com.example/boundlib@1.0.0.redhat-00001",
+    )
+    .await?;
+    assert!(statuses.is_empty(), "unexpected statuses: {statuses:?}");
+    Ok(())
+}
+
+/// Verifies that reports give a synthesized winner the same ranged statuses as a persisted one.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_range_statuses_synthesized_winner(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given an exact fixed status and a fixed status over the range [1.0.0, 1.0.1)
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-RANGE-REPORT-001",
+        "Test Product Range Report",
+        &[(
+            "rangereportlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/rangereportlib@1.0.0.redhat-00001",
+        )],
+        &[
+            ("CVE-2099-30101", "fixed", &[0]),
+            ("CVE-2099-30102", "fixed", &[0]),
+        ],
+    ))
+    .await?;
+    set_status_range(ctx, "CVE-2099-30101", ("1.0.0", true), ("1.0.1", false)).await?;
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-range-report-synthetic",
+            "00000000-0000-0000-0000-000000000431",
+            &[(
+                "rangereportlib",
+                "1.0.0",
+                "pkg:maven/com.example/rangereportlib@1.0.0",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+    let input = "pkg:maven/com.example/rangereportlib@1.0.0";
+    let winner = "pkg:maven/com.example/rangereportlib@1.0.0.redhat-00001";
+
+    // When reporting with the persisted winner, then with the synthesized one
+    let persisted = reported_vulnerabilities(ctx, sbom_id, input, winner).await?;
+    drop_persisted_version(ctx, "rangereportlib", "1.0.0.redhat-00001").await?;
+    let synthesized = reported_vulnerabilities(ctx, sbom_id, input, winner).await?;
+
+    // Then both include the ranged status
+    assert_eq!(
+        persisted,
+        ["CVE-2099-30101".to_string(), "CVE-2099-30102".to_string()].into()
+    );
+    assert_eq!(synthesized, persisted);
+
+    Ok(())
+}
+
+/// Verifies that reports reject an empty exclusive range for synthesized and persisted winners alike.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_exclusive_bound_synthesized_winner(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given an inclusive exact fixed status and one moved onto the empty range (v, v]
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-BOUND-REPORT-001",
+        "Test Product Bound Report",
+        &[(
+            "boundreportlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/boundreportlib@1.0.0.redhat-00001",
+        )],
+        &[
+            ("CVE-2099-31101", "fixed", &[0]),
+            ("CVE-2099-31102", "fixed", &[0]),
+        ],
+    ))
+    .await?;
+    set_status_range(
+        ctx,
+        "CVE-2099-31102",
+        ("1.0.0.redhat-00001", false),
+        ("1.0.0.redhat-00001", true),
+    )
+    .await?;
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-bound-report-synthetic",
+            "00000000-0000-0000-0000-000000000432",
+            &[(
+                "boundreportlib",
+                "1.0.0",
+                "pkg:maven/com.example/boundreportlib@1.0.0",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+    let input = "pkg:maven/com.example/boundreportlib@1.0.0";
+    let winner = "pkg:maven/com.example/boundreportlib@1.0.0.redhat-00001";
+
+    // When reporting with the persisted winner, then with the synthesized one
+    let persisted = reported_vulnerabilities(ctx, sbom_id, input, winner).await?;
+    drop_persisted_version(ctx, "boundreportlib", "1.0.0.redhat-00001").await?;
+    let synthesized = reported_vulnerabilities(ctx, sbom_id, input, winner).await?;
+
+    // Then only the inclusive status is reported
+    assert_eq!(persisted, ["CVE-2099-31101".to_string()].into());
+    assert_eq!(synthesized, persisted);
+
+    Ok(())
+}
+
+/// Verifies that high remediation fan-out is loaded without exceeding PostgreSQL's parameter limit.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_high_remediation_fanout(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given a fixed status with more remediation links than PostgreSQL permits as bind parameters
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-REMEDIATION-FANOUT-001",
+        "Test Product Remediation Fanout",
+        &[(
+            "fanoutlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/fanoutlib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-50001", "fixed", &[0])],
+    ))
+    .await?;
+    let remediation_links = ctx
+        .db
+        .execute_unprepared(
+            "WITH target_status AS ( \
+                 SELECT id, advisory_id, vulnerability_id \
+                 FROM purl_status WHERE vulnerability_id = 'CVE-2099-50001' \
+             ), new_remediations AS ( \
+                 INSERT INTO remediation (advisory_id, vulnerability_id, category, data) \
+                 SELECT advisory_id, vulnerability_id, 'vendor_fix', '{}'::jsonb \
+                 FROM target_status CROSS JOIN generate_series(1, 65536) \
+                 RETURNING id \
+             ) \
+             INSERT INTO remediation_purl_status (remediation_id, purl_status_id) \
+             SELECT new_remediations.id, target_status.id \
+             FROM new_remediations CROSS JOIN target_status",
+        )
+        .await?;
+    assert_eq!(remediation_links.rows_affected(), 65_536);
+
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let input = "pkg:maven/com.example/fanoutlib@1.0.0";
+    for synthesized in [false, true] {
+        if synthesized {
+            drop_persisted_version(ctx, "fanoutlib", "1.0.0.redhat-00001").await?;
+        }
+
+        // When requesting the recommendation for a persisted, then a synthesized winner
+        let recommendations = recommend(&app, &[input]).await;
+        let recommendation = &recommendations["recommendations"][input][0];
+
+        // Then all remediation metadata is returned without a bind-parameter failure
+        assert_eq!(
+            recommendation["package"],
+            "pkg:maven/com.example/fanoutlib@1.0.0.redhat-00001"
+        );
+        let vulnerabilities = recommendation["vulnerabilities"].as_array().unwrap();
+        assert_eq!(vulnerabilities.len(), 1, "synthesized: {synthesized}");
+        assert_eq!(vulnerabilities[0]["id"], "CVE-2099-50001");
+        assert_eq!(
+            vulnerabilities[0]["remediations"].as_array().unwrap().len(),
+            65_536,
+            "synthesized: {synthesized}"
+        );
+    }
 
     Ok(())
 }
@@ -1363,6 +1838,32 @@ fn minimal_csaf_vex(
             "relationships": relationships
         },
         "vulnerabilities": vulnerabilities
+    })
+}
+
+/// Builds a minimal OSV advisory with one Maven ecosystem version range.
+fn minimal_osv_maven_range(
+    id: &str,
+    cve: &str,
+    modified: &str,
+    group_artifact: &str,
+    introduced: &str,
+    fixed: &str,
+) -> Value {
+    json!({
+        "schema_version": "1.4.0",
+        "id": id,
+        "modified": modified,
+        "published": modified,
+        "aliases": [cve],
+        "summary": format!("Test OSV {id}"),
+        "affected": [{
+            "package": { "ecosystem": "Maven", "name": group_artifact },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [{ "introduced": introduced }, { "fixed": fixed }]
+            }]
+        }]
     })
 }
 
