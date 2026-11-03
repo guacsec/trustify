@@ -5969,7 +5969,7 @@ dependencies = [
 [[package]]
 name = "osv"
 version = "0.3.0"
-source = "git+https://github.com/gcmurphy/osv?rev=c4ed78e9503deaeec1e24058eb5b58995f7d69d9#c4ed78e9503deaeec1e24058eb5b58995f7d69d9"
+source = "git+https://github.com/dejanb/osv?rev=bf43a6edd6ef26a40060b43b214a9baeb80391f8#bf43a6edd6ef26a40060b43b214a9baeb80391f8"
 dependencies = [
  "chrono",
  "lazy-regex",

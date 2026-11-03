@@ -208,9 +208,9 @@ trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "pu
 
 # required due to https://github.com/KenDJohnson/cpe-rs/pull/15
 #cpe = { git = "https://github.com/ctron/cpe-rs", rev = "c3c05e637f6eff7dd4933c2f56d070ee2ddfb44b" }
-# Red Hat Lightwell ecosystems: https://github.com/gcmurphy/osv/pull/73
-# Remove once a release includes this change.
-osv = { git = "https://github.com/gcmurphy/osv", rev = "c4ed78e9503deaeec1e24058eb5b58995f7d69d9" }
+# Backport of https://github.com/gcmurphy/osv/pull/73 onto v0.3.0.
+# Replace with a released version (and update the requirement above) when available.
+osv = { git = "https://github.com/dejanb/osv", rev = "bf43a6edd6ef26a40060b43b214a9baeb80391f8" }
 
 # required due to https://github.com/doubleopen-project/spdx-rs/pull/35
 spdx-rs = { git = "https://github.com/ctron/spdx-rs", branch = "feature/add_alias_2" }

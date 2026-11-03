@@ -204,20 +204,20 @@ mod test {
         for (source, expected) in [
             (
                 r#"{"id":"OSV-2026-1","modified":"2026-01-01T00:00:00Z","schema_version":"1.9.0"}"#,
-                "1.9.0",
+                Some("1.9.0"),
             ),
             (
                 r#"{"id":"OSV-2026-1","modified":"2026-01-01T00:00:00Z"}"#,
-                "1.0.0",
+                None,
             ),
             (
                 "id: OSV-2026-1\nmodified: 2026-01-01T00:00:00Z\nschema_version: 1.9.0\n",
-                "1.9.0",
+                Some("1.9.0"),
             ),
-            ("id: OSV-2026-1\nmodified: 2026-01-01T00:00:00Z\n", "1.0.0"),
+            ("id: OSV-2026-1\nmodified: 2026-01-01T00:00:00Z\n", None),
         ] {
             let doc = parse(source).expect("record parses");
-            assert_eq!(doc.schema_version, expected);
+            assert_eq!(doc.schema_version.as_deref(), expected);
         }
     }
 
@@ -226,20 +226,20 @@ mod test {
         for (source, expected) in [
             (
                 include_str!("../../../../etc/test-data/osv/RHLW-2026-02416b185203289c.json"),
-                "Maven",
+                Ecosystem::Maven("https://repo.maven.apache.org/maven2".into()),
             ),
             (
                 include_str!("../../../../etc/test-data/osv/RHLW-2026-821eaab8409c2a61.json"),
-                "PyPI",
+                Ecosystem::PyPI,
             ),
         ] {
             let doc = parse(source).expect("Lightwell record parses");
-            assert_eq!(doc.schema_version, "1.9.0");
+            assert_eq!(doc.schema_version.as_deref(), Some("1.9.0"));
             assert!(doc.affected.iter().flatten().any(|affected| {
                 affected.package.as_ref().is_some_and(|package| {
                     matches!(
                         &package.ecosystem,
-                        Ecosystem::RedHatLightwell(Some(native)) if native == expected
+                        Ecosystem::RedHatLightwell(native) if native.as_ref() == &expected
                     )
                 })
             }));

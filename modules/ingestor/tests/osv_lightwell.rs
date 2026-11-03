@@ -69,15 +69,33 @@ async fn lightwell_native_ranges(
         case.purl
     )
     .into();
-    for (bytes, explicit_versions, scoped_purl) in [
-        (bytes.to_vec(), true, false),
-        (serde_json::to_vec(&inferred)?, false, false),
-        (serde_json::to_vec(&scoped)?, false, true),
-    ] {
+    let mut variants = vec![
+        (bytes.to_vec(), true, None),
+        (serde_json::to_vec(&inferred)?, false, None),
+        (
+            serde_json::to_vec(&scoped)?,
+            false,
+            Some("https://vendor.example/repo"),
+        ),
+    ];
+    if case.scheme == VersionScheme::Maven {
+        let mut repository = inferred.clone();
+        repository["affected"][0]["package"]["ecosystem"] =
+            "Red Hat Lightwell:Maven:https://vendor.example/repo".into();
+        repository["affected"][0]["package"]["purl"] = case.purl.into();
+        variants.push((
+            serde_json::to_vec(&repository)?,
+            false,
+            Some("https://vendor.example/repo"),
+        ));
+    }
+    // Qualifiers are checked in storage, not as an assertion of repository-aware matching.
+    for (bytes, explicit_versions, repository) in variants {
         let result = ctx
             .ingest_bytes_as(&bytes, Format::Unknown, ("source", "lightwell-test"))
             .await?;
         assert!(!result.duplicate);
+        assert!(result.warnings.is_empty(), "{:?}", result.warnings);
         assert_eq!(result.document_id.as_deref(), Some(case.id));
         let advisory_id = Uuid::parse_str(&result.id)?;
         let advisory = advisory::Entity::find_by_id(advisory_id)
@@ -146,7 +164,7 @@ async fn lightwell_native_ranges(
                     .0
                     .get("repository_url")
                     .map(String::as_str),
-                scoped_purl.then_some("https://vendor.example/repo")
+                repository
             );
             let range = range.unwrap();
             if range.version_scheme_id == VersionScheme::Generic {
@@ -191,6 +209,60 @@ async fn lightwell_native_ranges(
             assert!(!matches.try_get::<bool>("", "fixed")?);
         }
         assert_eq!(native_ranges, 1);
+    }
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(tokio::test)]
+async fn ambiguous_and_unsupported_entries_warn_without_losing_valid_siblings(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let bytes = document_bytes("osv/RHLW-2026-02416b185203289c.json").await?;
+    let mut document: Value = serde_json::from_slice(&bytes)?;
+    let valid = document["affected"][0].clone();
+    let mut conflicting = valid.clone();
+    conflicting["package"]["ecosystem"] =
+        "Red Hat Lightwell:Maven:https://vendor.example/repo".into();
+    conflicting["package"]["purl"] =
+        "pkg:maven/io.netty/netty-codec-dns?repository_url=https:%2F%2Fother.example%2Frepo".into();
+    document["affected"] = serde_json::json!([
+        conflicting,
+        valid,
+        {"package": {"ecosystem": "Red Hat Lightwell:Debian:12", "name": "openssl"}, "versions": ["1.0"]}
+    ]);
+    let result = ctx
+        .ingest_bytes_as(
+            &serde_json::to_vec(&document)?,
+            Format::OSV,
+            ("source", "lightwell-test"),
+        )
+        .await?;
+    assert!(!result.duplicate);
+    assert_eq!(result.warnings.len(), 2, "{:?}", result.warnings);
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|warning| warning.starts_with("Conflicting repositories"))
+    );
+    assert!(
+        result
+            .warnings
+            .iter()
+            .any(|warning| warning.starts_with("No usable PURL"))
+    );
+    let advisory_id = Uuid::parse_str(&result.id)?;
+    let statements = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .find_also_related(base_purl::Entity)
+        .all(&ctx.db)
+        .await?;
+    assert_eq!(statements.len(), 2);
+    for (_, package) in statements {
+        let package = package.unwrap();
+        assert_eq!(package.namespace.as_deref(), Some("io.netty"));
+        assert_eq!(package.name, "netty-codec-dns");
     }
     Ok(())
 }

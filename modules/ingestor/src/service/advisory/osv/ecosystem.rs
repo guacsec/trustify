@@ -1,27 +1,13 @@
 use osv::schema::Ecosystem;
-use serde::{
-    Deserialize,
-    de::value::{self, StrDeserializer},
-};
-use std::borrow::Cow;
 
-/// Resolve the native ecosystem used for package naming and version ordering.
+/// Borrow the native ecosystem used for package naming and version ordering.
 ///
-/// Lightwell's suffix is another OSV ecosystem, not a release or repository qualifier.
-/// Keep the source ecosystem intact and reuse OSV's parser for the complete suffix,
-/// including any Maven repository URL. Missing, unknown or nested Lightwell suffixes
-/// have no native interpretation.
-pub(super) fn native_ecosystem(ecosystem: &Ecosystem) -> Option<Cow<'_, Ecosystem>> {
-    let suffix = match ecosystem {
-        Ecosystem::RedHatLightwell(Some(suffix)) => suffix,
-        Ecosystem::RedHatLightwell(None) => return None,
-        _ => return Some(Cow::Borrowed(ecosystem)),
-    };
-
-    let native = Ecosystem::deserialize(StrDeserializer::<value::Error>::new(suffix)).ok()?;
-    match native {
-        Ecosystem::RedHatLightwell(_) => None,
-        _ => Some(Cow::Owned(native)),
+/// OSV validates and parses Lightwell's required native suffix, including any Maven
+/// repository URL. Keep the source ecosystem intact; no second parser is needed.
+pub(super) fn native_ecosystem(ecosystem: &Ecosystem) -> &Ecosystem {
+    match ecosystem {
+        Ecosystem::RedHatLightwell(native) => native,
+        _ => ecosystem,
     }
 }
 
@@ -29,45 +15,48 @@ pub(super) fn native_ecosystem(ecosystem: &Ecosystem) -> Option<Cow<'_, Ecosyste
 mod test {
     use super::*;
     use rstest::rstest;
+    use std::ptr;
 
     #[rstest]
-    #[case("Maven", Some("Maven"))]
-    #[case("PyPI", Some("PyPI"))]
-    #[case(
-        "Maven:https://maven.google.com",
-        Some("Maven:https://maven.google.com")
-    )]
-    #[case(
-        "Red Hat:rhel_aus:8.4::appstream",
-        Some("Red Hat:rhel_aus:8.4::appstream")
-    )]
-    #[case("Red Hat Lightwell:Maven", Some("Maven"))]
-    #[case("Red Hat Lightwell:PyPI", Some("PyPI"))]
-    #[case("Red Hat Lightwell:npm", Some("npm"))]
+    #[case("Maven", "Maven")]
+    #[case("PyPI", "PyPI")]
+    #[case("Maven:https://maven.google.com", "Maven:https://maven.google.com")]
+    #[case("Red Hat:rhel_aus:8.4::appstream", "Red Hat:rhel_aus:8.4::appstream")]
+    #[case("Red Hat Lightwell:Maven", "Maven")]
+    #[case("Red Hat Lightwell:PyPI", "PyPI")]
+    #[case("Red Hat Lightwell:npm", "npm")]
     #[case(
         "Red Hat Lightwell:Maven:https://maven.google.com",
-        Some("Maven:https://maven.google.com")
+        "Maven:https://maven.google.com"
     )]
-    #[case("Red Hat Lightwell", None)]
-    #[case("Red Hat Lightwell:", None)]
-    #[case("Red Hat Lightwell:unknown", None)]
-    #[case("Red Hat Lightwell:Red Hat Lightwell:Maven", None)]
     fn resolve_native_ecosystem(
         #[case] source: &str,
-        #[case] expected: Option<&str>,
+        #[case] expected: &str,
     ) -> anyhow::Result<()> {
         let ecosystem: Ecosystem = serde_json::from_value(source.into())?;
         let original = serde_json::to_value(&ecosystem)?;
+        let expected: Ecosystem = serde_json::from_value(expected.into())?;
         let native = native_ecosystem(&ecosystem);
-        let expected = expected
-            .map(|value| serde_json::from_value::<Ecosystem>(value.into()))
-            .transpose()?;
 
-        assert_eq!(native.as_deref(), expected.as_ref());
+        assert_eq!(native, &expected);
         assert_eq!(serde_json::to_value(&ecosystem)?, original);
-        if !matches!(ecosystem, Ecosystem::RedHatLightwell(_)) {
-            assert!(matches!(native, Some(Cow::Borrowed(_))));
-        }
+        let borrowed = match &ecosystem {
+            Ecosystem::RedHatLightwell(inner) => inner.as_ref(),
+            _ => &ecosystem,
+        };
+        assert!(ptr::eq(native, borrowed));
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("Red Hat Lightwell")]
+    #[case("Red Hat Lightwell:")]
+    #[case("Red Hat Lightwell:unknown")]
+    #[case("Red Hat Lightwell:Red Hat Lightwell:Maven")]
+    fn invalid_lightwell_ecosystems_are_rejected(#[case] source: &str) -> anyhow::Result<()> {
+        assert!(serde_json::from_value::<Ecosystem>(source.into()).is_err());
+        let yaml = serde_saphyr::to_string(&source)?;
+        assert!(serde_saphyr::from_str::<Ecosystem>(&yaml).is_err());
         Ok(())
     }
 }

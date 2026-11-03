@@ -81,7 +81,7 @@ pub fn overview(props: &OverviewProps) -> Html {
                 <>
                     <DescriptionGroup term="ID">{ &osv.id }</DescriptionGroup>
                     <DescriptionGroup term="Schema version">
-                        { &osv.schema_version }
+                        { osv.schema_version.as_ref().map(|v| html!(v)).unwrap_or_else(none) }
                     </DescriptionGroup>
                     <DescriptionGroup term="Published">
                         { osv.published.map(|v| html!(v.to_string())).unwrap_or_else(none) }
