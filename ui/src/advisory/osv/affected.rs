@@ -79,6 +79,26 @@ impl Interval<'_> {
     }
 }
 
+/// Whether the native ecosystem states a distribution release, not a repository or wrapper.
+fn has_release(ecosystem: &Ecosystem) -> bool {
+    match ecosystem {
+        Ecosystem::RedHatLightwell(native) => has_release(native),
+        Ecosystem::AlmaLinux(release)
+        | Ecosystem::Alpine(release)
+        | Ecosystem::Debian(release)
+        | Ecosystem::OpenSUSE(release)
+        | Ecosystem::PhotonOS(release)
+        | Ecosystem::RedHat(release)
+        | Ecosystem::RockyLinux(release)
+        | Ecosystem::SUSE(release) => release.as_ref().is_some_and(|release| !release.is_empty()),
+        Ecosystem::Mageia(release)
+        | Ecosystem::Ubuntu {
+            version: release, ..
+        } => !release.is_empty(),
+        _ => false,
+    }
+}
+
 /// How correlation reads an entry differently from what one may expect.
 fn hints(affected: &Affected) -> Vec<String> {
     let mut hints = Vec::new();
@@ -106,8 +126,8 @@ fn hints(affected: &Affected) -> Vec<String> {
             "The entry states neither ranges nor versions, so no version is affected.".into(),
         );
     }
-    let ecosystem = stated(&package.ecosystem);
-    if !matches!(package.ecosystem, Ecosystem::Maven(_)) && ecosystem.contains(':') {
+    if has_release(&package.ecosystem) {
+        let ecosystem = stated(&package.ecosystem);
         hints.push(format!(
             "The release of the ecosystem ({ecosystem}) doesn't scope the matches yet, the \
              statements apply to the package of any release."
@@ -325,6 +345,38 @@ mod test {
                 .collect::<Vec<_>>(),
             ["any version"]
         );
+    }
+
+    #[test]
+    fn native_ecosystem_release_hints() {
+        for (source, expected) in [
+            ("Red Hat Lightwell:PyPI", false),
+            ("Red Hat Lightwell:Maven", false),
+            ("Red Hat Lightwell:Maven:https://vendor.example/repo", false),
+            ("Maven:https://vendor.example/repo", false),
+            ("Debian:12", true),
+            ("Red Hat Lightwell:Debian:12", true),
+            ("Red Hat:rhel_aus:8.4::appstream", true),
+        ] {
+            let ecosystem = serde_json::from_value(source.into()).expect("ecosystem parses");
+            let affected = Affected {
+                package: Some(Package {
+                    name: "x".into(),
+                    ecosystem,
+                    purl: None,
+                }),
+                severity: None,
+                ranges: None,
+                versions: Some(vec!["1.0".into()]),
+                ecosystem_specific: None,
+                database_specific: None,
+            };
+            let hints = hints(&affected);
+            assert_eq!(hints.len(), usize::from(expected), "{source}: {hints:?}");
+            if expected {
+                assert!(hints[0].starts_with("The release of the ecosystem"));
+            }
+        }
     }
 
     #[test]

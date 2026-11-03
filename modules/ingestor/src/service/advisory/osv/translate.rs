@@ -12,7 +12,7 @@ pub fn to_purl(
         purl: _,
     }: &Package,
 ) -> Option<PackageUrl<'_>> {
-    translate(native_ecosystem(ecosystem)?.as_ref(), name)
+    translate(native_ecosystem(ecosystem), name)
 }
 
 /// Also see: <https://ossf.github.io/osv-schema/#affectedpackage-field>
@@ -39,7 +39,7 @@ fn translate<'a>(ecosystem: &Ecosystem, name: &'a str) -> Option<PackageUrl<'a>>
                 None
             }
         }
-        Ecosystem::PyPI => PackageUrl::new("pypi", name).ok(),
+        Ecosystem::PyPI | Ecosystem::Python => PackageUrl::new("pypi", name).ok(),
         Ecosystem::Go => split_name(name, "golang", "/"),
         Ecosystem::Packagist => split_name(name, "composer", "/"),
         Ecosystem::NuGet => PackageUrl::new("nuget", name).ok(),
@@ -87,24 +87,28 @@ mod test {
         Some("pkg:maven/groupid/artifactid?repository_url=http:%2F%2Fother%2Frepo")
     )]
     #[case(Ecosystem::PyPI, "aiohttp", Some("pkg:pypi/aiohttp"))]
+    #[case(Ecosystem::Python, "aiohttp", Some("pkg:pypi/aiohttp"))]
     #[case(
-        Ecosystem::RedHatLightwell(Some("Maven".to_string())),
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::Maven(MAVEN_DEFAULT_REPO.to_string()))),
         "io.netty:netty-codec-dns",
         Some("pkg:maven/io.netty/netty-codec-dns")
     )]
     #[case(
-        Ecosystem::RedHatLightwell(Some("Maven:https://maven.google.com".to_string())),
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::Maven("https://maven.google.com".to_string()))),
         "groupid:artifactid",
         Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fmaven.google.com")
     )]
     #[case(
-        Ecosystem::RedHatLightwell(Some("PyPI".to_string())),
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::PyPI)),
         "pypdf2",
         Some("pkg:pypi/pypdf2")
     )]
-    #[case(Ecosystem::RedHatLightwell(None), "package", None)]
-    #[case(Ecosystem::RedHatLightwell(Some(String::new())), "package", None)]
-    #[case(Ecosystem::RedHatLightwell(Some("unknown".to_string())), "package", None)]
+    #[case(
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::Python)),
+        "aiohttp",
+        Some("pkg:pypi/aiohttp")
+    )]
+    #[case(Ecosystem::RedHatLightwell(Box::new(Ecosystem::Debian(Some("12".into())))), "package", None)]
     #[case(Ecosystem::RedHat(None), "package", None)]
     #[case(Ecosystem::Go, "tailscale.com", Some("pkg:golang/tailscale.com"))]
     #[case(
