@@ -10153,6 +10153,7 @@ dependencies = [
  "trustify-entity",
  "trustify-migration",
  "trustify-module-analysis",
+ "trustify-module-correlation",
  "trustify-module-ingestor",
  "trustify-module-storage",
  "trustify-query",
