@@ -863,3 +863,46 @@ fn estimate_extrapolates_the_average_rate() {
     );
     assert_eq!(estimate(&refresh_job(1, 0, now), 1, now), (1, None));
 }
+
+/// Documents show the number of packages of their SBOM.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn documents_count_packages(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let cache = PaginationCache::new(std::time::Duration::ZERO, 10);
+    let mut expected = Vec::new();
+    for (name, components) in [("empty", 0), ("two", 2)] {
+        let document = serde_json::json!({
+            "bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
+            "metadata": {"component": {"type": "application", "name": name, "bom-ref": "root"}},
+            "components": (0..components).map(|i| serde_json::json!({
+                "type": "library", "name": format!("lib{i}"), "version": "1.0", "bom-ref": format!("lib{i}")
+            })).collect::<Vec<_>>(),
+        });
+        let id = Uuid::parse_str(
+            &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+                .await?
+                .id,
+        )?;
+        expected.push((id, components + 1));
+    }
+    expected.sort();
+
+    let tx = ctx.db.begin().await?;
+    let mut packages = documents(
+        &tx,
+        None,
+        Paginated {
+            limit: 10,
+            ..Default::default()
+        },
+        &cache,
+    )
+    .await?
+    .items
+    .into_iter()
+    .map(|doc| (doc.sbom_id, doc.packages))
+    .collect::<Vec<_>>();
+    packages.sort();
+    assert_eq!(packages, expected);
+    Ok(())
+}

@@ -9,11 +9,12 @@ use sea_orm::{
 };
 use std::collections::HashMap;
 use time::{Duration, OffsetDateTime};
+use tracing::instrument;
 use trustify_common::{
     db::{self, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::{Paginated, PaginatedResults},
 };
-use trustify_entity::{correlation_extraction_state, sbom, sbom_node};
+use trustify_entity::{correlation_extraction_state, sbom, sbom_node, sbom_package};
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -379,12 +380,14 @@ pub async fn documents(
         .limiting_as::<DocumentCompletion>(tx, page, cache)?
         .fetch()
         .await?;
+    let packages = package_counts(selected.items.iter().map(|row| row.sbom_id), tx).await?;
     let items = selected
         .items
         .into_iter()
         .map(|row| FreshnessDocument {
             sbom_id: row.sbom_id,
             name: row.name,
+            packages: packages.get(&row.sbom_id).copied().unwrap_or_default(),
             freshness: completion(&Completion {
                 sbom_id: row.sbom_id,
                 revision,
@@ -394,6 +397,30 @@ pub async fn documents(
         })
         .collect();
     Ok(PaginatedResults { items, total })
+}
+
+/// The number of packages of each of the given SBOMs. SBOMs without packages are omitted.
+#[instrument(skip_all, err(level = tracing::Level::INFO))]
+async fn package_counts(
+    sbom_ids: impl IntoIterator<Item = Uuid>,
+    tx: &DatabaseTransaction,
+) -> Result<HashMap<Uuid, u64>, Error> {
+    let sbom_ids = sbom_ids.into_iter().collect::<Vec<_>>();
+    if sbom_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    sbom_package::Entity::find()
+        .select_only()
+        .column(sbom_package::Column::SbomId)
+        .column_as(sbom_package::Column::NodeId.count(), "packages")
+        .filter(sbom_package::Column::SbomId.is_in(sbom_ids))
+        .group_by(sbom_package::Column::SbomId)
+        .into_tuple::<(Uuid, i64)>()
+        .all(tx)
+        .await?
+        .into_iter()
+        .map(|(sbom_id, packages)| Ok((sbom_id, u64::try_from(packages)?)))
+        .collect()
 }
 
 /// Schedule a refresh job, or return the active one. Called by the worker only.

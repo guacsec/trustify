@@ -82,6 +82,9 @@ pub struct ExtractionLag {
 pub struct FreshnessDocument {
     pub sbom_id: Uuid,
     pub name: String,
+    /// The number of packages of the SBOM, as an indication of its size.
+    #[serde(default)]
+    pub packages: u64,
     pub freshness: ExtractionFreshness,
 }
 

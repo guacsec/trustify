@@ -1316,6 +1316,11 @@ paths:
                           $ref: '#/components/schemas/ExtractionFreshness'
                         name:
                           type: string
+                        packages:
+                          type: integer
+                          format: int64
+                          description: The number of packages of the SBOM, as an indication of its size.
+                          minimum: 0
                         sbom_id:
                           type: string
                           format: uuid
