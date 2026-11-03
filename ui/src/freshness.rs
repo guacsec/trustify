@@ -87,6 +87,7 @@ pub fn freshness_banner(freshness: &ExtractionFreshness, refreshing: bool) -> Ht
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum Column {
     Sbom,
+    Packages,
     Status,
     LastRefresh,
 }
@@ -487,6 +488,7 @@ pub fn freshness_page() -> Html {
     let header = html_nested! {
         <TableHeader<Column>>
             <TableColumn<Column> label="SBOM" index={Column::Sbom} />
+            <TableColumn<Column> label="Packages" index={Column::Packages} />
             <TableColumn<Column> label="Status" index={Column::Status} />
             <TableColumn<Column> label="Last successful refresh" index={Column::LastRefresh} />
         </TableHeader<Column>>
@@ -563,7 +565,7 @@ pub fn freshness_page() -> Html {
                     <TableBody>
                         if data.documents.is_empty() {
                             <TableRow>
-                                <TableData colspan={3}>
+                                <TableData colspan={4}>
                                     <Bullseye>
                                         <EmptyState title="No documents found" icon={Icon::Search} size={Size::Large}>
                                             { "No SBOMs have this status. Select a different status to see other documents." }
@@ -577,6 +579,7 @@ pub fn freshness_page() -> Html {
                                 <TableData data_label="SBOM">
                                     <Link<AppRoute> to={AppRoute::Correlation { id: doc.sbom_id.to_string() }}>{ &doc.name }</Link<AppRoute>>
                                 </TableData>
+                                <TableData data_label="Packages">{ doc.packages }</TableData>
                                 <TableData data_label="Status">{ freshness_badge(&doc.freshness) }</TableData>
                                 <TableData data_label="Last successful refresh">
                                     { doc.freshness.completed_at.as_ref().map(timestamp).unwrap_or_else(|| html!("Never")) }
