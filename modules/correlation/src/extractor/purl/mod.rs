@@ -589,35 +589,42 @@ fn group<'a, K: Ord + Clone>(
             .insert(super::SourceAssertionRef::Purl(stated.source_id));
     }
 
-    groups.into_iter().map(
-        |(
-            (target, extractor, advisory_id, vulnerability_id, _, identifier, context_id, _),
-            group,
-        )| {
-            (
-                target,
-                Assertion {
-                    extractor,
-                    advisory_id,
-                    vulnerability_id,
-                    status: group.status,
-                    confidence: group.confidence,
-                    factors: group.factors,
-                    matched_value: MatchedValue {
-                        source_provider: group.source_provider,
-                        origin: group.origin,
-                        identifier,
-                        ranges: group.ranges.into_iter().collect(),
-                        enabled_by: group.enabled_by,
+    // An assertion requiring a context, without one, is dropped by any scoping (see
+    // `context::scope`). Those are most of the rows of a package with many products (e.g. a
+    // kernel's minor stream fallbacks), so they are dropped here, before being copied for targets.
+    // They are only dropped after grouping, as they still shadow defaults and other streams.
+    groups
+        .into_iter()
+        .filter(|((.., context_id, _), group)| !group.requires_context || context_id.is_some())
+        .map(
+            |(
+                (target, extractor, advisory_id, vulnerability_id, _, identifier, context_id, _),
+                group,
+            )| {
+                (
+                    target,
+                    Assertion {
+                        extractor,
+                        advisory_id,
+                        vulnerability_id,
+                        status: group.status,
+                        confidence: group.confidence,
+                        factors: group.factors,
+                        matched_value: MatchedValue {
+                            source_provider: group.source_provider,
+                            origin: group.origin,
+                            identifier,
+                            ranges: group.ranges.into_iter().collect(),
+                            enabled_by: group.enabled_by,
+                        },
+                        context_id,
+                        requires_context: group.requires_context,
+                        version_range_id: None,
+                        source_assertions: group.source_assertions,
                     },
-                    context_id,
-                    requires_context: group.requires_context,
-                    version_range_id: None,
-                    source_assertions: group.source_assertions,
-                },
-            )
-        },
-    )
+                )
+            },
+        )
 }
 
 #[async_trait::async_trait]
@@ -706,7 +713,7 @@ async fn match_batched(
     tx: &DatabaseTransaction,
 ) -> Result<Vec<IdentifierMatch>, Error> {
     // Versions share candidate lookups, but each input retains its own qualifiers.
-    let mut vp_map = HashMap::<Uuid, Vec<(usize, qualified_purl::Qualifiers)>>::new();
+    let mut vp_map = VersionTargets::new();
     let mut packages = BTreeMap::<Uuid, BTreeSet<Uuid>>::new();
     for (idx, identifier) in identifiers.iter().enumerate() {
         if identifier.kind != IdentifierKind::Purl {
@@ -743,39 +750,94 @@ async fn match_batched(
         if batch.len() < batch_size && packages.peek().is_some() {
             continue;
         }
-        let rows = load_purl_status_matches(take(&mut batch), &sources, tx).await?;
-        let ids = rows
-            .iter()
-            .flat_map(|row| row.matched.status_ids.iter().copied())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
+        result.extend(match_batch(take(&mut batch), &vp_map, &sources, tx).await?);
+    }
+    Ok(result)
+}
+
+/// The identifiers of each versioned PURL: their index and qualifiers.
+type VersionTargets = HashMap<Uuid, Vec<(usize, qualified_purl::Qualifiers)>>;
+
+/// Match one batch of versioned PURLs, and group the rows per identifier.
+#[instrument(
+    skip_all,
+    fields(
+        versions = versions.len(),
+        rows = field::Empty,
+        statuses = field::Empty,
+        grouped = field::Empty,
+        matches = field::Empty,
+    ),
+    err(level = tracing::Level::INFO)
+)]
+async fn match_batch(
+    versions: Vec<Uuid>,
+    vp_map: &VersionTargets,
+    sources: &[(Source<'_>, Candidates)],
+    tx: &DatabaseTransaction,
+) -> Result<Vec<IdentifierMatch>, Error> {
+    let rows = load_purl_status_matches(versions, sources, tx).await?;
+    let ids = rows
+        .iter()
+        .flat_map(|row| row.matched.status_ids.iter().copied())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let stated = load_stated(
+        Expr::col((purl_status::Entity, purl_status::Column::Id)).eq(ids_param(&ids)),
+        tx,
+    )
+    .await?;
+    let span = Span::current();
+    span.record("rows", rows.len());
+    span.record("statuses", ids.len());
+
+    // the stated rows of each versioned PURL, without the qualifiers of a target
+    let mut versions = HashMap::<Uuid, Vec<_>>::new();
+    for row in rows {
+        let source = source_of(sources, row.matched.source)?;
+        let entry = versions.entry(row.versioned_purl_id).or_default();
+        for status in row
+            .matched
+            .into_rows(&stated, &qualified_purl::Qualifiers::default())
+        {
+            entry.push((source, status));
+        }
+    }
+
+    // `group` only relates the rows of one target, and only depends on its versioned PURL and
+    // matched qualifiers: group once per distinct pair, and one pair at a time, as copying all rows for
+    // all targets at once doesn't fit into memory (e.g. 15M rows for the kernel of a RHEL SBOM).
+    let mut grouped = 0;
+    let mut result = Vec::new();
+    for (version, rows) in versions {
+        let mut by_qualifiers = BTreeMap::<_, Vec<usize>>::new();
+        for (idx, qualifiers) in vp_map.get(&version).map(Vec::as_slice).unwrap_or_default() {
+            by_qualifiers
+                .entry(Ecosystem::matched_qualifiers(&qualifiers.0))
+                .or_default()
+                .push(*idx);
+        }
+        for (qualifiers, indices) in by_qualifiers {
+            grouped += rows.len();
+            let assertions = group(rows.iter().map(|(source, status)| {
+                let mut status = status.clone();
+                status.sbom_qualifiers = qualified_purl::Qualifiers(qualifiers.clone());
+                ((), *source, status)
+            }))
+            .map(|((), assertion)| assertion)
             .collect::<Vec<_>>();
-        let stated = load_stated(
-            Expr::col((purl_status::Entity, purl_status::Column::Id)).eq(ids_param(&ids)),
-            tx,
-        )
-        .await?;
-        let mut targets = Vec::new();
-        for row in rows {
-            let source = source_of(&sources, row.matched.source)?;
-            let statuses = row
-                .matched
-                .into_rows(&stated, &qualified_purl::Qualifiers::default());
-            let indices = vp_map
-                .get(&row.versioned_purl_id)
-                .map(Vec::as_slice)
-                .unwrap_or_default();
-            for status in statuses {
-                for (idx, qualifiers) in indices {
-                    let mut status = status.clone();
-                    status.sbom_qualifiers = qualifiers.clone();
-                    targets.push((*idx, source, status));
-                }
+            for idx in indices {
+                result.extend(assertions.iter().map(|assertion| IdentifierMatch {
+                    index: idx,
+                    assertion: assertion.clone(),
+                }));
             }
         }
-        result
-            .extend(group(targets).map(|(index, assertion)| IdentifierMatch { index, assertion }));
     }
+    span.record("grouped", grouped);
+
+    span.record("matches", result.len());
     Ok(result)
 }
 
