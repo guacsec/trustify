@@ -12,12 +12,14 @@ Trustify brings SBOMs, vulnerability advisories, and VEX documents into a single
 
 | | |
 |---|---|
-| **Unified SBOM Management** | Ingest, store, and search CycloneDX and SPDX SBOMs in one place |
+| **Unified SBOM Management** | Ingest, store, and search CycloneDX JSON SBOMs (versions 1.3–1.7) and SPDX SBOMs in one place |
 | **Vulnerability Intelligence** | Cross-reference SBOMs against advisories from Red Hat, GHSA, NVD, and OSV |
 | **VEX Support** | Reduce alert fatigue with vendor vulnerability exploitability data (CSAF/VEX) |
 | **Built-in Importers** | Automatically fetch and stay current with public vulnerability feeds |
 | **REST API & Web UI** | Full API with OpenAPI spec, plus a modern web interface |
 | **Single Binary Deployment** | One binary, one PostgreSQL database — no microservices to wrangle |
+
+Trustify maps supported CycloneDX data into its model, including SBOM and component metadata, dependency relationships, license information, and supported machine-learning and cryptographic asset data. Other CycloneDX fields are not currently mapped; additional mappings may be added in future releases.
 
 ## See It In Action
 
@@ -83,7 +85,7 @@ unchanged `main`, but still requires CI to pass.
 
 | Term | What it means in Trustify |
 |------|--------------------------|
-| **SBOM** | A software bill of materials (CycloneDX or SPDX) describing the components in a software product |
+| **SBOM** | A software bill of materials describing a product's components; Trustify ingests CycloneDX JSON SBOMs (versions 1.3–1.7) and SPDX SBOMs |
 | **Advisory** | A security advisory (e.g. from NVD, Red Hat, GHSA) describing vulnerabilities in specific packages |
 | **VEX** | Vendor exploitability exchange — a statement from a vendor about whether a vulnerability actually affects their product |
 | **pURL** | Package URL — a standard way to identify a software package across ecosystems |
