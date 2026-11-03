@@ -708,8 +708,6 @@ impl Extractor for PurlExtractor {
     }
 }
 
-// ponytail: ad-hoc PURLs not in DB won't match; add fallback with literal version_matches when needed
-
 /// Load the candidates matching any of the given versioned_purl IDs via version-range evaluation.
 ///
 /// Join chain: versioned_purl → base_purl → purl_status → version_range + status,
@@ -748,6 +746,7 @@ async fn load_purl_status_matches(
             Expr::col((versioned_purl::Entity, versioned_purl::Column::Id))
                 .eq(PgFunc::any(versioned_purl_ids.to_vec())),
         )
+        .filter(advisory::Column::Deprecated.eq(false))
         .into_model::<PurlStatusMatch>()
         .all(connection)
         .instrument(info_span!("loading purl status matches"))
@@ -784,6 +783,7 @@ async fn load_synthetic_purl_status_matches(
         .filter(base_purl::Column::Type.eq(purl.ty.clone()))
         .filter(base_purl::Column::Namespace.eq(purl.namespace.clone()))
         .filter(base_purl::Column::Name.eq(purl.name.clone()))
+        .filter(advisory::Column::Deprecated.eq(false))
         .into_model::<PurlStatusMatch>()
         .all(connection)
         .instrument(info_span!("loading synthetic purl status matches"))

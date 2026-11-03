@@ -18,11 +18,11 @@ use crate::{
         },
     },
 };
-use cpe::uri::OwnedUri;
 use regex::Regex;
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult,
-    LoaderTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
+    LoaderTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Select,
+    prelude::Uuid,
 };
 use sea_query::{
     Alias, Asterisk, ColumnType, Expr, ExprTrait, Func,
@@ -43,13 +43,21 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    advisory, base_purl, cpe as entity_cpe, license, purl_status,
+    advisory, base_purl, license, purl_status,
     qualified_purl::{self, CanonicalPurl},
     remediation, remediation_purl_status, sbom, sbom_license_expanded, sbom_node,
-    sbom_node_cpe_ref, sbom_node_purl_ref, sbom_package, sbom_package_license, status,
-    version_range, versioned_purl, vulnerability,
+    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
 };
-use trustify_module_correlation::service::CorrelationService;
+use trustify_module_correlation::{
+    extractor::{
+        NodeRef,
+        context::{format_cpe, load_node_cpes},
+    },
+    service::{
+        CorrelationService,
+        resolution::{ProviderSnapshot, store::provider_identifiers},
+    },
+};
 use trustify_module_ingestor::common::Deprecation;
 
 /// Composite key identifying a base PURL by type, namespace, and name (without version).
@@ -69,6 +77,7 @@ struct StatusInfo {
     advisory_id: Option<String>,
     advisory_pk: Uuid,
     derived: bool,
+    is_default: bool,
     stated_id: Uuid,
     context_cpe_id: Option<Uuid>,
     assertion_context_id: Option<Uuid>,
@@ -721,6 +730,31 @@ impl PurlService {
         Ok(recommendations)
     }
 
+    /// Effective statements plus defaults, retained only as suppression inputs for recommendations.
+    fn recommendation_statuses() -> Select<purl_status::Entity> {
+        let mut defaults = purl_status::Entity::find()
+            .column_as(Expr::value(false), "derived")
+            .column_as(purl_status::Column::Id, "stated_id")
+            .filter(purl_status::Column::IsDefault.eq(true));
+        let mut effective = purl_status::find_effective()
+            .column_as(
+                Expr::col((purl_status::Entity, Alias::new("derived"))),
+                "derived",
+            )
+            .column_as(
+                Expr::col((purl_status::Entity, Alias::new("stated_id"))),
+                "stated_id",
+            );
+        QueryTrait::query(&mut effective)
+            .union(UnionType::All, QueryTrait::query(&mut defaults).clone());
+        let mut query = purl_status::Entity::find();
+        QueryTrait::query(&mut query).from_clear().from_subquery(
+            QueryTrait::query(&mut effective).clone(),
+            purl_status::Entity,
+        );
+        query
+    }
+
     /// Batch-loads vulnerability statuses for the winning versioned PURLs, grouped by base PURL ID.
     /// Chunks by base PURL IDs to stay within Postgres bind parameter limits.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
@@ -734,7 +768,7 @@ impl PurlService {
 
         let base_chunks = chunked_with(1, winner_base_ids.into_iter());
         for base_chunk in base_chunks {
-            let all_statuses: Vec<EffectivePurlStatus> = purl_status::find_effective()
+            let all_statuses: Vec<EffectivePurlStatus> = Self::recommendation_statuses()
                 .columns([
                     version_range::Column::Id,
                     version_range::Column::LowVersion,
@@ -792,7 +826,7 @@ impl PurlService {
         version: &str,
         connection: &C,
     ) -> Result<Vec<StatusInfo>, Error> {
-        let all_statuses: Vec<EffectivePurlStatus> = purl_status::find_effective()
+        let all_statuses: Vec<EffectivePurlStatus> = Self::recommendation_statuses()
             .columns([
                 version_range::Column::Id,
                 version_range::Column::LowVersion,
@@ -890,6 +924,7 @@ impl PurlService {
                         advisory_id: Some(advisory.identifier),
                         advisory_pk: effective.status.advisory_id,
                         derived: effective.derived,
+                        is_default: effective.status.is_default,
                         stated_id: effective.stated_id,
                         context_cpe_id: effective.status.context_cpe_id,
                         assertion_context_id: effective.status.assertion_context_id,
@@ -930,19 +965,20 @@ impl PurlService {
             .flatten()
             .collect::<Vec<_>>();
         statuses.retain(|status| {
-            !status.derived
-                || !statuses_by_vp
-                    .get(&winner.versioned_purl.id)
-                    .into_iter()
-                    .flatten()
-                    .any(|direct| {
-                        !direct.derived
-                            && direct.stated_id != status.stated_id
-                            && direct.vuln_id == status.vuln_id
-                            && direct.advisory_pk == status.advisory_pk
-                            && direct.context_cpe_id == status.context_cpe_id
-                            && direct.assertion_context_id == status.assertion_context_id
-                    })
+            !status.is_default
+                && (!status.derived
+                    || !statuses_by_vp
+                        .get(&winner.versioned_purl.id)
+                        .into_iter()
+                        .flatten()
+                        .any(|direct| {
+                            !direct.derived
+                                && direct.stated_id != status.stated_id
+                                && direct.vuln_id == status.vuln_id
+                                && direct.advisory_pk == status.advisory_pk
+                                && direct.context_cpe_id == status.context_cpe_id
+                                && direct.assertion_context_id == status.assertion_context_id
+                        }))
         });
         statuses.sort_by(|a, b| {
             (&a.vuln_id, &a.status_slug, &a.advisory_id, a.stated_id).cmp(&(
@@ -1192,9 +1228,27 @@ impl PurlService {
             });
         }
 
-        let suppliers_by_node = Self::fetch_component_suppliers(sbom_ids, connection).await?;
-        let product_context_by_node =
-            Self::fetch_component_product_contexts(sbom_ids, connection).await?;
+        let providers = ProviderSnapshot::load(connection, sbom_ids, &[])
+            .await
+            .map_err(anyhow::Error::from)?;
+        let provider_context = providers
+            .context(&ResolutionRequest::default())
+            .map_err(anyhow::Error::from)?;
+        let node_keys = rows
+            .iter()
+            .map(|row| (row.sbom_id, row.node_id.clone()))
+            .collect();
+        let identifiers_by_node = provider_identifiers(connection, &node_keys)
+            .await
+            .map_err(anyhow::Error::from)?;
+        let product_context_by_node = Self::fetch_component_product_contexts(
+            rows.iter().map(|row| NodeRef {
+                sbom_id: row.sbom_id,
+                node_id: row.node_id.clone(),
+            }),
+            connection,
+        )
+        .await?;
 
         // Keep component provider and product context in the key until after resolution.
         let mut version_groups: HashMap<(Uuid, String, Option<String>, Vec<String>), VersionGroup> =
@@ -1203,12 +1257,18 @@ impl PurlService {
 
         for row in &rows {
             let node_key = (row.sbom_id, row.node_id.clone());
-            let component_provider = suppliers_by_node
+            let identifiers = identifiers_by_node
                 .get(&node_key)
-                .and_then(|supplier| supplier.as_ref())
-                .and_then(|supplier| supplier.get("name"))
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned);
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let component_provider = providers
+                .component_provider(
+                    Some(row.sbom_id),
+                    Some(&row.node_id),
+                    identifiers,
+                    &provider_context,
+                )
+                .provider;
             let product_context = product_context_by_node
                 .get(&node_key)
                 .cloned()
@@ -1501,62 +1561,25 @@ impl PurlService {
             .await?)
     }
 
-    /// Loads supplier metadata for every SBOM component in the requested reports.
-    async fn fetch_component_suppliers<C: ConnectionTrait>(
-        sbom_ids: &[Uuid],
-        connection: &C,
-    ) -> Result<HashMap<(Uuid, String), Option<serde_json::Value>>, Error> {
-        Ok(sbom_package::Entity::find()
-            .filter(sbom_package::Column::SbomId.is_in(sbom_ids.iter().copied()))
-            .all(connection)
-            .await?
-            .into_iter()
-            .map(|package| ((package.sbom_id, package.node_id), package.supplier))
-            .collect())
-    }
-
-    /// Loads each component's CPEs as product context for correlation resolution.
+    /// Reuses correlation's node, ancestor, describing, ancestor-SBOM and RPM product contexts.
     async fn fetch_component_product_contexts<C: ConnectionTrait>(
-        sbom_ids: &[Uuid],
+        nodes: impl IntoIterator<Item = NodeRef>,
         connection: &C,
     ) -> Result<HashMap<(Uuid, String), Vec<String>>, Error> {
-        let refs = sbom_node_cpe_ref::Entity::find()
-            .filter(sbom_node_cpe_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
-            .all(connection)
-            .await?;
-        let cpe_ids = refs.iter().map(|item| item.cpe_id).collect::<HashSet<_>>();
-        if cpe_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-
-        let cpes = entity_cpe::Entity::find()
-            .filter(entity_cpe::Column::Id.is_in(cpe_ids))
-            .all(connection)
-            .await?;
-        let mut cpes_by_id = HashMap::with_capacity(cpes.len());
-        for item in cpes {
-            let uri: OwnedUri = (&item).try_into().map_err(anyhow::Error::from)?;
-            let mut value = uri.to_string();
-            // Correlation request CPE parsing rejects trailing ANY (`*`) URI components.
-            while let Some(stripped) = value.strip_suffix(":*") {
-                value = stripped.to_owned();
-            }
-            cpes_by_id.insert(item.id, value);
-        }
-        let mut contexts = HashMap::<(Uuid, String), Vec<String>>::new();
-        for item in refs {
-            if let Some(value) = cpes_by_id.get(&item.cpe_id) {
-                contexts
-                    .entry((item.sbom_id, item.node_id))
-                    .or_default()
-                    .push(value.clone());
-            }
-        }
-        for values in contexts.values_mut() {
-            values.sort();
-            values.dedup();
-        }
-        Ok(contexts)
+        Ok(load_node_cpes(nodes, connection)
+            .await
+            .map_err(anyhow::Error::from)?
+            .into_iter()
+            .map(|(node, cpes)| {
+                let mut values = cpes
+                    .iter()
+                    .map(|item| format_cpe(&item.cpe))
+                    .collect::<Vec<_>>();
+                values.sort();
+                values.dedup();
+                ((node.sbom_id, node.node_id), values)
+            })
+            .collect())
     }
 }
 
