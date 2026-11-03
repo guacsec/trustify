@@ -813,6 +813,86 @@ async fn get_recommendations_osv_last_affected_is_not_candidate(
     Ok(())
 }
 
+/// Verifies that the VendorFix lookup stays within the Postgres bind parameter limit when a
+/// package has more affected statuses than the limit allows in one query.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn vendor_fix_pass_respects_bind_parameter_limit(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.example/huge@1.0.0";
+
+    // Given a package with more than 65,535 affected statuses and no vendor rebuild
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "GHSA-huge",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2099-0001"],
+        "affected": [{
+            "package": {
+                "ecosystem": "Maven",
+                "name": "org.example:huge",
+                "purl": "pkg:maven/org.example/huge"
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]
+            }]
+        }]
+    }))
+    .await?;
+
+    ctx.db
+        .execute_unprepared(
+            "INSERT INTO purl_status (id, advisory_id, vulnerability_id, status_id, base_purl_id, \
+                 qualified_purl_id, version_range_id, context_cpe_id, assertion_context_id, \
+                 is_default, source_provider) \
+             SELECT gen_random_uuid(), ps.advisory_id, ps.vulnerability_id, ps.status_id, \
+                 ps.base_purl_id, ps.qualified_purl_id, ps.version_range_id, ps.context_cpe_id, \
+                 ps.assertion_context_id, ps.is_default, ps.source_provider \
+             FROM purl_status ps JOIN base_purl bp ON bp.id = ps.base_purl_id \
+             CROSS JOIN generate_series(1, 66000) WHERE bp.name = 'huge'",
+        )
+        .await?;
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting a recommendation, recording the service's query spans
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(spans.clone()));
+    let resp = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v3/purl/recommend")
+                .set_json(json!({ "purls": [UPSTREAM_PURL] }))
+                .to_request(),
+        )
+        .with_subscriber(subscriber)
+        .await;
+
+    // Then the request succeeds with no recommendation, using the instrumented VendorFix query
+    assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    let body: Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["recommendations"][UPSTREAM_PURL], json!([]));
+    assert!(
+        spans
+            .lock()
+            .unwrap()
+            .contains(&"querying vendor-fix statuses"),
+        "the VendorFix lookup should run as its own instrumented query"
+    );
+
+    Ok(())
+}
+
 /// Verifies that PURLs without a version produce no recommendations.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]

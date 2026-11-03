@@ -27,6 +27,7 @@ use sea_query::{
     Asterisk, ColumnType, Expr, ExprTrait, Func,
     JoinType::{self, InnerJoin},
     Order, SimpleExpr, UnionType,
+    extension::postgres::PgExpr,
 };
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
@@ -78,6 +79,24 @@ struct SbomPurlRow {
     purl_type: String,
     purl_namespace: Option<String>,
     purl_name: String,
+}
+
+/// A non-default `affected` status whose VendorFix remediation fixes the version that ends its
+/// range, carrying the advisory and remediation columns needed to report it as fixed.
+#[derive(FromQueryResult)]
+struct VendorFixRow {
+    base_purl_id: Uuid,
+    vulnerability_id: String,
+    fixed_version: String,
+    advisory_identifier: String,
+    advisory_modified: Option<time::OffsetDateTime>,
+    advisory_published: Option<time::OffsetDateTime>,
+    remediation_id: Uuid,
+    remediation_advisory_id: Uuid,
+    remediation_vulnerability_id: String,
+    remediation_details: Option<String>,
+    remediation_url: Option<String>,
+    remediation_data: serde_json::Value,
 }
 
 /// SBOM root-node name row used to populate the report's sboms list.
@@ -1047,79 +1066,41 @@ impl PurlService {
         let mut vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
         let id_chunks = chunked_with(1, base_purl_ids.into_iter());
         for chunk in id_chunks {
-            let affected_statuses = purl_status::Entity::find()
-                .join(InnerJoin, purl_status::Relation::Status.def())
-                .filter(purl_status::Column::BasePurlId.is_in(chunk))
-                .filter(purl_status::Column::IsDefault.eq(false))
-                .filter(status::Column::Slug.eq("affected"))
-                .all(connection)
-                .await?;
-            let advisories = affected_statuses
-                .load_one(advisory::Entity, connection)
-                .await?;
-            let ranges = affected_statuses
-                .load_one(version_range::Entity, connection)
-                .await?;
-            let remediations = affected_statuses
-                .load_many_to_many(
-                    remediation::Entity,
-                    remediation_purl_status::Entity,
-                    connection,
-                )
-                .await?;
-
-            for (((purl_status, advisory), range), remediations) in affected_statuses
-                .into_iter()
-                .zip(advisories)
-                .zip(ranges)
-                .zip(remediations)
-            {
-                let (Some(advisory), Some(range)) = (advisory, range) else {
-                    continue;
+            for row in Self::fetch_vendor_fix_rows(chunk, connection).await? {
+                let entry = by_base.entry(row.base_purl_id).or_default();
+                let id = if let Some(versioned_purl) =
+                    entry.iter().find(|vp| vp.version == row.fixed_version)
+                {
+                    versioned_purl.id
+                } else {
+                    let id = Uuid::new_v5(&row.base_purl_id, row.fixed_version.as_bytes());
+                    synthesized_ids.insert(id);
+                    entry.push(versioned_purl::Model {
+                        id,
+                        base_purl_id: row.base_purl_id,
+                        version: row.fixed_version.clone(),
+                    });
+                    id
                 };
 
-                for remediation in remediations {
-                    if remediation.category != remediation::RemediationCategory::VendorFix {
-                        continue;
-                    }
-                    let Some(fixed_version) =
-                        remediation.data.get("fixed").and_then(|v| v.as_str())
-                    else {
-                        continue;
-                    };
-                    if range.high_version.as_deref() != Some(fixed_version)
-                        || range.high_inclusive != Some(false)
-                    {
-                        continue;
-                    }
-
-                    let entry = by_base.entry(purl_status.base_purl_id).or_default();
-                    let id = if let Some(versioned_purl) =
-                        entry.iter().find(|vp| vp.version == fixed_version)
-                    {
-                        versioned_purl.id
-                    } else {
-                        let id = Uuid::new_v5(&purl_status.base_purl_id, fixed_version.as_bytes());
-                        synthesized_ids.insert(id);
-                        entry.push(versioned_purl::Model {
-                            id,
-                            base_purl_id: purl_status.base_purl_id,
-                            version: fixed_version.to_string(),
-                        });
-                        id
-                    };
-
-                    vendor_fix_statuses_by_vp
-                        .entry(id)
-                        .or_default()
-                        .push(StatusInfo {
-                            vuln_id: purl_status.vulnerability_id.clone(),
-                            status_slug: "fixed".to_string(),
-                            remediations: vec![remediation],
-                            advisory_date: advisory.modified.or(advisory.published),
-                            advisory_id: Some(advisory.identifier.clone()),
-                        });
-                }
+                vendor_fix_statuses_by_vp
+                    .entry(id)
+                    .or_default()
+                    .push(StatusInfo {
+                        vuln_id: row.vulnerability_id,
+                        status_slug: "fixed".to_string(),
+                        remediations: vec![remediation::Model {
+                            id: row.remediation_id,
+                            advisory_id: row.remediation_advisory_id,
+                            vulnerability_id: row.remediation_vulnerability_id,
+                            category: remediation::RemediationCategory::VendorFix,
+                            details: row.remediation_details,
+                            url: row.remediation_url,
+                            data: row.remediation_data,
+                        }],
+                        advisory_date: row.advisory_modified.or(row.advisory_published),
+                        advisory_id: Some(row.advisory_identifier),
+                    });
             }
         }
 
@@ -1127,6 +1108,63 @@ impl PurlService {
             synthesized_vp_ids: synthesized_ids,
             vendor_fix_statuses_by_vp,
         })
+    }
+
+    /// Fetches the OSV fixed events of the given base PURLs in one query: non-default `affected`
+    /// statuses whose VendorFix remediation fixes exactly the exclusive upper bound of the status
+    /// range.
+    ///
+    /// The filtering runs in SQL so the cost follows the number of fixed events rather than the
+    /// number of `affected` statuses, and the only bind parameters are the given base PURL IDs, so
+    /// callers can chunk them to stay within the Postgres bind parameter limit.
+    async fn fetch_vendor_fix_rows<C: ConnectionTrait>(
+        base_purl_ids: Vec<Uuid>,
+        connection: &C,
+    ) -> Result<Vec<VendorFixRow>, Error> {
+        let fixed_version =
+            Expr::col((remediation::Entity, remediation::Column::Data)).cast_json_field("fixed");
+
+        Ok(purl_status::Entity::find()
+            .select_only()
+            .column_as(purl_status::Column::BasePurlId, "base_purl_id")
+            .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
+            .expr_as(fixed_version.clone(), "fixed_version")
+            .column_as(advisory::Column::Identifier, "advisory_identifier")
+            .column_as(advisory::Column::Modified, "advisory_modified")
+            .column_as(advisory::Column::Published, "advisory_published")
+            .column_as(remediation::Column::Id, "remediation_id")
+            .column_as(remediation::Column::AdvisoryId, "remediation_advisory_id")
+            .column_as(
+                remediation::Column::VulnerabilityId,
+                "remediation_vulnerability_id",
+            )
+            .column_as(remediation::Column::Details, "remediation_details")
+            .column_as(remediation::Column::Url, "remediation_url")
+            .column_as(remediation::Column::Data, "remediation_data")
+            .join(InnerJoin, purl_status::Relation::Status.def())
+            .join(InnerJoin, purl_status::Relation::Advisory.def())
+            .join(InnerJoin, purl_status::Relation::VersionRange.def())
+            .join(
+                InnerJoin,
+                remediation_purl_status::Relation::PurlStatus.def().rev(),
+            )
+            .join(
+                InnerJoin,
+                remediation_purl_status::Relation::Remediation.def(),
+            )
+            .filter(purl_status::Column::BasePurlId.is_in(base_purl_ids))
+            .filter(purl_status::Column::IsDefault.eq(false))
+            .filter(status::Column::Slug.eq("affected"))
+            .filter(remediation::Column::Category.eq(remediation::RemediationCategory::VendorFix))
+            .filter(version_range::Column::HighInclusive.eq(false))
+            .filter(
+                Expr::col((version_range::Entity, version_range::Column::HighVersion))
+                    .eq(fixed_version),
+            )
+            .into_model::<VendorFixRow>()
+            .all(connection)
+            .instrument(info_span!("querying vendor-fix statuses"))
+            .await?)
     }
 
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
