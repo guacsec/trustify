@@ -179,6 +179,7 @@ impl Validator for ScheckValidator {
 mod tests {
     use super::*;
     use crate::service::validation::ValidatorConfig;
+    use std::path::Path;
 
     /// A ruleset asserting the document has a `document` object at the root.
     const RULESET: &str = r#"{
@@ -218,6 +219,27 @@ mod tests {
     fn validator(mode: ValidationMode) -> ScheckValidator {
         let schema = serde_json::from_str(RULESET).expect("valid ruleset");
         ScheckValidator::new(&config(vec![Format::CSAF], mode), vec![schema], None)
+    }
+
+    #[tokio::test]
+    async fn cyclonedx_min_ruleset_accepts_version_1_7() {
+        let schema = parse_ruleset(
+            Path::new("cyclonedx-min.json"),
+            include_str!("../../../../../etc/validators/rules/cyclonedx-min.json"),
+        )
+        .expect("valid ruleset");
+        let validator = ScheckValidator::new(
+            &config(vec![Format::CycloneDX], ValidationMode::Report),
+            vec![schema],
+            None,
+        );
+        let input = ValidatorInput {
+            bytes: include_bytes!("../../../../../etc/test-data/cyclonedx/simple_1dot7.json"),
+            format: Format::CycloneDX,
+        };
+
+        let report = validator.validate(&input).await.expect("validates");
+        assert_eq!(report.outcome, ValidationOutcome::Passed, "{report:?}");
     }
 
     #[tokio::test]
