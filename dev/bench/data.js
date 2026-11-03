@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793379422587,
+  "lastUpdate": 1793714247995,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24348,6 +24348,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/211e9330a692f43c5295d48d64d1d5b909b13c8c"
         },
         "date": 1793379419951,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "fb680c910eb91c9a3a76d036c3761e285e9aedba",
+          "message": "feat(correlation): refresh SBOMs automatically with progress and ETA\n\nNever-extracted SBOMs and SBOMs outdated by a settings change now take the\nsame path: whenever any SBOM is behind the extraction revision, the worker\nschedules a refresh job. SBOMs no longer go through the ingestion queue,\nwhich only handles advisories now. The manual refresh endpoint and button\nare removed.\n\nJobs pick the next SBOM not yet attempted, never-extracted ones first, so\ndocuments ingested during a long refresh are handled by the running job.\nFailed documents are retried by a new job after a 30 second back-off.\n\nActive jobs report the remaining documents, an estimated completion time\nand the document currently being extracted. The current document is\npublished from a separate transaction, as the job's own progress commits\nonly together with the document.\n\nThe correlation status page shows the SBOM, advisory and verdict stages\nside by side, and polls only the overview unless its counts change.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-11-03T12:32:22Z",
+          "tree_id": "410d165fdc1e80966ca175783329a5463545578a",
+          "url": "https://github.com/guacsec/trustify/commit/fb680c910eb91c9a3a76d036c3761e285e9aedba"
+        },
+        "date": 1793714243819,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
