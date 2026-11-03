@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    extractor::Extractors,
+    extractor::{Extractors, SourceAssertionRef},
     model::{
         ContextSource as ApiContextSource, CorrelationOptionKey, EnabledBy, RangeBound,
         StreamRelation,
@@ -153,6 +153,59 @@ async fn extract_both_directions(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     assert!(extract_for_advisory(ctx, advisory_id).await? > 0);
     assert_eq!(load_evidence(ctx, sbom_id).await?, from_sbom);
+
+    Ok(())
+}
+
+/// Ad-hoc matching resolves an applicable range for a version absent from `versioned_purl`.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn query_identifier_matches_synthetic_purl_version(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let advisory = ctx.ingest_document(S5_VEX).await?;
+    let identifier = IdentifierRef {
+        kind: IdentifierKind::Purl,
+        value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&distro=rhel-8.10&epoch=1".into(),
+    };
+    let purl = identifier.value.parse::<Purl>()?;
+    let advisory_id = Uuid::parse_str(&advisory.id)?;
+    let tx = ctx.db.begin().await?;
+
+    assert!(
+        versioned_purl::Entity::find_by_id(purl.version_uuid())
+            .one(&tx)
+            .await?
+            .is_none(),
+        "test input must not have a persisted versioned_purl row"
+    );
+
+    let matches = PurlExtractor
+        .match_identifiers(std::slice::from_ref(&identifier), &tx)
+        .await?;
+    let matched = matches
+        .iter()
+        .find(|matched| {
+            matched.index == 0
+                && matched.assertion.advisory_id == advisory_id
+                && matched.assertion.vulnerability_id == "CVE-2023-0215"
+                && matched.assertion.status == AssertionStatus::Affected
+                && matched.assertion.matched_value.origin == AssertionOrigin::PublisherPolicy
+        })
+        .expect("the synthetic PURL should match the advisory's affected range");
+
+    assert!(matched.assertion.confidence > 0.0);
+    assert!(
+        matched
+            .assertion
+            .source_assertions
+            .iter()
+            .any(|source| { matches!(source, SourceAssertionRef::Purl(_)) })
+    );
+    assert_eq!(
+        matched.assertion.matched_value.identifier,
+        "pkg:rpm/redhat/openssl"
+    );
 
     Ok(())
 }
