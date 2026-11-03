@@ -893,6 +893,85 @@ async fn vendor_fix_pass_respects_bind_parameter_limit(
     Ok(())
 }
 
+/// Verifies that a version known only from an OSV fixed event does not outrank a shipped vendor
+/// build: VendorFix-only candidates are a fallback for when no persisted candidate matches.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn unshipped_fixed_event_does_not_outrank_persisted_build(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.example/ghost@5.3.18";
+    const SHIPPED_PURL: &str = "pkg:maven/org.example/ghost@5.3.18.rhlw-00010";
+
+    // Given an SBOM shipping the upstream and a vendor build, and a third-party OSV record whose
+    // fixed event names a higher vendor version that was never shipped
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "ghost-5.3.18",
+            "00000000-0000-0000-0000-282900000004",
+            &[
+                ("ghost", "5.3.18", UPSTREAM_PURL),
+                ("ghost", "5.3.18.rhlw-00010", SHIPPED_PURL),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "GHSA-ghost",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2099-0004"],
+        "affected": [{
+            "package": {
+                "ecosystem": "Maven",
+                "name": "org.example:ghost",
+                "purl": "pkg:maven/org.example/ghost"
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [{"introduced": "5.3.18"}, {"fixed": "5.3.18.rhlw-00099"}]
+            }]
+        }]
+    }))
+    .await?;
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting a recommendation and a report for the upstream package
+    let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the shipped build is recommended, without the unshipped version's fixed status
+    let entries = recommendations["recommendations"][UPSTREAM_PURL]
+        .as_array()
+        .unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["package"], SHIPPED_PURL);
+    let statuses: Vec<(&str, &str)> = entries[0]["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| (v["id"].as_str().unwrap(), v["status"].as_str().unwrap()))
+        .collect();
+    assert_eq!(statuses, vec![("CVE-2099-0004", "Affected")]);
+
+    // And the report does not count the package as addressable
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+
+    Ok(())
+}
+
 /// Verifies that PURLs without a version produce no recommendations.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]

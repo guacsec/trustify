@@ -131,16 +131,19 @@ struct Winner<'a> {
     base: &'a base_purl::Model,
 }
 
-/// Candidate PURLs and status metadata synthesized from advisory data.
-type AdvisoryVersionedPurls = (
-    HashMap<Uuid, Vec<versioned_purl::Model>>,
-    HashSet<Uuid>,
-    HashMap<Uuid, Vec<StatusInfo>>,
-);
-
-/// Synthetic version IDs and status metadata derived from advisory VendorFix remediations.
-struct AdvisoryCandidateMetadata {
+/// Recommendation candidates per base PURL: persisted versioned PURLs plus the versions
+/// synthesized from advisory data, with the provenance and status metadata of the latter.
+#[derive(Default)]
+struct AdvisoryVersionedPurls {
+    /// Candidate versioned PURLs, grouped by base PURL ID.
+    by_base: HashMap<Uuid, Vec<versioned_purl::Model>>,
+    /// IDs of the candidates without a persisted `versioned_purl` row, which cannot be
+    /// distinguished from persisted rows by UUID alone.
     synthesized_vp_ids: HashSet<Uuid>,
+    /// The subset of `synthesized_vp_ids` known only from a VendorFix remediation. Such a version
+    /// may never have shipped, so it is only recommended when no other candidate matches.
+    vendor_fix_only_vp_ids: HashSet<Uuid>,
+    /// Fixed statuses of the candidates whose version is fixed by a VendorFix remediation.
     vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>>,
 }
 
@@ -628,8 +631,7 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let (versioned_by_base, advisory_synthesized_vp_ids, vendor_fix_statuses_by_vp) =
-            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+        let candidates = Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         let base_purl_map: HashMap<_, _> = base_purls
             .iter()
@@ -645,19 +647,7 @@ impl PurlService {
                 continue;
             };
 
-            let highest = self
-                .recommend_patterns
-                .iter()
-                .filter_map(|pattern| {
-                    Self::find_highest_vendor_patch(
-                        pattern,
-                        &ip.input_version,
-                        versioned_by_base.get(&base.id),
-                    )
-                })
-                .max_by(|a, b| a.version.cmp(&b.version));
-
-            if let Some(winner_vp) = highest {
+            if let Some(winner_vp) = self.select_winner(&ip.input_version, base.id, &candidates) {
                 winners.push(Winner {
                     purl_string: ip.purl.to_string(),
                     versioned_purl: winner_vp,
@@ -678,8 +668,8 @@ impl PurlService {
                 winner.base.id,
                 winner.versioned_purl.id,
                 &winner.versioned_purl.version,
-                &advisory_synthesized_vp_ids,
-                &vendor_fix_statuses_by_vp,
+                &candidates.synthesized_vp_ids,
+                &candidates.vendor_fix_statuses_by_vp,
                 connection,
             )
             .await?;
@@ -969,10 +959,9 @@ impl PurlService {
         Ok(results)
     }
 
-    /// Loads all versioned PURLs for the given base PURLs, grouped by base PURL ID.
+    /// Loads all versioned PURLs for the given base PURLs, grouped by base PURL ID, plus the
+    /// candidates synthesized from advisory data.
     /// Chunks the IN clause to stay within Postgres bind parameter limits.
-    /// Also returns IDs of versions synthesized from advisory data and Fixed status metadata for
-    /// OSV VendorFix remediations.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn fetch_versioned_purls_by_base<C: ConnectionTrait>(
         base_purls: &[base_purl::Model],
@@ -980,15 +969,19 @@ impl PurlService {
     ) -> Result<AdvisoryVersionedPurls, Error> {
         let base_purl_ids: Vec<_> = base_purls.iter().map(|bp| bp.id).collect();
 
-        let mut by_base: HashMap<_, Vec<_>> = HashMap::new();
-        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        let mut candidates = AdvisoryVersionedPurls::default();
+        let id_chunks = chunked_with(1, base_purl_ids.iter().copied());
         for chunk in id_chunks {
             let batch = versioned_purl::Entity::find()
                 .filter(versioned_purl::Column::BasePurlId.is_in(chunk))
                 .all(connection)
                 .await?;
             for vp in batch {
-                by_base.entry(vp.base_purl_id).or_default().push(vp);
+                candidates
+                    .by_base
+                    .entry(vp.base_purl_id)
+                    .or_default()
+                    .push(vp);
             }
         }
 
@@ -996,39 +989,32 @@ impl PurlService {
         // advisory-only deployments without vendor SBOMs, these rows are the only source of
         // vendor-rebuilt versions. Deterministic IDs let the rest of the pipeline treat synthetic
         // candidates uniformly with persisted versioned PURLs.
-        let AdvisoryCandidateMetadata {
-            synthesized_vp_ids: advisory_synthesized_vp_ids,
-            vendor_fix_statuses_by_vp,
-        } = Self::extend_with_advisory_versions(
-            base_purls.iter().map(|bp| bp.id),
-            &mut by_base,
-            connection,
-        )
-        .await?;
+        Self::extend_with_advisory_versions(base_purl_ids, &mut candidates, connection).await?;
 
-        Ok((
-            by_base,
-            advisory_synthesized_vp_ids,
-            vendor_fix_statuses_by_vp,
-        ))
+        Ok(candidates)
     }
 
     /// Fetches exact-status advisory versions and explicit OSV VendorFix versions, adding missing
-    /// candidates to `by_base` and associating fixed status metadata with each VendorFix version.
+    /// candidates to `candidates` and associating fixed status metadata with each VendorFix
+    /// version.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn extend_with_advisory_versions<C: ConnectionTrait>(
-        base_purl_ids: impl IntoIterator<Item = Uuid>,
-        by_base: &mut HashMap<Uuid, Vec<versioned_purl::Model>>,
+        base_purl_ids: Vec<Uuid>,
+        candidates: &mut AdvisoryVersionedPurls,
         connection: &C,
-    ) -> Result<AdvisoryCandidateMetadata, Error> {
+    ) -> Result<(), Error> {
         #[derive(FromQueryResult)]
         struct AdvisoryVersion {
             base_purl_id: Uuid,
             version: String,
         }
 
-        let base_purl_ids = base_purl_ids.into_iter().collect::<Vec<_>>();
-        let mut synthesized_ids = HashSet::new();
+        let AdvisoryVersionedPurls {
+            by_base,
+            synthesized_vp_ids,
+            vendor_fix_only_vp_ids,
+            vendor_fix_statuses_by_vp,
+        } = candidates;
         let id_chunks = chunked_with(1, base_purl_ids.iter().copied());
         for chunk in id_chunks {
             let rows: Vec<AdvisoryVersion> = purl_status::Entity::find()
@@ -1054,7 +1040,7 @@ impl PurlService {
                     continue;
                 }
                 let id = Uuid::new_v5(&row.base_purl_id, row.version.as_bytes());
-                synthesized_ids.insert(id);
+                synthesized_vp_ids.insert(id);
                 entry.push(versioned_purl::Model {
                     id,
                     base_purl_id: row.base_purl_id,
@@ -1063,7 +1049,6 @@ impl PurlService {
             }
         }
 
-        let mut vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
         let id_chunks = chunked_with(1, base_purl_ids.into_iter());
         for chunk in id_chunks {
             for row in Self::fetch_vendor_fix_rows(chunk, connection).await? {
@@ -1074,7 +1059,8 @@ impl PurlService {
                     versioned_purl.id
                 } else {
                     let id = Uuid::new_v5(&row.base_purl_id, row.fixed_version.as_bytes());
-                    synthesized_ids.insert(id);
+                    synthesized_vp_ids.insert(id);
+                    vendor_fix_only_vp_ids.insert(id);
                     entry.push(versioned_purl::Model {
                         id,
                         base_purl_id: row.base_purl_id,
@@ -1104,10 +1090,7 @@ impl PurlService {
             }
         }
 
-        Ok(AdvisoryCandidateMetadata {
-            synthesized_vp_ids: synthesized_ids,
-            vendor_fix_statuses_by_vp,
-        })
+        Ok(())
     }
 
     /// Fetches the OSV fixed events of the given base PURLs in one query: non-default `affected`
@@ -1167,6 +1150,37 @@ impl PurlService {
             .await?)
     }
 
+    /// Selects the recommended candidate of a base PURL for an upstream version, across all
+    /// recommend patterns.
+    ///
+    /// A version known only from an advisory's VendorFix remediation may never have shipped, so
+    /// it is only a fallback: the highest persisted (or exact advisory status) candidate wins, and
+    /// VendorFix-only candidates are considered only when no such candidate matches.
+    fn select_winner<'a>(
+        &self,
+        input_version: &semver::Version,
+        base_purl_id: Uuid,
+        candidates: &'a AdvisoryVersionedPurls,
+    ) -> Option<&'a versioned_purl::Model> {
+        let versioned_purls = candidates.by_base.get(&base_purl_id)?;
+        let highest = |include_vendor_fix_only: bool| {
+            self.recommend_patterns
+                .iter()
+                .filter_map(|pattern| {
+                    Self::find_highest_vendor_patch(
+                        pattern,
+                        input_version,
+                        versioned_purls.iter().filter(|vp| {
+                            include_vendor_fix_only
+                                || !candidates.vendor_fix_only_vp_ids.contains(&vp.id)
+                        }),
+                    )
+                })
+                .max_by(|a, b| a.version.cmp(&b.version))
+        };
+        highest(false).or_else(|| highest(true))
+    }
+
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
     ///
     /// Uses capture group 1 of `pattern` to extract the upstream base version from the vendor version
@@ -1176,10 +1190,10 @@ impl PurlService {
     fn find_highest_vendor_patch<'a>(
         pattern: &Regex,
         input_version: &semver::Version,
-        versioned_purls: Option<&'a Vec<versioned_purl::Model>>,
+        versioned_purls: impl IntoIterator<Item = &'a versioned_purl::Model>,
     ) -> Option<&'a versioned_purl::Model> {
-        versioned_purls?
-            .iter()
+        versioned_purls
+            .into_iter()
             .filter_map(|vp| {
                 let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
                 let upstream = lenient_semver::parse(upstream_str)
@@ -1282,8 +1296,7 @@ impl PurlService {
             .filter(base_purl::Column::Id.is_in(base_purl_ids_vec))
             .all(connection)
             .await?;
-        let (versioned_by_base, advisory_synthesized_vp_ids, vendor_fix_statuses_by_vp) =
-            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+        let candidates = Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         // Pattern-match each (base, version) to find the highest vendor patch.
         let mut winners: Vec<ReportWinner> = Vec::new();
@@ -1293,19 +1306,7 @@ impl PurlService {
                 continue;
             };
 
-            let highest = self
-                .recommend_patterns
-                .iter()
-                .filter_map(|pattern| {
-                    Self::find_highest_vendor_patch(
-                        pattern,
-                        &input_version,
-                        versioned_by_base.get(base_id),
-                    )
-                })
-                .max_by(|a, b| a.version.cmp(&b.version));
-
-            let Some(winner_vp) = highest else {
+            let Some(winner_vp) = self.select_winner(&input_version, *base_id, &candidates) else {
                 continue;
             };
 
@@ -1359,8 +1360,8 @@ impl PurlService {
                 winner.base_purl_id,
                 winner.winner_vp_id,
                 &winner.winner_version,
-                &advisory_synthesized_vp_ids,
-                &vendor_fix_statuses_by_vp,
+                &candidates.synthesized_vp_ids,
+                &candidates.vendor_fix_statuses_by_vp,
                 connection,
             )
             .await?;
