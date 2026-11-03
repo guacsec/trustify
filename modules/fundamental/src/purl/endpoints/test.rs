@@ -14,7 +14,7 @@ use regex::Regex;
 use rstest::rstest;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QuerySelect,
-    RelationTrait,
+    RelationTrait, TransactionTrait,
 };
 use trustify_entity::{base_purl, purl_status};
 
@@ -38,9 +38,11 @@ use test_context::test_context;
 use test_log::test;
 use tracing::instrument::WithSubscriber;
 use tracing_subscriber::{Layer, layer::Context, prelude::*};
+use trustify_api::correlation::{ProviderAliasData, ProviderAliasIdentifier};
 use trustify_common::{
     db::Database, db::pagination_cache::PaginationCache, model::PaginatedResults, purl::Purl,
 };
+use trustify_module_correlation::service::resolution::store;
 use trustify_module_ingestor::graph::Graph;
 use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
 use urlencoding::encode;
@@ -1373,6 +1375,27 @@ fn minimal_cdx(name: &str, serial: &str, packages: &[(&str, &str, &str)]) -> Val
     })
 }
 
+/// Builds a CycloneDX SBOM with one component carrying supplier and product CPE context.
+fn contextual_cdx(name: &str, serial: &str, purl: &str, supplier: &str, cpe: &str) -> Value {
+    json!({
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.4",
+        "version": 1,
+        "serialNumber": format!("urn:uuid:{serial}"),
+        "metadata": {
+            "component": {"type": "application", "name": name, "version": "1.0"}
+        },
+        "components": [{
+            "type": "library",
+            "name": "crosslib",
+            "version": "1.0.0",
+            "purl": purl,
+            "cpe": cpe,
+            "supplier": {"name": supplier}
+        }]
+    })
+}
+
 /// Verifies that a report for two SBOMs returns correct aggregated data.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -1415,21 +1438,29 @@ async fn recommend_report_aggregated_data(ctx: &TrustifyContext) -> Result<(), a
 
     tracing::info!("{report:#?}");
 
-    // Then the impact summary reflects 2 SBOMs and 1 distinct addressable package
+    // Then provenance-specific report rows remain separate while each SBOM counts one package.
     assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 2);
-    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["impact_summary"]["addressable_packages"], 2);
 
-    // And the packages list has one entry pointing to the vendor patch
+    // And each advisory winner has a row pointing to the same vendor patch.
     let packages = report["packages"].as_array().unwrap();
-    assert_eq!(packages.len(), 1);
-    assert_eq!(
-        packages[0]["purl"],
-        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3"
-    );
-    assert_eq!(
-        packages[0]["recommended_purl"],
-        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
-    );
+    assert_eq!(packages.len(), 2);
+    for package in packages {
+        assert_eq!(package["purl"], "pkg:maven/jakarta.el/jakarta.el-api@3.0.3");
+        assert_eq!(
+            package["recommended_purl"],
+            "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
+        );
+        assert_eq!(package["found_in"].as_array().unwrap().len(), 2);
+    }
+    assert!(packages.iter().any(|package| {
+        package["advisory_id"] == "https://www.redhat.com/#CVE-2022-45787"
+            && package["vulnerabilities"] == json!(["CVE-2022-45787"])
+    }));
+    assert!(packages.iter().any(|package| {
+        package["advisory_id"] == "https://www.redhat.com/#CVE-2023-28867"
+            && package["vulnerabilities"] == json!(["CVE-2023-28867"])
+    }));
 
     // And each SBOM shows 1 addressable package
     let sboms = report["sboms"].as_array().unwrap();
@@ -1814,6 +1845,49 @@ fn minimal_csaf_vex_at(
     })
 }
 
+/// Adds an explicit advisory publisher and parent-product CPE to a minimal CSAF fixture.
+fn contextual_csaf_vex(
+    tracking_id: &str,
+    release_date: &str,
+    publisher: &str,
+    product_name: &str,
+    product_cpe: &str,
+    components: &[(&str, &str)],
+    vulns: &[(&str, &str, &[usize])],
+) -> Value {
+    let mut advisory =
+        minimal_csaf_vex_at(tracking_id, release_date, product_name, components, vulns);
+    advisory["document"]["publisher"]["name"] = json!(publisher);
+    advisory["document"]["publisher"]["namespace"] = json!(format!(
+        "https://{}.example.com",
+        publisher.to_lowercase().replace(' ', "-")
+    ));
+    advisory["product_tree"]["branches"][0]["branches"][0]["product"]["product_identification_helper"] =
+        json!({"cpe": product_cpe});
+    advisory
+}
+
+/// Registers publisher namespaces as canonical providers for report precedence tests.
+async fn register_report_provider_aliases(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let tx = ctx.db.begin().await?;
+    for (provider, namespace) in [
+        ("Red Hat", "https://red-hat.example.com"),
+        ("Upstream", "https://upstream.example.com"),
+    ] {
+        store::save_alias(
+            None,
+            ProviderAliasData {
+                provider: provider.into(),
+                aliases: vec![ProviderAliasIdentifier::Namespace(namespace.into())],
+            },
+            &tx,
+        )
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
 /// Verifies that only addressed CVEs (fixed/not_affected) appear; affected CVEs are excluded.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -1887,11 +1961,15 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
 async fn recommend_report_vendor_fix_with_newer_upstream_affected(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
+    register_report_provider_aliases(ctx).await?;
     // Given an older vendor advisory that backports a fix for the CVE
-    ctx.ingest_json(minimal_csaf_vex_at(
+    let product_cpe = "cpe:/a:example:crosslib:1.0";
+    ctx.ingest_json(contextual_csaf_vex(
         "TEST-REPORT-VENDOR-FIX-001",
         "2024-01-15T00:00:00+00:00",
+        "Red Hat",
         "Vendor Product",
+        product_cpe,
         &[(
             "crosslib-1.0.0.redhat-00001",
             "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
@@ -1901,10 +1979,12 @@ async fn recommend_report_vendor_fix_with_newer_upstream_affected(
     .await?;
 
     // And a newer upstream advisory still reporting the same CVE as affected
-    ctx.ingest_json(minimal_csaf_vex_at(
+    ctx.ingest_json(contextual_csaf_vex(
         "TEST-REPORT-UPSTREAM-AFFECTED-001",
         "2024-02-15T00:00:00+00:00",
+        "Upstream",
         "Upstream Product",
+        product_cpe,
         &[(
             "crosslib-1.0.0.redhat-00001-upstream",
             "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
@@ -1915,10 +1995,12 @@ async fn recommend_report_vendor_fix_with_newer_upstream_affected(
 
     // And an SBOM containing the upstream package
     let sbom_id = Uuid::parse_str(
-        &ctx.ingest_json(minimal_cdx(
+        &ctx.ingest_json(contextual_cdx(
             "sbom-vendor-fix-newer-upstream",
             "00000000-0000-0000-0000-300000000001",
-            &[("crosslib", "1.0.0", "pkg:maven/com.example/crosslib@1.0.0")],
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Red Hat",
+            product_cpe,
         ))
         .await?
         .id,
@@ -1958,12 +2040,214 @@ async fn recommend_report_vendor_fix_with_newer_upstream_affected(
         "the vendor-fixed CVE should be counted once"
     );
     assert_eq!(
-        packages[0]["advisory_id"], "https://test.example.com/#TEST-REPORT-VENDOR-FIX-001",
+        packages[0]["advisory_id"], "https://red-hat.example.com/#TEST-REPORT-VENDOR-FIX-001",
         "advisory id should come from the addressing assessment, not the newer upstream one"
     );
 
     assert_eq!(report["impact_summary"]["addressable_packages"], 1);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
+/// Verifies that the resolver selects a Red Hat fix over a newer upstream affected assessment.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_uses_correlation_winner_vendor_fixed_over_newer_upstream_affected(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    register_report_provider_aliases(ctx).await?;
+    let purl = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    let product_cpe = "cpe:/a:example:crosslib:1.0";
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-REDHAT-FIX-001",
+        "2024-01-15T00:00:00+00:00",
+        "Red Hat",
+        "Red Hat Product",
+        product_cpe,
+        &[("crosslib-1.0.0.redhat-00001", purl)],
+        &[("CVE-2099-69081", "fixed", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-UPSTREAM-AFFECTED-001",
+        "2024-02-15T00:00:00+00:00",
+        "Upstream",
+        "Upstream Product",
+        product_cpe,
+        &[("crosslib-1.0.0.redhat-00001-upstream", purl)],
+        &[("CVE-2099-69081", "known_affected", &[0])],
+    ))
+    .await?;
+    // A newer positive upstream assessment also guards provenance against latest-date selection.
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-UPSTREAM-NOT-AFFECTED-001",
+        "2024-03-15T00:00:00+00:00",
+        "Upstream",
+        "Upstream Product",
+        product_cpe,
+        &[("crosslib-1.0.0.redhat-00001-upstream", purl)],
+        &[("CVE-2099-69081", "known_not_affected", &[0])],
+    ))
+    .await?;
+
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(contextual_cdx(
+            "sbom-redhat-fix-winner",
+            "00000000-0000-0000-0000-690800000001",
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Red Hat",
+            product_cpe,
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1, "the selected vendor fix is addressable");
+    assert_eq!(packages[0]["vulnerabilities"], json!(["CVE-2099-69081"]));
+    assert_eq!(
+        packages[0]["advisory_id"],
+        "https://red-hat.example.com/#TEST-REPORT-REDHAT-FIX-001"
+    );
+
+    Ok(())
+}
+
+/// Verifies that the resolver's Red Hat affected verdict defeats an older upstream not-affected verdict.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_uses_correlation_winner_vendor_affected_over_older_upstream_not_affected(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    register_report_provider_aliases(ctx).await?;
+    let purl = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    let product_cpe = "cpe:/a:example:crosslib:1.0";
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-UPSTREAM-NOT-AFFECTED-001",
+        "2024-01-15T00:00:00+00:00",
+        "Upstream",
+        "Upstream Product",
+        product_cpe,
+        &[("crosslib-1.0.0.redhat-00001-upstream", purl)],
+        &[("CVE-2099-69082", "known_not_affected", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-REDHAT-AFFECTED-001",
+        "2024-02-15T00:00:00+00:00",
+        "Red Hat",
+        "Red Hat Product",
+        product_cpe,
+        &[("crosslib-1.0.0.redhat-00001", purl)],
+        &[("CVE-2099-69082", "known_affected", &[0])],
+    ))
+    .await?;
+
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(contextual_cdx(
+            "sbom-redhat-affected-winner",
+            "00000000-0000-0000-0000-690800000002",
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Red Hat",
+            product_cpe,
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    assert_eq!(
+        report["packages"].as_array().unwrap().len(),
+        0,
+        "the selected affected verdict must not count as addressed"
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
+
+    Ok(())
+}
+
+/// Verifies identical PURLs keep separate resolver outcomes and SBOM provenance per context.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_uses_correlation_winner_separates_component_contexts(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    register_report_provider_aliases(ctx).await?;
+    let purl = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    let redhat_cpe = "cpe:/a:redhat:crosslib:1.0";
+    let upstream_cpe = "cpe:/a:upstream:crosslib:1.0";
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-REDHAT-CONTEXT-001",
+        "2024-01-15T00:00:00+00:00",
+        "Red Hat",
+        "Red Hat Product",
+        redhat_cpe,
+        &[("crosslib-1.0.0.redhat-00001", purl)],
+        &[("CVE-2099-69083", "fixed", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(contextual_csaf_vex(
+        "TEST-REPORT-UPSTREAM-CONTEXT-001",
+        "2024-02-15T00:00:00+00:00",
+        "Upstream",
+        "Upstream Product",
+        upstream_cpe,
+        &[("crosslib-1.0.0.redhat-00001-upstream", purl)],
+        &[("CVE-2099-69083", "known_not_affected", &[0])],
+    ))
+    .await?;
+
+    let redhat_sbom = Uuid::parse_str(
+        &ctx.ingest_json(contextual_cdx(
+            "sbom-redhat-context",
+            "00000000-0000-0000-0000-690800000003",
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Red Hat",
+            redhat_cpe,
+        ))
+        .await?
+        .id,
+    )?;
+    let upstream_sbom = Uuid::parse_str(
+        &ctx.ingest_json(contextual_cdx(
+            "sbom-upstream-context",
+            "00000000-0000-0000-0000-690800000004",
+            "pkg:maven/com.example/crosslib@1.0.0",
+            "Upstream",
+            upstream_cpe,
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[redhat_sbom, upstream_sbom]).await;
+
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 2, "each context should have its own row");
+    for package in packages {
+        assert_eq!(package["purl"], "pkg:maven/com.example/crosslib@1.0.0");
+        assert_eq!(package["vulnerabilities"], json!(["CVE-2099-69083"]));
+    }
+    let redhat_package = packages
+        .iter()
+        .find(|package| {
+            package["advisory_id"] == "https://red-hat.example.com/#TEST-REPORT-REDHAT-CONTEXT-001"
+        })
+        .unwrap();
+    let upstream_package = packages
+        .iter()
+        .find(|package| {
+            package["advisory_id"]
+                == "https://upstream.example.com/#TEST-REPORT-UPSTREAM-CONTEXT-001"
+        })
+        .unwrap();
+    assert_eq!(redhat_package["found_in"], json!([redhat_sbom]));
+    assert_eq!(upstream_package["found_in"], json!([upstream_sbom]));
 
     Ok(())
 }
