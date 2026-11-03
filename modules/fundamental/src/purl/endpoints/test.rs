@@ -835,6 +835,228 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     Ok(())
 }
 
+/// Verifies that /recommend loads statuses for persisted and advisory-synthesized winners in a
+/// single batched query, and that each winner only receives its own version's statuses even
+/// when several winners share a base PURL.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_batches_winner_statuses(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given one base PURL with two vendor streams, each assessed for a different CVE so that a
+    // status attached to the wrong stream is detectable
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-BATCH-STREAM-001",
+        "Test Product Batch Stream 1",
+        &[(
+            "batchlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/batchlib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-70001", "fixed", &[0])],
+    ))
+    .await?;
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-BATCH-STREAM-002",
+        "Test Product Batch Stream 2",
+        &[(
+            "batchlib-2.0.0.redhat-00001",
+            "pkg:maven/com.example/batchlib@2.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-70002", "known_affected", &[0])],
+    ))
+    .await?;
+
+    // And an advisory-only vendor rebuild whose versioned_purl row is removed, so its winner
+    // only exists as an advisory-synthesized version
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-BATCH-SYNTHETIC-001",
+        "Test Product Batch Synthetic",
+        &[(
+            "batchsynth-1.0.0.redhat-00001",
+            "pkg:maven/com.example/batchsynth@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-70003", "fixed", &[0])],
+    ))
+    .await?;
+    ctx.db
+        .execute_unprepared(
+            "UPDATE purl_status SET qualified_purl_id = NULL \
+             WHERE qualified_purl_id IN ( \
+                 SELECT qp.id FROM qualified_purl qp \
+                 JOIN versioned_purl vp ON vp.id = qp.versioned_purl_id \
+                 JOIN base_purl bp ON bp.id = vp.base_purl_id \
+                 WHERE bp.name = 'batchsynth' \
+                   AND vp.version = '1.0.0.redhat-00001' \
+             )",
+        )
+        .await?;
+    let deleted_versioned_purls = ctx
+        .db
+        .execute_unprepared(
+            "DELETE FROM versioned_purl WHERE version = '1.0.0.redhat-00001' \
+             AND base_purl_id = (SELECT id FROM base_purl WHERE name = 'batchsynth')",
+        )
+        .await?;
+    assert_eq!(
+        deleted_versioned_purls.rows_affected(),
+        1,
+        "the real versioned PURL must be removed to force a synthetic winner"
+    );
+
+    // When requesting recommendations for all three winners in one call, recording query spans
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(spans.clone()));
+    let recommendations = recommend(
+        &app,
+        &[
+            "pkg:maven/com.example/batchlib@1.0.0",
+            "pkg:maven/com.example/batchlib@2.0.0",
+            "pkg:maven/com.example/batchsynth@1.0.0",
+        ],
+    )
+    .with_subscriber(subscriber)
+    .await;
+
+    // Then each winner carries only the statuses for its own version
+    assert_eq!(
+        recommendations["recommendations"],
+        json!({
+            "pkg:maven/com.example/batchlib@1.0.0": [{
+                "package": "pkg:maven/com.example/batchlib@1.0.0.redhat-00001",
+                "vulnerabilities": [{
+                    "id": "CVE-2099-70001",
+                    "status": "Fixed",
+                    "remediations": [],
+                    "advisory_id": "https://test.example.com/#TEST-BATCH-STREAM-001",
+                }],
+            }],
+            "pkg:maven/com.example/batchlib@2.0.0": [{
+                "package": "pkg:maven/com.example/batchlib@2.0.0.redhat-00001",
+                "vulnerabilities": [{
+                    "id": "CVE-2099-70002",
+                    "status": "Affected",
+                    "remediations": [],
+                    "advisory_id": "https://test.example.com/#TEST-BATCH-STREAM-002",
+                }],
+            }],
+            "pkg:maven/com.example/batchsynth@1.0.0": [{
+                "package": "pkg:maven/com.example/batchsynth@1.0.0.redhat-00001",
+                "vulnerabilities": [{
+                    "id": "CVE-2099-70003",
+                    "status": "Fixed",
+                    "remediations": [],
+                    "advisory_id": "https://test.example.com/#TEST-BATCH-SYNTHETIC-001",
+                }],
+            }],
+        })
+    );
+
+    // And all three winners' statuses were loaded by a single status query
+    let status_queries = spans
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|name| **name == "querying purl statuses")
+        .count();
+    assert_eq!(
+        status_queries, 1,
+        "winner statuses should be loaded in one batched query, not one query per winner"
+    );
+
+    Ok(())
+}
+
+/// Verifies that /recommend returns the remediations linked to each reported status, and only
+/// those: a remediation scoped to one vendor rebuild must not appear on another rebuild's status.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_returns_status_remediations(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given one advisory fixing two vendor rebuilds of the same package, with a vendor_fix
+    // remediation that only applies to the first rebuild
+    let mut advisory = minimal_csaf_vex(
+        "TEST-REMEDIATION-001",
+        "Test Product Remediation",
+        &[
+            (
+                "remlib-1.0.0.redhat-00001",
+                "pkg:maven/com.example/remlib@1.0.0.redhat-00001",
+            ),
+            (
+                "remlib-2.0.0.redhat-00001",
+                "pkg:maven/com.example/remlib@2.0.0.redhat-00001",
+            ),
+        ],
+        &[("CVE-2099-71001", "fixed", &[0, 1])],
+    );
+    advisory["vulnerabilities"][0]["remediations"] = json!([{
+        "category": "vendor_fix",
+        "details": "Upgrade to remlib 1.0.0.redhat-00001",
+        "product_ids": ["Test Product Remediation:remlib-1.0.0.redhat-00001"],
+    }]);
+    ctx.ingest_json(advisory).await?;
+
+    // When requesting recommendations for both upstream versions in one call
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(
+        &app,
+        &[
+            "pkg:maven/com.example/remlib@1.0.0",
+            "pkg:maven/com.example/remlib@2.0.0",
+        ],
+    )
+    .await;
+
+    tracing::info!("{recommendations:#?}");
+
+    let remediations_of = |purl: &str| -> Vec<(Value, Value)> {
+        recommendations["recommendations"][purl][0]["vulnerabilities"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|v| v["remediations"].as_array().cloned().unwrap_or_default())
+            .map(|r| (r["category"].clone(), r["details"].clone()))
+            .collect()
+    };
+
+    // Then both rebuilds report the advisory's fixed status
+    for purl in [
+        "pkg:maven/com.example/remlib@1.0.0",
+        "pkg:maven/com.example/remlib@2.0.0",
+    ] {
+        let statuses: Vec<_> = recommendations["recommendations"][purl][0]["vulnerabilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| (v["id"].clone(), v["status"].clone()))
+            .collect();
+        assert_eq!(
+            statuses,
+            vec![(json!("CVE-2099-71001"), json!("Fixed"))],
+            "unexpected statuses for {purl}"
+        );
+    }
+
+    // And the first rebuild's fixed status carries its remediation
+    assert_eq!(
+        remediations_of("pkg:maven/com.example/remlib@1.0.0"),
+        vec![(
+            json!("vendor_fix"),
+            json!("Upgrade to remlib 1.0.0.redhat-00001")
+        )]
+    );
+
+    // And the second rebuild's fixed status carries none
+    assert_eq!(
+        remediations_of("pkg:maven/com.example/remlib@2.0.0"),
+        Vec::<(Value, Value)>::new()
+    );
+
+    Ok(())
+}
+
 /// Verifies that PURLs without a version produce no recommendations.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -886,7 +1108,13 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
 
     tracing::info!("{recommendations:#?}");
 
-    // Then each advisory is reported exactly once for the CVE
+    // Then each advisory is reported exactly once for the CVE, with its own fix remediation
+    let fixed_in = json!([{
+        "category": "vendor_fix",
+        "details": "Fixed in 0.14.10",
+        "url": null,
+        "data": { "fixed": "0.14.10" },
+    }]);
     let entry =
         &recommendations["recommendations"].as_object().unwrap()["pkg:cargo/hyper@0.14.1"][0];
     assert_eq!(
@@ -895,13 +1123,13 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
             {
                 "id": "CVE-2021-32714",
                 "status": "Affected",
-                "remediations": [],
+                "remediations": fixed_in,
                 "advisory_id": "DUPLICATE",
             },
             {
                 "id": "CVE-2021-32714",
                 "status": "Affected",
-                "remediations": [],
+                "remediations": fixed_in,
                 "advisory_id": "RUSTSEC-2021-0079",
             },
         ])
@@ -928,14 +1156,41 @@ async fn recommend_no_duplicates_for_multi_stream_vex(
     tracing::info!("{recommendations:#?}");
 
     // Then the CVE appears exactly once, not once per product context
+    let vulnerabilities = recommendations["recommendations"]
+        ["pkg:maven/com.cronutils/cron-utils@9.2.1"][0]["vulnerabilities"]
+        .as_array()
+        .unwrap();
+    let summary: Vec<_> = vulnerabilities
+        .iter()
+        .map(|v| (&v["id"], &v["status"], &v["advisory_id"]))
+        .collect();
     assert_eq!(
-        recommendations["recommendations"]["pkg:maven/com.cronutils/cron-utils@9.2.1"][0]["vulnerabilities"],
-        json!([{
-            "id": "CVE-2024-29025",
-            "status": "NotAffected",
-            "remediations": [],
-            "advisory_id": "https://www.redhat.com/#CVE-2024-29025",
-        }])
+        summary,
+        vec![(
+            &json!("CVE-2024-29025"),
+            &json!("NotAffected"),
+            &json!("https://www.redhat.com/#CVE-2024-29025"),
+        )]
+    );
+
+    // And it carries only the VEX remediation listing cron-utils among its products (the
+    // workaround), not the other remediations in the document
+    let remediations: Vec<_> = vulnerabilities[0]["remediations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| (&r["category"], &r["details"]))
+        .collect();
+    assert_eq!(
+        remediations,
+        vec![(
+            &json!("workaround"),
+            &json!(
+                "Mitigation for this issue is either not available or the currently available \
+                 options don't meet the Red Hat Product Security criteria comprising ease of use \
+                 and deployment, applicability to widespread installation base or stability."
+            ),
+        )]
     );
 
     Ok(())
@@ -1030,7 +1285,7 @@ async fn get_recommendations_no_match(
     Ok(())
 }
 
-/// Verifies persisted winners without statuses skip the advisory-only status fallback.
+/// Verifies a persisted winner without statuses resolves through the single batched status query.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -1050,7 +1305,7 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
         .with_subscriber(subscriber)
         .await;
 
-    // Then the recommendation returns the Red Hat package without the advisory-only fallback
+    // Then the recommendation returns the Red Hat package from one status query
     assert_eq!(
         recommendations["recommendations"],
         json!({
@@ -1060,12 +1315,15 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
             }]
         })
     );
-    assert!(
-        !spans
+    assert_eq!(
+        spans
             .lock()
             .unwrap()
-            .contains(&"querying purl statuses for synthetic winner"),
-        "persisted winners with no matching statuses should not run the advisory-only fallback"
+            .iter()
+            .filter(|name| **name == "querying purl statuses")
+            .count(),
+        1,
+        "a winner with no matching statuses should still be resolved by one status query"
     );
 
     Ok(())
