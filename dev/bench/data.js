@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793714247995,
+  "lastUpdate": 1793725431226,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24377,6 +24377,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/fb680c910eb91c9a3a76d036c3761e285e9aedba"
         },
         "date": 1793714243819,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dbosanac@redhat.com",
+            "name": "Dejan Bosanac",
+            "username": "dejanb"
+          },
+          "committer": {
+            "email": "dbosanac@redhat.com",
+            "name": "Dejan Bosanac",
+            "username": "dejanb"
+          },
+          "distinct": false,
+          "id": "315ec7aa3b1c422c5c6ea23cfa5b18aeddf71488",
+          "message": "fix(validation): accept CycloneDX 1.7 in minimum ruleset\n\nImplements TC-6069\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-11-03T15:25:40Z",
+          "tree_id": "28427bb319e9e1b0c7d8f67abb8abdd77c7c1449",
+          "url": "https://github.com/guacsec/trustify/commit/315ec7aa3b1c422c5c6ea23cfa5b18aeddf71488"
+        },
+        "date": 1793725428200,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
