@@ -12,6 +12,8 @@ use trustify_common::rpm::{Evr, stream_major};
 const MODULE: &str = "rpmmod";
 /// Qualifier of the architecture (e.g. `x86_64`, or `src` for a source package).
 const ARCH: &str = "arch";
+/// The SBOM qualifiers [`qualifiers_match`] reads.
+pub const QUALIFIERS: [&str; 2] = [MODULE, ARCH];
 
 /// A module named by the advisory must be present on the SBOM package. An omitted module is
 /// unspecified.
@@ -126,7 +128,7 @@ fn codestreams_match(sbom: Option<&str>, range: Option<&str>) -> Option<StreamMa
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{super::Ecosystem, *};
     use rstest::rstest;
 
     fn qualifiers(purl: &str) -> BTreeMap<String, String> {
@@ -164,6 +166,17 @@ mod test {
             qualifiers_match(&qualifiers(sbom), &qualifiers(stated)),
             expected
         );
+        // other SBOM qualifiers don't change the result, so they may be omitted
+        let mut sbom = qualifiers(sbom);
+        sbom.insert(
+            "repository_id".into(),
+            "rhel-8-for-x86_64-baseos-rpms".into(),
+        );
+        assert_eq!(
+            qualifiers_match(&Ecosystem::matched_qualifiers(&sbom), &qualifiers(stated)),
+            expected
+        );
+        assert_eq!(qualifiers_match(&sbom, &qualifiers(stated)), expected);
     }
 
     #[rstest]

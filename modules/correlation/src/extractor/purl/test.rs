@@ -347,6 +347,32 @@ async fn match_identifiers_beyond_bind_parameter_limit(
     Ok(())
 }
 
+/// Extracting an SBOM node by node yields the same evidence as all at once.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn chunks_extract_like_one_chunk(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom = ctx.ingest_document(S5_SBOM).await?;
+    ctx.ingest_documents([S5_VEX, S9_VEX]).await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+
+    assert!(extract_for_sbom(ctx, sbom_id).await? > 0);
+    let at_once = load_evidence(ctx, sbom_id).await?;
+
+    correlation_evidence::Entity::delete_many()
+        .exec(&ctx.db)
+        .await?;
+
+    let tx = ctx.db.begin().await?;
+    extractors()
+        .with_chunk(1)
+        .extract_for_sbom(sbom_id, &tx)
+        .await?;
+    tx.commit().await?;
+    assert_eq!(load_evidence(ctx, sbom_id).await?, at_once);
+
+    Ok(())
+}
+
 /// Red Hat's `fixed`, read as `first_fixed`: affected before.
 const FIXED_AS_FIRST_FIXED_BEFORE: &str = "purl_fixed_as_first_fixed_before";
 
