@@ -1,6 +1,6 @@
 {
   "title": "CycloneDX Minimum Elements",
-  "description": "Minimum structural checks for a CycloneDX 1.3+ JSON SBOM.",
+  "description": "Minimum structural checks for CycloneDX JSON SBOM versions 1.3 through 1.7.",
   "patterns": [
     {
       "name": "document-required",
@@ -17,8 +17,8 @@
             },
             {
               "kind": "assert",
-              "test": { "type": "matches", "path": "$.specVersion", "pattern": "^1\\.[3-6]$" },
-              "message": "specVersion must be one of 1.3, 1.4, 1.5, 1.6",
+              "test": { "type": "matches", "path": "$.specVersion", "pattern": "^1\\.[3-7]$" },
+              "message": "specVersion must be one of 1.3, 1.4, 1.5, 1.6, 1.7",
               "severity": "fatal"
             },
             {
