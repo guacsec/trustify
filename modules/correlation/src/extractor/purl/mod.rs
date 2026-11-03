@@ -55,7 +55,7 @@ use sea_orm::{
     sea_query::{Alias, Expr, ExprTrait, Func, PgFunc, SimpleExpr},
 };
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     iter,
 };
 use tracing::{Instrument, info_span, instrument};
@@ -132,7 +132,7 @@ impl Candidates {
     }
 
     /// `version_matches()` of the SBOM version and the candidate range.
-    fn version_matches(&self) -> SimpleExpr {
+    fn version_matches(&self, version: SimpleExpr) -> SimpleExpr {
         let range = Expr::cust_with_exprs(
             "ROW($1, $2, $3, $4, $5, $6)::version_range",
             [
@@ -144,18 +144,11 @@ impl Candidates {
                 self.high_inclusive.clone(),
             ],
         );
-        SimpleExpr::FunctionCall(
-            Func::cust(VersionMatches)
-                .arg(Expr::col((
-                    versioned_purl::Entity,
-                    versioned_purl::Column::Version,
-                )))
-                .arg(range),
-        )
+        SimpleExpr::FunctionCall(Func::cust(VersionMatches).arg(version).arg(range))
     }
 
     /// Select the columns of [`PurlStatusRow`], and filter by the candidate's condition and range.
-    fn select<S: QuerySelect + QueryFilter>(&self, query: S) -> S {
+    fn select<S: QuerySelect + QueryFilter>(&self, query: S, version: SimpleExpr) -> S {
         query
             .column_as(purl_status::Column::Id, "source_id")
             .column_as(purl_status::Column::AdvisoryId, "advisory_id")
@@ -181,9 +174,9 @@ impl Candidates {
             .column_as(self.high_inclusive.clone(), "range_high_inclusive")
             .column_as(purl_status::Column::IsDefault, "is_default")
             .column_as(purl_status::Column::SourceProvider, "source_provider")
-            .column_as(versioned_purl::Column::Version, "sbom_version")
+            .column_as(version.clone(), "sbom_version")
             .filter(self.condition.clone())
-            .filter(self.version_matches())
+            .filter(self.version_matches(version))
     }
 }
 
@@ -592,6 +585,7 @@ impl Extractor for PurlExtractor {
     ) -> Result<Vec<IdentifierMatch>, Error> {
         // Versions share candidate lookups, but each input retains its own qualifiers.
         let mut vp_map = HashMap::<Uuid, Vec<(usize, qualified_purl::Qualifiers)>>::new();
+        let mut purls_by_versioned_id = HashMap::<Uuid, Purl>::new();
         for (idx, identifier) in identifiers.iter().enumerate() {
             if identifier.kind != IdentifierKind::Purl {
                 continue;
@@ -602,8 +596,12 @@ impl Extractor for PurlExtractor {
             if purl.version.is_none() {
                 continue;
             }
+            let versioned_purl_id = purl.version_uuid();
+            purls_by_versioned_id
+                .entry(versioned_purl_id)
+                .or_insert_with(|| purl.clone());
             vp_map
-                .entry(purl.version_uuid())
+                .entry(versioned_purl_id)
                 .or_default()
                 .push((idx, qualified_purl::Qualifiers(purl.qualifiers)));
         }
@@ -613,15 +611,52 @@ impl Extractor for PurlExtractor {
         }
 
         let vp_ids: Vec<_> = vp_map.keys().copied().collect();
+        let persisted_vp_ids = versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::Id.is_in(vp_ids.iter().copied()))
+            .all(tx)
+            .await?
+            .into_iter()
+            .map(|vp| vp.id)
+            .collect::<HashSet<_>>();
+        let persisted_vp_id_vec = persisted_vp_ids.iter().copied().collect::<Vec<_>>();
+        let synthetic_vp_ids = vp_ids
+            .iter()
+            .filter(|id| !persisted_vp_ids.contains(id))
+            .copied()
+            .collect::<Vec<_>>();
         let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
-            rows.extend(
-                load_purl_status_matches(&vp_ids, &candidates, tx)
+            if !persisted_vp_ids.is_empty() {
+                for chunk in persisted_vp_id_vec.chunks(5000) {
+                    rows.extend(
+                        load_purl_status_matches(chunk, &candidates, tx)
+                            .await?
+                            .into_iter()
+                            .map(|row| (source, row)),
+                    );
+                }
+            }
+            for versioned_purl_id in &synthetic_vp_ids {
+                let Some(purl) = purls_by_versioned_id.get(versioned_purl_id) else {
+                    continue;
+                };
+                let Some(version) = purl.version.as_deref() else {
+                    continue;
+                };
+                rows.extend(
+                    load_synthetic_purl_status_matches(
+                        *versioned_purl_id,
+                        purl,
+                        version,
+                        &candidates,
+                        tx,
+                    )
                     .await?
                     .into_iter()
                     .map(|row| (source, row)),
-            );
+                );
+            }
         }
 
         let targets = rows.into_iter().flat_map(|(source, row)| {
@@ -685,7 +720,10 @@ async fn load_purl_status_matches(
     connection: &impl ConnectionTrait,
 ) -> Result<Vec<PurlStatusMatch>, Error> {
     Ok(candidates
-        .select(versioned_purl::Entity::find().select_only())
+        .select(
+            versioned_purl::Entity::find().select_only(),
+            Expr::col((versioned_purl::Entity, versioned_purl::Column::Version)),
+        )
         .column_as(versioned_purl::Column::Id, "versioned_purl_id")
         // replaced by the qualifiers of each input
         .column_as(Expr::cust("'{}'::jsonb"), "sbom_qualifiers")
@@ -716,6 +754,42 @@ async fn load_purl_status_matches(
         .await?)
 }
 
+/// Load advisory status ranges for an input version with no persisted `versioned_purl` row.
+async fn load_synthetic_purl_status_matches(
+    versioned_purl_id: Uuid,
+    purl: &Purl,
+    version: &str,
+    candidates: &Candidates,
+    connection: &DatabaseTransaction,
+) -> Result<Vec<PurlStatusMatch>, Error> {
+    let query = purl_status::Entity::find()
+        .select_only()
+        .join(
+            JoinType::InnerJoin,
+            purl_status::Relation::VersionRange.def(),
+        )
+        .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
+        .join_as(
+            JoinType::LeftJoin,
+            purl_status::Relation::QualifiedPurl.def(),
+            Alias::new("assertion_purl"),
+        )
+        .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def());
+
+    Ok(candidates
+        .select(query, Expr::value(version.to_owned()))
+        .column_as(Expr::value(versioned_purl_id), "versioned_purl_id")
+        .column_as(Expr::cust("'{}'::jsonb"), "sbom_qualifiers")
+        .filter(base_purl::Column::Type.eq(purl.ty.clone()))
+        .filter(base_purl::Column::Namespace.eq(purl.namespace.clone()))
+        .filter(base_purl::Column::Name.eq(purl.name.clone()))
+        .into_model::<PurlStatusMatch>()
+        .all(connection)
+        .instrument(info_span!("loading synthetic purl status matches"))
+        .await?)
+}
+
 /// Load SBOM nodes matching the candidates of an advisory's PURL-based assertions.
 ///
 /// Join chain: purl_status → base_purl → versioned_purl → qualified_purl → sbom_node_purl_ref,
@@ -727,7 +801,10 @@ async fn load_advisory_purl_matches(
     connection: &impl ConnectionTrait,
 ) -> Result<Vec<AdvisoryPurlMatch>, Error> {
     Ok(candidates
-        .select(purl_status::Entity::find().select_only())
+        .select(
+            purl_status::Entity::find().select_only(),
+            Expr::col((versioned_purl::Entity, versioned_purl::Column::Version)),
+        )
         .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
         .column_as(sbom_node_purl_ref::Column::NodeId, "node_id")
         .column_as(qualified_purl::Column::Qualifiers, "sbom_qualifiers")
