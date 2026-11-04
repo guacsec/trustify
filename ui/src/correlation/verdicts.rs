@@ -4,6 +4,7 @@ use super::{
     common::{confidence_label, identifiers, matched_value, remediation, status_label, timestamp},
     pagination::{page_status, use_collection},
 };
+use crate::number::Number;
 use crate::{
     advisory::advisory_link,
     model::{EvidenceDetail, EvidenceRemediation, ProviderMatch, VerdictSummary},
@@ -44,7 +45,7 @@ pub(super) fn verdict_table(props: &CorrelationContentProps) -> Html {
     html! {
         <>
             <super::processing::ProcessingStatus sbom_id={Some(props.sbom_id)} snapshot={freshness.clone()} {onrefresh} />
-            <Title level={Level::H2}>{"Correlated components "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
+            <Title level={Level::H2}>{"Correlated components "}<Badge>{page.total.map(|n| Number(n).to_string()).unwrap_or_default()}</Badge></Title>
             <SimplePagination {pagination} {total} />
             {page_status(&page, loading, error.as_deref(), if freshness.as_ref().is_none_or(|s| s.generation.is_none()) { "Verdicts not computed yet" } else { "No verdicts in completed results" })}
             if !loading && error.is_none() && !page.items.is_empty() {

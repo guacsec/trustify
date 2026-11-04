@@ -1,3 +1,4 @@
+use crate::number::Number;
 use crate::{ingest::ingest_file, model::IngestResult};
 use gloo_file::{File, FileList};
 use gloo_timers::callback::Timeout;
@@ -356,7 +357,11 @@ pub fn ingest_drop_zone() -> Html {
                         id="global-ingest-progress"
                         size={ProgressSize::Small}
                         value={progress.completed as f64 / progress.total as f64}
-                        description={format!("{} of {} documents processed", progress.completed, progress.total)}
+                        description={format!(
+                            "{} of {} documents processed",
+                            Number(progress.completed as u64),
+                            Number(progress.total as u64)
+                        )}
                         location={ProgressMeasureLocation::None}
                     />
                 }
