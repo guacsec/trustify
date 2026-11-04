@@ -697,7 +697,7 @@ impl PurlService {
         for base_chunk in base_chunks {
             let all_statuses = purl_status::find_effective()
                 .columns([
-                    version_range::Column::Id,
+                    // Omit version_range.id so remediation links use the original purl_status.id.
                     version_range::Column::LowVersion,
                     version_range::Column::LowInclusive,
                     version_range::Column::HighVersion,
@@ -746,7 +746,7 @@ impl PurlService {
     ) -> Result<Vec<StatusInfo>, Error> {
         let all_statuses = purl_status::find_effective()
             .columns([
-                version_range::Column::Id,
+                // Omit version_range.id so remediation links use the original purl_status.id.
                 version_range::Column::LowVersion,
                 version_range::Column::LowInclusive,
                 version_range::Column::HighVersion,
