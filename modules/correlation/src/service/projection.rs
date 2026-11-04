@@ -2,6 +2,7 @@
 use super::{
     CorrelationService, freshness,
     pagination::{self, EvidenceGroup},
+    resolution::ProviderSnapshot,
 };
 use crate::{
     error::Error,
@@ -223,6 +224,8 @@ async fn rebuild(
         include_explanation: true,
         ..Default::default()
     };
+    // the suppliers of the SBOM's packages are the same for every batch
+    let mut snapshot = ProviderSnapshot::load_sboms(tx, &[id]).await?;
     let mut cursor: Option<EvidenceGroup> = None;
     loop {
         let mut query = pagination::groups(id, &request);
@@ -241,7 +244,9 @@ async fn rebuild(
             break;
         }
         let evidence = pagination::evidence_for_groups(id, &groups, tx).await?;
-        let verdicts = service.verdicts(id, &request, &evidence, tx).await?;
+        let verdicts = service
+            .verdicts(id, &request, &evidence, &mut snapshot, tx)
+            .await?;
         let rows = verdicts
             .into_iter()
             .map(|verdict| {

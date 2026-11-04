@@ -142,8 +142,9 @@ impl CorrelationService {
         }
         let evidence_rows = query.all(connection).await?;
 
+        let mut snapshot = resolution::ProviderSnapshot::load_sboms(connection, &[sbom_id]).await?;
         let verdicts = self
-            .verdicts(sbom_id, request, &evidence_rows, connection)
+            .verdicts(sbom_id, request, &evidence_rows, &mut snapshot, connection)
             .await?;
         let unmatched_components = if include_unmatched {
             let node_identifiers = self
@@ -173,6 +174,7 @@ impl CorrelationService {
         sbom_id: Uuid,
         request: &ResolutionRequest,
         evidence_rows: &[correlation_evidence::Model],
+        snapshot: &mut resolution::ProviderSnapshot,
         connection: &DatabaseTransaction,
     ) -> Result<Vec<VerdictSummary>, Error> {
         if evidence_rows.is_empty() {
@@ -216,8 +218,10 @@ impl CorrelationService {
             .collect();
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
-        let snapshot =
-            resolution::ProviderSnapshot::load(connection, &[sbom_id], &advisory_ids).await?;
+        snapshot
+            .load_advisories(connection, advisory_ids.iter().copied())
+            .await?;
+        let snapshot = &*snapshot;
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
         let mut contexts =
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
@@ -234,9 +238,9 @@ impl CorrelationService {
                 .push(row);
         }
 
+        let context = snapshot.context(request)?;
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
-            let context = snapshot.context(request)?;
             let identifiers = node_identifiers
                 .get(*node_id)
                 .map(Vec::as_slice)
@@ -249,7 +253,7 @@ impl CorrelationService {
                     Ok(resolution::DecisionEvidence {
                         contexts: contexts.remove(&row.id).unwrap_or_default(),
                         remediations: remediations.remove(&row.id).unwrap_or_default(),
-                        ..decision_evidence(row, &snapshot)?
+                        ..decision_evidence(row, snapshot)?
                     })
                 })
                 .collect::<Result<Vec<_>, Error>>()?;
