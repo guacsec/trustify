@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793785478711,
+  "lastUpdate": 1793813312730,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24435,6 +24435,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/257c106c220c768423b38605d968a647d0fc1eaa"
         },
         "date": 1793785475802,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dbosanac@redhat.com",
+            "name": "Dejan Bosanac",
+            "username": "dejanb"
+          },
+          "committer": {
+            "email": "mrizzi@users.noreply.github.com",
+            "name": "Marco Rizzi",
+            "username": "mrizzi"
+          },
+          "distinct": true,
+          "id": "a82ca0d42b745720fd5334e576a48695c9c5b6ab",
+          "message": "fix(ingestor): preserve inferred Lightwell NuGet spelling\n\nUse the ecosystem/name spelling after successful Lightwell identity and repository reconciliation, retaining the stated qualifiers.\n\nCover both casing directions, qualifier preservation, ordinary compatibility, explicit versions and native ranges, both extraction directions and version boundaries. Document that selecting one spelling is not general case-insensitive NuGet matching.\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-11-04T15:48:41Z",
+          "tree_id": "849d543c58e1307a3b1978d685fd29941b4931e6",
+          "url": "https://github.com/guacsec/trustify/commit/a82ca0d42b745720fd5334e576a48695c9c5b6ab"
+        },
+        "date": 1793813309775,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
