@@ -7,8 +7,8 @@ use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::correlation::{
-    ConfidenceCatalog, FreshnessDocument, FreshnessOverview, FreshnessStatus, RefreshJobDetails,
-    VerdictFreshness, VerdictStatus,
+    ConfidenceCatalog, FreshnessDocument, FreshnessOverview, RefreshJobDetails, VerdictFreshness,
+    VerdictStatus,
 };
 use trustify_api::ingest::IngestFromUrlRequest;
 use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
@@ -62,22 +62,14 @@ pub async fn fetch_confidence_catalog(token: Option<&str>) -> Result<ConfidenceC
     fetch_json("/api/v3/correlation/confidence", token).await
 }
 
+/// The documents needing a refresh: outdated or not yet checked.
 pub async fn fetch_freshness_documents(
-    status: Option<FreshnessStatus>,
     offset: usize,
     limit: usize,
     token: Option<&str>,
 ) -> Result<PaginatedResults<FreshnessDocument>, ApiError> {
-    let status = match status {
-        None => "",
-        Some(FreshnessStatus::Current) => "&status=current",
-        Some(FreshnessStatus::Stale) => "&status=stale",
-        Some(FreshnessStatus::Unknown) => "&status=unknown",
-    };
     fetch_json(
-        &format!(
-            "/api/v3/correlation/freshness/sbom?offset={offset}&limit={limit}&total=true{status}"
-        ),
+        &format!("/api/v3/correlation/freshness/sbom?offset={offset}&limit={limit}&total=true"),
         token,
     )
     .await
