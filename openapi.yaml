@@ -7118,6 +7118,29 @@ components:
             type: string
           v3Signatures:
             type: boolean
+    CurrentSbom:
+      type: object
+      description: An SBOM being processed right now, e.g. extracted by a refresh job.
+      required:
+      - sbom_id
+      - started_at
+      properties:
+        name:
+          type:
+          - string
+          - 'null'
+          description: The name of the SBOM's document node, if known.
+        progress:
+          oneOf:
+          - $ref: '#/components/schemas/WorkProgress'
+            description: How far the processing is, if it can tell.
+          - type: 'null'
+        sbom_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
     CveImporter:
       allOf:
       - $ref: '#/components/schemas/CommonImporter'
@@ -10089,24 +10112,6 @@ components:
               $ref: '#/components/schemas/RecommendEntry'
           propertyNames:
             type: string
-    RefreshCurrent:
-      type: object
-      description: The document a refresh job is currently extracting.
-      required:
-      - sbom_id
-      - started_at
-      properties:
-        name:
-          type:
-          - string
-          - 'null'
-          description: The name of the SBOM's document node, if known.
-        sbom_id:
-          type: string
-          format: uuid
-        started_at:
-          type: string
-          format: date-time
     RefreshFailure:
       type: object
       required:
@@ -10133,7 +10138,7 @@ components:
           format: date-time
         current:
           oneOf:
-          - $ref: '#/components/schemas/RefreshCurrent'
+          - $ref: '#/components/schemas/CurrentSbom'
             description: The document an active job is extracting right now, if any.
           - type: 'null'
         estimated_completion_at:
@@ -11172,6 +11177,13 @@ components:
       - pending
       - failed
       properties:
+        current:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrentSbom'
+          description: |-
+            The SBOMs whose verdicts are being computed right now, by when they started, with the
+            (component, vulnerability) groups resolved as their progress.
         failed:
           type: integer
           format: int64
@@ -11594,3 +11606,19 @@ components:
     VulnerabilitySummary:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
+    WorkProgress:
+      type: object
+      description: The items of a piece of work done so far, out of all of them.
+      required:
+      - done
+      - total
+      properties:
+        done:
+          type: integer
+          format: int64
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+          description: Zero while the items are still being determined.
+          minimum: 0
