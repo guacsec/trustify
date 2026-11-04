@@ -8,7 +8,7 @@ runs:
         node-version: 24
         cache: npm
         cache-dependency-path: ui/package-lock.json
-    - uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2
+    - uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2
       with:
         tool: trunk@0.22.1
     - name: Install Wasm target
