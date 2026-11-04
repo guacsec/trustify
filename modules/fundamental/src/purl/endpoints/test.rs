@@ -1196,6 +1196,104 @@ async fn recommend_no_duplicates_for_multi_stream_vex(
     Ok(())
 }
 
+/// Verifies collapsed product assessments retain both streams' exact remediation links.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_keeps_remediations_of_collapsed_contexts(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    // Given identical assessments of one rebuild in two product streams.
+    let purl = "pkg:maven/com.example/streamlib@1.0.0.redhat-00001";
+    let mut advisory = contextual_csaf_vex(
+        "TEST-REMEDIATION-STREAMS",
+        MINIMAL_CSAF_RELEASE_DATE,
+        "Red Hat",
+        "STREAM-1",
+        "cpe:/a:example:product:1.0",
+        &[("stream-1-lib", purl), ("stream-2-lib", purl)],
+        &[("CVE-2099-73930", "fixed", &[0, 1])],
+    );
+    advisory["product_tree"]["branches"][0]["branches"]
+        .as_array_mut()
+        .unwrap()
+        .insert(
+            1,
+            json!({
+                "category": "product_name",
+                "name": "STREAM-2",
+                "product": {
+                    "name": "STREAM-2",
+                    "product_id": "STREAM-2",
+                    "product_identification_helper": {"cpe": "cpe:/a:example:product:2.0"}
+                }
+            }),
+        );
+    advisory["product_tree"]["relationships"][1]["relates_to_product_reference"] =
+        json!("STREAM-2");
+    advisory["product_tree"]["relationships"][1]["full_product_name"]["product_id"] =
+        json!("STREAM-2:stream-2-lib");
+    advisory["vulnerabilities"][0]["product_status"]["fixed"] =
+        json!(["STREAM-1:stream-1-lib", "STREAM-2:stream-2-lib"]);
+    advisory["vulnerabilities"][0]["remediations"] = json!([
+        {
+            "category": "vendor_fix", "details": "Upgrade STREAM-2",
+            "url": "https://example.com/errata/STREAM-2",
+            "product_ids": ["STREAM-2:stream-2-lib"]
+        },
+        {
+            "category": "vendor_fix", "details": "Upgrade STREAM-1",
+            "url": "https://example.com/errata/STREAM-1",
+            "product_ids": ["STREAM-1:stream-1-lib"]
+        }
+    ]);
+    ctx.ingest_json(advisory).await?;
+
+    // When identical vulnerability/status/advisory tuples collapse.
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let response = recommend(&app, &["pkg:maven/com.example/streamlib@1.0.0"]).await;
+
+    // Then one assessment contains both distinct remediation entries in stable content order.
+    let assessments =
+        response["recommendations"]["pkg:maven/com.example/streamlib@1.0.0"][0]["vulnerabilities"]
+            .as_array()
+            .unwrap();
+    assert_eq!(assessments.len(), 1);
+    assert_eq!(assessments[0]["id"], "CVE-2099-73930");
+    assert_eq!(assessments[0]["status"], "Fixed");
+    assert_eq!(
+        assessments[0]["advisory_id"],
+        "https://red-hat.example.com/#TEST-REMEDIATION-STREAMS"
+    );
+    let remediations = assessments[0]["remediations"].as_array().unwrap();
+    assert_eq!(
+        remediations
+            .iter()
+            .map(|rem| (&rem["category"], &rem["details"], &rem["url"]))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                &json!("vendor_fix"),
+                &json!("Upgrade STREAM-1"),
+                &json!("https://example.com/errata/STREAM-1")
+            ),
+            (
+                &json!("vendor_fix"),
+                &json!("Upgrade STREAM-2"),
+                &json!("https://example.com/errata/STREAM-2")
+            ),
+        ]
+    );
+    assert_eq!(
+        remediations[0]["data"]["product_ids"],
+        json!(["STREAM-1:stream-1-lib"])
+    );
+    assert_eq!(
+        remediations[1]["data"]["product_ids"],
+        json!(["STREAM-2:stream-2-lib"])
+    );
+    Ok(())
+}
+
 /// Verifies that a custom vulnerability status is reflected in the recommendation response.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -2714,6 +2812,98 @@ async fn recommend_report_uses_correlation_winner_vendor_affected_over_older_ups
     assert_eq!(report["impact_summary"]["addressable_packages"], 0);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
 
+    Ok(())
+}
+
+/// Verifies reports preserve local/root specificity and separate swapped weighted contexts.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_preserves_weighted_component_contexts(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use trustify_api::correlation::{ResolutionRequest, VerdictStatus};
+    use trustify_module_correlation::{extractor::Extractors, service::CorrelationService};
+
+    // Given equal-provider, exact-version assessments distinguished only by product specificity.
+    register_report_provider_aliases(ctx).await?;
+    let fixed_cpe = "cpe:/a:example:weighted-product:1.0";
+    let affected_cpe = "cpe:/a:example:weighted-product:2.0";
+    let recommended = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    for (id, cpe, status) in [
+        ("WEIGHTED-FIXED", fixed_cpe, "fixed"),
+        ("WEIGHTED-AFFECTED", affected_cpe, "known_affected"),
+    ] {
+        ctx.ingest_json(contextual_csaf_vex(
+            id,
+            MINIMAL_CSAF_RELEASE_DATE,
+            "Upstream",
+            "Product",
+            cpe,
+            &[("crosslib", recommended)],
+            &[("CVE-2099-73950", status, &[0])],
+        ))
+        .await?;
+    }
+    let mut sboms = Vec::new();
+    for (index, local_cpe, root_cpe, expected) in [
+        (0, fixed_cpe, affected_cpe, VerdictStatus::Fixed),
+        (1, affected_cpe, fixed_cpe, VerdictStatus::Affected),
+    ] {
+        for (patched, purl) in [
+            (false, "pkg:maven/com.example/crosslib@1.0.0"),
+            (true, recommended),
+        ] {
+            let serial = Uuid::from_u128(739_500 + index * 2 + u128::from(patched)).to_string();
+            let mut document =
+                contextual_cdx("weighted-context", &serial, purl, "Upstream", local_cpe);
+            document["components"][0]["bom-ref"] = json!("crosslib");
+            document["metadata"]["component"]["cpe"] = json!(root_cpe);
+            let sbom_id = Uuid::parse_str(&ctx.ingest_json(document).await?.id)?;
+            if patched {
+                // Establish the expected result through the stored, weighted SBOM path too.
+                let tx = ctx.db.begin().await?;
+                Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+                let correlation = CorrelationService::default()
+                    .correlate_sbom_with(
+                        sbom_id,
+                        false,
+                        &ResolutionRequest {
+                            node_id: Some("crosslib".into()),
+                            ..Default::default()
+                        },
+                        &tx,
+                    )
+                    .await?;
+                assert_eq!(correlation.verdicts.len(), 1);
+                assert_eq!(correlation.verdicts[0].status, expected);
+                tx.commit().await?;
+            } else {
+                sboms.push(sbom_id);
+            }
+        }
+    }
+
+    // When reporting two upstream components with the same CPE values but swapped placements.
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &sboms).await;
+
+    // Then only the locally fixed component is addressed, with exact advisory/SBOM provenance.
+    assert_eq!(
+        report["packages"],
+        json!([{
+            "purl": "pkg:maven/com.example/crosslib@1.0.0",
+            "recommended_purl": recommended,
+            "advisory_id": "https://upstream.example.com/#WEIGHTED-FIXED",
+            "vulnerabilities": ["CVE-2099-73950"],
+            "found_in": [sboms[0]]
+        }])
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 1);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    assert_eq!(report["sboms"][1]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][1]["vulnerability_count"], 0);
     Ok(())
 }
 

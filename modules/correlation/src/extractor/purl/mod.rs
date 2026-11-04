@@ -612,7 +612,8 @@ impl Extractor for PurlExtractor {
 
         let vp_ids: Vec<_> = vp_map.keys().copied().collect();
         let persisted_vp_ids = versioned_purl::Entity::find()
-            .filter(versioned_purl::Column::Id.is_in(vp_ids.iter().copied()))
+            // One array parameter keeps this preliminary lookup safe before downstream chunking.
+            .filter(Expr::col(versioned_purl::Column::Id).eq(PgFunc::any(vp_ids.clone())))
             .all(tx)
             .await?
             .into_iter()

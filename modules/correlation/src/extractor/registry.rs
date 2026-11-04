@@ -1,6 +1,6 @@
 use super::{
     Assertion, Extractor, IdentifierMatch, NodeMatch, NodeRef,
-    context::{Scope, Scoper},
+    context::{self, NodeCpe, Scope, Scoper},
     cpe::CpeExtractor,
     digest::DigestExtractor,
     product_identifier::ProductIdentifierExtractor,
@@ -157,13 +157,13 @@ impl Extractors {
         self.query_with_context(identifier, &[], tx).await
     }
 
+    /// Queries ad-hoc identifiers, treating explicitly supplied CPEs as component-local.
     pub async fn query_with_context(
         &self,
         identifier: &IdentifierRef,
         context_identifiers: &[IdentifierRef],
         tx: &DatabaseTransaction,
     ) -> Result<Vec<Assertion>, Error> {
-        use super::context::{self, NodeCpe};
         use sea_orm::TryIntoModel;
         use trustify_entity::correlation_evidence_context::ContextSource;
         let mut node = Vec::new();
@@ -200,6 +200,31 @@ impl Extractors {
                 }
             }
         }
+        self.query_scoped(
+            identifier,
+            (!context_identifiers.is_empty()).then_some(node.as_slice()),
+            tx,
+        )
+        .await
+    }
+
+    /// Queries with original SBOM CPE sources/distances, including an empty known node context.
+    pub async fn query_with_node_context(
+        &self,
+        identifier: &IdentifierRef,
+        node_cpes: &[NodeCpe],
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<Assertion>, Error> {
+        self.query_scoped(identifier, Some(node_cpes), tx).await
+    }
+
+    /// Shares matching while distinguishing context-free queries from known node context.
+    async fn query_scoped(
+        &self,
+        identifier: &IdentifierRef,
+        node: Option<&[NodeCpe]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<Assertion>, Error> {
         let mut assertions = Vec::new();
         for extractor in &self.0 {
             assertions.extend(
@@ -216,14 +241,10 @@ impl Extractors {
             context::load_contexts(assertions.iter().filter_map(|a| a.context_id), tx).await?;
         let mut result = Vec::<Assertion>::new();
         for mut assertion in assertions {
-            if context_identifiers.is_empty() {
-                if assertion.requires_context {
-                    continue;
-                }
-            } else {
+            if let Some(node) = node {
                 let scope = context::scope(
                     assertion.context_id.and_then(|id| contexts.get(&id)),
-                    &node,
+                    node,
                     &[],
                     assertion.requires_context,
                 );
@@ -233,6 +254,8 @@ impl Extractors {
                 if let Some(factor) = scope.factor() {
                     assertion.apply(factor);
                 }
+            } else if assertion.requires_context {
+                continue;
             }
             assertion.context_id = None;
             let sources = std::mem::take(&mut assertion.source_assertions);

@@ -260,6 +260,89 @@ async fn query_identifier_excludes_deprecated_purl_evidence(
     Ok(())
 }
 
+/// Verifies whole-collection matching exceeds the bind limit without losing input associations.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn match_identifiers_beyond_bind_parameter_limit(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::{ActiveValue::Set, sea_query::OnConflict};
+    use trustify_common::db::chunk::EntityChunkedIter;
+
+    // Given 70,000 distinct persisted versions, with known matches beyond index 65,535.
+    let advisory = ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let advisory_id = Uuid::parse_str(&advisory.id)?;
+    let mut identifiers = (0..70_000)
+        .map(|index| IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: format!("pkg:generic/bind-limit-filler@0.0.{index}"),
+        })
+        .collect::<Vec<_>>();
+    for (index, value) in [
+        (0, "pkg:cargo/hyper@0.14.1"),
+        (65_536, "pkg:cargo/hyper@0.14.2"),
+        (69_999, "pkg:cargo/hyper@0.14.3"),
+    ] {
+        identifiers[index].value = value.into();
+    }
+    identifiers.push(identifiers[0].clone());
+    identifiers.push(IdentifierRef {
+        kind: IdentifierKind::Purl,
+        value: "pkg:cargo/hyper@0.14.2?repository_url=https://example.com".into(),
+    });
+    let tx = ctx.db.begin().await?;
+    let mut bases = BTreeMap::new();
+    let mut versions = BTreeMap::new();
+    for identifier in &identifiers {
+        let purl = identifier.value.parse::<Purl>()?;
+        bases
+            .entry(purl.package_uuid())
+            .or_insert_with(|| base_purl::ActiveModel {
+                id: Set(purl.package_uuid()),
+                r#type: Set(purl.ty.clone()),
+                namespace: Set(purl.namespace.clone()),
+                name: Set(purl.name.clone()),
+            });
+        versions
+            .entry(purl.version_uuid())
+            .or_insert_with(|| versioned_purl::ActiveModel {
+                id: Set(purl.version_uuid()),
+                base_purl_id: Set(purl.package_uuid()),
+                version: Set(purl.effective_version()),
+            });
+    }
+    for batch in bases.into_values().chunked() {
+        base_purl::Entity::insert_many(batch)
+            .on_conflict(OnConflict::new().do_nothing().to_owned())
+            .exec_without_returning(&tx)
+            .await?;
+    }
+    for batch in versions.into_values().chunked() {
+        versioned_purl::Entity::insert_many(batch)
+            .on_conflict(OnConflict::new().do_nothing().to_owned())
+            .exec_without_returning(&tx)
+            .await?;
+    }
+
+    // When matching the entire collection, as the SBOM extractor does.
+    let matches = PurlExtractor.match_identifiers(&identifiers, &tx).await?;
+
+    // Then exact versions, duplicate indices, and qualified inputs keep their affected evidence.
+    assert_eq!(
+        matches
+            .iter()
+            .map(|matched| matched.index)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([0, 65_536, 69_999, 70_000, 70_001])
+    );
+    for matched in &matches {
+        assert_eq!(matched.assertion.advisory_id, advisory_id);
+        assert_eq!(matched.assertion.vulnerability_id, "CVE-2021-32714");
+        assert_eq!(matched.assertion.status, AssertionStatus::Affected);
+    }
+    Ok(())
+}
+
 /// Red Hat's `fixed`, read as `first_fixed`: affected before.
 const FIXED_AS_FIRST_FIXED_BEFORE: &str = "purl_fixed_as_first_fixed_before";
 
