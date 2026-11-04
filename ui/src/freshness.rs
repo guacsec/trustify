@@ -2,11 +2,7 @@
 use crate::number::Number;
 use crate::{AppRoute, api, correlation::timestamp, stored::use_stored_pagination};
 use patternfly_yew::prelude::*;
-use std::{
-    cell::Cell,
-    fmt::{Display, Formatter},
-    rc::Rc,
-};
+use std::{cell::Cell, rc::Rc};
 use time::{Duration, OffsetDateTime};
 use trustify_api::correlation::*;
 use uuid::Uuid;
@@ -20,23 +16,6 @@ pub fn status_label(status: FreshnessStatus) -> &'static str {
         FreshnessStatus::Current => "Current",
         FreshnessStatus::Stale => "Outdated",
         FreshnessStatus::Unknown => "Not yet checked",
-    }
-}
-
-/// Status filter of the documents table, where `None` selects all documents needing a refresh.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct DocumentFilter(Option<FreshnessStatus>);
-
-impl DocumentFilter {
-    const ALL: [Self; 2] = [Self(None), Self(Some(FreshnessStatus::Current))];
-}
-
-impl Display for DocumentFilter {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            None => f.write_str("Needs refreshing"),
-            Some(status) => f.write_str(status_label(status)),
-        }
     }
 }
 
@@ -82,31 +61,15 @@ struct View {
 /// requests are only repeated when their inputs change.
 #[derive(Clone, PartialEq)]
 struct Loaded {
-    documents: (
-        Option<FreshnessStatus>,
-        usize,
-        usize,
-        i64,
-        u64,
-        u64,
-        u64,
-        u64,
-    ),
+    documents: (usize, usize, i64, u64, u64, u64, u64),
     failures: Option<(Uuid, u64, usize)>,
 }
 
 impl Loaded {
-    fn new(
-        overview: &FreshnessOverview,
-        filter: Option<FreshnessStatus>,
-        offset: usize,
-        limit: usize,
-        failure_page: usize,
-    ) -> Self {
+    fn new(overview: &FreshnessOverview, offset: usize, limit: usize, failure_page: usize) -> Self {
         Self {
             // Document states change only together with these counters.
             documents: (
-                filter,
                 offset,
                 limit,
                 overview.revision,
@@ -382,7 +345,6 @@ pub fn freshness_page() -> Html {
     let in_flight = use_mut_ref(|| 0usize);
     // The last loaded view, readable by the request without re-running the effect.
     let last = use_mut_ref(|| None::<View>);
-    let filter = use_state(|| None::<FreshnessStatus>);
     let total = view.as_ref().and_then(|v| v.total);
     let pagination = use_stored_pagination("correlation-status", total);
     let failure_page = use_state(|| 0usize);
@@ -411,34 +373,29 @@ pub fn freshness_page() -> Html {
         use_effect_with(
             (
                 *generation,
-                *filter,
                 pagination.control,
                 *failure_page,
                 token.clone(),
             ),
-            move |(_, filter, control, failure_page, _)| {
+            move |(_, control, failure_page, _)| {
                 let cancelled = Rc::new(Cell::new(false));
                 let pending = cancelled.clone();
                 *in_flight.borrow_mut() += 1;
-                let (filter, control, failure_page) = (*filter, *control, *failure_page);
+                let (control, failure_page) = (*control, *failure_page);
                 spawn_local(async move {
                     let previous = last.borrow().clone();
                     let loaded = async {
                         let overview = api::fetch_freshness(token.as_deref()).await?;
                         let (offset, limit) = (control.page * control.per_page, control.per_page);
-                        let loaded = Loaded::new(&overview, filter, offset, limit, failure_page);
+                        let loaded = Loaded::new(&overview, offset, limit, failure_page);
                         let (documents, total) = match &previous {
                             Some(view) if view.loaded.documents == loaded.documents => {
                                 (view.documents.clone(), view.total)
                             }
                             _ => {
-                                let docs = api::fetch_freshness_documents(
-                                    filter,
-                                    offset,
-                                    limit,
-                                    token.as_deref(),
-                                )
-                                .await?;
+                                let docs =
+                                    api::fetch_freshness_documents(offset, limit, token.as_deref())
+                                        .await?;
                                 (docs.items, docs.total.map(|t| t as usize))
                             }
                         };
@@ -477,15 +434,6 @@ pub fn freshness_page() -> Html {
             },
         );
     }
-
-    let onfilter = {
-        let filter = filter.clone();
-        let pagination = pagination.clone();
-        Callback::from(move |value: DocumentFilter| {
-            filter.set(value.0);
-            pagination.onnavigation.emit(Navigation::First);
-        })
-    };
 
     let header = html_nested! {
         <TableHeader<Column>>
@@ -543,20 +491,9 @@ pub fn freshness_page() -> Html {
                     </StackItem>
                 }
                 <StackItem>
-                <Title level={Level::H2}>{ "Documents" }</Title>
+                <Title level={Level::H2}>{ "Documents needing a refresh" }</Title>
                 <Toolbar>
                     <ToolbarContent>
-                        <ToolbarItem>
-                            <ToggleGroup>
-                                { for DocumentFilter::ALL.into_iter().map(|value| html_nested! {
-                                    <ToggleGroupItem
-                                        text={value.to_string()}
-                                        selected={value == DocumentFilter(*filter)}
-                                        onchange={onfilter.reform(move |()| value)}
-                                    />
-                                }) }
-                            </ToggleGroup>
-                        </ToolbarItem>
                         <ToolbarItem r#type={ToolbarItemType::Pagination}>
                             <SimplePagination pagination={pagination.clone()} {total} />
                         </ToolbarItem>
@@ -570,8 +507,8 @@ pub fn freshness_page() -> Html {
                             <TableRow>
                                 <TableData colspan={4}>
                                     <Bullseye>
-                                        <EmptyState title="No documents found" icon={Icon::Search} size={Size::Large}>
-                                            { "No SBOMs have this status. Select a different status to see other documents." }
+                                        <EmptyState title="All documents are current" icon={Icon::CheckCircle} size={Size::Large}>
+                                            { "No SBOMs need to be refreshed against the current matching settings." }
                                         </EmptyState>
                                     </Bullseye>
                                 </TableData>
