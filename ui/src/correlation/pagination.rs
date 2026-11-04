@@ -14,24 +14,19 @@ pub(super) fn use_collection<T: Clone + PartialEq + DeserializeOwned + 'static>(
     sbom_id: uuid::Uuid,
     collection: &'static str,
     count_only: bool,
+    reload: u64,
 ) -> (
     PaginatedResults<T>,
     UsePagination,
     bool,
     Option<String>,
     Option<VerdictFreshness>,
-    Callback<()>,
 ) {
     let items = use_state_eq(Vec::<T>::new);
     let total = use_state_eq(|| None::<usize>);
     let loading = use_state_eq(|| true);
     let error = use_state_eq(|| None::<String>);
     let freshness = use_state_eq(|| None::<VerdictFreshness>);
-    let revision = use_state_eq(|| 0_u64);
-    let refresh = {
-        let revision = revision.clone();
-        Callback::from(move |()| revision.set(*revision + 1))
-    };
     let pagination = use_pagination(*total, || PaginationControl {
         page: 0,
         per_page: 25,
@@ -49,7 +44,7 @@ pub(super) fn use_collection<T: Clone + PartialEq + DeserializeOwned + 'static>(
                 pagination.control,
                 count_only,
                 token,
-                *revision,
+                reload,
             ),
             move |(sbom_id, collection, control, count_only, token, _)| {
                 let (id, collection, control, count_only, token) = (
@@ -100,7 +95,6 @@ pub(super) fn use_collection<T: Clone + PartialEq + DeserializeOwned + 'static>(
         *loading,
         (*error).clone(),
         (*freshness).clone(),
-        refresh,
     )
 }
 

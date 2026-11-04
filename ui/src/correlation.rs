@@ -2,7 +2,7 @@
 use crate::{AppRoute, api, model::SbomSummary};
 use patternfly_yew::prelude::*;
 use std::{cell::Cell as CancelFlag, rc::Rc};
-use trustify_api::correlation::RefreshJob;
+use trustify_api::correlation::VerdictFreshness;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_oauth2::prelude::use_latest_access_token;
@@ -15,6 +15,7 @@ mod unmatched;
 mod verdicts;
 
 pub(crate) use common::{confidence_label, matched_value, status_color, timestamp};
+use processing::SbomStatus;
 use summary::CorrelationSummary;
 use unmatched::UnmatchedTable;
 use verdicts::VerdictTable;
@@ -31,7 +32,6 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
     let result = use_state(|| Option::<SbomSummary>::None);
     let loading = use_state(|| true);
     let error = use_state(|| Option::<String>::None);
-    let active_job = use_state(|| Option::<RefreshJob>::None);
 
     let latest_token = use_latest_access_token();
     let token: Option<String> = latest_token.as_ref().and_then(|t| t.access_token());
@@ -41,27 +41,12 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
         let result = result.clone();
         let loading = loading.clone();
         let error = error.clone();
-        let active_job = active_job.clone();
         let token = token.clone();
         use_effect_with((sbom_id.clone(), token.clone()), move |(id, token)| {
             let id = id.clone();
             let token = token.clone();
             let cancelled = Rc::new(CancelFlag::new(false));
             let header_pending = cancelled.clone();
-            {
-                let token = token.clone();
-                let pending = cancelled.clone();
-                spawn_local(async move {
-                    // Only refines the freshness alert; ignore failures and superseded requests.
-                    let job = api::fetch_freshness(token.as_deref())
-                        .await
-                        .ok()
-                        .and_then(|overview| overview.active_job);
-                    if !pending.get() {
-                        active_job.set(job);
-                    }
-                });
-            }
             spawn_local(async move {
                 loading.set(true);
                 error.set(None);
@@ -108,7 +93,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                 </Alert>
             } else if let Some(data) = &*result {
                 if let Ok(sbom_id) = uuid::Uuid::parse_str(&data.id) {
-                    <CorrelationContent key={sbom_id.to_string()} {sbom_id} active_job={(*active_job).clone()} />
+                    <CorrelationContent key={sbom_id.to_string()} {sbom_id} />
                 }
             } else {
                 <EmptyState
@@ -124,22 +109,44 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
-struct CorrelationContentProps {
+struct CorrelationPageProps {
     sbom_id: uuid::Uuid,
-    #[prop_or_default]
-    active_job: Option<RefreshJob>,
 }
 
+/// Properties of the sections of the correlation view.
+#[derive(Clone, Debug, PartialEq, Properties)]
+struct CorrelationContentProps {
+    sbom_id: uuid::Uuid,
+    /// Incremented to reload all sections, e.g. once newer verdicts are available.
+    #[prop_or_default]
+    reload: u64,
+    /// Receives the verdict freshness of the loaded verdicts.
+    #[prop_or_default]
+    onfreshness: Callback<Option<VerdictFreshness>>,
+}
+
+/// The status of the SBOM's results, above the sections showing them.
 #[function_component(CorrelationContent)]
-fn correlation_content(props: &CorrelationContentProps) -> Html {
+fn correlation_content(props: &CorrelationPageProps) -> Html {
+    let reload = use_state_eq(|| 0_u64);
+    let shown = use_state_eq(|| None::<VerdictFreshness>);
+    let onfreshness = {
+        let shown = shown.clone();
+        Callback::from(move |freshness| shown.set(freshness))
+    };
+    let onreload = {
+        let reload = reload.clone();
+        Callback::from(move |()| reload.set(*reload + 1))
+    };
+    let sbom_id = props.sbom_id;
     html! {
         <>
-            <CorrelationSummary sbom_id={props.sbom_id} active_job={props.active_job.clone()} />
+            <SbomStatus {sbom_id} shown={(*shown).clone()} {onreload} />
+            <CorrelationSummary {sbom_id} reload={*reload} />
             <br />
-                        <VerdictTable sbom_id={props.sbom_id} />
-                        <br />
-                        <UnmatchedTable sbom_id={props.sbom_id} />
-
+            <VerdictTable {sbom_id} reload={*reload} {onfreshness} />
+            <br />
+            <UnmatchedTable {sbom_id} reload={*reload} />
         </>
     }
 }
