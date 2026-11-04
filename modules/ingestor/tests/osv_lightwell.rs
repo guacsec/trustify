@@ -266,3 +266,83 @@ async fn ambiguous_and_unsupported_entries_warn_without_losing_valid_siblings(
     }
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test_log::test(tokio::test)]
+async fn ordinary_purl_candidates_survive_all_version_forms(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let cases = [
+        (
+            "versions",
+            serde_json::json!({"versions": ["1.0.0"]}),
+            VersionScheme::Generic,
+        ),
+        (
+            "ecosystem",
+            serde_json::json!({"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}]}),
+            VersionScheme::Npm,
+        ),
+        (
+            "semver",
+            serde_json::json!({"ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}]}),
+            VersionScheme::Semver,
+        ),
+        (
+            "git",
+            serde_json::json!({"ranges": [{"type": "GIT", "repo": "https://example.com/demo.git", "events": [{"introduced": "0"}, {"fixed": "0123456789012345678901234567890123456789"}]}]}),
+            VersionScheme::Git,
+        ),
+    ];
+    let affected = cases
+        .iter()
+        .map(|(name, fields, _)| {
+            let mut entry = fields.clone();
+            entry["package"] = serde_json::json!({
+                "ecosystem": "npm",
+                "name": format!("demo-{name}"),
+                "purl": format!("pkg:generic/demo-{name}"),
+            });
+            entry
+        })
+        .collect::<Vec<_>>();
+    let document = serde_json::json!({
+        "id": "OSV-2026-identity-compatibility",
+        "modified": "2026-01-01T00:00:00Z",
+        "affected": affected,
+    });
+    let result = ctx
+        .ingest_bytes_as(
+            &serde_json::to_vec(&document)?,
+            Format::OSV,
+            ("source", "compatibility-test"),
+        )
+        .await?;
+    assert!(result.warnings.is_empty(), "{:?}", result.warnings);
+    let statements = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(Uuid::parse_str(&result.id)?))
+        .find_also_related(base_purl::Entity)
+        .all(&ctx.db)
+        .await?;
+    assert_eq!(statements.len(), 8);
+    for (name, _, scheme) in cases {
+        let expected_name = format!("demo-{name}");
+        let mut types = Vec::new();
+        for (statement, package) in &statements {
+            let package = package.as_ref().unwrap();
+            if package.name != expected_name {
+                continue;
+            }
+            types.push(package.r#type.as_str());
+            let range = statement
+                .find_related(version_range::Entity)
+                .one(&ctx.db)
+                .await?
+                .unwrap();
+            assert_eq!(range.version_scheme_id, scheme);
+        }
+        types.sort();
+        assert_eq!(types, ["generic", "npm"]);
+    }
+    Ok(())
+}

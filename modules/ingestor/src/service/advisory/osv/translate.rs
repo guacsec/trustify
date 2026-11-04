@@ -12,7 +12,12 @@ pub fn to_purl(
         purl: _,
     }: &Package,
 ) -> Option<PackageUrl<'_>> {
-    translate(native_ecosystem(ecosystem), name)
+    let native = native_ecosystem(ecosystem);
+    match (ecosystem, native) {
+        // Keep the legacy alias adapter specific to the newly supported wrapper.
+        (Ecosystem::RedHatLightwell(_), Ecosystem::Python) => PackageUrl::new("pypi", name).ok(),
+        _ => translate(native, name),
+    }
 }
 
 /// Also see: <https://ossf.github.io/osv-schema/#affectedpackage-field>
@@ -39,7 +44,7 @@ fn translate<'a>(ecosystem: &Ecosystem, name: &'a str) -> Option<PackageUrl<'a>>
                 None
             }
         }
-        Ecosystem::PyPI | Ecosystem::Python => PackageUrl::new("pypi", name).ok(),
+        Ecosystem::PyPI => PackageUrl::new("pypi", name).ok(),
         Ecosystem::Go => split_name(name, "golang", "/"),
         Ecosystem::Packagist => split_name(name, "composer", "/"),
         Ecosystem::NuGet => PackageUrl::new("nuget", name).ok(),
@@ -87,7 +92,7 @@ mod test {
         Some("pkg:maven/groupid/artifactid?repository_url=http:%2F%2Fother%2Frepo")
     )]
     #[case(Ecosystem::PyPI, "aiohttp", Some("pkg:pypi/aiohttp"))]
-    #[case(Ecosystem::Python, "aiohttp", Some("pkg:pypi/aiohttp"))]
+    #[case(Ecosystem::Python, "aiohttp", None)]
     #[case(
         Ecosystem::RedHatLightwell(Box::new(Ecosystem::Maven(MAVEN_DEFAULT_REPO.to_string()))),
         "io.netty:netty-codec-dns",
