@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793725431226,
+  "lastUpdate": 1793785478711,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24406,6 +24406,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/315ec7aa3b1c422c5c6ea23cfa5b18aeddf71488"
         },
         "date": 1793725428200,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "257c106c220c768423b38605d968a647d0fc1eaa",
+          "message": "fix(ci): bump embedded PostgreSQL to 17.2.1 for ubuntu-latest compat\n\nTheseus PostgreSQL 17.2.1 bundles libxml2.so.2 (and other shared libs)\nalongside the binary, while 17.2.0 relied on the host system providing\nthem. ubuntu-latest now resolves to Ubuntu 26.04, which ships\nlibxml2.so.16 (soname bump from libxml2 2.14+), breaking 17.2.0.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-04T07:43:07Z",
+          "tree_id": "241cafe9ebc0fab686197be404d22d9f46f3f71e",
+          "url": "https://github.com/guacsec/trustify/commit/257c106c220c768423b38605d968a647d0fc1eaa"
+        },
+        "date": 1793785475802,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
