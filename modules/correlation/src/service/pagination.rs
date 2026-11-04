@@ -2,7 +2,7 @@
 use super::*;
 
 use sea_orm::{
-    Condition, ExprTrait, QueryOrder, QuerySelect, QueryTrait, Select,
+    ExprTrait, QueryOrder, QuerySelect, QueryTrait, Select, Value,
     sea_query::{Expr, Order},
 };
 use trustify_common::{
@@ -65,17 +65,16 @@ pub(super) async fn evidence_for_groups(
     if groups.is_empty() {
         return Ok(Vec::new());
     }
-    let mut selected = Condition::any();
-    for group in groups {
-        selected = selected.add(
-            Condition::all()
-                .add(correlation_evidence::Column::NodeId.eq(&group.node_id))
-                .add(correlation_evidence::Column::VulnerabilityId.eq(&group.vulnerability_id)),
-        );
-    }
+    let (nodes, vulnerabilities): (Vec<_>, Vec<_>) = groups
+        .iter()
+        .map(|group| (group.node_id.clone(), group.vulnerability_id.clone()))
+        .unzip();
     Ok(correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-        .filter(selected)
+        .filter(Expr::cust_with_values(
+            "(node_id, vulnerability_id) IN (SELECT * FROM unnest($1::text[], $2::text[]))",
+            [Value::from(nodes), Value::from(vulnerabilities)],
+        ))
         .order_by_asc(correlation_evidence::Column::Id)
         .all(connection)
         .await?)

@@ -1,5 +1,5 @@
 use super::*;
-use crate::service::projection::publish_for_test;
+use crate::service::projection::{publish_for_test, publish_in_batches_for_test};
 use sea_orm::{ActiveModelTrait, Set, TransactionTrait};
 use test_context::test_context;
 use trustify_common::model::Paginated;
@@ -129,6 +129,36 @@ async fn verdict_pages_preserve_groups_filters_and_order(
     assert_eq!(filtered.total, Some(1));
     assert_eq!(filtered.items.len(), 1);
     assert_eq!(filtered.items[0].vulnerability.id, "CVE-2");
+    Ok(())
+}
+
+/// Publishing in batches gives the same verdicts as publishing all groups at once.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn batches_publish_like_one_batch(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let (id, _) = fixture(ctx).await?;
+    let service = CorrelationService::default();
+    let cache = PaginationCache::for_test();
+    // all published verdicts
+    let published = async |tx: &DatabaseTransaction| {
+        let all = Paginated {
+            offset: 0,
+            limit: 1000,
+            total: true,
+        };
+        let page = service
+            .verdict_page(id, &ResolutionRequest::default(), all, &cache, tx)
+            .await?;
+        Ok::<_, anyhow::Error>((page.total, serde_json::to_value(page.items)?))
+    };
+
+    let tx = ctx.db.begin().await?;
+    let at_once = published(&tx).await?;
+    assert_eq!(at_once.0, Some(68));
+    for batch_size in [1, 7] {
+        publish_in_batches_for_test(id, batch_size, &tx).await?;
+        assert_eq!(published(&tx).await?, at_once, "batch size {batch_size}");
+    }
     Ok(())
 }
 
