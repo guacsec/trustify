@@ -17,6 +17,7 @@ use sea_orm::{
     sea_query::Expr,
 };
 use std::collections::{HashMap, HashSet};
+use tracing::{Instrument, info_span};
 use trustify_common::{
     db::{self, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::Pagination,
@@ -26,7 +27,7 @@ use uuid::Uuid;
 
 /// Bump in a migration together with changes to the default resolver's semantics.
 const RESOLVER_VERSION: i32 = 1;
-const BATCH_SIZE: u64 = 128;
+const BATCH_SIZE: usize = 1000;
 
 /// Read completion and upstream freshness in a single database snapshot.
 pub async fn state(
@@ -230,7 +231,7 @@ pub async fn run_step(db: &db::ReadWrite) -> Result<bool, Error> {
     let id: Uuid = row.try_get("", "sbom_id")?;
     let input_revision: i64 = row.try_get("", "input_revision")?;
     let work = tx.begin().await?;
-    match rebuild(id, revision, input_revision, &work).await {
+    match rebuild(id, revision, input_revision, BATCH_SIZE, &work).await {
         Ok(()) => {
             work.commit().await?;
         }
@@ -249,6 +250,7 @@ async fn rebuild(
     id: Uuid,
     revision: i64,
     input_revision: i64,
+    batch_size: usize,
     tx: &DatabaseTransaction,
 ) -> Result<(), Error> {
     correlation_verdict::Entity::delete_many()
@@ -262,24 +264,14 @@ async fn rebuild(
     };
     // the suppliers of the SBOM's packages are the same for every batch
     let mut snapshot = ProviderSnapshot::load_sboms(tx, &[id]).await?;
-    let mut cursor: Option<EvidenceGroup> = None;
-    loop {
-        let mut query = pagination::groups(id, &request);
-        if let Some(cursor) = &cursor {
-            query = query.filter(Expr::cust_with_values(
-                "(node_id COLLATE \"C\", vulnerability_id COLLATE \"C\") > ($1, $2)",
-                [cursor.node_id.clone(), cursor.vulnerability_id.clone()],
-            ));
-        }
-        let groups = query
-            .limit(BATCH_SIZE)
-            .into_model::<EvidenceGroup>()
-            .all(tx)
-            .await?;
-        if groups.is_empty() {
-            break;
-        }
-        let evidence = pagination::evidence_for_groups(id, &groups, tx).await?;
+    // all groups at once: paging them would group and sort all the evidence for every page
+    let groups = pagination::groups(id, &request)
+        .into_model::<EvidenceGroup>()
+        .all(tx)
+        .instrument(info_span!("loading verdict groups"))
+        .await?;
+    for groups in groups.chunks(batch_size.max(1)) {
+        let evidence = pagination::evidence_for_groups(id, groups, tx).await?;
         let verdicts = service
             .verdicts(id, &request, &evidence, &mut snapshot, tx)
             .await?;
@@ -306,7 +298,6 @@ async fn rebuild(
                 .exec(tx)
                 .await?;
         }
-        cursor = groups.last().cloned();
     }
     let updated = tx.execute_raw(sql(
         "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND input_revision=$3 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE revision=$2 AND resolver_version=$5)",
@@ -331,12 +322,23 @@ mod tests;
 /// Publish explicitly inside fixture transactions; production only uses the durable worker.
 #[cfg(test)]
 pub(crate) async fn publish_for_test(id: Uuid, tx: &DatabaseTransaction) -> Result<(), Error> {
+    publish_in_batches_for_test(id, BATCH_SIZE, tx).await
+}
+
+/// Like [`publish_for_test`], resolving the given number of groups at once.
+#[cfg(test)]
+pub(crate) async fn publish_in_batches_for_test(
+    id: Uuid,
+    batch_size: usize,
+    tx: &DatabaseTransaction,
+) -> Result<(), Error> {
     let row = tx.query_one_raw(sql("SELECT input_revision,revision FROM correlation_verdict_state CROSS JOIN correlation_verdict_revision WHERE sbom_id=$1", vec![id.into()])).await?
         .ok_or_else(|| DbErr::Custom("missing verdict state".into()))?;
     rebuild(
         id,
         row.try_get("", "revision")?,
         row.try_get("", "input_revision")?,
+        batch_size,
         tx,
     )
     .await
