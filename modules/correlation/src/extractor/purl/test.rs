@@ -347,6 +347,73 @@ async fn match_identifiers_beyond_bind_parameter_limit(
     Ok(())
 }
 
+/// A node's PURLs are judged together, in both directions: a statement in the node's own stream
+/// (here the `el8` fixes, for the `el8` PURL) suppresses the fallback to another minor of the same
+/// major (the `el8_7` fix, for the `el8_8` PURL).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn node_purls_are_judged_together(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let purl = |version: &str| {
+        json!({
+            "referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl",
+            "referenceLocator": format!("pkg:rpm/redhat/openssl@{version}?arch=x86_64&epoch=1"),
+        })
+    };
+    let document = json!({
+        "spdxVersion": "SPDX-2.3", "dataLicense": "CC0-1.0", "SPDXID": "SPDXRef-DOCUMENT",
+        "name": "openssl", "documentNamespace": "https://example.com/spdx/openssl-two-purls",
+        "creationInfo": { "created": "2025-01-01T00:00:00Z", "creators": ["Tool: test"] },
+        "packages": [{
+            "SPDXID": "SPDXRef-openssl", "name": "openssl", "versionInfo": "1:1.1.1k-7.el8",
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [purl("1.1.1k-7.el8"), purl("1.1.1k-10.el8_8")],
+        }],
+        "relationships": [{
+            "spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES",
+            "relatedSpdxElement": "SPDXRef-openssl",
+        }],
+    });
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+            .await?
+            .id,
+    )?;
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document(S5_VEX).await?.id)?;
+
+    extract_for_sbom(ctx, sbom_id).await?;
+    let from_sbom = load_evidence(ctx, sbom_id).await?;
+    // only the `el8` fixes, as for the `el8` PURL alone, not the `el8_7` fix as `fixed` for the
+    // `el8_8` PURL
+    assert_eq!(
+        range_evidence(ctx, sbom_id).await?,
+        vec![(
+            "SPDXRef-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
+            AssertionStatus::Affected,
+            // 0.72 (see `rh_fixed_major`), in RHEL 8 by the PURLs' release, as there is no
+            // `distro` qualifier
+            0.49,
+            Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_7"]),
+                enabled_by: Some(redhat_first_fixed()),
+            }),
+        )]
+    );
+
+    correlation_evidence::Entity::delete_many()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .exec(&ctx.db)
+        .await?;
+    extract_for_advisory(ctx, advisory_id).await?;
+    assert_eq!(load_evidence(ctx, sbom_id).await?, from_sbom);
+
+    Ok(())
+}
+
 /// Extracting an SBOM node by node yields the same evidence as all at once.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -1414,9 +1481,11 @@ async fn rpm_module_identity(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let identifiers = inputs
         .iter()
-        .map(|(_, value)| IdentifierRef {
-            kind: IdentifierKind::Purl,
-            value: (*value).into(),
+        .map(|(_, value)| {
+            vec![IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: (*value).into(),
+            }]
         })
         .collect::<Vec<_>>();
     let tx = ctx.db.begin().await?;
@@ -1426,7 +1495,7 @@ async fn rpm_module_identity(ctx: &TrustifyContext) -> anyhow::Result<()> {
         .filter(|m| m.assertion.status == AssertionStatus::NotAffected)
         .collect::<Vec<_>>();
     assert!(!negatives.is_empty());
-    assert!(negatives.iter().all(|m| m.index == 1));
+    assert!(negatives.iter().all(|m| m.component == 1));
     Ok(())
 }
 
@@ -1515,9 +1584,11 @@ async fn rpm_architecture(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let identifiers = inputs
         .iter()
-        .map(|(_, value)| IdentifierRef {
-            kind: IdentifierKind::Purl,
-            value: (*value).into(),
+        .map(|(_, value)| {
+            vec![IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: (*value).into(),
+            }]
         })
         .collect::<Vec<_>>();
     let tx = ctx.db.begin().await?;
@@ -1527,7 +1598,7 @@ async fn rpm_architecture(ctx: &TrustifyContext) -> anyhow::Result<()> {
     for m in &matches {
         if let Some(arch) = arch(&m.assertion.matched_value.identifier)? {
             by_identifier
-                .entry(inputs[m.index].0)
+                .entry(inputs[m.component].0)
                 .or_default()
                 .insert(Some(arch));
         }
@@ -1663,24 +1734,24 @@ async fn batches_match_like_a_single_batch(ctx: &TrustifyContext) -> anyhow::Res
         .sbom_identifiers(sbom_id, None, &tx)
         .await?
         .into_iter()
-        .map(|node| node.identifier)
+        .map(|node| vec![node.identifier])
         .collect::<Vec<_>>();
     identifiers.extend([
-        IdentifierRef {
+        vec![IdentifierRef {
             kind: IdentifierKind::Purl,
             value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1".into(),
-        },
-        IdentifierRef {
+        }],
+        vec![IdentifierRef {
             kind: IdentifierKind::Purl,
             value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=aarch64&epoch=1".into(),
-        },
+        }],
     ]);
-    let sorted = |mut matches: Vec<IdentifierMatch>| {
+    let sorted = |mut matches: Vec<ComponentMatch>| {
         matches.sort_by_cached_key(|m| format!("{m:?}"));
         matches
     };
     let single = sorted(match_batched(&identifiers, usize::MAX, &tx).await?);
-    assert!(single.iter().any(|m| m.index == identifiers.len() - 1));
+    assert!(single.iter().any(|m| m.component == identifiers.len() - 1));
     for batch_size in [1, 2] {
         assert_eq!(
             sorted(match_batched(&identifiers, batch_size, &tx).await?),
@@ -1690,7 +1761,7 @@ async fn batches_match_like_a_single_batch(ctx: &TrustifyContext) -> anyhow::Res
     }
     assert_eq!(
         match_batched(&[], 1, &tx).await?,
-        Vec::<IdentifierMatch>::new()
+        Vec::<ComponentMatch>::new()
     );
     Ok(())
 }

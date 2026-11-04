@@ -13,7 +13,7 @@
 //! advisory lists for the CPE. It is only used for a node if no listed assertion of the same
 //! advisory, vulnerability, and CPE matches it, and reported as `cpe_default` evidence.
 
-use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
+use super::{Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef, indexed};
 use crate::{
     error::Error,
     model::{
@@ -175,7 +175,7 @@ fn without_shadowed_defaults<K: Ord + Clone, R>(
 /// A match of an identifier passed to [`Extractor::match_identifiers`].
 #[derive(FromQueryResult)]
 struct IdentifierRow {
-    /// Index into the identifiers.
+    /// Index of the component.
     i: i64,
     #[sea_orm(nested)]
     assertion: AssertionRow,
@@ -250,12 +250,13 @@ impl Extractor for CpeExtractor {
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
-        identifiers: &[IdentifierRef],
+        components: &[Vec<IdentifierRef>],
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<IdentifierMatch>, Error> {
-        // the identifiers in their stored form
+    ) -> Result<Vec<ComponentMatch>, Error> {
+        // the identifiers in their stored form, with their component: the defaults are shadowed
+        // per component, like per node in the advisory direction
         let mut sbom_cpes = Vec::new();
-        for (index, identifier) in identifiers.iter().enumerate() {
+        for (index, identifier) in indexed(components) {
             if identifier.kind != IdentifierKind::Cpe {
                 continue;
             }
@@ -320,8 +321,10 @@ WHERE {MATCH_CONDITION}
             .filter_map(|row| {
                 let index = usize::try_from(row.i).ok()?;
                 Some(
-                    assertion(row.assertion, &matched_values)
-                        .map(|assertion| IdentifierMatch { index, assertion }),
+                    assertion(row.assertion, &matched_values).map(|assertion| ComponentMatch {
+                        component: index,
+                        assertion,
+                    }),
                 )
             })
             .collect()
@@ -710,6 +713,78 @@ mod test {
     }
 
     /// Both directions must produce the same evidence rows (same deterministic IDs).
+    /// A node's CPEs are judged together, in both directions: a listed assertion matching one of
+    /// them shadows the default of the same subject for the others too.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn node_cpes_shadow_defaults_together(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        // in and above the affected range of the advisory, which is unaffected by default
+        let cpe = |version: &str| {
+            serde_json::json!({
+                "referenceCategory": "SECURITY", "referenceType": "cpe23Type",
+                "referenceLocator": format!("cpe:2.3:a:apache:log4j:{version}:*:*:*:*:*:*:*"),
+            })
+        };
+        let document = serde_json::json!({
+            "spdxVersion": "SPDX-2.3", "dataLicense": "CC0-1.0", "SPDXID": "SPDXRef-DOCUMENT",
+            "name": "log4j", "documentNamespace": "https://example.com/spdx/log4j-two-cpes",
+            "creationInfo": { "created": "2025-01-01T00:00:00Z", "creators": ["Tool: test"] },
+            "packages": [{
+                "SPDXID": "SPDXRef-log4j", "name": "log4j-core", "versionInfo": "2.17.1",
+                "downloadLocation": "NOASSERTION",
+                "externalRefs": [cpe("2.17.1"), cpe("2.25.3")],
+            }],
+            "relationships": [{
+                "spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES",
+                "relatedSpdxElement": "SPDXRef-log4j",
+            }],
+        });
+        let sbom_id = Uuid::parse_str(
+            &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+                .await?
+                .id,
+        )?;
+        let advisory_id = Uuid::parse_str(
+            &ctx.ingest_document(
+                "scenarios/S27_cve_identifier_synonyms_log4j/cve/CVE-2025-68161.json",
+            )
+            .await?
+            .id,
+        )?;
+
+        let load = || async {
+            let mut evidence = correlation_evidence::Entity::find()
+                .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+                .all(&ctx.db)
+                .await?
+                .into_iter()
+                .map(|e| (e.node_id, e.vulnerability_id, e.extractor, e.status))
+                .collect::<Vec<_>>();
+            evidence.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+            Ok::<_, anyhow::Error>(evidence)
+        };
+
+        extract_for_sbom(ctx, sbom_id).await?;
+        let from_sbom = load().await?;
+        assert_eq!(
+            from_sbom,
+            vec![(
+                "SPDXRef-log4j".to_string(),
+                "CVE-2025-68161".to_string(),
+                ID.to_string(),
+                AssertionStatus::Affected,
+            )]
+        );
+
+        correlation_evidence::Entity::delete_many()
+            .exec(&ctx.db)
+            .await?;
+        extract_for_advisory(ctx, advisory_id).await?;
+        assert_eq!(load().await?, from_sbom);
+
+        Ok(())
+    }
+
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
     async fn both_directions_produce_same_evidence(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -1071,9 +1146,11 @@ mod test {
 
         let identifiers = cases
             .iter()
-            .map(|Case { sbom, .. }| IdentifierRef {
-                kind: IdentifierKind::Cpe,
-                value: sbom.to_string(),
+            .map(|Case { sbom, .. }| {
+                vec![IdentifierRef {
+                    kind: IdentifierKind::Cpe,
+                    value: sbom.to_string(),
+                }]
             })
             .collect::<Vec<_>>();
 
@@ -1085,7 +1162,9 @@ mod test {
             .map(|n| {
                 let confidence = matches
                     .iter()
-                    .find(|m| m.index == n && m.assertion.vulnerability_id == format!("case-{n}"))
+                    .find(|m| {
+                        m.component == n && m.assertion.vulnerability_id == format!("case-{n}")
+                    })
                     .map(|m| m.assertion.confidence);
                 (n, confidence)
             })

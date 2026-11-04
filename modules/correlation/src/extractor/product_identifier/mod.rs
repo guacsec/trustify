@@ -5,7 +5,7 @@
 
 pub mod wildcard;
 
-use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
+use super::{Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef, indexed};
 use crate::{
     error::Error,
     model::{ConfidenceFactor, ConfidenceReason, IdentifierKind, IdentifierRef, MatchedValue},
@@ -141,12 +141,12 @@ impl Extractor for ProductIdentifierExtractor {
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
-        identifiers: &[IdentifierRef],
+        components: &[Vec<IdentifierRef>],
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<IdentifierMatch>, Error> {
-        // value -> [(index, type)]
+    ) -> Result<Vec<ComponentMatch>, Error> {
+        // value -> [(component, type)]
         let mut value_map = HashMap::<&str, Vec<(usize, ProductIdentifierType)>>::new();
-        for (idx, identifier) in identifiers.iter().enumerate() {
+        for (idx, identifier) in indexed(components) {
             if let Some(id_type) = identifier_type(identifier.kind) {
                 value_map
                     .entry(identifier.value.as_str())
@@ -170,8 +170,8 @@ impl Extractor for ProductIdentifierExtractor {
              entries: &[(usize, ProductIdentifierType)]| {
                 for (idx, id_type) in entries {
                     if *id_type == ap.identifier_type {
-                        result.push(IdentifierMatch {
-                            index: *idx,
+                        result.push(ComponentMatch {
+                            component: *idx,
                             assertion: assertion(ap, &ranges),
                         });
                     }
