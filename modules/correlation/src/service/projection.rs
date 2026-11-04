@@ -3,6 +3,7 @@ use super::{
     CorrelationService, class, freshness,
     pagination::{self, EvidenceGroup},
     resolution::ProviderSnapshot,
+    tuning::WorkerConfig,
 };
 use crate::{
     error::Error,
@@ -305,8 +306,9 @@ impl<'a> Progress<'a> {
 }
 
 /// Claim one SBOM across all instances; failure rolls back its replacement but retains retries.
-pub async fn run_step(db: &db::ReadWrite) -> Result<bool, Error> {
+pub async fn run_step(db: &db::ReadWrite, config: &WorkerConfig) -> Result<bool, Error> {
     let tx = db.begin().await?;
+    config.apply(&tx).await?;
     let revision = tx
         .query_one_raw(sql(
             "SELECT revision, resolver_version FROM correlation_verdict_revision",

@@ -10268,6 +10268,7 @@ dependencies = [
  "actix-web",
  "anyhow",
  "async-trait",
+ "bytesize",
  "futures-util",
  "rstest",
  "sea-orm",

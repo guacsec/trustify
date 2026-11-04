@@ -128,9 +128,9 @@ async fn durable_jobs_are_deduplicated_and_resumable(ctx: &TrustifyContext) -> a
     let queued = queue(ctx).await?;
     assert_eq!(queued.id, queue(ctx).await?.id);
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     // A new registry/worker instance resumes from the committed job outcomes.
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     let details = job(&tx, queued.id, Paginated::default()).await?;
     assert_eq!(details.job.status, RefreshJobStatus::Completed);
@@ -151,13 +151,13 @@ async fn ingested_sboms_are_refreshed_by_an_automatic_job(
 ) -> anyhow::Result<()> {
     let db = db::ReadWrite::new(ctx.db.clone());
     // Nothing to do: no job is scheduled.
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(counts(ctx).await?.latest_job, None);
     let id = ingest(ctx).await?;
     // Ingestion does not use the advisory queue for SBOMs.
     let lag = counts(ctx).await?.extraction_lag.unwrap_or_default();
     assert_eq!(lag, ExtractionLag::default());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let scheduled = counts(ctx).await?;
     let active = scheduled.active_job.unwrap();
     assert_eq!(
@@ -168,8 +168,8 @@ async fn ingested_sboms_are_refreshed_by_an_automatic_job(
         ),
         (RefreshJobStatus::Queued, 1, None)
     );
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let done = counts(ctx).await?;
     assert_eq!(done.active_job, None);
     let latest = done.latest_job.unwrap();
@@ -202,7 +202,7 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
     tx.commit().await?;
     option_change(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let queued = counts(ctx).await?.active_job.unwrap();
     // The stale document is behind, but a new document is picked up first.
     let second = Uuid::parse_str(
@@ -210,7 +210,7 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
             .await?
             .id,
     )?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     assert_eq!(
         for_sboms(&tx, &[second]).await?[&second].status,
@@ -232,8 +232,8 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
         (queued.id, RefreshJobStatus::Running, 1, 1)
     );
     assert!(running.estimated_completion_at.is_some());
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let state = counts(ctx).await?;
     assert_eq!((state.current, state.needs_refresh), (2, 0));
     assert_eq!(state.latest_job.map(|job| job.id), Some(queued.id));
@@ -268,7 +268,7 @@ async fn the_current_document_is_visible_while_extracting(
 ) -> anyhow::Result<()> {
     let id = ingest(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let queued = counts(ctx).await?.active_job.unwrap();
     assert_eq!(
         (queued.status, queued.current),
@@ -279,7 +279,7 @@ async fn the_current_document_is_visible_while_extracting(
     let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
     let worker = {
         let db = db.clone();
-        tokio::spawn(async move { run_step(&db, &extractors).await })
+        tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await })
     };
     timeout(StdDuration::from_secs(10), barrier.wait()).await?;
     let running = counts(ctx).await?.active_job.unwrap();
@@ -294,7 +294,7 @@ async fn the_current_document_is_visible_while_extracting(
         (queued.id, RefreshJobStatus::Running, 0, id)
     );
     // The current document does not block other workers from skipping the claimed job.
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     barrier.wait().await;
     assert!(worker.await??);
 
@@ -303,7 +303,7 @@ async fn the_current_document_is_visible_while_extracting(
         (done.status, done.processed, done.current),
         (RefreshJobStatus::Running, 1, None)
     );
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     Ok(())
 }
 
@@ -328,11 +328,11 @@ async fn concurrent_workers_skip_claimed_jobs_and_traverse_revision_buckets(
         ))
         .await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     claim.rollback().await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let state = counts(ctx).await?;
     assert_eq!((state.current, state.stale, state.unknown), (2, 0, 0));
     let tx = ctx.db.begin().await?;
@@ -353,7 +353,7 @@ async fn changed_settings_supersede_a_job(ctx: &TrustifyContext) -> anyhow::Resu
     let queued = queue(ctx).await?;
     option_change(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     let details = job(&tx, queued.id, Paginated::default()).await?;
     assert_eq!(details.job.status, RefreshJobStatus::Superseded);
@@ -416,10 +416,10 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
     let queued = queue(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     let failing = Extractors::new(vec![Box::new(FailingExtractor)]);
-    assert!(run_step(&db, &failing).await?);
-    assert!(!run_step(&db, &failing).await?);
+    assert!(run_step(&db, &failing, &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &failing, &WorkerConfig::default()).await?);
     // Failed documents are retried automatically, but only after a back-off.
-    assert!(!run_step(&db, &failing).await?);
+    assert!(!run_step(&db, &failing, &WorkerConfig::default()).await?);
     assert_eq!(
         counts(ctx).await?.latest_job.map(|job| job.id),
         Some(queued.id)
@@ -450,13 +450,13 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
             "UPDATE correlation_refresh_job SET finished_at = finished_at - interval '1 minute'",
         )
         .await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_ne!(
         counts(ctx).await?.active_job.map(|job| job.id),
         Some(queued.id)
     );
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert!(
         correlation_evidence::Entity::find_by_id(evidence.id)
             .one(&ctx.db)
@@ -781,8 +781,8 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
     ctx.db.execute_unprepared("UPDATE correlation_option SET value = 'true' WHERE key = 'fixed_is_first_fixed' AND publisher_namespace = 'https://www.redhat.com'").await?;
     queue(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(
         correlation_evidence::Entity::find()
             .all(&ctx.db)
