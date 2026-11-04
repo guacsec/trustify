@@ -52,7 +52,7 @@ use crate::{
 use futures_util::TryStreamExt;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult,
-    JoinType, QueryFilter, Statement,
+    JoinType, QueryFilter, QuerySelect, Statement,
     sea_query::{
         Alias, CommonTableExpression, Expr, ExprTrait, Func, Order, PgFunc, PostgresQueryBuilder,
         Query, SelectStatement, SimpleExpr, UnionType, WithClause, WithQuery,
@@ -201,9 +201,8 @@ struct Stated {
     source_id: Uuid,
     advisory_id: Uuid,
     vulnerability_id: String,
-    base_purl_type: String,
-    base_purl_namespace: Option<String>,
-    base_purl_name: String,
+    /// The package, shared by all its rows.
+    package: Arc<Package>,
     ecosystem: Ecosystem,
     /// Qualifiers of the advisory PURL, `None` without one.
     qualifiers: Option<BTreeMap<String, String>>,
@@ -212,9 +211,17 @@ struct Stated {
     /// The stated provider, serialized, distinguishing statements of different providers.
     provider_key: String,
     provider: Option<crate::model::ProviderIdentity>,
-    publisher_namespace: Option<String>,
+    /// The namespace of the advisory's publisher, shared by all rows of the advisory.
+    publisher_namespace: Option<Arc<str>>,
     assertion_context_id: Option<Uuid>,
     is_default: bool,
+}
+
+/// The base PURL of stated rows.
+struct Package {
+    ty: String,
+    namespace: Option<String>,
+    name: String,
 }
 
 /// The columns of [`Stated`], as loaded.
@@ -223,19 +230,20 @@ struct StatedModel {
     source_id: Uuid,
     advisory_id: Uuid,
     vulnerability_id: String,
-    base_purl_type: String,
-    base_purl_namespace: Option<String>,
-    base_purl_name: String,
+    base_purl_id: Uuid,
     source_purl: Option<qualified_purl::CanonicalPurl>,
     source_provider: Option<serde_json::Value>,
-    publisher_namespace: Option<String>,
     assertion_context_id: Option<Uuid>,
     is_default: bool,
 }
 
-impl From<StatedModel> for Stated {
-    fn from(model: StatedModel) -> Self {
-        let ecosystem = Ecosystem::of(&model.base_purl_type, model.base_purl_namespace.as_deref());
+impl Stated {
+    fn new(
+        model: StatedModel,
+        package: Arc<Package>,
+        publisher_namespace: Option<Arc<str>>,
+    ) -> Self {
+        let ecosystem = Ecosystem::of(&package.ty, package.namespace.as_deref());
         let qualifiers = model
             .source_purl
             .as_ref()
@@ -244,9 +252,9 @@ impl From<StatedModel> for Stated {
             .source_purl
             .map(Purl::from)
             .unwrap_or_else(|| Purl {
-                ty: model.base_purl_type.clone(),
-                namespace: model.base_purl_namespace.clone(),
-                name: model.base_purl_name.clone(),
+                ty: package.ty.clone(),
+                namespace: package.namespace.clone(),
+                name: package.name.clone(),
                 version: None,
                 qualifiers: Default::default(),
             })
@@ -266,15 +274,13 @@ impl From<StatedModel> for Stated {
             source_id: model.source_id,
             advisory_id: model.advisory_id,
             vulnerability_id: model.vulnerability_id,
-            base_purl_type: model.base_purl_type,
-            base_purl_namespace: model.base_purl_namespace,
-            base_purl_name: model.base_purl_name,
+            package,
             ecosystem,
             qualifiers,
             identifier,
             provider_key,
             provider,
-            publisher_namespace: model.publisher_namespace,
+            publisher_namespace,
             assertion_context_id: model.assertion_context_id,
             is_default: model.is_default,
         }
@@ -362,9 +368,9 @@ impl PurlStatusRow {
         (
             stated.advisory_id,
             stated.vulnerability_id.as_str(),
-            stated.base_purl_type.as_str(),
-            stated.base_purl_namespace.as_deref(),
-            stated.base_purl_name.as_str(),
+            stated.package.ty.as_str(),
+            stated.package.namespace.as_deref(),
+            stated.package.name.as_str(),
         )
     }
 
@@ -1275,6 +1281,9 @@ impl Scope {
 }
 
 /// Load the stated rows matching a condition on `purl_status`.
+///
+/// Their packages and publishers are loaded once each, as millions of rows share a few of them
+/// (e.g. the kernel packages of a RHEL SBOM), and joining them per row dominates the statement.
 async fn load_stated(
     condition: SimpleExpr,
     connection: &impl ConnectionTrait,
@@ -1289,38 +1298,16 @@ async fn load_stated(
         .columns([
             (purl_status::Entity, purl_status::Column::AdvisoryId),
             (purl_status::Entity, purl_status::Column::VulnerabilityId),
+            (purl_status::Entity, purl_status::Column::BasePurlId),
             (purl_status::Entity, purl_status::Column::IsDefault),
             (purl_status::Entity, purl_status::Column::SourceProvider),
             (purl_status::Entity, purl_status::Column::AssertionContextId),
         ])
         .expr_as(
-            Expr::col((base_purl::Entity, base_purl::Column::Type)),
-            Alias::new("base_purl_type"),
-        )
-        .expr_as(
-            Expr::col((base_purl::Entity, base_purl::Column::Namespace)),
-            Alias::new("base_purl_namespace"),
-        )
-        .expr_as(
-            Expr::col((base_purl::Entity, base_purl::Column::Name)),
-            Alias::new("base_purl_name"),
-        )
-        .expr_as(
             Expr::col((assertion_purl.clone(), qualified_purl::Column::Purl)),
             Alias::new("source_purl"),
         )
-        .column((advisory::Entity, advisory::Column::PublisherNamespace))
         .from(purl_status::Entity)
-        .inner_join(
-            base_purl::Entity,
-            Expr::col((base_purl::Entity, base_purl::Column::Id))
-                .equals((purl_status::Entity, purl_status::Column::BasePurlId)),
-        )
-        .inner_join(
-            advisory::Entity,
-            Expr::col((advisory::Entity, advisory::Column::Id))
-                .equals((purl_status::Entity, purl_status::Column::AdvisoryId)),
-        )
         .join_as(
             JoinType::LeftJoin,
             qualified_purl::Entity,
@@ -1330,19 +1317,69 @@ async fn load_stated(
         )
         .and_where(condition);
     let (sql, values) = query.build(PostgresQueryBuilder);
-    Ok(
-        StatedModel::find_by_statement(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            sql,
-            values,
-        ))
+    let models = StatedModel::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        values,
+    ))
+    .all(connection)
+    .instrument(info_span!("loading stated purl rows"))
+    .await?;
+
+    let ids = models
+        .iter()
+        .map(|model| model.base_purl_id)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let packages = base_purl::Entity::find()
+        .filter(Expr::col((base_purl::Entity, base_purl::Column::Id)).eq(ids_param(&ids)))
         .all(connection)
-        .instrument(info_span!("loading stated purl rows"))
+        .instrument(info_span!("loading stated packages"))
         .await?
         .into_iter()
-        .map(|model| (model.source_id, Arc::new(Stated::from(model))))
-        .collect(),
-    )
+        .map(|package| {
+            (
+                package.id,
+                Arc::new(Package {
+                    ty: package.r#type,
+                    namespace: package.namespace,
+                    name: package.name,
+                }),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    let ids = models
+        .iter()
+        .map(|model| model.advisory_id)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let publishers = advisory::Entity::find()
+        .select_only()
+        .columns([advisory::Column::Id, advisory::Column::PublisherNamespace])
+        .filter(Expr::col((advisory::Entity, advisory::Column::Id)).eq(ids_param(&ids)))
+        .into_tuple::<(Uuid, Option<String>)>()
+        .all(connection)
+        .instrument(info_span!("loading stated publishers"))
+        .await?
+        .into_iter()
+        .map(|(id, namespace)| (id, namespace.map(Arc::<str>::from)))
+        .collect::<HashMap<_, _>>();
+
+    // the foreign keys guarantee both, a row without them was deleted concurrently
+    Ok(models
+        .into_iter()
+        .filter_map(|model| {
+            let package = packages.get(&model.base_purl_id)?.clone();
+            let publisher = publishers.get(&model.advisory_id)?.clone();
+            Some((
+                model.source_id,
+                Arc::new(Stated::new(model, package, publisher)),
+            ))
+        })
+        .collect())
 }
 
 /// A single array parameter, as the number of IDs is unbounded.
