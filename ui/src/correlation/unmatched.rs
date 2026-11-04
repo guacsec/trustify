@@ -5,6 +5,7 @@ use super::{
     pagination::{page_status, use_collection},
 };
 use crate::model::ComponentRef;
+use crate::number::Number;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
@@ -30,7 +31,7 @@ pub(super) fn unmatched_table(props: &CorrelationContentProps) -> Html {
     };
     html! {
         <>
-            <Title level={Level::H2}>{"Unmatched components "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
+            <Title level={Level::H2}>{"Unmatched components "}<Badge>{page.total.map(|n| Number(n).to_string()).unwrap_or_default()}</Badge></Title>
             <SimplePagination {pagination} {total} />
             {page_status(&page, loading, error.as_deref(), "No unmatched components")}
             if !loading && error.is_none() && !page.items.is_empty() {
