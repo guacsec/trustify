@@ -1,5 +1,5 @@
 use super::{
-    Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef,
+    Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef,
     class::{classify, members},
     context::{self, NodeCpe, Scope, Scoper},
     cpe::CpeExtractor,
@@ -250,7 +250,7 @@ impl Extractors {
         for extractor in &self.extractors {
             assertions.extend(
                 extractor
-                    .match_identifiers(slice::from_ref(identifier), tx)
+                    .match_identifiers(slice::from_ref(&vec![identifier.clone()]), tx)
                     .await?
                     .into_iter()
                     .map(|m| m.assertion),
@@ -362,17 +362,28 @@ async fn extract_chunk(
     tx: &DatabaseTransaction,
 ) -> Result<usize, Error> {
     let span = Span::current();
-    let identifiers = chunk
-        .iter()
-        .map(|n| n.identifier.clone())
-        .collect::<Vec<_>>();
+    // the identifiers of a node are next to each other, see `node_chunks`
+    let mut nodes = Vec::<NodeRef>::new();
+    let mut components = Vec::<Vec<IdentifierRef>>::new();
+    for NodeIdentifier { node, identifier } in chunk {
+        match (nodes.last(), components.last_mut()) {
+            (Some(last), Some(identifiers)) if *last == node => identifiers.push(identifier),
+            _ => {
+                nodes.push(node);
+                components.push(vec![identifier]);
+            }
+        }
+    }
     let matches = extractor
-        .match_identifiers(&identifiers, tx)
+        .match_identifiers(&components, tx)
         .await?
         .into_iter()
-        .filter_map(|IdentifierMatch { index, assertion }| {
-            chunk.get(index).map(|node| (node.node.clone(), assertion))
-        })
+        .filter_map(
+            |ComponentMatch {
+                 component,
+                 assertion,
+             }| { nodes.get(component).map(|node| (node.clone(), assertion)) },
+        )
         .collect::<Vec<_>>();
     span.record("matches", matches.len());
 
