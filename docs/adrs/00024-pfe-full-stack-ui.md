@@ -25,6 +25,12 @@ The Console is a Rust/Wasm UI for the correlation engine. It shows that a Rust U
 embedded in the server. Its component layer is `patternfly-yew`, which is the question this ADR
 addresses.
 
+This is not the first Rust UI in the project. The first generation of Trustify (the Trustification
+project) used Yew and `patternfly-yew` for its UI, and ran in production with it. That UI needed more
+advanced components than `patternfly-yew` provided at the time. Component coverage, not the Rust/Wasm
+approach itself, is therefore the main lesson from that experience, and it is why this ADR requires a
+full coverage assessment (see Validation) before accepting a component layer.
+
 The current setup has the following problems:
 
 1. **Split tech stack.** The project needs Rust and TypeScript/React skills, two toolchains, two test
@@ -93,9 +99,19 @@ In detail:
 
 Before the status moves to ACCEPTED, the following is done:
 
-- **Coverage matrix.** List the PatternFly components used by the React UI (tables, toolbars, filters,
-  modals, select, tabs, pagination, and so on) and mark each one as available in PFE for PF6,
-  available with caveats, or missing.
+- **Migration scope.** Define the planned migration: the list of pages and features of the existing
+  UI that the Rust UI is expected to replace. The coverage matrix is built against this scope, not
+  against the prototype page.
+- **Coverage matrix.** List every PatternFly component used by the pages in the migration scope
+  (tables, toolbars, filters, modals, select, tabs, pagination, and so on), taken from the existing
+  React UI, and mark each one as available in PFE for PF6, available with caveats, or missing. For
+  each component that is not fully available, record one of:
+  - an acceptable workaround, with its estimated size and the maintainer who owns it, or
+  - a fallback (a project-owned component, plain HTML and CSS with PatternFly tokens, or a deferral of
+    the feature) that the maintainers have explicitly approved, with the reason, the estimated cost
+    and the owner.
+  The matrix is reviewed and approved together with this ADR, and its approval is recorded in the
+  ADR or linked from it.
 - **Prototype.** Build one non-trivial page (for example the SBOM list with table, filters and
   pagination) with PFE and a Rust UI framework. This includes the `web-sys` glue for complex
   properties, authentication and the API client.
@@ -109,8 +125,12 @@ Before the status moves to ACCEPTED, the following is done:
 
 The decision stands if:
 
-- The components needed by the prototype are available in PFE, or the gaps are small and can be filled
-  with project-owned components.
+- The coverage matrix shows that every component needed for the planned migration has acceptable PFE
+  coverage, or an explicitly approved fallback. A component without either blocks acceptance.
+- The total project-owned component work implied by the approved fallbacks is small enough that it
+  does not amount to maintaining a PatternFly component library, which is what this ADR sets out to
+  avoid. The maintainers state the accepted limit when they approve the matrix.
+- The prototype page works with the available PFE components.
 - The glue code is limited and does not amount to a de facto component library.
 - The build fits into the Trustify build and the downstream build without a JavaScript build.
 - Load time and asset size are acceptable.
@@ -126,10 +146,12 @@ The decision stands if:
 
 ### Rust UI with `patternfly-yew`
 
-- Pros: Rust-only, idiomatic for Yew, and already used by the Console POC on `main`.
+- Pros: Rust-only, idiomatic for Yew, used in production by the first generation of Trustify, and
+  used by the Console POC on `main`.
 - Cons: a Rust-specific wrapper that the project depends on and would need to maintain or update for
-  PF6. Only one Trustify contributor currently works on it, so it is a single point of failure. It
-  ties the UI to one Rust framework.
+  PF6. The first generation UI needed more advanced components than it offered. Only one Trustify
+  contributor currently works on it, so it is a single point of failure. It ties the UI to one Rust
+  framework.
 
 ### Write and maintain Rust components in Trustify
 
@@ -170,7 +192,8 @@ The decision stands if:
   `main`.
 - The project does not adopt `patternfly-yew` for any release. New Rust UI work targets PFE.
 - The React UI continues to ship at `/`, including in release branches, in the meantime.
-- A coverage matrix and a prototype are produced before the decision becomes final.
+- A coverage matrix for the whole planned migration and a prototype are produced before the decision
+  becomes final. The decision is not accepted on the strength of the prototype alone.
 - The project avoids owning a PatternFly component library for Rust.
 - The project accepts a dependency on PFE's PF6 roadmap and coverage.
 - The long-term effect on the React UI (keep, freeze or retire) is left to a later ADR.
