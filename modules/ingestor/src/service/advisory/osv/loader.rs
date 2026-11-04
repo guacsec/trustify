@@ -313,6 +313,10 @@ fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
                 }
                 _ => {}
             }
+            // Align the case-sensitive stored identity with the ecosystem/name spelling.
+            if matches!(native_ecosystem(&package.ecosystem), Ecosystem::NuGet) {
+                stated.name = inferred.name;
+            }
             Some(stated)
         }
         (inferred, stated) => stated.or(inferred),
@@ -849,23 +853,30 @@ mod test {
     }
 
     #[rstest]
-    #[case("Red Hat Lightwell:NuGet")]
+    #[case("PowerShell", "pkg:nuget/powershell", "pkg:nuget/PowerShell")]
+    #[case("powershell", "pkg:nuget/PowerShell", "pkg:nuget/powershell")]
+    #[case(
+        "PowerShell",
+        "pkg:nuget/powershell?arch=x86_64&repository_url=https:%2F%2Fvendor.example%2Fnuget",
+        "pkg:nuget/PowerShell?arch=x86_64&repository_url=https:%2F%2Fvendor.example%2Fnuget"
+    )]
     #[test_log::test]
-    fn nuget_identity_is_case_insensitive(#[case] ecosystem: &str) -> anyhow::Result<()> {
-        for (stated, compatible) in [
-            ("pkg:nuget/powershell", true),
-            ("pkg:nuget/OtherPackage", false),
-        ] {
+    fn lightwell_nuget_uses_inferred_name(
+        #[case] name: &str,
+        #[case] stated: &str,
+        #[case] expected: &str,
+    ) -> anyhow::Result<()> {
+        for (stated, expected) in [(stated, Some(expected)), ("pkg:nuget/OtherPackage", None)] {
             let package = serde_json::from_value(serde_json::json!({
-                "ecosystem": ecosystem, "name": "PowerShell", "purl": stated,
+                "ecosystem": "Red Hat Lightwell:NuGet", "name": name, "purl": stated,
             }))?;
             let warnings = Warnings::new();
             let purls = package_purls(&package, &warnings);
             let warnings = Vec::<String>::from(warnings);
-            if compatible {
+            if let Some(expected) = expected {
                 assert_eq!(
                     purls.iter().map(ToString::to_string).collect::<Vec<_>>(),
-                    [stated]
+                    [expected]
                 );
                 assert!(warnings.is_empty(), "{warnings:?}");
             } else {

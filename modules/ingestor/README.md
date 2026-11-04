@@ -63,6 +63,13 @@ available, it is used; an invalid stated PURL produces a warning, as does having
 usable PURL. A version in a stated PURL is removed with a warning, since OSV
 describes versions separately.
 
+For compatible Lightwell NuGet identifiers, the single PURL uses the name spelling
+inferred from the ecosystem/name pair while retaining the reconciled qualifiers.
+This aligns storage with an SBOM using that spelling; it is not general
+case-insensitive NuGet matching. A differently cased stated name is not kept as an
+additional candidate, and other spellings may not match. Ordinary NuGet behavior
+is unchanged.
+
 ### Why conflicting Lightwell repositories are not combined
 
 Disagreement between two fields does not establish that both repositories are

@@ -1141,3 +1141,153 @@ async fn osv_upstream(ctx: &TrustifyContext) -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+/// Lightwell NuGet uses the ecosystem/name spelling; ordinary OSV retains both candidates.
+/// This is not general case-insensitive matching: other spellings remain distinct identities.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::ordinary("NuGet", &["PowerShell", "powershell"])]
+#[case::lightwell("Red Hat Lightwell:NuGet", &["PowerShell"])]
+#[test_log::test(actix_web::test)]
+async fn osv_nuget_inferred_spelling(
+    ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] expected_names: &[&str],
+    #[values(false, true)] explicit_versions: bool,
+    #[values(false, true)] sbom_first: bool,
+) -> anyhow::Result<()> {
+    use crate::extractor::purl::PurlExtractor;
+    use serde_json::json;
+    use trustify_entity::{base_purl, purl_status, qualified_purl};
+
+    const REPOSITORY: &str = "https://vendor.example/nuget";
+    let mut affected = json!({"package": {
+        "ecosystem": ecosystem,
+        "name": "PowerShell",
+        "purl": "pkg:nuget/powershell?repository_url=https:%2F%2Fvendor.example%2Fnuget"
+    }});
+    if explicit_versions {
+        affected["versions"] = json!(["1.0.0"]);
+    } else {
+        affected["ranges"] = json!([{
+            "type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": "2.0.0"}]
+        }]);
+    }
+    let osv = json!({
+        "id": "OSV-NUGET-SPELLING", "modified": "2026-01-01T00:00:00Z",
+        "affected": [affected]
+    });
+    let mut components = vec![];
+    for name in ["PowerShell", "powershell", "POWERSHELL"] {
+        for version in ["0.9.0", "1.0.0", "2.0.0"] {
+            components.push(json!({
+                "type": "library", "bom-ref": format!("{name}-{version}"), "name": name,
+                "version": version, "purl": format!("pkg:nuget/{name}@{version}")
+            }));
+        }
+    }
+    let cdx = json!({
+        "bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
+        "serialNumber": format!("urn:uuid:{}", Uuid::new_v4()),
+        "components": components
+    });
+    let (advisory, sbom) = if sbom_first {
+        let sbom = ctx.ingest_json(cdx).await?;
+        (ctx.ingest_json(osv).await?, sbom)
+    } else {
+        let advisory = ctx.ingest_json(osv).await?;
+        (advisory, ctx.ingest_json(cdx).await?)
+    };
+    assert!(advisory.warnings.is_empty(), "{:?}", advisory.warnings);
+    assert!(sbom.warnings.is_empty(), "{:?}", sbom.warnings);
+    let advisory_id = Uuid::parse_str(&advisory.id)?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let stored = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .find_also_related(base_purl::Entity)
+        .all(&ctx.db)
+        .await?;
+    assert_eq!(stored.len(), expected_names.len());
+    assert_eq!(
+        stored
+            .iter()
+            .map(|(_, base)| base.as_ref().unwrap().name.as_str())
+            .collect::<HashSet<_>>(),
+        expected_names.iter().copied().collect()
+    );
+    if ecosystem == "Red Hat Lightwell:NuGet" {
+        // Preserve qualifiers in storage without asserting repository-aware matching.
+        let qualified = qualified_purl::Entity::find_by_id(stored[0].0.qualified_purl_id.unwrap())
+            .one(&ctx.db)
+            .await?
+            .unwrap();
+        assert_eq!(
+            qualified
+                .qualifiers
+                .0
+                .get("repository_url")
+                .map(String::as_str),
+            Some(REPOSITORY)
+        );
+    }
+    assert!(
+        correlation_evidence::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .is_empty()
+    );
+    let extractors = Extractors::new(vec![Box::new(PurlExtractor)]);
+    let tx = ctx.db.begin().await?;
+    if sbom_first {
+        extractors.extract_for_advisory(advisory_id, &tx).await?;
+    } else {
+        extractors.extract_for_sbom(sbom_id, &tx).await?;
+    }
+    tx.commit().await?;
+    let rows = correlation_evidence::Entity::find()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .all(&ctx.db)
+        .await?;
+    let expected_nodes = expected_names
+        .iter()
+        .map(|name| format!("{name}-1.0.0"))
+        .collect::<HashSet<_>>();
+    assert_eq!(
+        rows.iter()
+            .map(|r| r.node_id.clone())
+            .collect::<HashSet<_>>(),
+        expected_nodes
+    );
+    assert!(
+        rows.iter()
+            .all(|r| r.extractor == "purl" && r.advisory_id == advisory_id)
+    );
+    let tx = ctx.db.begin().await?;
+    let service = CorrelationService::default();
+    let result = service.correlate_sbom(sbom_id, false, &tx).await?;
+    assert_eq!(
+        result
+            .verdicts
+            .iter()
+            .map(|v| v.component.node_id.clone())
+            .collect::<HashSet<_>>(),
+        expected_nodes
+    );
+    assert!(
+        result
+            .verdicts
+            .iter()
+            .all(|v| v.status == VerdictStatus::Affected)
+    );
+    let query = service
+        .query_identifier(
+            IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: "pkg:nuget/PowerShell@1.0.0".into(),
+            },
+            &tx,
+        )
+        .await?;
+    assert_eq!(query.verdicts.len(), 1);
+    Ok(())
+}
