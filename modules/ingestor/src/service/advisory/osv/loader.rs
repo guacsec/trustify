@@ -249,17 +249,22 @@ impl<'g> OsvLoader<'g> {
     }
 }
 
-/// Resolve a package PURL, retaining repository information from either source.
+/// Resolve package PURLs, reconciling repository information only for Lightwell.
 ///
-/// A stated version is ignored with a warning. Compatible inferred and stated identities are
-/// reconciled, preserving other stated qualifiers. Conflicting identities or repositories are
-/// skipped with a warning rather than inventing an interpretation. This applies to all ecosystems.
-/// Repository qualifiers are preserved in storage; matching does not necessarily enforce them.
+/// Ordinary ecosystems retain their existing inferred and stated candidates without cross-field
+/// validation. Lightwell uses one reconciled PURL, warning and skipping conflicting identities or
+/// repositories. This is a local policy, not an OSV-mandated rejection rule. A stated version is
+/// ignored with a warning in either path. Stored qualifiers do not guarantee scoped matching.
 fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
+    let lightwell = matches!(&package.ecosystem, Ecosystem::RedHatLightwell(_));
     let inferred = translate::to_purl(package).map(Purl::from);
     let stated = package.purl.as_ref().and_then(|stated| {
         let mut purl = Purl::from_str(stated)
-            .inspect_err(|err| warnings.add(format!("Invalid OSV package PURL '{stated}': {err}")))
+            .inspect_err(|err| {
+                if lightwell {
+                    warnings.add(format!("Invalid OSV package PURL '{stated}': {err}"));
+                }
+            })
             .ok()?;
         if purl.version.take().is_some() {
             warnings.add(format!(
@@ -268,6 +273,10 @@ fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
         }
         Some(purl)
     });
+
+    if !lightwell {
+        return inferred.into_iter().chain(stated).collect();
+    }
 
     let purl = match (inferred, stated) {
         (Some(inferred), Some(mut stated)) => {
@@ -669,15 +678,77 @@ mod test {
     }
 
     #[rstest]
+    #[case("npm", "demo-weighting", Some("pkg:generic/demo-weighting"), vec!["pkg:npm/demo-weighting", "pkg:generic/demo-weighting"])]
+    #[case(
+        "Maven", "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
+        vec!["pkg:maven/groupid/artifactid", "pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"]
+    )]
+    #[case(
+        "Maven:https://vendor.example/repo", "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo", "pkg:maven/groupid/artifactid"]
+    )]
+    #[case(
+        "Maven:https://vendor.example/repo", "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo", "pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"]
+    )]
+    #[case("Maven", "groupid:artifactid", Some("pkg:maven/other/artifactid"), vec!["pkg:maven/groupid/artifactid", "pkg:maven/other/artifactid"])]
+    #[case("Maven", "groupid:artifactid", Some("pkg:maven/groupid/artifactid"), vec!["pkg:maven/groupid/artifactid", "pkg:maven/groupid/artifactid"])]
+    #[case("NuGet", "PowerShell", Some("pkg:nuget/powershell"), vec!["pkg:nuget/PowerShell", "pkg:nuget/powershell"])]
+    #[case("NuGet", "PowerShell", Some("pkg:nuget/OtherPackage"), vec!["pkg:nuget/PowerShell", "pkg:nuget/OtherPackage"])]
+    #[case("Maven", "groupid:artifactid", Some("invalid"), vec!["pkg:maven/groupid/artifactid"])]
+    #[case("Debian:12", "openssl", Some("invalid"), vec![])]
+    #[case("Debian:12", "openssl", None, vec![])]
+    #[case("Python", "pypdf2", None, vec![])]
+    #[test_log::test]
+    fn ordinary_package_purls_remain_unchanged(
+        #[case] ecosystem: &str,
+        #[case] name: &str,
+        #[case] stated: Option<&str>,
+        #[case] expected: Vec<&str>,
+    ) -> anyhow::Result<()> {
+        let package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem, "name": name, "purl": stated,
+        }))?;
+        let warnings = Warnings::new();
+        assert_eq!(
+            package_purls(&package, &warnings)
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert!(Vec::<String>::from(warnings).is_empty());
+        Ok(())
+    }
+
+    #[test_log::test]
+    fn ordinary_stated_version_warning_is_preserved() -> anyhow::Result<()> {
+        let package = serde_json::from_value(serde_json::json!({
+            "ecosystem": "npm", "name": "demo-weighting",
+            "purl": "pkg:generic/demo-weighting@1.0.0",
+        }))?;
+        let warnings = Warnings::new();
+        assert_eq!(
+            package_purls(&package, &warnings)
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["pkg:npm/demo-weighting", "pkg:generic/demo-weighting"]
+        );
+        let warnings = Vec::<String>::from(warnings);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].starts_with("The PURL of an OSV package must not have a version"));
+        Ok(())
+    }
+
+    #[rstest]
     #[case("Red Hat Lightwell:Maven", None, vec!["pkg:maven/groupid/artifactid"])]
     #[case("Red Hat Lightwell:Maven", Some("invalid"), vec!["pkg:maven/groupid/artifactid"])]
     #[case(
         "Red Hat Lightwell:Maven",
-        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
-        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"]
-    )]
-    #[case(
-        "Maven",
         Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
         vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"]
     )]
@@ -687,16 +758,16 @@ mod test {
         vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"]
     )]
     #[case(
-        "Maven:https://packages.redhat.com/lightwell",
+        "Red Hat Lightwell:Maven:https://packages.redhat.com/lightwell",
         Some("pkg:maven/groupid/artifactid?arch=source"),
         vec!["pkg:maven/groupid/artifactid?arch=source&repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"]
     )]
     #[case(
-        "Maven:https://packages.redhat.com/lightwell",
+        "Red Hat Lightwell:Maven:https://packages.redhat.com/lightwell",
         Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"),
         vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"]
     )]
-    #[case("Maven", Some("pkg:maven/groupid/artifactid"), vec!["pkg:maven/groupid/artifactid"])]
+    #[case("Red Hat Lightwell:Maven", Some("pkg:maven/groupid/artifactid"), vec!["pkg:maven/groupid/artifactid"])]
     #[test_log::test]
     fn lightwell_package_purls(
         #[case] ecosystem: &str,
@@ -726,22 +797,10 @@ mod test {
 
     #[rstest]
     #[case(
-        "Maven:https://vendor.example/repo",
-        "groupid:artifactid",
-        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"),
-        "Conflicting repositories"
-    )]
-    #[case(
         "Red Hat Lightwell:Maven:https://vendor.example/repo",
         "groupid:artifactid",
         Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"),
         "Conflicting repositories"
-    )]
-    #[case(
-        "Maven",
-        "groupid:artifactid",
-        Some("pkg:maven/other/artifactid"),
-        "Conflicting inferred and stated PURLs"
     )]
     #[case(
         "Red Hat Lightwell:Maven",
@@ -749,7 +808,6 @@ mod test {
         Some("pkg:npm/artifactid"),
         "Conflicting inferred and stated PURLs"
     )]
-    #[case("Debian:12", "openssl", None, "No usable PURL")]
     #[case("Red Hat Lightwell:Debian:12", "openssl", None, "No usable PURL")]
     #[test_log::test]
     fn unresolved_package_purls_warn(
@@ -770,7 +828,6 @@ mod test {
     }
 
     #[rstest]
-    #[case("Python")]
     #[case("Red Hat Lightwell:Python")]
     #[test_log::test]
     fn python_without_purl_is_inferred(#[case] ecosystem: &str) -> anyhow::Result<()> {
@@ -792,7 +849,6 @@ mod test {
     }
 
     #[rstest]
-    #[case("NuGet")]
     #[case("Red Hat Lightwell:NuGet")]
     #[test_log::test]
     fn nuget_identity_is_case_insensitive(#[case] ecosystem: &str) -> anyhow::Result<()> {

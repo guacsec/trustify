@@ -16,15 +16,35 @@ http POST localhost:8080/api/v3/dataset @file-to-upload
 
 An OSV `affected` entry can identify a package through both its ecosystem/name and
 an explicitly stated PURL. For Maven, a repository URL can appear in the ecosystem
-suffix or in the PURL's `repository_url` qualifier. These descriptions are
-reconciled rather than always preferring one or retaining both as alternatives.
-The same policy applies to ordinary and Red Hat Lightwell ecosystems.
+suffix or in the PURL's `repository_url` qualifier.
 
-### Reconciliation policy
+### Scope and compatibility
 
-When both PURLs are available, their type, namespace and name must agree, allowing
-for NuGet's case-insensitive package names. Compatible identities produce one PURL,
-retaining the stated qualifiers and adding an inferred repository when needed:
+Repository reconciliation and conflict diagnostics described below apply **only to
+Red Hat Lightwell entries**. Non-Lightwell entries retain their existing inferred
+and stated PURL candidates, even when those candidates differ in type, name or
+repository. No new cross-field rejection, repository merging or deduplication is
+applied to ordinary ecosystems. Their existing handling of invalid/missing PURLs
+and stated-version warnings is preserved, as is their PURL inference behavior.
+The legacy `Python` alias adapter is added only inside the Lightwell wrapper.
+
+This compatibility boundary is intentional. A general OSV identity-reconciliation
+policy is separate work, not part of Lightwell support. The
+[OSV package specification](https://ossf.github.io/osv-schema/#affectedpackage-field)
+says the optional PURL identifies the package, but does not prescribe inferred-PURL
+equality, precedence, or rejection on disagreement. The rules below are a local
+Lightwell ingestion policy, not a general OSV validation requirement.
+
+Package PURL handling is independent of version representation. Native ecosystem
+version ordering is used only for `ECOSYSTEM` ranges; explicit `SEMVER` and `GIT`
+range types remain authoritative, and explicit version lists remain supported.
+
+### Reconciliation policy for Lightwell
+
+When both PURLs are available in a Lightwell entry, their type, namespace and name
+must agree, allowing for NuGet's case-insensitive package names. Compatible
+identities produce one PURL, retaining the stated qualifiers and adding an
+inferred repository when needed:
 
 | Inferred repository qualifier | Stated repository qualifier | Result |
 | --- | --- | --- |
@@ -37,12 +57,13 @@ Here, "absent" means no repository qualifier: Maven's default Central repository
 is not emitted as an inferred qualifier. Repository values are compared directly;
 mirror or URL-alias equivalence is not inferred.
 
-Conflicting package identities are also warned about and skipped. Other affected
-entries continue to be processed. If only one usable PURL is available, it is used;
-an invalid stated PURL produces a warning, as does having no usable PURL. A version
-in a stated PURL is removed with a warning, since OSV describes versions separately.
+For Lightwell, conflicting package identities are also warned about and skipped.
+Other affected entries continue to be processed. If only one usable PURL is
+available, it is used; an invalid stated PURL produces a warning, as does having no
+usable PURL. A version in a stated PURL is removed with a warning, since OSV
+describes versions separately.
 
-### Why conflicting repositories are not combined
+### Why conflicting Lightwell repositories are not combined
 
 Disagreement between two fields does not establish that both repositories are
 affected. It might indicate incorrect input, a mirror, or different notions of
