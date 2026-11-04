@@ -1,5 +1,6 @@
 //! SBOM-wide verdict counts and extraction freshness.
 use super::{CorrelationContentProps, common::status_label, pagination::use_collection};
+use crate::number::Number;
 use crate::{
     api,
     freshness::{freshness_banner, is_refreshing},
@@ -83,7 +84,7 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
                 <Card><CardBody>
                     <div style="display: flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
                         {status_label(status)}
-                        <Title level={Level::H3}>{count.to_string()}</Title>
+                        <Title level={Level::H3}>{ Number(count) }</Title>
                     </div>
                 </CardBody></Card>
             }) }
@@ -91,7 +92,7 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
                 <div style="display: flex; align-items: center; gap: var(--pf-t--global--spacer--sm); white-space: nowrap;">
                     <Label label="No Evidence" color={Color::Grey} />
                     if let Some(count) = unmatched.total {
-                        <Title level={Level::H3}>{count.to_string()}</Title>
+                        <Title level={Level::H3}>{ Number(count) }</Title>
                     } else if unmatched_error.is_some() {
                         <p>{"Count unavailable"}</p>
                     } else { <Spinner size={SpinnerSize::Md} /> }

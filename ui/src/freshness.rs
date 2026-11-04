@@ -1,4 +1,5 @@
 //! Settings freshness and the automatically scheduled, durable background refreshes.
+use crate::number::Number;
 use crate::{AppRoute, api, correlation::timestamp, stored::use_stored_pagination};
 use patternfly_yew::prelude::*;
 use std::{
@@ -198,7 +199,7 @@ fn job_progress(job: Option<&RefreshJob>, overview: &FreshnessOverview) -> Html 
             <Progress
                 {value}
                 description="No refresh running"
-                value_text={format!("{} of {} current", overview.current, overview.total)}
+                value_text={format!("{} of {} current", Number(overview.current), Number(overview.total))}
                 size={ProgressSize::Small}
             />
         };
@@ -215,8 +216,13 @@ fn job_progress(job: Option<&RefreshJob>, overview: &FreshnessOverview) -> Html 
         _ => ProgressVariant::Warning,
     };
     let value_text = match job.failed {
-        0 => format!("{done} of {total}"),
-        failed => format!("{done} of {total} ({failed} failed)"),
+        0 => format!("{} of {}", Number(done), Number(total)),
+        failed => format!(
+            "{} of {} ({} failed)",
+            Number(done),
+            Number(total),
+            Number(failed)
+        ),
     };
     html! {
         <Progress
@@ -323,7 +329,7 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
     stage_card(
         "SBOM extraction",
         StageState::of(overview.needs_refresh, failed),
-        format!("{} pending", overview.needs_refresh),
+        format!("{} pending", Number(overview.needs_refresh)),
         details,
     )
 }
@@ -342,14 +348,14 @@ fn advisory_card(lag: Option<&ExtractionLag>) -> Html {
         <>
             { oldest("Oldest pending change", lag.oldest_pending_at.as_ref()) }
             if lag.failed > 0 {
-                <StackItem>{ format!("{} waiting for retry; see server logs.", lag.failed) }</StackItem>
+                <StackItem>{ format!("{} waiting for retry; see server logs.", Number(lag.failed)) }</StackItem>
             }
         </>
     };
     stage_card(
         "Advisory extraction",
         StageState::of(lag.pending_advisories, lag.failed),
-        format!("{} pending", lag.pending_advisories),
+        format!("{} pending", Number(lag.pending_advisories)),
         details,
     )
 }
@@ -360,14 +366,14 @@ fn verdict_card(lag: &VerdictLag) -> Html {
         <>
             { oldest("Oldest outstanding work", lag.oldest_pending_at.as_ref()) }
             if lag.failed > 0 {
-                <StackItem>{ format!("{} waiting for retry; see server logs.", lag.failed) }</StackItem>
+                <StackItem>{ format!("{} waiting for retry; see server logs.", Number(lag.failed)) }</StackItem>
             }
         </>
     };
     stage_card(
         "Verdicts",
         StageState::of(lag.pending, lag.failed),
-        format!("{} pending", lag.pending),
+        format!("{} pending", Number(lag.pending)),
         details,
     )
 }
@@ -524,7 +530,7 @@ pub fn freshness_page() -> Html {
                 </StackItem>
                 if let Some(details) = data.failures.as_ref().filter(|details| details.failure_total > 0) {
                     <StackItem>
-                        <Alert title={format!("{} documents could not be refreshed", details.failure_total)} r#type={AlertType::Warning} inline=true>
+                        <Alert title={format!("{} documents could not be refreshed", Number(details.failure_total))} r#type={AlertType::Warning} inline=true>
                             <p>{"Their previous results remain available. Failed documents are retried automatically."}</p>
                             <ExpandableSection toggle_text_hidden="Show failures" toggle_text_expanded="Hide failures">
                                 <ul>{for details.failures.iter().map(|f| html! {
@@ -560,7 +566,8 @@ pub fn freshness_page() -> Html {
                         </ToolbarItem>
                     </ToolbarContent>
                 </Toolbar>
-                <ComposableTable>
+                // the package counts
+                <ComposableTable class="trustify-numeric-2">
                     { header }
                     <TableBody>
                         if data.documents.is_empty() {
@@ -579,7 +586,7 @@ pub fn freshness_page() -> Html {
                                 <TableData data_label="SBOM">
                                     <Link<AppRoute> to={AppRoute::Correlation { id: doc.sbom_id.to_string() }}>{ &doc.name }</Link<AppRoute>>
                                 </TableData>
-                                <TableData data_label="Packages">{ doc.packages }</TableData>
+                                <TableData data_label="Packages">{ Number(doc.packages) }</TableData>
                                 <TableData data_label="Status">{ freshness_badge(&doc.freshness) }</TableData>
                                 <TableData data_label="Last successful refresh">
                                     { doc.freshness.completed_at.as_ref().map(timestamp).unwrap_or_else(|| html!("Never")) }

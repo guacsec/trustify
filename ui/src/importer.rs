@@ -1,5 +1,6 @@
 //! Importers: their state, their runs, and their configuration.
 
+use crate::number::Number;
 use crate::{
     AppRoute,
     advisory::{card_grid, field_card},
@@ -68,8 +69,17 @@ fn state_cell(importer: &Importer) -> Html {
                         {value}
                         {description}
                         value_text={match progress.remaining() {
-                            Some(remaining) => format!("{current} of {total}, {remaining} left"),
-                            None => format!("{current} of {total}"),
+                            Some(remaining) => format!(
+                                "{} of {}, {} left",
+                                Number(current as u64),
+                                Number(total as u64),
+                                remaining
+                            ),
+                            None => format!(
+                                "{} of {}",
+                                Number(current as u64),
+                                Number(total as u64)
+                            ),
                         }}
                         size={ProgressSize::Small}
                     />
@@ -728,8 +738,8 @@ fn message_count(run: Option<&RunReport>, severity: &str) -> String {
             .filter(|(_, _, m)| m.severity == severity)
             .count()
     })
-    .unwrap_or_default()
-    .to_string()
+    .map(|count| Number(count as u64).to_string())
+    .unwrap_or_else(|| Number(0).to_string())
 }
 
 fn run_details(report: &ImporterReport) -> Html {
@@ -749,7 +759,7 @@ fn run_details(report: &ImporterReport) -> Html {
                 }),
                 field_card("Results", html! {
                     <>
-                        <DescriptionGroup term="Items">{ run.map(|r| r.number_of_items.to_string()).unwrap_or("-".into()) }</DescriptionGroup>
+                        <DescriptionGroup term="Items">{ run.map(|r| Number(r.number_of_items).to_string()).unwrap_or("-".into()) }</DescriptionGroup>
                         <DescriptionGroup term="Errors">{ count("error") }</DescriptionGroup>
                         <DescriptionGroup term="Warnings">{ count("warning") }</DescriptionGroup>
                     </>
@@ -832,7 +842,8 @@ fn reports(props: &ReportsProps) -> Html {
                     </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
-            <ComposableTable mode={TableMode::Compact}>
+            // the items, errors and warnings
+            <ComposableTable mode={TableMode::Compact} class={classes!("trustify-numeric-4", "trustify-numeric-5", "trustify-numeric-6")}>
                 { header }
                 { for reports.iter().flat_map(|r| &r.items).map(|report| {
                     let run = report.report.as_ref();
@@ -857,7 +868,7 @@ fn reports(props: &ReportsProps) -> Html {
                                 <TableData expandable={ExpandParams { r#type: ExpandType::Row, expanded, ontoggle }} />
                                 <TableData data_label="Created">{ timestamp(&report.creation) }</TableData>
                                 <TableData data_label="Result"><Label label={result} {color} compact=true /></TableData>
-                                <TableData data_label="Items">{ run.map(|r| r.number_of_items.to_string()).unwrap_or("-".into()) }</TableData>
+                                <TableData data_label="Items">{ run.map(|r| Number(r.number_of_items).to_string()).unwrap_or("-".into()) }</TableData>
                                 <TableData data_label="Errors">{ message_count(run, "error") }</TableData>
                                 <TableData data_label="Warnings">{ message_count(run, "warning") }</TableData>
                             </TableRow>

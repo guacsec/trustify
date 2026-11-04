@@ -1,5 +1,6 @@
 //! Poll processing metadata without replacing the page the user is inspecting.
 use super::timestamp;
+use crate::number::Number;
 use crate::{AppRoute, api};
 use gloo_timers::callback::Interval;
 use patternfly_yew::prelude::*;
@@ -164,13 +165,17 @@ fn outstanding(overview: &FreshnessOverview) -> Option<String> {
     }
     let mut text = parts.join(", ");
     if failed > 0 {
-        text.push_str(&format!(" ({failed} awaiting retry)"));
+        text.push_str(&format!(" ({} awaiting retry)", Number(failed)));
     }
     Some(text)
 }
 
 fn count(value: u64, singular: &str, plural: &str) -> String {
-    format!("{value} {}", if value == 1 { singular } else { plural })
+    format!(
+        "{} {}",
+        Number(value),
+        if value == 1 { singular } else { plural }
+    )
 }
 
 #[cfg(test)]
