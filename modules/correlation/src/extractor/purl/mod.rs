@@ -41,7 +41,7 @@ use self::{
     ecosystem::{Ecosystem, StreamMatch},
     rule::{RangeRule, rules},
 };
-use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
+use super::{Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
     model::{
@@ -59,6 +59,7 @@ use sea_orm::{
     },
 };
 use std::{
+    cmp::Ordering,
     collections::{BTreeMap, BTreeSet, HashMap},
     iter,
     mem::take,
@@ -670,10 +671,10 @@ impl Extractor for PurlExtractor {
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
-        identifiers: &[IdentifierRef],
+        components: &[Vec<IdentifierRef>],
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<IdentifierMatch>, Error> {
-        match_batched(identifiers, BATCH, tx).await
+    ) -> Result<Vec<ComponentMatch>, Error> {
+        match_batched(components, BATCH, tx).await
     }
 
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
@@ -700,69 +701,143 @@ fn source_of<'a>(sources: &[(Source<'a>, Candidates)], index: i32) -> Result<Sou
 /// Versioned PURLs matched per statement, bounding the rows loaded at once.
 const BATCH: usize = 1000;
 
-/// Match identifiers in batches of about `batch_size` versioned PURLs.
+/// What [`group`] depends on of an SBOM PURL: its versioned PURL, and the qualifiers it reads.
+type Key = (Uuid, BTreeMap<String, String>);
+
+/// The components with the same keys, which match the same.
+type Targets = BTreeMap<BTreeSet<Key>, Vec<usize>>;
+
+/// Match components in batches of about `batch_size` versioned PURLs.
 ///
-/// [`group`] only relates rows of the same target, and each target has a single versioned PURL,
-/// so batches can be grouped independently. All versions of a package share a batch, as the
-/// statement scans the stated rows per package. The ones [`group`] drops regardless of the target
-/// (another stream, or an unknown status) are dropped right after loading, before they are copied
-/// for each target of their versioned PURL.
+/// [`group`] relates all rows of a component, like the ones of a node in the advisory direction,
+/// and only depends on its keys. So components with the same keys are grouped once, and batches
+/// can be grouped independently, as long as all versions of a component share one. All versions
+/// of a package share a batch too, as the statement scans the stated rows per package. The rows
+/// [`group`] drops regardless of the component (another stream, or an unknown status) are dropped
+/// right after loading, before they are copied for each key of their versioned PURL.
 async fn match_batched(
-    identifiers: &[IdentifierRef],
+    components: &[Vec<IdentifierRef>],
     batch_size: usize,
     tx: &DatabaseTransaction,
-) -> Result<Vec<IdentifierMatch>, Error> {
-    // Versions share candidate lookups, but each input retains its own qualifiers.
-    let mut vp_map = VersionTargets::new();
-    let mut packages = BTreeMap::<Uuid, BTreeSet<Uuid>>::new();
-    for (idx, identifier) in identifiers.iter().enumerate() {
-        if identifier.kind != IdentifierKind::Purl {
-            continue;
+) -> Result<Vec<ComponentMatch>, Error> {
+    let mut targets = Targets::new();
+    let mut batches = Batches::default();
+    for (component, identifiers) in components.iter().enumerate() {
+        let mut keys = BTreeSet::new();
+        for identifier in identifiers {
+            if identifier.kind != IdentifierKind::Purl {
+                continue;
+            }
+            let Ok(purl) = identifier.value.parse::<Purl>() else {
+                continue;
+            };
+            if purl.version.is_none() {
+                continue;
+            }
+            let version = purl.version_uuid();
+            batches.add(version, purl.package_uuid());
+            keys.insert((version, Ecosystem::matched_qualifiers(&purl.qualifiers)));
         }
-        let Ok(purl) = identifier.value.parse::<Purl>() else {
-            continue;
-        };
-        if purl.version.is_none() {
-            continue;
+        let mut versions = keys.iter().map(|(version, _)| *version);
+        if let Some(first) = versions.next() {
+            for version in versions {
+                batches.join(first, version);
+            }
+            targets.entry(keys).or_default().push(component);
         }
-        let version = purl.version_uuid();
-        packages
-            .entry(purl.package_uuid())
-            .or_default()
-            .insert(version);
-        vp_map
-            .entry(version)
-            .or_default()
-            .push((idx, qualified_purl::Qualifiers(purl.qualifiers)));
     }
 
-    if vp_map.is_empty() {
+    if targets.is_empty() {
         return Ok(Vec::new());
+    }
+
+    // the targets of each set of versions which must share a batch
+    let mut sets = BTreeMap::<Uuid, (Vec<Uuid>, Vec<(&BTreeSet<Key>, &[usize])>)>::new();
+    for version in batches.versions() {
+        let root = batches.root(version);
+        sets.entry(root).or_default().0.push(version);
+    }
+    for (keys, components) in &targets {
+        if let Some((version, _)) = keys.first() {
+            let root = batches.root(*version);
+            sets.entry(root)
+                .or_default()
+                .1
+                .push((keys, components.as_slice()));
+        }
     }
 
     let rules = rules(tx).await?;
     let sources = sources(&rules).collect::<Vec<_>>();
     let mut result = Vec::new();
-    let mut batch = Vec::with_capacity(batch_size.min(vp_map.len()));
-    let mut packages = packages.into_values().peekable();
-    while let Some(versions) = packages.next() {
-        batch.extend(versions);
-        if batch.len() < batch_size && packages.peek().is_some() {
+    let mut versions = Vec::new();
+    let mut batch = Vec::new();
+    let mut sets = sets.into_values().peekable();
+    while let Some((set_versions, set_targets)) = sets.next() {
+        versions.extend(set_versions);
+        batch.extend(set_targets);
+        if versions.len() < batch_size && sets.peek().is_some() {
             continue;
         }
-        result.extend(match_batch(take(&mut batch), &vp_map, &sources, tx).await?);
+        result.extend(match_batch(take(&mut versions), take(&mut batch), &sources, tx).await?);
     }
     Ok(result)
 }
 
-/// The identifiers of each versioned PURL: their index and qualifiers.
-type VersionTargets = HashMap<Uuid, Vec<(usize, qualified_purl::Qualifiers)>>;
+/// The versions which must share a batch, as a disjoint set forest over versions and packages.
+#[derive(Default)]
+struct Batches {
+    parents: HashMap<Uuid, Uuid>,
+    versions: BTreeSet<Uuid>,
+}
 
-/// Match one batch of versioned PURLs, and group the rows per identifier.
+impl Batches {
+    /// Add a version of a package.
+    fn add(&mut self, version: Uuid, package: Uuid) {
+        self.versions.insert(version);
+        self.join(version, package);
+    }
+
+    /// The representative of the set of a version, adding it if it's new.
+    fn root(&mut self, version: Uuid) -> Uuid {
+        let mut root = *self.parents.entry(version).or_insert(version);
+        while let Some(&parent) = self.parents.get(&root)
+            && parent != root
+        {
+            root = parent;
+        }
+        // compress the path
+        let mut current = version;
+        while current != root {
+            let next = self.parents.get(&current).copied().unwrap_or(root);
+            self.parents.insert(current, root);
+            current = next;
+        }
+        root
+    }
+
+    /// Put two versions (or a version and its package) into the same batch.
+    fn join(&mut self, a: Uuid, b: Uuid) {
+        let (a, b) = (self.root(a), self.root(b));
+        match a.cmp(&b) {
+            Ordering::Less => self.parents.insert(b, a),
+            Ordering::Greater => self.parents.insert(a, b),
+            Ordering::Equal => None,
+        };
+    }
+
+    /// All versions added.
+    fn versions(&self) -> Vec<Uuid> {
+        self.versions.iter().copied().collect()
+    }
+}
+
+/// Match one batch of versioned PURLs, and group the rows per set of keys.
 #[instrument(
     skip_all,
     fields(
         versions = versions.len(),
+        targets = targets.len(),
         rows = field::Empty,
         statuses = field::Empty,
         grouped = field::Empty,
@@ -772,10 +847,10 @@ type VersionTargets = HashMap<Uuid, Vec<(usize, qualified_purl::Qualifiers)>>;
 )]
 async fn match_batch(
     versions: Vec<Uuid>,
-    vp_map: &VersionTargets,
+    targets: Vec<(&BTreeSet<Key>, &[usize])>,
     sources: &[(Source<'_>, Candidates)],
     tx: &DatabaseTransaction,
-) -> Result<Vec<IdentifierMatch>, Error> {
+) -> Result<Vec<ComponentMatch>, Error> {
     let rows = load_purl_status_matches(versions, sources, tx).await?;
     let ids = rows
         .iter()
@@ -792,7 +867,7 @@ async fn match_batch(
     span.record("rows", rows.len());
     span.record("statuses", ids.len());
 
-    // the stated rows of each versioned PURL, without the qualifiers of a target
+    // the stated rows of each versioned PURL, without the qualifiers of a component
     let mut versions = HashMap::<Uuid, Vec<_>>::new();
     for row in rows {
         let source = source_of(sources, row.matched.source)?;
@@ -805,34 +880,38 @@ async fn match_batch(
         }
     }
 
-    // `group` only relates the rows of one target, and only depends on its versioned PURL and
-    // matched qualifiers: group once per distinct pair, and one pair at a time, as copying all rows for
-    // all targets at once doesn't fit into memory (e.g. 15M rows for the kernel of a RHEL SBOM).
+    // `group` only relates the rows of one component, and only depends on its keys: group once
+    // per distinct set of keys, and one set at a time, as copying all rows for all components at
+    // once doesn't fit into memory (e.g. 15M rows for the kernel of a RHEL SBOM).
     let mut grouped = 0;
     let mut result = Vec::new();
-    for (version, rows) in versions {
-        let mut by_qualifiers = BTreeMap::<_, Vec<usize>>::new();
-        for (idx, qualifiers) in vp_map.get(&version).map(Vec::as_slice).unwrap_or_default() {
-            by_qualifiers
-                .entry(Ecosystem::matched_qualifiers(&qualifiers.0))
-                .or_default()
-                .push(*idx);
+    for (keys, components) in targets {
+        let rows = keys
+            .iter()
+            .flat_map(|(version, qualifiers)| {
+                versions
+                    .get(version)
+                    .into_iter()
+                    .flatten()
+                    .map(move |(source, status)| {
+                        let mut status = status.clone();
+                        status.sbom_qualifiers = qualified_purl::Qualifiers(qualifiers.clone());
+                        ((), *source, status)
+                    })
+            })
+            .collect::<Vec<_>>();
+        if rows.is_empty() {
+            continue;
         }
-        for (qualifiers, indices) in by_qualifiers {
-            grouped += rows.len();
-            let assertions = group(rows.iter().map(|(source, status)| {
-                let mut status = status.clone();
-                status.sbom_qualifiers = qualified_purl::Qualifiers(qualifiers.clone());
-                ((), *source, status)
-            }))
+        grouped += rows.len();
+        let assertions = group(rows)
             .map(|((), assertion)| assertion)
             .collect::<Vec<_>>();
-            for idx in indices {
-                result.extend(assertions.iter().map(|assertion| IdentifierMatch {
-                    index: idx,
-                    assertion: assertion.clone(),
-                }));
-            }
+        for component in components {
+            result.extend(assertions.iter().map(|assertion| ComponentMatch {
+                component: *component,
+                assertion: assertion.clone(),
+            }));
         }
     }
     span.record("grouped", grouped);

@@ -1,6 +1,6 @@
 //! Correlation by digest: `sbom_node_checksum` ↔ `advisory_vulnerability_hash`.
 
-use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
+use super::{Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef, indexed};
 use crate::{
     error::Error,
     model::{ConfidenceFactor, ConfidenceReason, IdentifierKind, IdentifierRef, MatchedValue},
@@ -79,12 +79,12 @@ impl Extractor for DigestExtractor {
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
-        identifiers: &[IdentifierRef],
+        components: &[Vec<IdentifierRef>],
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<IdentifierMatch>, Error> {
-        // hash value -> [(index, algorithm)]
+    ) -> Result<Vec<ComponentMatch>, Error> {
+        // hash value -> [(component, algorithm)]
         let mut value_map = HashMap::<&str, Vec<(usize, Option<String>)>>::new();
-        for (idx, identifier) in identifiers.iter().enumerate() {
+        for (idx, identifier) in indexed(components) {
             if identifier.kind != IdentifierKind::Digest {
                 continue;
             }
@@ -106,8 +106,8 @@ impl Extractor for DigestExtractor {
             };
             for (idx, algorithm) in entries {
                 if algorithm.as_ref().is_none_or(|a| *a == ah.algorithm) {
-                    result.push(IdentifierMatch {
-                        index: *idx,
+                    result.push(ComponentMatch {
+                        component: *idx,
                         assertion: Assertion {
                             source_assertions: [super::SourceAssertionRef::Digest(ah.id)].into(),
                             extractor: ID,
