@@ -25,10 +25,26 @@ pub struct ProviderSnapshot {
 }
 
 impl ProviderSnapshot {
+    /// Load the provider aliases, and the suppliers of the SBOMs and the providers of the
+    /// advisories.
     pub async fn load(
         connection: &DatabaseTransaction,
         sboms: &[Uuid],
         advisories: &[Uuid],
+    ) -> Result<Self, Error> {
+        let mut result = Self::load_sboms(connection, sboms).await?;
+        result
+            .load_advisories(connection, advisories.iter().copied())
+            .await?;
+        Ok(result)
+    }
+
+    /// Load the provider aliases and the suppliers of the SBOMs, without any advisory providers.
+    ///
+    /// Add them with [`Self::load_advisories`].
+    pub async fn load_sboms(
+        connection: &DatabaseTransaction,
+        sboms: &[Uuid],
     ) -> Result<Self, Error> {
         let mut result = Self {
             aliases: list_aliases(connection).await?,
@@ -92,9 +108,22 @@ impl ProviderSnapshot {
                 }
             }
         }
+        Ok(result)
+    }
+
+    /// Load the providers of the advisories which aren't loaded yet.
+    pub async fn load_advisories(
+        &mut self,
+        connection: &DatabaseTransaction,
+        advisories: impl IntoIterator<Item = Uuid>,
+    ) -> Result<(), Error> {
+        let advisories = advisories
+            .into_iter()
+            .filter(|id| !self.advisory_providers.contains_key(id))
+            .collect::<HashSet<_>>();
         if !advisories.is_empty() {
             let rows = advisory::Entity::find()
-                .filter(advisory::Column::Id.is_in(advisories.iter().copied()))
+                .filter(advisory::Column::Id.is_in(advisories))
                 .all(connection)
                 .await?;
             let issuers = rows
@@ -128,10 +157,10 @@ impl ProviderSnapshot {
                 } else {
                     ProviderIdentity::default()
                 };
-                result.advisory_providers.insert(row.id, provider);
+                self.advisory_providers.insert(row.id, provider);
             }
         }
-        Ok(result)
+        Ok(())
     }
 
     pub fn context(&self, request: &ResolutionRequest) -> Result<ResolutionContext, Error> {
