@@ -2,8 +2,31 @@ use crate::{
     extractor::Extractors,
     service::{extraction, freshness, projection, tuning::WorkerConfig},
 };
-use tokio::sync::broadcast;
+use tokio::{sync::broadcast, task::JoinSet};
 use trustify_common::db::{self, change::ChangeBroadcaster};
+
+/// Run [`WorkerConfig::workers`] workers in parallel, each in its own task, until one fails.
+///
+/// The workers claim different work: advisories of the extraction queue, documents of the refresh
+/// job, and SBOMs to compute verdicts for. Dropping the future stops all of them.
+pub async fn run_extraction_workers(
+    broadcaster: ChangeBroadcaster,
+    db: db::ReadWrite,
+    config: WorkerConfig,
+) -> anyhow::Result<()> {
+    let mut workers = JoinSet::new();
+    for _ in 0..config.workers.get() {
+        workers.spawn(run_extraction_worker(
+            broadcaster.clone(),
+            db.clone(),
+            config.clone(),
+        ));
+    }
+    while let Some(result) = workers.join_next().await {
+        result??;
+    }
+    Ok(())
+}
 
 /// Drain durable ingestion work and requested refresh jobs. Notifications are
 /// wakeups only: missed events and restarts cannot lose queued extraction work.
