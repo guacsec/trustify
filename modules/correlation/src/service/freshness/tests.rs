@@ -272,7 +272,7 @@ async fn the_current_document_is_visible_while_extracting(
     let queued = counts(ctx).await?.active_job.unwrap();
     assert_eq!(
         (queued.status, queued.current),
-        (RefreshJobStatus::Queued, None)
+        (RefreshJobStatus::Queued, vec![])
     );
 
     let barrier = Arc::new(Barrier::new(2));
@@ -283,7 +283,7 @@ async fn the_current_document_is_visible_while_extracting(
     };
     timeout(StdDuration::from_secs(10), barrier.wait()).await?;
     let running = counts(ctx).await?.active_job.unwrap();
-    let current = running.current.clone().unwrap();
+    let current = running.current[0].clone();
     assert_eq!(
         (
             running.id,
@@ -293,7 +293,7 @@ async fn the_current_document_is_visible_while_extracting(
         ),
         (queued.id, RefreshJobStatus::Running, 0, id)
     );
-    // The current document does not block other workers from skipping the claimed job.
+    // Other workers find nothing to claim while the only document is in flight.
     assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     barrier.wait().await;
     assert!(worker.await??);
@@ -301,15 +301,72 @@ async fn the_current_document_is_visible_while_extracting(
     let done = counts(ctx).await?.active_job.unwrap();
     assert_eq!(
         (done.status, done.processed, done.current),
-        (RefreshJobStatus::Running, 1, None)
+        (RefreshJobStatus::Running, 1, vec![])
     );
     assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     Ok(())
 }
 
+/// Workers extract documents of the same job in parallel, and the job shows all of them.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn concurrent_workers_skip_claimed_jobs_and_traverse_revision_buckets(
+async fn workers_extract_in_parallel(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let first = ingest(ctx).await?;
+    let second = Uuid::parse_str(
+        &ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
+            .await?
+            .id,
+    )?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let queued = counts(ctx).await?.active_job.unwrap();
+
+    // both workers and the test
+    let barrier = Arc::new(Barrier::new(3));
+    let workers = [(); 2].map(|()| {
+        let db = db.clone();
+        let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
+        tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await })
+    });
+    timeout(StdDuration::from_secs(10), barrier.wait()).await?;
+    let running = counts(ctx).await?.active_job.unwrap();
+    let mut current = running
+        .current
+        .iter()
+        .map(|current| current.sbom_id)
+        .collect::<Vec<_>>();
+    current.sort();
+    let mut expected = vec![first, second];
+    expected.sort();
+    assert_eq!(
+        (running.id, running.status, current),
+        (queued.id, RefreshJobStatus::Running, expected)
+    );
+    // a third worker finds nothing to claim
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+
+    barrier.wait().await;
+    for worker in workers {
+        assert!(worker.await??);
+    }
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let tx = ctx.db.begin().await?;
+    let details = job(&tx, queued.id, Paginated::default()).await?.job;
+    assert_eq!(
+        (
+            details.status,
+            details.processed,
+            details.failed,
+            details.current
+        ),
+        (RefreshJobStatus::Completed, 2, 0, vec![])
+    );
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn concurrent_workers_extract_different_documents(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     let first = ingest(ctx).await?;
@@ -317,31 +374,53 @@ async fn concurrent_workers_skip_claimed_jobs_and_traverse_revision_buckets(
     refresh_sbom(&Extractors::default(), first, &tx).await?;
     tx.commit().await?;
     option_change(ctx).await?;
-    ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
-        .await?;
+    // never extracted, so it sorts before the stale one
+    let second = Uuid::parse_str(
+        &ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
+            .await?
+            .id,
+    )?;
     let queued = queue(ctx).await?;
-    let claim = ctx.db.begin().await?;
-    claim
+
+    // another worker extracting the second document
+    let other = ctx.db.begin().await?;
+    other
         .query_one_raw(sql(
-            "SELECT id FROM correlation_refresh_job WHERE id = $1 FOR UPDATE",
-            vec![queued.id.into()],
+            "SELECT pg_advisory_xact_lock(2681, hashtext($1::text))",
+            vec![second.into()],
         ))
         .await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
-    claim.rollback().await?;
     assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    // the second one is in flight, which keeps the job from completing
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let state = counts(ctx).await?;
+    assert_eq!(
+        (
+            state.current,
+            state.active_job.map(|job| (job.id, job.processed))
+        ),
+        (1, Some((queued.id, 1)))
+    );
+    assert_eq!(
+        for_sboms(&ctx.db.begin().await?, &[first]).await?[&first].status,
+        FreshnessStatus::Current
+    );
+
+    // the other worker crashed, so the document is claimed again
+    other.rollback().await?;
     assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let state = counts(ctx).await?;
-    assert_eq!((state.current, state.stale, state.unknown), (2, 0, 0));
-    let tx = ctx.db.begin().await?;
     assert_eq!(
-        job(&tx, queued.id, Paginated::default())
-            .await?
-            .job
-            .processed,
-        2
+        (state.current, state.stale, state.unknown, state.active_job),
+        (2, 0, 0, None)
+    );
+    let tx = ctx.db.begin().await?;
+    let details = job(&tx, queued.id, Paginated::default()).await?.job;
+    assert_eq!(
+        (details.status, details.processed, details.failed),
+        (RefreshJobStatus::Completed, 2, 0)
     );
     Ok(())
 }
@@ -818,7 +897,7 @@ async fn overview_uses_counters_and_discovery_can_use_the_completion_index(
         .await?;
     let row = tx
         .query_one_raw(sql(
-            &format!("EXPLAIN (FORMAT JSON) {NEXT_DOCUMENT_SQL}"),
+            &format!("EXPLAIN (FORMAT JSON) {NEXT_DOCUMENTS_SQL}"),
             vec![1_i64.into(), Uuid::nil().into()],
         ))
         .await?
@@ -842,7 +921,7 @@ fn refresh_job(processed: u64, failed: u64, created_at: OffsetDateTime) -> Refre
         estimated_completion_at: None,
         created_at,
         finished_at: None,
-        current: None,
+        current: vec![],
     }
 }
 

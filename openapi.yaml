@@ -10137,10 +10137,12 @@ components:
           type: string
           format: date-time
         current:
-          oneOf:
-          - $ref: '#/components/schemas/CurrentSbom'
-            description: The document an active job is extracting right now, if any.
-          - type: 'null'
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrentSbom'
+          description: |-
+            The documents an active job is extracting right now, by when they started. Workers of
+            several instances extract documents of the same job in parallel.
         estimated_completion_at:
           type:
           - string
