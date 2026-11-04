@@ -128,9 +128,9 @@ async fn durable_jobs_are_deduplicated_and_resumable(ctx: &TrustifyContext) -> a
     let queued = queue(ctx).await?;
     assert_eq!(queued.id, queue(ctx).await?.id);
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     // A new registry/worker instance resumes from the committed job outcomes.
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     let details = job(&tx, queued.id, Paginated::default()).await?;
     assert_eq!(details.job.status, RefreshJobStatus::Completed);
@@ -151,13 +151,13 @@ async fn ingested_sboms_are_refreshed_by_an_automatic_job(
 ) -> anyhow::Result<()> {
     let db = db::ReadWrite::new(ctx.db.clone());
     // Nothing to do: no job is scheduled.
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(counts(ctx).await?.latest_job, None);
     let id = ingest(ctx).await?;
     // Ingestion does not use the advisory queue for SBOMs.
     let lag = counts(ctx).await?.extraction_lag.unwrap_or_default();
     assert_eq!(lag, ExtractionLag::default());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let scheduled = counts(ctx).await?;
     let active = scheduled.active_job.unwrap();
     assert_eq!(
@@ -168,8 +168,8 @@ async fn ingested_sboms_are_refreshed_by_an_automatic_job(
         ),
         (RefreshJobStatus::Queued, 1, None)
     );
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let done = counts(ctx).await?;
     assert_eq!(done.active_job, None);
     let latest = done.latest_job.unwrap();
@@ -202,7 +202,7 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
     tx.commit().await?;
     option_change(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let queued = counts(ctx).await?.active_job.unwrap();
     // The stale document is behind, but a new document is picked up first.
     let second = Uuid::parse_str(
@@ -210,7 +210,7 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
             .await?
             .id,
     )?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     assert_eq!(
         for_sboms(&tx, &[second]).await?[&second].status,
@@ -232,8 +232,8 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
         (queued.id, RefreshJobStatus::Running, 1, 1)
     );
     assert!(running.estimated_completion_at.is_some());
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let state = counts(ctx).await?;
     assert_eq!((state.current, state.needs_refresh), (2, 0));
     assert_eq!(state.latest_job.map(|job| job.id), Some(queued.id));
@@ -268,22 +268,22 @@ async fn the_current_document_is_visible_while_extracting(
 ) -> anyhow::Result<()> {
     let id = ingest(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let queued = counts(ctx).await?.active_job.unwrap();
     assert_eq!(
         (queued.status, queued.current),
-        (RefreshJobStatus::Queued, None)
+        (RefreshJobStatus::Queued, vec![])
     );
 
     let barrier = Arc::new(Barrier::new(2));
     let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
     let worker = {
         let db = db.clone();
-        tokio::spawn(async move { run_step(&db, &extractors).await })
+        tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await })
     };
     timeout(StdDuration::from_secs(10), barrier.wait()).await?;
     let running = counts(ctx).await?.active_job.unwrap();
-    let current = running.current.clone().unwrap();
+    let current = running.current[0].clone();
     assert_eq!(
         (
             running.id,
@@ -293,23 +293,80 @@ async fn the_current_document_is_visible_while_extracting(
         ),
         (queued.id, RefreshJobStatus::Running, 0, id)
     );
-    // The current document does not block other workers from skipping the claimed job.
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    // Other workers find nothing to claim while the only document is in flight.
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     barrier.wait().await;
     assert!(worker.await??);
 
     let done = counts(ctx).await?.active_job.unwrap();
     assert_eq!(
         (done.status, done.processed, done.current),
-        (RefreshJobStatus::Running, 1, None)
+        (RefreshJobStatus::Running, 1, vec![])
     );
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    Ok(())
+}
+
+/// Workers extract documents of the same job in parallel, and the job shows all of them.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn workers_extract_in_parallel(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let first = ingest(ctx).await?;
+    let second = Uuid::parse_str(
+        &ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
+            .await?
+            .id,
+    )?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let queued = counts(ctx).await?.active_job.unwrap();
+
+    // both workers and the test
+    let barrier = Arc::new(Barrier::new(3));
+    let workers = [(); 2].map(|()| {
+        let db = db.clone();
+        let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
+        tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await })
+    });
+    timeout(StdDuration::from_secs(10), barrier.wait()).await?;
+    let running = counts(ctx).await?.active_job.unwrap();
+    let mut current = running
+        .current
+        .iter()
+        .map(|current| current.sbom_id)
+        .collect::<Vec<_>>();
+    current.sort();
+    let mut expected = vec![first, second];
+    expected.sort();
+    assert_eq!(
+        (running.id, running.status, current),
+        (queued.id, RefreshJobStatus::Running, expected)
+    );
+    // a third worker finds nothing to claim
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+
+    barrier.wait().await;
+    for worker in workers {
+        assert!(worker.await??);
+    }
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let tx = ctx.db.begin().await?;
+    let details = job(&tx, queued.id, Paginated::default()).await?.job;
+    assert_eq!(
+        (
+            details.status,
+            details.processed,
+            details.failed,
+            details.current
+        ),
+        (RefreshJobStatus::Completed, 2, 0, vec![])
+    );
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn concurrent_workers_skip_claimed_jobs_and_traverse_revision_buckets(
+async fn concurrent_workers_extract_different_documents(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     let first = ingest(ctx).await?;
@@ -317,31 +374,53 @@ async fn concurrent_workers_skip_claimed_jobs_and_traverse_revision_buckets(
     refresh_sbom(&Extractors::default(), first, &tx).await?;
     tx.commit().await?;
     option_change(ctx).await?;
-    ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
-        .await?;
+    // never extracted, so it sorts before the stale one
+    let second = Uuid::parse_str(
+        &ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
+            .await?
+            .id,
+    )?;
     let queued = queue(ctx).await?;
-    let claim = ctx.db.begin().await?;
-    claim
+
+    // another worker extracting the second document
+    let other = ctx.db.begin().await?;
+    other
         .query_one_raw(sql(
-            "SELECT id FROM correlation_refresh_job WHERE id = $1 FOR UPDATE",
-            vec![queued.id.into()],
+            "SELECT pg_advisory_xact_lock(2681, hashtext($1::text))",
+            vec![second.into()],
         ))
         .await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(!run_step(&db, &Extractors::default()).await?);
-    claim.rollback().await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    // the second one is in flight, which keeps the job from completing
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let state = counts(ctx).await?;
-    assert_eq!((state.current, state.stale, state.unknown), (2, 0, 0));
-    let tx = ctx.db.begin().await?;
     assert_eq!(
-        job(&tx, queued.id, Paginated::default())
-            .await?
-            .job
-            .processed,
-        2
+        (
+            state.current,
+            state.active_job.map(|job| (job.id, job.processed))
+        ),
+        (1, Some((queued.id, 1)))
+    );
+    assert_eq!(
+        for_sboms(&ctx.db.begin().await?, &[first]).await?[&first].status,
+        FreshnessStatus::Current
+    );
+
+    // the other worker crashed, so the document is claimed again
+    other.rollback().await?;
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let state = counts(ctx).await?;
+    assert_eq!(
+        (state.current, state.stale, state.unknown, state.active_job),
+        (2, 0, 0, None)
+    );
+    let tx = ctx.db.begin().await?;
+    let details = job(&tx, queued.id, Paginated::default()).await?.job;
+    assert_eq!(
+        (details.status, details.processed, details.failed),
+        (RefreshJobStatus::Completed, 2, 0)
     );
     Ok(())
 }
@@ -353,7 +432,7 @@ async fn changed_settings_supersede_a_job(ctx: &TrustifyContext) -> anyhow::Resu
     let queued = queue(ctx).await?;
     option_change(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     let details = job(&tx, queued.id, Paginated::default()).await?;
     assert_eq!(details.job.status, RefreshJobStatus::Superseded);
@@ -366,8 +445,7 @@ async fn changed_settings_supersede_a_job(ctx: &TrustifyContext) -> anyhow::Resu
         (0, 0, None)
     );
     tx.rollback().await?;
-    // A follow-up job for the new settings is scheduled automatically.
-    assert!(run_step(&db, &Extractors::default()).await?);
+    // A follow-up job for the new settings is scheduled right away, by the same step.
     let next = counts(ctx).await?.active_job.unwrap();
     assert_ne!(next.id, queued.id);
     assert_eq!(next.revision, queued.revision + 1);
@@ -417,10 +495,10 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
     let queued = queue(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     let failing = Extractors::new(vec![Box::new(FailingExtractor)]);
-    assert!(run_step(&db, &failing).await?);
-    assert!(!run_step(&db, &failing).await?);
+    assert!(run_step(&db, &failing, &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &failing, &WorkerConfig::default()).await?);
     // Failed documents are retried automatically, but only after a back-off.
-    assert!(!run_step(&db, &failing).await?);
+    assert!(!run_step(&db, &failing, &WorkerConfig::default()).await?);
     assert_eq!(
         counts(ctx).await?.latest_job.map(|job| job.id),
         Some(queued.id)
@@ -451,13 +529,13 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
             "UPDATE correlation_refresh_job SET finished_at = finished_at - interval '1 minute'",
         )
         .await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_ne!(
         counts(ctx).await?.active_job.map(|job| job.id),
         Some(queued.id)
     );
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert!(
         correlation_evidence::Entity::find_by_id(evidence.id)
             .one(&ctx.db)
@@ -782,8 +860,8 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
     ctx.db.execute_unprepared("UPDATE correlation_option SET value = 'true' WHERE key = 'fixed_is_first_fixed' AND publisher_namespace = 'https://www.redhat.com'").await?;
     queue(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db, &Extractors::default()).await?);
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(
         correlation_evidence::Entity::find()
             .all(&ctx.db)
@@ -819,7 +897,7 @@ async fn overview_uses_counters_and_discovery_can_use_the_completion_index(
         .await?;
     let row = tx
         .query_one_raw(sql(
-            &format!("EXPLAIN (FORMAT JSON) {NEXT_DOCUMENT_SQL}"),
+            &format!("EXPLAIN (FORMAT JSON) {NEXT_DOCUMENTS_SQL}"),
             vec![1_i64.into(), Uuid::nil().into()],
         ))
         .await?
@@ -843,7 +921,7 @@ fn refresh_job(processed: u64, failed: u64, created_at: OffsetDateTime) -> Refre
         estimated_completion_at: None,
         created_at,
         finished_at: None,
-        current: None,
+        current: vec![],
     }
 }
 
@@ -862,4 +940,47 @@ fn estimate_extrapolates_the_average_rate() {
         (0, Some(now))
     );
     assert_eq!(estimate(&refresh_job(1, 0, now), 1, now), (1, None));
+}
+
+/// Documents show the number of packages of their SBOM.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn documents_count_packages(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let cache = PaginationCache::new(std::time::Duration::ZERO, 10);
+    let mut expected = Vec::new();
+    for (name, components) in [("empty", 0), ("two", 2)] {
+        let document = serde_json::json!({
+            "bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
+            "metadata": {"component": {"type": "application", "name": name, "bom-ref": "root"}},
+            "components": (0..components).map(|i| serde_json::json!({
+                "type": "library", "name": format!("lib{i}"), "version": "1.0", "bom-ref": format!("lib{i}")
+            })).collect::<Vec<_>>(),
+        });
+        let id = Uuid::parse_str(
+            &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+                .await?
+                .id,
+        )?;
+        expected.push((id, components + 1));
+    }
+    expected.sort();
+
+    let tx = ctx.db.begin().await?;
+    let mut packages = documents(
+        &tx,
+        None,
+        Paginated {
+            limit: 10,
+            ..Default::default()
+        },
+        &cache,
+    )
+    .await?
+    .items
+    .into_iter()
+    .map(|doc| (doc.sbom_id, doc.packages))
+    .collect::<Vec<_>>();
+    packages.sort();
+    assert_eq!(packages, expected);
+    Ok(())
 }

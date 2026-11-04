@@ -4,6 +4,7 @@
 //! (e.g. `150600` of `3.1.4-150600.5.39.1`), see [`suse_codestream`].
 
 use super::StreamMatch;
+use sea_orm::sea_query::{Expr, Func, SimpleExpr};
 use std::collections::BTreeMap;
 use trustify_common::rpm::{Evr, stream_major};
 
@@ -11,6 +12,8 @@ use trustify_common::rpm::{Evr, stream_major};
 const MODULE: &str = "rpmmod";
 /// Qualifier of the architecture (e.g. `x86_64`, or `src` for a source package).
 const ARCH: &str = "arch";
+/// The SBOM qualifiers [`qualifiers_match`] reads.
+pub const QUALIFIERS: [&str; 2] = [MODULE, ARCH];
 
 /// A module named by the advisory must be present on the SBOM package. An omitted module is
 /// unspecified.
@@ -42,6 +45,20 @@ pub fn stream_match(sbom: &str, range: Option<&str>) -> Option<StreamMatch> {
         Evr::parse(sbom).stream(),
         range.map(Evr::parse).and_then(|range| range.stream()),
     )
+}
+
+/// SQL condition: the SBOM version and the range version have dist tag streams of different
+/// majors, so [`stream_match`] is `None`. `FALSE` if either has no stream.
+///
+/// Uses the SQL functions mirroring [`Evr::stream`] and [`stream_major`]. It may miss a mismatch
+/// [`stream_match`] finds, but never reports one it doesn't.
+pub fn other_stream(sbom: SimpleExpr, range: SimpleExpr) -> SimpleExpr {
+    let major = |version: SimpleExpr| {
+        SimpleExpr::FunctionCall(Func::cust("rpm_stream_major").arg(SimpleExpr::FunctionCall(
+            Func::cust("rpm_stream").arg(version),
+        )))
+    };
+    Expr::cust_with_exprs("coalesce($1 <> $2, FALSE)", [major(sbom), major(range)])
 }
 
 /// Compare two streams, `None` if they belong to different streams.
@@ -111,7 +128,7 @@ fn codestreams_match(sbom: Option<&str>, range: Option<&str>) -> Option<StreamMa
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{super::Ecosystem, *};
     use rstest::rstest;
 
     fn qualifiers(purl: &str) -> BTreeMap<String, String> {
@@ -149,6 +166,17 @@ mod test {
             qualifiers_match(&qualifiers(sbom), &qualifiers(stated)),
             expected
         );
+        // other SBOM qualifiers don't change the result, so they may be omitted
+        let mut sbom = qualifiers(sbom);
+        sbom.insert(
+            "repository_id".into(),
+            "rhel-8-for-x86_64-baseos-rpms".into(),
+        );
+        assert_eq!(
+            qualifiers_match(&Ecosystem::matched_qualifiers(&sbom), &qualifiers(stated)),
+            expected
+        );
+        assert_eq!(qualifiers_match(&sbom, &qualifiers(stated)), expected);
     }
 
     #[rstest]

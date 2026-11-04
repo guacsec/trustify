@@ -1,11 +1,8 @@
 //! Settings freshness and the automatically scheduled, durable background refreshes.
+use crate::number::Number;
 use crate::{AppRoute, api, correlation::timestamp, stored::use_stored_pagination};
 use patternfly_yew::prelude::*;
-use std::{
-    cell::Cell,
-    fmt::{Display, Formatter},
-    rc::Rc,
-};
+use std::{cell::Cell, rc::Rc};
 use time::{Duration, OffsetDateTime};
 use trustify_api::correlation::*;
 use uuid::Uuid;
@@ -19,23 +16,6 @@ pub fn status_label(status: FreshnessStatus) -> &'static str {
         FreshnessStatus::Current => "Current",
         FreshnessStatus::Stale => "Outdated",
         FreshnessStatus::Unknown => "Not yet checked",
-    }
-}
-
-/// Status filter of the documents table, where `None` selects all documents needing a refresh.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct DocumentFilter(Option<FreshnessStatus>);
-
-impl DocumentFilter {
-    const ALL: [Self; 2] = [Self(None), Self(Some(FreshnessStatus::Current))];
-}
-
-impl Display for DocumentFilter {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            None => f.write_str("Needs refreshing"),
-            Some(status) => f.write_str(status_label(status)),
-        }
     }
 }
 
@@ -58,35 +38,10 @@ pub fn is_refreshing(job: Option<&RefreshJob>, freshness: &ExtractionFreshness) 
     })
 }
 
-pub fn freshness_banner(freshness: &ExtractionFreshness, refreshing: bool) -> Html {
-    let message = match freshness.status {
-        FreshnessStatus::Current => return Html::default(),
-        FreshnessStatus::Stale => {
-            "Matching settings changed. These results may be incomplete or outdated."
-        }
-        FreshnessStatus::Unknown => {
-            "These results have not been checked against current matching settings."
-        }
-    };
-
-    if refreshing {
-        return html! {
-            <Alert title="These results are being refreshed. They will be updated once the refresh has finished." r#type={AlertType::Info} inline=true>
-                <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View refresh progress" }</Link<AppRoute>>
-            </Alert>
-        };
-    }
-
-    html! {
-        <Alert title={message} r#type={AlertType::Warning} inline=true>
-            <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View refresh progress" }</Link<AppRoute>>
-        </Alert>
-    }
-}
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum Column {
     Sbom,
+    Packages,
     Status,
     LastRefresh,
 }
@@ -106,31 +61,15 @@ struct View {
 /// requests are only repeated when their inputs change.
 #[derive(Clone, PartialEq)]
 struct Loaded {
-    documents: (
-        Option<FreshnessStatus>,
-        usize,
-        usize,
-        i64,
-        u64,
-        u64,
-        u64,
-        u64,
-    ),
+    documents: (usize, usize, i64, u64, u64, u64, u64),
     failures: Option<(Uuid, u64, usize)>,
 }
 
 impl Loaded {
-    fn new(
-        overview: &FreshnessOverview,
-        filter: Option<FreshnessStatus>,
-        offset: usize,
-        limit: usize,
-        failure_page: usize,
-    ) -> Self {
+    fn new(overview: &FreshnessOverview, offset: usize, limit: usize, failure_page: usize) -> Self {
         Self {
             // Document states change only together with these counters.
             documents: (
-                filter,
                 offset,
                 limit,
                 overview.revision,
@@ -197,7 +136,7 @@ fn job_progress(job: Option<&RefreshJob>, overview: &FreshnessOverview) -> Html 
             <Progress
                 {value}
                 description="No refresh running"
-                value_text={format!("{} of {} current", overview.current, overview.total)}
+                value_text={format!("{} of {} current", Number(overview.current), Number(overview.total))}
                 size={ProgressSize::Small}
             />
         };
@@ -214,8 +153,13 @@ fn job_progress(job: Option<&RefreshJob>, overview: &FreshnessOverview) -> Html 
         _ => ProgressVariant::Warning,
     };
     let value_text = match job.failed {
-        0 => format!("{done} of {total}"),
-        failed => format!("{done} of {total} ({failed} failed)"),
+        0 => format!("{} of {}", Number(done), Number(total)),
+        failed => format!(
+            "{} of {} ({} failed)",
+            Number(done),
+            Number(total),
+            Number(failed)
+        ),
     };
     html! {
         <Progress
@@ -281,17 +225,40 @@ fn stage_card(title: &str, state: StageState, headline: String, details: Html) -
     }
 }
 
-/// The document a job is extracting, and for how long, measured against the server's clock.
-fn current_document(current: &RefreshCurrent, checked_at: OffsetDateTime) -> Html {
+/// What is being done with an SBOM, for how long, and how far it is, measured against the
+/// server's clock.
+fn current_document(action: &str, current: &CurrentSbom, checked_at: OffsetDateTime) -> Html {
     let id = current.sbom_id.to_string();
     let name = current.name.clone().unwrap_or_else(|| id.clone());
+    let elapsed = checked_at - current.started_at;
     html! {
         <>
-            { "Refreshing " }
-            <Link<AppRoute> to={AppRoute::Correlation { id }}>{ name }</Link<AppRoute>>
-            { format!(", started {} ago", approximate(checked_at - current.started_at)) }
+            <StackItem>
+                { format!("{action} ") }
+                <Link<AppRoute> to={AppRoute::Correlation { id }}>{ name }</Link<AppRoute>>
+                { format!(", started {} ago", approximate(elapsed)) }
+            </StackItem>
+            if let Some(progress) = current.progress.filter(|p| p.total > 0) {
+                <StackItem>
+                    <Progress
+                        value={progress.done as f64 / progress.total as f64}
+                        description={remaining(progress, elapsed)}
+                        value_text={format!("{} of {}", Number(progress.done), Number(progress.total))}
+                        size={ProgressSize::Small}
+                    />
+                </StackItem>
+            }
         </>
     }
+}
+
+/// The remaining time of a piece of work, extrapolated from its rate so far.
+fn remaining(progress: WorkProgress, elapsed: Duration) -> String {
+    if progress.done == 0 {
+        return "Estimating remaining time…".to_string();
+    }
+    let left = progress.total.saturating_sub(progress.done) as f64 / progress.done as f64;
+    format!("{} remaining", approximate(elapsed * left))
 }
 
 /// "Oldest pending: <timestamp>", or nothing when caught up.
@@ -311,9 +278,7 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
             <StackItem>{ job_progress(job, overview) }</StackItem>
             if let Some(job) = active {
                 <StackItem>{ eta(job, overview.checked_at) }</StackItem>
-                if let Some(current) = &job.current {
-                    <StackItem>{ current_document(current, overview.checked_at) }</StackItem>
-                }
+                { for job.current.iter().map(|current| current_document("Refreshing", current, overview.checked_at)) }
             } else if overview.needs_refresh > 0 {
                 <StackItem>{ "Waiting to retry failed documents." }</StackItem>
             }
@@ -322,7 +287,7 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
     stage_card(
         "SBOM extraction",
         StageState::of(overview.needs_refresh, failed),
-        format!("{} pending", overview.needs_refresh),
+        format!("{} pending", Number(overview.needs_refresh)),
         details,
     )
 }
@@ -341,32 +306,33 @@ fn advisory_card(lag: Option<&ExtractionLag>) -> Html {
         <>
             { oldest("Oldest pending change", lag.oldest_pending_at.as_ref()) }
             if lag.failed > 0 {
-                <StackItem>{ format!("{} waiting for retry; see server logs.", lag.failed) }</StackItem>
+                <StackItem>{ format!("{} waiting for retry; see server logs.", Number(lag.failed)) }</StackItem>
             }
         </>
     };
     stage_card(
         "Advisory extraction",
         StageState::of(lag.pending_advisories, lag.failed),
-        format!("{} pending", lag.pending_advisories),
+        format!("{} pending", Number(lag.pending_advisories)),
         details,
     )
 }
 
 /// Verdict computation: snapshots resolved from the extracted evidence.
-fn verdict_card(lag: &VerdictLag) -> Html {
+fn verdict_card(lag: &VerdictLag, checked_at: OffsetDateTime) -> Html {
     let details = html! {
         <>
+            { for lag.current.iter().map(|current| current_document("Computing the verdicts of", current, checked_at)) }
             { oldest("Oldest outstanding work", lag.oldest_pending_at.as_ref()) }
             if lag.failed > 0 {
-                <StackItem>{ format!("{} waiting for retry; see server logs.", lag.failed) }</StackItem>
+                <StackItem>{ format!("{} waiting for retry; see server logs.", Number(lag.failed)) }</StackItem>
             }
         </>
     };
     stage_card(
         "Verdicts",
         StageState::of(lag.pending, lag.failed),
-        format!("{} pending", lag.pending),
+        format!("{} pending", Number(lag.pending)),
         details,
     )
 }
@@ -379,7 +345,6 @@ pub fn freshness_page() -> Html {
     let in_flight = use_mut_ref(|| 0usize);
     // The last loaded view, readable by the request without re-running the effect.
     let last = use_mut_ref(|| None::<View>);
-    let filter = use_state(|| None::<FreshnessStatus>);
     let total = view.as_ref().and_then(|v| v.total);
     let pagination = use_stored_pagination("correlation-status", total);
     let failure_page = use_state(|| 0usize);
@@ -408,34 +373,29 @@ pub fn freshness_page() -> Html {
         use_effect_with(
             (
                 *generation,
-                *filter,
                 pagination.control,
                 *failure_page,
                 token.clone(),
             ),
-            move |(_, filter, control, failure_page, _)| {
+            move |(_, control, failure_page, _)| {
                 let cancelled = Rc::new(Cell::new(false));
                 let pending = cancelled.clone();
                 *in_flight.borrow_mut() += 1;
-                let (filter, control, failure_page) = (*filter, *control, *failure_page);
+                let (control, failure_page) = (*control, *failure_page);
                 spawn_local(async move {
                     let previous = last.borrow().clone();
                     let loaded = async {
                         let overview = api::fetch_freshness(token.as_deref()).await?;
                         let (offset, limit) = (control.page * control.per_page, control.per_page);
-                        let loaded = Loaded::new(&overview, filter, offset, limit, failure_page);
+                        let loaded = Loaded::new(&overview, offset, limit, failure_page);
                         let (documents, total) = match &previous {
                             Some(view) if view.loaded.documents == loaded.documents => {
                                 (view.documents.clone(), view.total)
                             }
                             _ => {
-                                let docs = api::fetch_freshness_documents(
-                                    filter,
-                                    offset,
-                                    limit,
-                                    token.as_deref(),
-                                )
-                                .await?;
+                                let docs =
+                                    api::fetch_freshness_documents(offset, limit, token.as_deref())
+                                        .await?;
                                 (docs.items, docs.total.map(|t| t as usize))
                             }
                         };
@@ -475,18 +435,10 @@ pub fn freshness_page() -> Html {
         );
     }
 
-    let onfilter = {
-        let filter = filter.clone();
-        let pagination = pagination.clone();
-        Callback::from(move |value: DocumentFilter| {
-            filter.set(value.0);
-            pagination.onnavigation.emit(Navigation::First);
-        })
-    };
-
     let header = html_nested! {
         <TableHeader<Column>>
             <TableColumn<Column> label="SBOM" index={Column::Sbom} />
+            <TableColumn<Column> label="Packages" index={Column::Packages} />
             <TableColumn<Column> label="Status" index={Column::Status} />
             <TableColumn<Column> label="Last successful refresh" index={Column::LastRefresh} />
         </TableHeader<Column>>
@@ -517,12 +469,12 @@ pub fn freshness_page() -> Html {
                     <Grid gutter=true>
                         { sbom_card(&data.overview, data.overview.latest_job.as_ref()) }
                         { advisory_card(data.overview.extraction_lag.as_ref()) }
-                        { verdict_card(&data.overview.verdict_lag) }
+                        { verdict_card(&data.overview.verdict_lag, data.overview.checked_at) }
                     </Grid>
                 </StackItem>
                 if let Some(details) = data.failures.as_ref().filter(|details| details.failure_total > 0) {
                     <StackItem>
-                        <Alert title={format!("{} documents could not be refreshed", details.failure_total)} r#type={AlertType::Warning} inline=true>
+                        <Alert title={format!("{} documents could not be refreshed", Number(details.failure_total))} r#type={AlertType::Warning} inline=true>
                             <p>{"Their previous results remain available. Failed documents are retried automatically."}</p>
                             <ExpandableSection toggle_text_hidden="Show failures" toggle_text_expanded="Hide failures">
                                 <ul>{for details.failures.iter().map(|f| html! {
@@ -539,34 +491,24 @@ pub fn freshness_page() -> Html {
                     </StackItem>
                 }
                 <StackItem>
-                <Title level={Level::H2}>{ "Documents" }</Title>
+                <Title level={Level::H2}>{ "Documents needing a refresh" }</Title>
                 <Toolbar>
                     <ToolbarContent>
-                        <ToolbarItem>
-                            <ToggleGroup>
-                                { for DocumentFilter::ALL.into_iter().map(|value| html_nested! {
-                                    <ToggleGroupItem
-                                        text={value.to_string()}
-                                        selected={value == DocumentFilter(*filter)}
-                                        onchange={onfilter.reform(move |()| value)}
-                                    />
-                                }) }
-                            </ToggleGroup>
-                        </ToolbarItem>
                         <ToolbarItem r#type={ToolbarItemType::Pagination}>
                             <SimplePagination pagination={pagination.clone()} {total} />
                         </ToolbarItem>
                     </ToolbarContent>
                 </Toolbar>
-                <ComposableTable>
+                // the package counts
+                <ComposableTable class="trustify-numeric-2">
                     { header }
                     <TableBody>
                         if data.documents.is_empty() {
                             <TableRow>
-                                <TableData colspan={3}>
+                                <TableData colspan={4}>
                                     <Bullseye>
-                                        <EmptyState title="No documents found" icon={Icon::Search} size={Size::Large}>
-                                            { "No SBOMs have this status. Select a different status to see other documents." }
+                                        <EmptyState title="All documents are current" icon={Icon::CheckCircle} size={Size::Large}>
+                                            { "No SBOMs need to be refreshed against the current matching settings." }
                                         </EmptyState>
                                     </Bullseye>
                                 </TableData>
@@ -577,6 +519,7 @@ pub fn freshness_page() -> Html {
                                 <TableData data_label="SBOM">
                                     <Link<AppRoute> to={AppRoute::Correlation { id: doc.sbom_id.to_string() }}>{ &doc.name }</Link<AppRoute>>
                                 </TableData>
+                                <TableData data_label="Packages">{ Number(doc.packages) }</TableData>
                                 <TableData data_label="Status">{ freshness_badge(&doc.freshness) }</TableData>
                                 <TableData data_label="Last successful refresh">
                                     { doc.freshness.completed_at.as_ref().map(timestamp).unwrap_or_else(|| html!("Never")) }

@@ -1,7 +1,15 @@
 #[cfg(feature = "garage-door")]
 use crate::embedded_oidc;
 
-use crate::{endpoints, profile::spawn_db_check, sample_data, ui::EmbeddedUis};
+use crate::{
+    endpoints,
+    profile::{
+        spawn_db_check,
+        worker::{CorrelationWorkerArgs, JobContext, correlation_task},
+    },
+    sample_data,
+    ui::EmbeddedUis,
+};
 use actix_web::web;
 use anyhow::Context;
 use bytesize::ByteSize;
@@ -83,7 +91,7 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
-use trustify_module_correlation::extractor::worker::run_extraction_worker;
+use trustify_module_correlation::service::tuning::WorkerConfig;
 use trustify_module_exploit_intelligence::{
     auth::build_provider,
     runner::worker::start_worker,
@@ -110,6 +118,10 @@ pub struct Run {
     /// Disable the correlation API and background extraction and refresh worker
     #[arg(long, env = "TRUSTD_DISABLE_CORRELATION")]
     pub disable_correlation: bool,
+
+    /// Don't run the correlation worker in this instance, leaving the work to `trustd worker`
+    #[arg(long, env = "TRUSTD_DISABLE_CORRELATION_WORKER")]
+    pub disable_correlation_worker: bool,
 
     /// Inject example importer configurations during startup
     #[arg(long, env)]
@@ -234,6 +246,10 @@ pub struct Run {
     /// Read-only database configuration (optional, falls back to primary database)
     #[command(flatten)]
     pub database_ro: DatabaseReadOnly,
+
+    /// Correlation worker settings
+    #[command(flatten)]
+    pub correlation: CorrelationWorkerArgs,
 
     /// Location of the storage
     #[command(flatten)]
@@ -486,6 +502,8 @@ struct InitData {
     validators: Vec<Arc<dyn Validator>>,
     format_filter: VariantFilter,
     importer_filter: VariantFilter,
+    /// The settings of the in-process correlation worker, `None` when it is disabled.
+    correlation: Option<WorkerConfig>,
 }
 
 /// Groups all module configurations.
@@ -697,6 +715,7 @@ impl InitData {
             validators,
             format_filter,
             importer_filter,
+            correlation: (!run.disable_correlation_worker).then(|| run.correlation.into()),
         })
     }
 
@@ -812,9 +831,15 @@ fn build_correlation_worker_task(init: &InitData) -> Option<Task> {
     if init.read_only || !init.capabilities.contains(&Capability::Correlation) {
         return None;
     }
-    let broadcaster = init.broadcaster.clone();
-    let db_rw = init.db_rw.clone();
-    Some(async move { run_extraction_worker(broadcaster, db_rw).await }.boxed_local())
+    let config = init.correlation.clone()?;
+    Some(correlation_task(
+        JobContext {
+            db_rw: init.db_rw.clone(),
+            db_ro: init.db_ro.clone(),
+            broadcaster: init.broadcaster.clone(),
+        },
+        config,
+    ))
 }
 
 pub fn default_openapi_info() -> Info {
@@ -960,15 +985,17 @@ mod test {
 
     #[test_context(TrustifyContext)]
     #[rstest]
-    #[case::enabled_writable(false, false)]
-    #[case::enabled_read_only(false, true)]
-    #[case::disabled_writable(true, false)]
-    #[case::disabled_read_only(true, true)]
+    #[case::enabled_writable(false, false, false)]
+    #[case::enabled_read_only(false, true, false)]
+    #[case::disabled_writable(true, false, false)]
+    #[case::disabled_read_only(true, true, false)]
+    #[case::external_worker(false, false, true)]
     #[test_log::test(tokio::test)]
     async fn correlation_initialization(
         ctx: &TrustifyContext,
         #[case] disable_correlation: bool,
         #[case] read_only: bool,
+        #[case] disable_worker: bool,
     ) -> anyhow::Result<()> {
         let context = InitContext::default();
         let port = ctx.port.to_string();
@@ -979,6 +1006,9 @@ mod test {
         if read_only {
             args.push("--read-only");
         }
+        if disable_worker {
+            args.push("--disable-correlation-worker");
+        }
         let run =
             Run::from_arg_matches(&Run::augment_args(Command::new("cmd")).get_matches_from(args))?;
         let init = InitData::new(context, run).await?;
@@ -988,7 +1018,7 @@ mod test {
         );
         assert_eq!(
             build_correlation_worker_task(&init).is_some(),
-            !disable_correlation && !read_only
+            !disable_correlation && !read_only && !disable_worker
         );
         Ok(())
     }
@@ -1352,6 +1382,7 @@ mod test {
             validators: Vec::new(),
             format_filter: VariantFilter::default(),
             importer_filter: VariantFilter::default(),
+            correlation: Some(WorkerConfig::default()),
         };
         let graph = Graph::new();
 

@@ -6,6 +6,7 @@
 //! work against the trait. Adding a new identifier type means adding a module
 //! here and registering it in [`Extractors::default`].
 
+pub mod class;
 pub mod context;
 pub mod cpe;
 pub mod digest;
@@ -79,12 +80,20 @@ impl Assertion {
     }
 }
 
-/// An assertion matching one of the identifiers passed to [`Extractor::match_identifiers`].
+/// An assertion matching one of the components passed to [`Extractor::match_identifiers`].
 #[derive(Clone, Debug, PartialEq)]
-pub struct IdentifierMatch {
-    /// Index into the identifiers passed in.
-    pub index: usize,
+pub struct ComponentMatch {
+    /// Index into the components passed in.
+    pub component: usize,
     pub assertion: Assertion,
+}
+
+/// The identifiers of components, with the index of their component.
+pub fn indexed(components: &[Vec<IdentifierRef>]) -> impl Iterator<Item = (usize, &IdentifierRef)> {
+    components
+        .iter()
+        .enumerate()
+        .flat_map(|(component, identifiers)| identifiers.iter().map(move |id| (component, id)))
 }
 
 /// An SBOM node matching an assertion, found by [`Extractor::match_advisory`].
@@ -119,15 +128,17 @@ pub trait Extractor: Send + Sync {
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error>;
 
-    /// Find advisory assertions matching the given identifiers.
+    /// Find advisory assertions matching the identifiers of the given components.
     ///
-    /// Identifiers of kinds this extractor does not handle must be ignored.
-    /// Shared by SBOM-direction extraction and the ad-hoc query.
+    /// Each entry holds the identifiers of one component (e.g. an SBOM node), which are judged
+    /// together, like the identifiers of a node in [`Self::match_advisory`]. Identifiers of kinds
+    /// this extractor does not handle must be ignored. Shared by SBOM-direction extraction and the
+    /// ad-hoc query.
     async fn match_identifiers(
         &self,
-        _identifiers: &[IdentifierRef],
+        _components: &[Vec<IdentifierRef>],
         _tx: &DatabaseTransaction,
-    ) -> Result<Vec<IdentifierMatch>, Error> {
+    ) -> Result<Vec<ComponentMatch>, Error> {
         Ok(Vec::new())
     }
 

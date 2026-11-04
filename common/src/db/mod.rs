@@ -33,7 +33,6 @@ use std::{
     pin::Pin,
     str::FromStr,
     sync::Arc,
-    time::Duration,
 };
 use tokio::{spawn, sync::oneshot, time};
 use tracing::instrument;
@@ -157,10 +156,10 @@ impl Database {
             opt.sqlx_slow_statements_logging_settings(log::LevelFilter::Warn, *threshold);
         }
 
-        opt.connect_timeout(Duration::from_secs(database.connect_timeout));
-        opt.acquire_timeout(Duration::from_secs(database.acquire_timeout));
-        opt.max_lifetime(Duration::from_secs(database.max_lifetime));
-        opt.idle_timeout(Duration::from_secs(database.idle_timeout));
+        opt.connect_timeout(*database.connect_timeout);
+        opt.acquire_timeout(*database.acquire_timeout);
+        opt.max_lifetime(*database.max_lifetime);
+        opt.idle_timeout(*database.idle_timeout);
 
         let db = sea_orm::Database::connect(opt).await?;
         let name = database.name.clone();
@@ -205,9 +204,9 @@ impl Database {
         let pool = PgPoolOptions::new()
             .max_connections(database.max_conn)
             .min_connections(database.min_conn)
-            .acquire_timeout(Duration::from_secs(database.acquire_timeout))
-            .max_lifetime(Duration::from_secs(database.max_lifetime))
-            .idle_timeout(Duration::from_secs(database.idle_timeout))
+            .acquire_timeout(*database.acquire_timeout)
+            .max_lifetime(*database.max_lifetime)
+            .idle_timeout(*database.idle_timeout)
             .connect_with(pg_connect_options(database, ssl_mode, &token))
             .await
             .context("failed to connect to database using RDS IAM authentication")?;

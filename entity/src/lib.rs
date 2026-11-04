@@ -11,6 +11,7 @@ pub mod base_purl;
 pub mod correlation_evidence;
 pub mod correlation_evidence_context;
 pub mod correlation_extraction_state;
+pub mod correlation_node_class;
 pub mod correlation_option;
 pub mod correlation_verdict;
 pub mod correlation_verdict_freshness;

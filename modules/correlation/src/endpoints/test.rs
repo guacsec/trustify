@@ -1,4 +1,8 @@
-use crate::{extractor::Extractors, model::ExtractionLag, service::freshness::run_step};
+use crate::{
+    extractor::Extractors,
+    model::ExtractionLag,
+    service::{freshness::run_step, tuning::WorkerConfig},
+};
 use actix_web::{
     App, HttpMessage,
     test::{TestRequest, call_service, read_body_json},
@@ -259,7 +263,14 @@ async fn freshness_overview_and_refresh_jobs(ctx: &TrustifyContext) -> anyhow::R
     req.extensions_mut().insert(reader.clone());
     assert_eq!(call_service(&app, req).await.status(), 404);
     // The worker schedules a job for the never-extracted SBOM.
-    assert!(run_step(&ReadWrite::new(ctx.db.clone()), &Extractors::default()).await?);
+    assert!(
+        run_step(
+            &ReadWrite::new(ctx.db.clone()),
+            &Extractors::default(),
+            &WorkerConfig::default()
+        )
+        .await?
+    );
     let req = TestRequest::get()
         .uri("/v3/correlation/freshness")
         .to_request();
@@ -377,7 +388,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "under_investigation": 0,
             "none": 0,
             "remediations": 0, "verdict_freshness": {"status":"unknown", "generation":null, "completed_at":null, "required_revision":0, "completed_revision":null},
-            "freshness": {"status":"unknown", "required_revision":1, "completed_revision":null, "completed_at":null},
+            "freshness": {"status":"unknown", "required_revision":2, "completed_revision":null, "completed_at":null},
         })
     };
     assert_eq!(body, serde_json::json!([zero(a), zero(b)]));

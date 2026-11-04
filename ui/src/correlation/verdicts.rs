@@ -4,6 +4,7 @@ use super::{
     common::{confidence_label, identifiers, matched_value, remediation, status_label, timestamp},
     pagination::{page_status, use_collection},
 };
+use crate::number::Number;
 use crate::{
     advisory::advisory_link,
     model::{EvidenceDetail, EvidenceRemediation, ProviderMatch, VerdictSummary},
@@ -20,8 +21,14 @@ use yew::prelude::*;
 /// Show one page of complete verdicts with expandable evidence details.
 #[function_component(VerdictTable)]
 pub(super) fn verdict_table(props: &CorrelationContentProps) -> Html {
-    let (page, pagination, loading, error, freshness, onrefresh) =
-        use_collection::<VerdictSummary>(props.sbom_id, "", false);
+    let (page, pagination, loading, error, freshness) =
+        use_collection::<VerdictSummary>(props.sbom_id, "", false, props.reload);
+    {
+        let onfreshness = props.onfreshness.clone();
+        use_effect_with(freshness.clone(), move |freshness| {
+            onfreshness.emit(freshness.clone())
+        });
+    }
     let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo((page.items.clone(), props.sbom_id), |(items, id)| {
         items
@@ -43,10 +50,9 @@ pub(super) fn verdict_table(props: &CorrelationContentProps) -> Html {
     };
     html! {
         <>
-            <super::processing::ProcessingStatus sbom_id={Some(props.sbom_id)} snapshot={freshness.clone()} {onrefresh} />
-            <Title level={Level::H2}>{"Correlated components "}<Badge>{page.total.map(|n| n.to_string()).unwrap_or_default()}</Badge></Title>
+            <Title level={Level::H2}>{"Correlated components "}<Badge>{page.total.map(|n| Number(n).to_string()).unwrap_or_default()}</Badge></Title>
             <SimplePagination {pagination} {total} />
-            {page_status(&page, loading, error.as_deref(), if freshness.as_ref().is_none_or(|s| s.generation.is_none()) { "Verdicts not computed yet" } else { "No verdicts in completed results" })}
+            {page_status(&page, loading, error.as_deref(), if freshness.as_ref().is_none_or(|s| s.generation.is_none()) { "No verdicts yet" } else { "No verdicts in completed results" })}
             if !loading && error.is_none() && !page.items.is_empty() {
                 <Table<VerdictColumn, UseTableData<VerdictColumn, MemoizedTableModel<VerdictEntry>>>
                     mode={TableMode::Expandable} {header} {entries} {onexpand}

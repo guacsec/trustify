@@ -125,3 +125,12 @@
     }
   }
 }
+
+// Right-aligned numeric columns: `trustify-numeric-<n>` on a table aligns its column n (from 1),
+// header and cells, as table columns can't carry a class of their own.
+@for $n from 1 through 8 {
+  .trustify-numeric-#{$n} > :is(thead, tbody) > tr > :is(th, td):nth-child(#{$n}) {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+}

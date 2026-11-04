@@ -1,5 +1,6 @@
 use super::{
-    Assertion, Extractor, IdentifierMatch, NodeMatch, NodeRef,
+    Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef,
+    class::{classify, members},
     context::{Scope, Scoper},
     cpe::CpeExtractor,
     digest::DigestExtractor,
@@ -15,19 +16,24 @@ use crate::{
 };
 use sea_orm::DatabaseTransaction;
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
+    mem::take,
     slice,
 };
-use tracing::instrument;
+use tracing::{Span, field, instrument};
 use uuid::Uuid;
 
 /// The set of active extractors.
-pub struct Extractors(Vec<Box<dyn Extractor>>);
+pub struct Extractors {
+    extractors: Vec<Box<dyn Extractor>>,
+    /// The number of identifiers an SBOM is matched with at once.
+    chunk: usize,
+}
 
 impl Default for Extractors {
     /// All known extractors. This is the single place to register a new one.
     fn default() -> Self {
-        Self(vec![
+        Self::new(vec![
             Box::new(DigestExtractor),
             Box::new(ProductIdentifierExtractor),
             Box::new(PurlExtractor),
@@ -39,7 +45,16 @@ impl Default for Extractors {
 impl Extractors {
     /// Create a registry from an explicit set of extractors.
     pub fn new(extractors: Vec<Box<dyn Extractor>>) -> Self {
-        Self(extractors)
+        Self {
+            extractors,
+            chunk: CHUNK,
+        }
+    }
+
+    /// Match SBOMs in chunks of about `chunk` identifiers instead of the default.
+    #[cfg(test)]
+    pub fn with_chunk(self, chunk: usize) -> Self {
+        Self { chunk, ..self }
     }
 
     /// Match the identifiers of an SBOM against advisories and store evidence.
@@ -53,31 +68,30 @@ impl Extractors {
     ) -> Result<usize, Error> {
         lock_revision(tx).await?;
         lock_sboms(tx, vec![sbom_id]).await?;
+        // the other members of a class have the same evidence as its representative
+        let representatives = classify(sbom_id, tx).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
-        for extractor in &self.0 {
-            let node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
+        for extractor in &self.extractors {
+            let mut node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
+            node_identifiers.retain(|id| representatives.contains(&id.node.node_id));
             if node_identifiers.is_empty() {
                 continue;
             }
 
-            let identifiers = node_identifiers
-                .iter()
-                .map(|n| n.identifier.clone())
-                .collect::<Vec<_>>();
-            let matches = extractor
-                .match_identifiers(&identifiers, tx)
-                .await?
-                .into_iter()
-                .filter_map(|IdentifierMatch { index, assertion }| {
-                    node_identifiers
-                        .get(index)
-                        .map(|node| (node.node.clone(), assertion))
-                })
-                .collect::<Vec<_>>();
-            let matches = retain_in_range(matches, tx).await?;
-
-            let count = write_scoped(matches, &mut scoper, tx).await?;
+            let chunks = node_chunks(node_identifiers, self.chunk);
+            let total_chunks = chunks.len();
+            let mut count = 0;
+            for (index, chunk) in chunks.into_iter().enumerate() {
+                count += extract_chunk(
+                    extractor.as_ref(),
+                    chunk,
+                    (index, total_chunks),
+                    &mut scoper,
+                    tx,
+                )
+                .await?;
+            }
 
             tracing::info!(extractor = extractor.id(), %sbom_id, evidence_count = count, "extraction for SBOM complete");
             total += count;
@@ -97,7 +111,7 @@ impl Extractors {
         lock_revision(tx).await?;
         let mut batches = Vec::new();
         let mut sboms = BTreeSet::new();
-        for extractor in &self.0 {
+        for extractor in &self.extractors {
             let matches = extractor.match_advisory(advisory_id, tx).await?;
             sboms.extend(matches.iter().map(|m| m.node.sbom_id));
             batches.push((extractor.id(), matches));
@@ -105,15 +119,22 @@ impl Extractors {
         lock_sboms(tx, sboms.into_iter().collect()).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
+        // the evidence of the other members of a class is the one of its representative
+        let nodes = batches
+            .iter()
+            .flat_map(|(_, matches)| matches.iter().map(|m| m.node.clone()))
+            .collect();
+        let members = members(nodes, tx).await?;
         for (extractor_id, matches) in batches {
+            let matches = matches
+                .into_iter()
+                .filter(|m| !members.contains(&m.node))
+                .map(|NodeMatch { node, assertion }| (node, assertion))
+                .collect::<Vec<_>>();
             if matches.is_empty() {
                 continue;
             }
 
-            let matches = matches
-                .into_iter()
-                .map(|NodeMatch { node, assertion }| (node, assertion))
-                .collect::<Vec<_>>();
             let matches = retain_in_range(matches, tx).await?;
             let count = write_scoped(matches, &mut scoper, tx).await?;
 
@@ -134,7 +155,7 @@ impl Extractors {
         tx: &DatabaseTransaction,
     ) -> Result<HashMap<String, Vec<IdentifierRef>>, Error> {
         let mut result = HashMap::<_, Vec<_>>::new();
-        for extractor in &self.0 {
+        for extractor in &self.extractors {
             for n in extractor.sbom_identifiers(sbom_id, nodes, tx).await? {
                 result.entry(n.node.node_id).or_default().push(n.identifier);
             }
@@ -201,10 +222,10 @@ impl Extractors {
             }
         }
         let mut assertions = Vec::new();
-        for extractor in &self.0 {
+        for extractor in &self.extractors {
             assertions.extend(
                 extractor
-                    .match_identifiers(slice::from_ref(identifier), tx)
+                    .match_identifiers(slice::from_ref(&vec![identifier.clone()]), tx)
                     .await?
                     .into_iter()
                     .map(|m| m.assertion),
@@ -251,6 +272,106 @@ impl Extractors {
     }
 }
 
+/// The default number of identifiers an SBOM is matched with at once.
+///
+/// Bounds the matches held in memory: a large SBOM matches tens of millions of assertions before
+/// scoping, as context-dependent and fallback assertions are only dropped by the [`Scoper`].
+const CHUNK: usize = 5_000;
+
+/// Split the identifiers of an SBOM into chunks of about `size` identifiers.
+///
+/// The identifiers of a node stay in one chunk, as the [`EvidenceWriter`] merges the evidence of
+/// a node in memory (its confidence and ranges), and only its source assertions when writing.
+/// Nodes are ordered by their identifiers, so a chunk covers few packages, and a package is
+/// looked up by few chunks.
+fn node_chunks(identifiers: Vec<NodeIdentifier>, size: usize) -> Vec<Vec<NodeIdentifier>> {
+    let mut nodes = BTreeMap::<NodeRef, Vec<NodeIdentifier>>::new();
+    for identifier in identifiers {
+        nodes
+            .entry(identifier.node.clone())
+            .or_default()
+            .push(identifier);
+    }
+    let mut nodes = nodes.into_values().collect::<Vec<_>>();
+    for node in &mut nodes {
+        node.sort_by(|a, b| a.identifier.value.cmp(&b.identifier.value));
+    }
+    fn first(node: &[NodeIdentifier]) -> Option<&str> {
+        node.first().map(|i| i.identifier.value.as_str())
+    }
+    nodes.sort_by(|a, b| first(a).cmp(&first(b)));
+
+    let mut chunks = Vec::new();
+    let mut chunk = Vec::new();
+    for node in nodes {
+        chunk.extend(node);
+        if chunk.len() >= size {
+            chunks.push(take(&mut chunk));
+        }
+    }
+    if !chunk.is_empty() {
+        chunks.push(chunk);
+    }
+    chunks
+}
+
+/// Match one chunk of an SBOM's identifiers, and write the evidence in range and scope.
+///
+/// Returns the number of evidence entries written.
+#[instrument(
+    skip_all,
+    fields(
+        extractor = extractor.id(),
+        chunk = position.0,
+        chunks = position.1,
+        identifiers = chunk.len(),
+        matches = field::Empty,
+        in_range = field::Empty,
+        evidence = field::Empty,
+    ),
+    err(level = tracing::Level::INFO)
+)]
+async fn extract_chunk(
+    extractor: &dyn Extractor,
+    chunk: Vec<NodeIdentifier>,
+    position: (usize, usize),
+    scoper: &mut Scoper,
+    tx: &DatabaseTransaction,
+) -> Result<usize, Error> {
+    let span = Span::current();
+    // the identifiers of a node are next to each other, see `node_chunks`
+    let mut nodes = Vec::<NodeRef>::new();
+    let mut components = Vec::<Vec<IdentifierRef>>::new();
+    for NodeIdentifier { node, identifier } in chunk {
+        match (nodes.last(), components.last_mut()) {
+            (Some(last), Some(identifiers)) if *last == node => identifiers.push(identifier),
+            _ => {
+                nodes.push(node);
+                components.push(vec![identifier]);
+            }
+        }
+    }
+    let matches = extractor
+        .match_identifiers(&components, tx)
+        .await?
+        .into_iter()
+        .filter_map(
+            |ComponentMatch {
+                 component,
+                 assertion,
+             }| { nodes.get(component).map(|node| (node.clone(), assertion)) },
+        )
+        .collect::<Vec<_>>();
+    span.record("matches", matches.len());
+
+    let matches = retain_in_range(matches, tx).await?;
+    span.record("in_range", matches.len());
+
+    let count = write_scoped(matches, scoper, tx).await?;
+    span.record("evidence", count);
+    Ok(count)
+}
+
 /// Scope matches by their contexts, and write the evidence of the remaining ones.
 ///
 /// Returns the number of evidence entries written.
@@ -282,4 +403,52 @@ async fn write_scoped(
         }
     }
     writer.write(tx).await
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::model::IdentifierKind;
+
+    fn identifier(node: &str, value: &str) -> NodeIdentifier {
+        NodeIdentifier {
+            node: NodeRef {
+                sbom_id: Uuid::nil(),
+                node_id: node.into(),
+            },
+            identifier: IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: value.into(),
+            },
+        }
+    }
+
+    /// A node's identifiers stay together, and nodes are ordered by their identifiers.
+    #[test]
+    fn chunks_keep_nodes_together() {
+        let chunks = node_chunks(
+            vec![
+                identifier("a", "pkg:rpm/redhat/zlib@1"),
+                identifier("b", "pkg:rpm/redhat/kernel@2"),
+                identifier("a", "pkg:rpm/redhat/zlib@1?arch=x86_64"),
+                identifier("c", "pkg:rpm/redhat/kernel@1"),
+                identifier("b", "pkg:rpm/redhat/kernel@2?arch=x86_64"),
+            ],
+            2,
+        );
+        assert_eq!(
+            chunks,
+            vec![
+                vec![
+                    identifier("c", "pkg:rpm/redhat/kernel@1"),
+                    identifier("b", "pkg:rpm/redhat/kernel@2"),
+                    identifier("b", "pkg:rpm/redhat/kernel@2?arch=x86_64"),
+                ],
+                vec![
+                    identifier("a", "pkg:rpm/redhat/zlib@1"),
+                    identifier("a", "pkg:rpm/redhat/zlib@1?arch=x86_64"),
+                ],
+            ]
+        );
+    }
 }

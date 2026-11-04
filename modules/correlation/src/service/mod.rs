@@ -19,6 +19,7 @@ use trustify_entity::{
 };
 use uuid::Uuid;
 
+mod class;
 pub mod confidence;
 pub mod extraction;
 pub mod freshness;
@@ -28,6 +29,7 @@ pub mod projection;
 mod remediation;
 pub mod resolution;
 pub mod statement;
+pub mod tuning;
 
 #[cfg(test)]
 mod test;
@@ -88,28 +90,27 @@ impl CorrelationService {
             .remove(&sbom_id)
             .unwrap_or_default();
         let sbom_name = load_sbom_name(sbom_id, connection).await?;
-        let mut query = correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
-        if let Some(node) = &request.node_id {
-            query = query.filter(correlation_evidence::Column::NodeId.eq(node));
-        }
-        if let Some(vulnerability) = &request.vulnerability_id {
-            query = query.filter(correlation_evidence::Column::VulnerabilityId.eq(vulnerability));
-        }
-        let evidence_rows = query.all(connection).await?;
-
-        let verdicts = self
-            .verdicts(sbom_id, request, &evidence_rows, connection)
+        let evidence_rows = pagination::evidence_query(sbom_id, request)
+            .all(connection)
             .await?;
+
+        let mut snapshot = resolution::ProviderSnapshot::load_sboms(connection, &[sbom_id]).await?;
+        let verdicts = self
+            .verdicts(sbom_id, request, &evidence_rows, &mut snapshot, connection)
+            .await?;
+        let verdicts =
+            class::expand(sbom_id, verdicts, request.node_id.as_deref(), connection).await?;
         let unmatched_components = if include_unmatched {
             let node_identifiers = self
                 .extractors
                 .component_identifiers(sbom_id, None, connection)
                 .await?;
-            let matched = evidence_rows
+            let representatives = evidence_rows
                 .iter()
-                .map(|row| row.node_id.as_str())
+                .map(|row| row.node_id.clone())
                 .collect();
+            let members = class::members(sbom_id, representatives, connection).await?;
+            let matched = members.values().flatten().map(String::as_str).collect();
             Some(load_unmatched_components(sbom_id, &matched, &node_identifiers, connection).await?)
         } else {
             None
@@ -129,6 +130,7 @@ impl CorrelationService {
         sbom_id: Uuid,
         request: &ResolutionRequest,
         evidence_rows: &[correlation_evidence::Model],
+        snapshot: &mut resolution::ProviderSnapshot,
         connection: &DatabaseTransaction,
     ) -> Result<Vec<VerdictSummary>, Error> {
         if evidence_rows.is_empty() {
@@ -172,8 +174,10 @@ impl CorrelationService {
             .collect();
 
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
-        let snapshot =
-            resolution::ProviderSnapshot::load(connection, &[sbom_id], &advisory_ids).await?;
+        snapshot
+            .load_advisories(connection, advisory_ids.iter().copied())
+            .await?;
+        let snapshot = &*snapshot;
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
         let mut contexts =
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
@@ -190,9 +194,9 @@ impl CorrelationService {
                 .push(row);
         }
 
+        let context = snapshot.context(request)?;
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
-            let context = snapshot.context(request)?;
             let identifiers = node_identifiers
                 .get(*node_id)
                 .map(Vec::as_slice)
@@ -205,7 +209,7 @@ impl CorrelationService {
                     Ok(resolution::DecisionEvidence {
                         contexts: contexts.remove(&row.id).unwrap_or_default(),
                         remediations: remediations.remove(&row.id).unwrap_or_default(),
-                        ..decision_evidence(row, &snapshot)?
+                        ..decision_evidence(row, snapshot)?
                     })
                 })
                 .collect::<Result<Vec<_>, Error>>()?;

@@ -1,3 +1,4 @@
+use crate::number::Number;
 use crate::{
     AppRoute, api,
     correlation::{processing::ProcessingStatus, status_color},
@@ -56,7 +57,7 @@ fn remediation_count(counts: Option<&SbomVerdictCounts>) -> Html {
             <Tooltip text="Remediations stated by advisories. Expand a verdict in the SBOM to see the details and source advisories.">
                 <span>
                     <i class="fas fa-wrench pf-v6-u-mr-xs" aria-hidden="true"/>
-                    { counts.remediations }
+                    { Number(counts.remediations) }
                 </span>
             </Tooltip>
         },
@@ -87,7 +88,7 @@ fn verdict_counts(counts: Option<&SbomVerdictCounts>) -> Html {
         html_nested! {
             <FlexItem>
                 <Label
-                    label={format!("{count} {}", status.label())}
+                    label={format!("{} {}", Number(count), status.label())}
                     color={status_color(status)}
                     compact=true
                 />

@@ -6,10 +6,14 @@ use crate::{
         StreamRelation,
     },
 };
-use sea_orm::{LoaderTrait, QueryOrder, TransactionTrait};
+use sea_orm::{
+    LoaderTrait, QueryOrder, TransactionTrait,
+    sea_query::{PostgresQueryBuilder, Query},
+};
 use serde_json::json;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::rpm::{Evr, stream_major};
 use trustify_entity::{
     correlation_evidence, correlation_evidence_context,
     correlation_evidence_context::ContextSource,
@@ -153,6 +157,99 @@ async fn extract_both_directions(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     assert!(extract_for_advisory(ctx, advisory_id).await? > 0);
     assert_eq!(load_evidence(ctx, sbom_id).await?, from_sbom);
+
+    Ok(())
+}
+
+/// A node's PURLs are judged together, in both directions: a statement in the node's own stream
+/// (here the `el8` fixes, for the `el8` PURL) suppresses the fallback to another minor of the same
+/// major (the `el8_7` fix, for the `el8_8` PURL).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn node_purls_are_judged_together(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let purl = |version: &str| {
+        json!({
+            "referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl",
+            "referenceLocator": format!("pkg:rpm/redhat/openssl@{version}?arch=x86_64&epoch=1"),
+        })
+    };
+    let document = json!({
+        "spdxVersion": "SPDX-2.3", "dataLicense": "CC0-1.0", "SPDXID": "SPDXRef-DOCUMENT",
+        "name": "openssl", "documentNamespace": "https://example.com/spdx/openssl-two-purls",
+        "creationInfo": { "created": "2025-01-01T00:00:00Z", "creators": ["Tool: test"] },
+        "packages": [{
+            "SPDXID": "SPDXRef-openssl", "name": "openssl", "versionInfo": "1:1.1.1k-7.el8",
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [purl("1.1.1k-7.el8"), purl("1.1.1k-10.el8_8")],
+        }],
+        "relationships": [{
+            "spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES",
+            "relatedSpdxElement": "SPDXRef-openssl",
+        }],
+    });
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_read(serde_json::to_vec(&document)?.as_slice())
+            .await?
+            .id,
+    )?;
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document(S5_VEX).await?.id)?;
+
+    extract_for_sbom(ctx, sbom_id).await?;
+    let from_sbom = load_evidence(ctx, sbom_id).await?;
+    // only the `el8` fixes, as for the `el8` PURL alone, not the `el8_7` fix as `fixed` for the
+    // `el8_8` PURL
+    assert_eq!(
+        range_evidence(ctx, sbom_id).await?,
+        vec![(
+            "SPDXRef-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
+            AssertionStatus::Affected,
+            // 0.72 (see `rh_fixed_major`), in RHEL 8 by the PURLs' release, as there is no
+            // `distro` qualifier
+            0.49,
+            Some(MatchedValue {
+                source_provider: None,
+                origin: AssertionOrigin::PublisherPolicy,
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_7"]),
+                enabled_by: Some(redhat_first_fixed()),
+            }),
+        )]
+    );
+
+    correlation_evidence::Entity::delete_many()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .exec(&ctx.db)
+        .await?;
+    extract_for_advisory(ctx, advisory_id).await?;
+    assert_eq!(load_evidence(ctx, sbom_id).await?, from_sbom);
+
+    Ok(())
+}
+
+/// Extracting an SBOM node by node yields the same evidence as all at once.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn chunks_extract_like_one_chunk(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom = ctx.ingest_document(S5_SBOM).await?;
+    ctx.ingest_documents([S5_VEX, S9_VEX]).await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+
+    assert!(extract_for_sbom(ctx, sbom_id).await? > 0);
+    let at_once = load_evidence(ctx, sbom_id).await?;
+
+    correlation_evidence::Entity::delete_many()
+        .exec(&ctx.db)
+        .await?;
+
+    let tx = ctx.db.begin().await?;
+    extractors()
+        .with_chunk(1)
+        .extract_for_sbom(sbom_id, &tx)
+        .await?;
+    tx.commit().await?;
+    assert_eq!(load_evidence(ctx, sbom_id).await?, at_once);
 
     Ok(())
 }
@@ -1198,9 +1295,11 @@ async fn rpm_module_identity(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let identifiers = inputs
         .iter()
-        .map(|(_, value)| IdentifierRef {
-            kind: IdentifierKind::Purl,
-            value: (*value).into(),
+        .map(|(_, value)| {
+            vec![IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: (*value).into(),
+            }]
         })
         .collect::<Vec<_>>();
     let tx = ctx.db.begin().await?;
@@ -1210,7 +1309,7 @@ async fn rpm_module_identity(ctx: &TrustifyContext) -> anyhow::Result<()> {
         .filter(|m| m.assertion.status == AssertionStatus::NotAffected)
         .collect::<Vec<_>>();
     assert!(!negatives.is_empty());
-    assert!(negatives.iter().all(|m| m.index == 1));
+    assert!(negatives.iter().all(|m| m.component == 1));
     Ok(())
 }
 
@@ -1299,9 +1398,11 @@ async fn rpm_architecture(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let identifiers = inputs
         .iter()
-        .map(|(_, value)| IdentifierRef {
-            kind: IdentifierKind::Purl,
-            value: (*value).into(),
+        .map(|(_, value)| {
+            vec![IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: (*value).into(),
+            }]
         })
         .collect::<Vec<_>>();
     let tx = ctx.db.begin().await?;
@@ -1311,7 +1412,7 @@ async fn rpm_architecture(ctx: &TrustifyContext) -> anyhow::Result<()> {
     for m in &matches {
         if let Some(arch) = arch(&m.assertion.matched_value.identifier)? {
             by_identifier
-                .entry(inputs[m.index].0)
+                .entry(inputs[m.component].0)
                 .or_default()
                 .insert(Some(arch));
         }
@@ -1432,5 +1533,221 @@ async fn confidence_factors(ctx: &TrustifyContext) -> anyhow::Result<()> {
         )]
     );
 
+    Ok(())
+}
+
+/// Batches of any size match like a single batch: each target's rows stay together, including
+/// identifiers sharing a versioned PURL with different qualifiers.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn batches_match_like_a_single_batch(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom_id = Uuid::parse_str(&ctx.ingest_document(S5_SBOM).await?.id)?;
+    ctx.ingest_document(S5_VEX).await?;
+    let tx = ctx.db.begin().await?;
+    let mut identifiers = PurlExtractor
+        .sbom_identifiers(sbom_id, None, &tx)
+        .await?
+        .into_iter()
+        .map(|node| vec![node.identifier])
+        .collect::<Vec<_>>();
+    identifiers.extend([
+        vec![IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1".into(),
+        }],
+        vec![IdentifierRef {
+            kind: IdentifierKind::Purl,
+            value: "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=aarch64&epoch=1".into(),
+        }],
+    ]);
+    let sorted = |mut matches: Vec<ComponentMatch>| {
+        matches.sort_by_cached_key(|m| format!("{m:?}"));
+        matches
+    };
+    let single = sorted(match_batched(&identifiers, usize::MAX, &tx).await?);
+    assert!(single.iter().any(|m| m.component == identifiers.len() - 1));
+    for batch_size in [1, 2] {
+        assert_eq!(
+            sorted(match_batched(&identifiers, batch_size, &tx).await?),
+            single,
+            "batch size {batch_size}"
+        );
+    }
+    assert_eq!(
+        match_batched(&[], 1, &tx).await?,
+        Vec::<ComponentMatch>::new()
+    );
+    Ok(())
+}
+
+/// RPM versions for comparing the SQL stream functions with the Rust ones.
+const RPM_VERSIONS: &[&str] = &[
+    "1:1.1.1k-9.el8_6",
+    "1.1.1k-9.el8_6",
+    "1.1.1k-7.el8",
+    "1.1.1k",
+    "1.0-1.module+el8.4.0+123+abc",
+    "2.4-1.fc39",
+    "2.4-1.fc39.1",
+    "1.0-2.amzn2",
+    "1.0-rc1-2.el9",
+    "x:1.0-1",
+    "+1:1.0-1.el9",
+    "99999999999:1.0-1.el9",
+    "5.14.0-427.13.1.el9_4",
+    "3.0.7-1.el9",
+    "3.1.4-150600.5.39.1",
+    "1.0-lp155.2.1",
+    "1.0-a.b1.el7",
+    "1.0-1",
+    "1.0",
+    "-",
+    "",
+];
+
+/// The SQL stream functions agree with the Rust ones, so the SQL pre-filter of other streams
+/// never drops a range which [`Ecosystem::stream_match`] keeps.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn sql_streams_agree_with_rust(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let tx = ctx.db.begin().await?;
+    let query = |select: &mut SelectStatement| {
+        let (sql, values) = select.build(PostgresQueryBuilder);
+        Statement::from_sql_and_values(DbBackend::Postgres, sql, values)
+    };
+    for version in RPM_VERSIONS {
+        let row = tx
+            .query_one_raw(query(
+                Query::select()
+                    .expr(Func::cust("rpm_stream").arg(*version))
+                    .expr(Func::cust("rpm_stream_major").arg(SimpleExpr::FunctionCall(
+                        Func::cust("rpm_stream").arg(*version),
+                    ))),
+            ))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no row"))?;
+        let stream = Evr::parse(version).stream();
+        assert_eq!(
+            (
+                row.try_get_by_index::<Option<String>>(0)?,
+                row.try_get_by_index::<Option<String>>(1)?
+            ),
+            (
+                stream.map(str::to_string),
+                stream.map(|stream| stream_major(stream).to_string())
+            ),
+            "{version}"
+        );
+    }
+    for sbom in RPM_VERSIONS {
+        for range in RPM_VERSIONS {
+            let row = tx
+                .query_one_raw(query(Query::select().expr(ecosystem::rpm::other_stream(
+                    Expr::val(*sbom),
+                    Expr::val(*range),
+                ))))
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("no row"))?;
+            assert_eq!(
+                row.try_get_by_index::<bool>(0)?,
+                ecosystem::rpm::stream_match(sbom, Some(range)).is_none(),
+                "{sbom} / {range}"
+            );
+        }
+    }
+    for (ty, namespace) in [
+        ("rpm", Some("redhat")),
+        ("rpm", None),
+        ("rpm", Some("suse")),
+        ("deb", Some("debian")),
+        ("npm", None),
+    ] {
+        let row = tx
+            .query_one_raw(query(
+                Query::select().expr(Ecosystem::is_rpm(Expr::val(ty), Expr::val(namespace))),
+            ))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no row"))?;
+        assert_eq!(
+            row.try_get_by_index::<bool>(0)?,
+            Ecosystem::of(ty, namespace) == Ecosystem::Rpm,
+            "{ty} {namespace:?}"
+        );
+    }
+    Ok(())
+}
+
+/// Grouping the advisory's rows per node while reading them gives the same matches as grouping
+/// all rows at once, also with several SBOMs sharing versions and node IDs.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn advisory_rows_group_per_node(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    for sbom in [
+        S5_SBOM,
+        "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_below-fix.spdx.json",
+        "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_at-fix.cdx.json",
+        "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_at-fix.spdx.json",
+    ] {
+        ctx.ingest_document(sbom).await?;
+    }
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document(S5_VEX).await?.id)?;
+    let tx = ctx.db.begin().await?;
+    let rules = rules(&tx).await?;
+    let sources = sources(&rules).collect::<Vec<_>>();
+
+    let (sql, values) = purl_status_matches(&Scope::Advisory(advisory_id), &sources)
+        .ok_or_else(|| anyhow::anyhow!("no statement"))?
+        .build(PostgresQueryBuilder);
+    let stated = load_stated(
+        Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId)).eq(advisory_id),
+        &tx,
+    )
+    .await?;
+    let rows = AdvisoryPurlMatch::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        values,
+    ))
+    .all(&tx)
+    .await?
+    .into_iter()
+    .map(|row| {
+        let node = NodeRef {
+            sbom_id: row.sbom_id,
+            node_id: row.node_id,
+        };
+        let source = source_of(&sources, row.matched.source)?;
+        Ok(row
+            .matched
+            .into_rows(&stated, &row.sbom_qualifiers)
+            .into_iter()
+            .map(|status| (node.clone(), source, status))
+            .collect::<Vec<_>>())
+    })
+    .collect::<Result<Vec<_>, Error>>()?
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+    let sorted = |mut matches: Vec<NodeMatch>| {
+        matches.sort_by_cached_key(|m| format!("{m:?}"));
+        matches
+    };
+    let at_once = sorted(
+        group(rows)
+            .map(|(node, assertion)| NodeMatch { node, assertion })
+            .collect(),
+    );
+    assert!(
+        at_once
+            .iter()
+            .map(|m| m.node.sbom_id)
+            .collect::<BTreeSet<_>>()
+            .len()
+            > 1
+    );
+    assert_eq!(
+        sorted(load_advisory_purl_matches(advisory_id, &sources, &tx).await?),
+        at_once
+    );
     Ok(())
 }
