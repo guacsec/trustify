@@ -1,10 +1,13 @@
 use crate::{
     error::Error,
-    extractor::{Extractors, SourceAssertionRef},
+    extractor::{
+        Extractors, SourceAssertionRef,
+        context::{NodeCpe, format_cpe},
+    },
     model::{
         ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, EvidenceRemediation,
-        IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict, ResolutionRequest,
-        SbomVerdictCounts, ScoreRef, VerdictSummary, VulnerabilityRef,
+        IdentifierKind, IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict,
+        ResolutionRequest, SbomVerdictCounts, ScoreRef, VerdictSummary, VulnerabilityRef,
     },
 };
 use sea_orm::{
@@ -311,10 +314,43 @@ impl CorrelationService {
             .await
     }
 
+    /// Resolves an ad-hoc identifier with optional caller-supplied product/provider context.
     pub async fn query_identifier_with(
         &self,
         identifier: IdentifierRef,
         request: &ResolutionRequest,
+        connection: &DatabaseTransaction,
+    ) -> Result<QueryResult, Error> {
+        self.query_identifier_in_context(identifier, request, None, connection)
+            .await
+    }
+
+    /// Resolves an identifier with the original weighted CPE context of an SBOM component.
+    ///
+    /// This internal report route preserves source/distance instead of treating CPEs as local.
+    /// It cannot be combined with ad-hoc product context or an SBOM node-selection request.
+    pub async fn query_identifier_with_node_context(
+        &self,
+        identifier: IdentifierRef,
+        request: &ResolutionRequest,
+        node_cpes: &[NodeCpe],
+        connection: &DatabaseTransaction,
+    ) -> Result<QueryResult, Error> {
+        if !request.product_context.is_empty() {
+            return Err(Error::BadRequest(
+                "Weighted node context cannot be combined with ad-hoc product context".into(),
+            ));
+        }
+        self.query_identifier_in_context(identifier, request, Some(node_cpes), connection)
+            .await
+    }
+
+    /// Shares provider resolution and verdict assembly between ad-hoc and weighted-node queries.
+    async fn query_identifier_in_context(
+        &self,
+        identifier: IdentifierRef,
+        request: &ResolutionRequest,
+        node_cpes: Option<&[NodeCpe]>,
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
         if request.node_id.is_some() {
@@ -323,10 +359,15 @@ impl CorrelationService {
             ));
         }
         resolution::provider::ResolutionContext::new(Vec::new(), request)?;
-        let mut matches = self
-            .extractors
-            .query_with_context(&identifier, &request.product_context, connection)
-            .await?;
+        let mut matches = if let Some(cpes) = node_cpes {
+            self.extractors
+                .query_with_node_context(&identifier, cpes, connection)
+                .await?
+        } else {
+            self.extractors
+                .query_with_context(&identifier, &request.product_context, connection)
+                .await?
+        };
         if let Some(vulnerability) = &request.vulnerability_id {
             matches.retain(|a| &a.vulnerability_id == vulnerability);
         }
@@ -350,6 +391,12 @@ impl CorrelationService {
         let context = snapshot.context(request)?;
         let mut provider_identifiers = vec![identifier.clone()];
         provider_identifiers.extend(request.product_context.clone());
+        if let Some(cpes) = node_cpes {
+            provider_identifiers.extend(cpes.iter().map(|item| IdentifierRef {
+                kind: IdentifierKind::Cpe,
+                value: format_cpe(&item.cpe),
+            }));
+        }
         let component_provider =
             snapshot.component_provider(None, None, &provider_identifiers, &context);
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;

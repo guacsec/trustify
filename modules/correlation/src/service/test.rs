@@ -13,9 +13,189 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, Tran
 use std::collections::{BTreeMap, HashSet};
 use test_context::test_context;
 use test_log::test;
-use trustify_entity::correlation_evidence::{self, AssertionStatus};
+use trustify_entity::{
+    correlation_evidence::{self, AssertionStatus},
+    correlation_evidence_context::ContextSource,
+};
 use trustify_test_context::{TrustifyContext, document_bytes};
 use uuid::Uuid;
+
+/// Creates equal-provider exact-version assessments whose context specificity determines the winner.
+async fn weighted_context_assessments(ctx: &TrustifyContext) -> anyhow::Result<[Uuid; 2]> {
+    let template: serde_json::Value =
+        serde_json::from_slice(&document_bytes("csaf/versionless/redhat.json").await?)?;
+    let mut ids = Vec::new();
+    for (tracking, cpe, status) in [
+        (
+            "WEIGHTED-FIXED",
+            "cpe:/a:example:weighted-product:1.0",
+            "fixed",
+        ),
+        (
+            "WEIGHTED-AFFECTED",
+            "cpe:/a:example:weighted-product:2.0",
+            "known_affected",
+        ),
+    ] {
+        let mut advisory = template.clone();
+        advisory["document"]["tracking"]["id"] = serde_json::json!(tracking);
+        // Isolate source/distance from Red Hat's provider-specific first-fixed derivations.
+        advisory["document"]["publisher"]["namespace"] =
+            serde_json::json!("https://weighted.example.com");
+        advisory["product_tree"]["branches"][0]["branches"][0]["branches"][0]["product"]["product_identification_helper"]
+            ["cpe"] = serde_json::json!(cpe);
+        advisory["product_tree"]["branches"][0]["branches"][1]["product"]["product_identification_helper"]
+            ["purl"] = serde_json::json!("pkg:generic/weighted-context@1.0.0");
+        advisory["vulnerabilities"][0]["product_status"] =
+            serde_json::json!({status: ["red_hat_storage_3:golang.src"]});
+        ids.push(Uuid::parse_str(&ctx.ingest_json(advisory).await?.id)?);
+    }
+    Ok([ids[0], ids[1]])
+}
+
+/// Verifies weighted identifier resolution retains every source and hop-distance confidence.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::local_over_root((ContextSource::Node, 0, 1.0), (ContextSource::Describing, 0, 0.8), VerdictStatus::Fixed)]
+#[case::nearer_ancestor((ContextSource::AncestorNode, 1, 0.9), (ContextSource::AncestorNode, 2, 0.85), VerdictStatus::Fixed)]
+#[case::farther_ancestor((ContextSource::AncestorNode, 3, 0.8), (ContextSource::AncestorNode, 1, 0.9), VerdictStatus::Affected)]
+#[case::ancestor_sbom((ContextSource::AncestorSbom, 1, 0.7), (ContextSource::AncestorSbom, 2, 0.65), VerdictStatus::Fixed)]
+#[case::rpm_qualifier_over_release((ContextSource::PurlQualifier, 0, 0.85), (ContextSource::PurlRelease, 0, 0.75), VerdictStatus::Fixed)]
+#[test_log::test(actix_web::test)]
+async fn query_identifier_preserves_weighted_context(
+    ctx: &TrustifyContext,
+    #[case] fixed_context: (ContextSource, u32, f64),
+    #[case] affected_context: (ContextSource, u32, f64),
+    #[case] expected_status: VerdictStatus,
+) -> anyhow::Result<()> {
+    use crate::{extractor::context::NodeCpe, model::ResolutionRequest};
+    use sea_orm::TryIntoModel;
+    use trustify_common::cpe::Cpe;
+    use trustify_entity::cpe;
+
+    // Given conflicting assessments with equal provider/directness/version matching.
+    let [fixed_id, affected_id] = weighted_context_assessments(ctx).await?;
+    let (fixed_source, fixed_distance, fixed_confidence) = fixed_context;
+    let (affected_source, affected_distance, affected_confidence) = affected_context;
+    let mut contexts = Vec::new();
+    for (value, source, distance) in [
+        (
+            "cpe:/a:example:weighted-product:1.0",
+            fixed_source,
+            fixed_distance,
+        ),
+        (
+            "cpe:/a:example:weighted-product:2.0",
+            affected_source,
+            affected_distance,
+        ),
+    ] {
+        contexts.push(NodeCpe {
+            cpe: cpe::ActiveModel::from(value.parse::<Cpe>()?).try_into_model()?,
+            source,
+            distance,
+        });
+    }
+    let tx = ctx.db.begin().await?;
+
+    // When the report's internal route consumes the original weighted contexts.
+    let result = CorrelationService::default()
+        .query_identifier_with_node_context(
+            IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: "pkg:generic/weighted-context@1.0.0".into(),
+            },
+            &ResolutionRequest::default(),
+            &contexts,
+            &tx,
+        )
+        .await?;
+
+    // Then confidence, verdict and winning advisory reflect source and distance, not status alone.
+    assert_eq!(result.verdicts.len(), 1);
+    let verdict = &result.verdicts[0];
+    assert_eq!(verdict.status, expected_status);
+    assert_eq!(
+        verdict.winning_advisory_id,
+        Some(if expected_status == VerdictStatus::Fixed {
+            fixed_id
+        } else {
+            affected_id
+        })
+    );
+    let fixed = verdict
+        .matches
+        .iter()
+        .find(|item| item.advisory_id == fixed_id)
+        .unwrap();
+    let affected = verdict
+        .matches
+        .iter()
+        .find(|item| item.advisory_id == affected_id)
+        .unwrap();
+    assert_eq!(fixed.confidence, fixed_confidence);
+    assert_eq!(affected.confidence, affected_confidence);
+    Ok(())
+}
+
+/// Verifies weighted empty context and explicit ad-hoc context retain their distinct semantics.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn query_identifier_keeps_adhoc_and_empty_node_context_distinct(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use crate::model::ResolutionRequest;
+
+    // Given an exact-version identifier with contextual assessments but no known node CPEs.
+    weighted_context_assessments(ctx).await?;
+    let identifier = IdentifierRef {
+        kind: IdentifierKind::Purl,
+        value: "pkg:generic/weighted-context@1.0.0".into(),
+    };
+    let service = CorrelationService::default();
+    let tx = ctx.db.begin().await?;
+
+    // When querying ad-hoc, with empty known node context, and with explicitly supplied CPEs.
+    let adhoc = service.query_identifier(identifier.clone(), &tx).await?;
+    let node = service
+        .query_identifier_with_node_context(
+            identifier.clone(),
+            &ResolutionRequest::default(),
+            &[],
+            &tx,
+        )
+        .await?;
+    let explicit = service
+        .query_identifier_with(
+            identifier,
+            &ResolutionRequest {
+                product_context: [
+                    "cpe:/a:example:weighted-product:1.0",
+                    "cpe:/a:example:weighted-product:2.0",
+                ]
+                .into_iter()
+                .map(|value| IdentifierRef {
+                    kind: IdentifierKind::Cpe,
+                    value: value.into(),
+                })
+                .collect(),
+                ..Default::default()
+            },
+            &tx,
+        )
+        .await?;
+
+    // Then only the known-empty node scope reduces unconfirmed product confidence.
+    for (result, expected_confidence) in [(adhoc, 1.0), (node, 0.7), (explicit, 1.0)] {
+        assert_eq!(result.verdicts.len(), 1);
+        assert_eq!(result.verdicts[0].status, VerdictStatus::Affected);
+        assert_eq!(result.verdicts[0].matches.len(), 2);
+        for matched in &result.verdicts[0].matches {
+            assert_eq!(matched.confidence, expected_confidence);
+        }
+    }
+    Ok(())
+}
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]

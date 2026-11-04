@@ -40,7 +40,9 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    advisory, base_purl, license, purl_status,
+    advisory, base_purl,
+    correlation_evidence_context::ContextSource,
+    license, purl_status,
     qualified_purl::{self, CanonicalPurl},
     remediation, remediation_purl_status, sbom, sbom_license_expanded, sbom_node,
     sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
@@ -48,7 +50,7 @@ use trustify_entity::{
 use trustify_module_correlation::{
     extractor::{
         NodeRef,
-        context::{format_cpe, load_node_cpes},
+        context::{NodeCpe, format_cpe, load_node_cpes},
     },
     service::{
         CorrelationService,
@@ -112,12 +114,21 @@ struct SbomNameRow {
 }
 
 /// Metadata collected per `(base_purl_id, version)` group during report generation.
+#[derive(PartialEq, Eq, Hash)]
+struct ReportVersionKey {
+    base_purl_id: Uuid,
+    version: String,
+    component_provider: Option<String>,
+    product_context: Vec<(String, ContextSource, u32)>,
+}
+
+/// Metadata grouped only when provider and weighted product contexts are equivalent.
 struct VersionGroup {
     purl_type: String,
     namespace: Option<String>,
     name: String,
     component_provider: Option<String>,
-    product_context: Vec<String>,
+    product_context: Vec<NodeCpe>,
     sbom_ids: Vec<Uuid>,
 }
 
@@ -126,7 +137,7 @@ struct ReportWinner {
     upstream_purl: String,
     recommended_purl: String,
     component_provider: Option<String>,
-    product_context: Vec<String>,
+    product_context: Vec<NodeCpe>,
     found_in: Vec<Uuid>,
 }
 
@@ -201,7 +212,7 @@ impl InputPurl {
         let input_version_str = purl.version.as_ref()?;
         let input_version = lenient_semver::parse(input_version_str)
             .inspect_err(|_| {
-                log::debug!(
+                tracing::debug!(
                     "input purl {} version {:?} failed to parse",
                     purl,
                     input_version_str
@@ -850,7 +861,6 @@ impl PurlService {
             .instrument(info_span!("loading remediations"))
             .await?;
 
-        let status_capacity = all_statuses.len();
         let mut statuses_by_vp: HashMap<_, Vec<StatusInfo>> = HashMap::new();
         for (((vuln, advisory), effective), rems) in vulns
             .into_iter()
@@ -871,7 +881,7 @@ impl PurlService {
                     .unwrap_or_else(|| "unknown".to_string());
                 statuses_by_vp
                     .entry(effective.winner_versioned_purl_id)
-                    .or_insert_with(|| Vec::with_capacity(status_capacity))
+                    .or_default()
                     .push(StatusInfo {
                         vuln_id: v.id,
                         status_slug: slug,
@@ -943,17 +953,31 @@ impl PurlService {
                 b.stated_id,
             ))
         });
-        statuses.dedup_by(|a, b| {
-            a.vuln_id == b.vuln_id
-                && a.status_slug == b.status_slug
-                && a.advisory_id == b.advisory_id
-        });
-
         RecommendEntry {
             package: package_str,
             vulnerabilities: statuses
-                .into_iter()
-                .map(|info| {
+                .chunk_by(|a, b| {
+                    a.vuln_id == b.vuln_id
+                        && a.status_slug == b.status_slug
+                        && a.advisory_id == b.advisory_id
+                })
+                .map(|group| {
+                    let info = group[0];
+                    let mut remediations = group
+                        .iter()
+                        .flat_map(|status| RemediationSummary::from_entities(&status.remediations))
+                        .collect::<Vec<_>>();
+                    // Database IDs and source-row order do not define remediation equivalence.
+                    // Keep every projected field, including data, in the content ordering.
+                    remediations.sort_by_cached_key(|remediation| {
+                        (
+                            remediation.category.clone().remediation_category_key(),
+                            remediation.details.clone(),
+                            remediation.url.clone(),
+                            remediation.data.to_string(),
+                        )
+                    });
+                    remediations.dedup();
                     let vex_status = match info.status_slug.as_str() {
                         "affected" => VexStatus::Affected,
                         "fixed" => VexStatus::Fixed,
@@ -966,7 +990,7 @@ impl PurlService {
                         id: info.vuln_id.clone(),
                         status: Some(vex_status),
                         justification: None,
-                        remediations: RemediationSummary::from_entities(&info.remediations),
+                        remediations,
                         advisory_id: info.advisory_id.clone(),
                     }
                 })
@@ -1107,7 +1131,7 @@ impl PurlService {
                 let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
                 let upstream = lenient_semver::parse(upstream_str)
                     .inspect_err(|_| {
-                        log::debug!(
+                        tracing::debug!(
                             "extracted upstream version {:?} from {:?} failed to parse",
                             upstream_str,
                             vp.version
@@ -1199,8 +1223,7 @@ impl PurlService {
         .await?;
 
         // Keep component provider and product context in the key until after resolution.
-        let mut version_groups: HashMap<(Uuid, String, Option<String>, Vec<String>), VersionGroup> =
-            HashMap::new();
+        let mut version_groups: HashMap<ReportVersionKey, VersionGroup> = HashMap::new();
         let mut unique_base_ids: HashSet<Uuid> = HashSet::new();
 
         for row in &rows {
@@ -1221,12 +1244,18 @@ impl PurlService {
                 .get(&node_key)
                 .cloned()
                 .unwrap_or_default();
-            let key = (
-                row.base_purl_id,
-                row.version.clone(),
-                component_provider.clone(),
-                product_context.clone(),
-            );
+            let mut context_key = product_context
+                .iter()
+                .map(|item| (format_cpe(&item.cpe), item.source, item.distance))
+                .collect::<Vec<_>>();
+            context_key.sort();
+            context_key.dedup();
+            let key = ReportVersionKey {
+                base_purl_id: row.base_purl_id,
+                version: row.version.clone(),
+                component_provider: component_provider.clone(),
+                product_context: context_key,
+            };
             let group = version_groups.entry(key).or_insert_with(|| VersionGroup {
                 purl_type: row.purl_type.clone(),
                 namespace: row.purl_namespace.clone(),
@@ -1257,8 +1286,8 @@ impl PurlService {
         // Pattern-match each (base, version) to find the highest vendor patch.
         let mut winners: Vec<ReportWinner> = Vec::new();
 
-        for ((base_id, version, _, _), group) in &version_groups {
-            let Ok(input_version) = lenient_semver::parse(version) else {
+        for (key, group) in &version_groups {
+            let Ok(input_version) = lenient_semver::parse(&key.version) else {
                 continue;
             };
 
@@ -1269,7 +1298,7 @@ impl PurlService {
                     Self::find_highest_vendor_patch(
                         pattern,
                         &input_version,
-                        versioned_by_base.get(base_id),
+                        versioned_by_base.get(&key.base_purl_id),
                     )
                 })
                 .max_by(|a, b| a.version.cmp(&b.version));
@@ -1282,7 +1311,7 @@ impl PurlService {
                 ty: group.purl_type.clone(),
                 namespace: group.namespace.clone(),
                 name: group.name.clone(),
-                version: Some(version.clone()),
+                version: Some(key.version.clone()),
                 qualifiers: Default::default(),
             }
             .to_string();
@@ -1328,25 +1357,17 @@ impl PurlService {
         let correlation = CorrelationService::default();
 
         for winner in &winners {
-            let product_context = winner
-                .product_context
-                .iter()
-                .map(|value| IdentifierRef {
-                    kind: IdentifierKind::Cpe,
-                    value: value.clone(),
-                })
-                .collect();
             let query = correlation
-                .query_identifier_with(
+                .query_identifier_with_node_context(
                     IdentifierRef {
                         kind: IdentifierKind::Purl,
                         value: winner.recommended_purl.clone(),
                     },
                     &ResolutionRequest {
                         component_provider: winner.component_provider.clone(),
-                        product_context,
                         ..Default::default()
                     },
+                    &winner.product_context,
                     connection,
                 )
                 .await
@@ -1513,20 +1534,12 @@ impl PurlService {
     async fn fetch_component_product_contexts<C: ConnectionTrait>(
         nodes: impl IntoIterator<Item = NodeRef>,
         connection: &C,
-    ) -> Result<HashMap<(Uuid, String), Vec<String>>, Error> {
+    ) -> Result<HashMap<(Uuid, String), Vec<NodeCpe>>, Error> {
         Ok(load_node_cpes(nodes, connection)
             .await
             .map_err(anyhow::Error::from)?
             .into_iter()
-            .map(|(node, cpes)| {
-                let mut values = cpes
-                    .iter()
-                    .map(|item| format_cpe(&item.cpe))
-                    .collect::<Vec<_>>();
-                values.sort();
-                values.dedup();
-                ((node.sbom_id, node.node_id), values)
-            })
+            .map(|(node, cpes)| ((node.sbom_id, node.node_id), cpes))
             .collect())
     }
 }

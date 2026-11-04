@@ -17,6 +17,182 @@ use trustify_common::{
 use trustify_entity::correlation_option::{self, CorrelationOptionKey};
 use trustify_test_context::{Dataset, TrustifyContext};
 
+/// Verifies remediation identity/order depends on all response content, not row IDs or order.
+#[test]
+fn recommend_remediation_union_is_content_based_and_order_independent() {
+    use super::{StatusInfo, Winner};
+    use std::collections::HashMap;
+    use trustify_entity::{base_purl, remediation, versioned_purl};
+    use uuid::Uuid;
+
+    // Given two contexts containing equal content under different remediation IDs.
+    let base = base_purl::Model {
+        id: Uuid::from_u128(1),
+        r#type: "maven".into(),
+        namespace: Some("com.example".into()),
+        name: "streamlib".into(),
+    };
+    let version = versioned_purl::Model {
+        id: Uuid::from_u128(2),
+        base_purl_id: base.id,
+        version: "1.0.0.redhat-00001".into(),
+    };
+    let winner = Winner {
+        purl_string: "pkg:maven/com.example/streamlib@1.0.0".into(),
+        versioned_purl: &version,
+        base: &base,
+    };
+    let remediation = remediation::Model {
+        id: Uuid::from_u128(3),
+        advisory_id: Uuid::from_u128(4),
+        vulnerability_id: "CVE-2099-73930".into(),
+        category: remediation::RemediationCategory::VendorFix,
+        details: Some("Apply A".into()),
+        url: Some("https://example.com/errata/shared".into()),
+        data: serde_json::json!({"step": 1}),
+    };
+    let mut equivalent = remediation.clone();
+    equivalent.id = Uuid::from_u128(5);
+    let mut different_data = remediation.clone();
+    different_data.id = Uuid::from_u128(6);
+    different_data.data = serde_json::json!({"step": 2});
+    let mut different_details = different_data.clone();
+    different_details.id = Uuid::from_u128(7);
+    different_details.details = Some("Apply B".into());
+
+    for reversed in [false, true] {
+        let make_status = |id, remediations| StatusInfo {
+            vuln_id: "CVE-2099-73930".into(),
+            status_slug: "fixed".into(),
+            remediations,
+            advisory_id: Some("TEST-STREAMS".into()),
+            advisory_pk: remediation.advisory_id,
+            derived: false,
+            is_default: false,
+            stated_id: Uuid::from_u128(id),
+            context_cpe_id: None,
+            assertion_context_id: None,
+        };
+        let mut rows = vec![
+            make_status(
+                if reversed { 20 } else { 10 },
+                vec![different_details.clone(), remediation.clone()],
+            ),
+            make_status(
+                if reversed { 10 } else { 20 },
+                vec![equivalent.clone(), different_data.clone()],
+            ),
+        ];
+        if reversed {
+            rows.reverse();
+            for row in &mut rows {
+                row.remediations.reverse();
+            }
+        }
+
+        // When collapsing the assessments with either row and stated-ID ordering.
+        let entry =
+            PurlService::assemble_recommend_entry(&winner, &HashMap::from([(version.id, rows)]));
+        let response = serde_json::to_value(entry).unwrap();
+
+        // Then equal projected content appears once, while differing details/data survive.
+        assert_eq!(
+            response["vulnerabilities"],
+            serde_json::json!([{
+                "id": "CVE-2099-73930", "status": "Fixed", "advisory_id": "TEST-STREAMS",
+                "remediations": [
+                    {"category": "vendor_fix", "details": "Apply A", "url": "https://example.com/errata/shared", "data": {"step": 1}},
+                    {"category": "vendor_fix", "details": "Apply A", "url": "https://example.com/errata/shared", "data": {"step": 2}},
+                    {"category": "vendor_fix", "details": "Apply B", "url": "https://example.com/errata/shared", "data": {"step": 2}}
+                ]
+            }])
+        );
+    }
+}
+
+/// Verifies sparse and uneven status groups reserve only a linear number of slots.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn status_grouping_capacity(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use super::EffectivePurlStatus;
+    use sea_orm::TransactionTrait;
+    use trustify_entity::{purl_status, remediation};
+    use uuid::Uuid;
+
+    // Given a real status/remediation association repeated across sparse or uneven winners.
+    let advisory = ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let advisory_id = Uuid::parse_str(&advisory.id)?;
+    let tx = ctx.db.begin().await?;
+    let status = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .one(&tx)
+        .await?
+        .unwrap();
+    let expected_remediations = remediation::Entity::find()
+        .filter(remediation::Column::AdvisoryId.eq(advisory_id))
+        .all(&tx)
+        .await?;
+    assert!(!expected_remediations.is_empty());
+
+    for (winner_count, uneven) in [(128, false), (1024, false), (64, true)] {
+        let mut rows = Vec::new();
+        for winner in 0..winner_count {
+            let count = if uneven { winner % 7 + 1 } else { 1 };
+            for position in 0..count {
+                let mut status = status.clone();
+                status.is_default = position % 3 == 2;
+                status.context_cpe_id = Some(Uuid::from_u128(100_000 + winner));
+                status.assertion_context_id = Some(Uuid::from_u128(200_000 + winner));
+                rows.push(EffectivePurlStatus {
+                    status,
+                    derived: position % 2 == 1,
+                    stated_id: Uuid::from_u128(300_000 + winner * 10 + position),
+                    winner_versioned_purl_id: Uuid::from_u128(10_000 + winner),
+                });
+            }
+        }
+        let status_count = rows.len();
+
+        // When loading the same associations through the production batched grouping path.
+        let groups = PurlService::load_status_infos_by_winner(rows, &tx).await?;
+
+        // Then every row retains its winner/provenance, and aggregate reserved slots are linear.
+        assert_eq!(groups.len(), winner_count as usize);
+        let capacity = groups.values().map(Vec::capacity).sum::<usize>();
+        // Four slots per row plus winner allows small-vector growth without allocator-byte assumptions.
+        assert!(
+            capacity <= 4 * (status_count + groups.len()),
+            "{winner_count} winners / {status_count} rows reserved {capacity} slots"
+        );
+        for winner in 0..winner_count {
+            let infos = &groups[&Uuid::from_u128(10_000 + winner)];
+            assert_eq!(
+                infos.len(),
+                if uneven { (winner % 7 + 1) as usize } else { 1 }
+            );
+            for (position, info) in infos.iter().enumerate() {
+                assert_eq!(info.vuln_id, "CVE-2021-32714");
+                assert_eq!(info.status_slug, "affected");
+                assert_eq!(info.advisory_id.as_deref(), Some("RUSTSEC-2021-0079"));
+                assert_eq!(info.advisory_pk, advisory_id);
+                assert_eq!(info.remediations, expected_remediations);
+                assert_eq!(info.derived, position % 2 == 1);
+                assert_eq!(info.is_default, position % 3 == 2);
+                assert_eq!(
+                    info.stated_id,
+                    Uuid::from_u128(300_000 + winner * 10 + position as u128)
+                );
+                assert_eq!(info.context_cpe_id, Some(Uuid::from_u128(100_000 + winner)));
+                assert_eq!(
+                    info.assertion_context_id,
+                    Some(Uuid::from_u128(200_000 + winner))
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.graph
         .ingest_package(&Purl::from_str("pkg:maven/org.myspace/tom")?, &ctx.db)
