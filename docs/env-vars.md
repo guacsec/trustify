@@ -44,30 +44,58 @@
 | `OPENAI_MODEL`                           | OpenAI model                                                                        | `gpt-4o`                                |
 | `TRUSTD_CORRELATION_WORKERS`             | Number of correlation workers of an instance, processing advisories, SBOMs and verdicts in parallel | `1` |
 | `TRUSTD_CORRELATION_WORK_MEM`            | PostgreSQL `work_mem` of the correlation worker's transactions (e.g. `256MiB`); unset keeps the database's setting |    |
+| `TRUSTD_AWS_USE_IMDS`                    | Use the AWS default credential chain including IMDS (`1`, `true`, `yes`, `on`), for running on EC2|                                         |
+| `TRUSTD_CHANGE_LOG_RETENTION`            | Retention of the change log entries, which notify clients and wake up workers (humantime)| `1d`                                    |
+| `TRUSTD_CHANGE_LOG_POLL_INTERVAL`        | Interval of the change log fallback sweep (humantime)                               | `30s`                                   |
+| `TRUSTD_CHANGE_LOG_CLEANUP_INTERVAL`     | Interval of removing expired change log entries (humantime)                         | `5m`                                    |
 | `TRUSTD_DEVMODE_ADDITIONAL_CLIENTS`      | Additional allowed development OAuth clients                                        |                                         |
+| `TRUSTD_DISABLE_CORRELATION`             | Disable the correlation API and its background worker                               | `false`                                 |
 | `TRUSTD_DISABLE_CORRELATION_WORKER`      | Don't run the correlation worker in the API server, leaving the work to `trustd worker` | `false` |
 | `TRUSTD_DISABLE_FORMATS`                 | Disable these document formats (comma-separated); use `*` to disable all            |                                         |
 | `TRUSTD_DISABLE_IMPORTERS`               | Disable these importer types (comma-separated); use `*` to disable all              |                                         |
 | `TRUSTD_ENABLE_FORMATS`                  | Enable only these document formats (comma-separated); conflicts with `TRUSTD_DISABLE_FORMATS` |                                |
 | `TRUSTD_ENABLE_IMPORTERS`                | Enable only these importer types (comma-separated); conflicts with `TRUSTD_DISABLE_IMPORTERS` |                                |
+| `TRUSTD_DB_URL`                          | Complete database URL; conflicts with the other `TRUSTD_DB_*` connection settings   |                                         |
 | `TRUSTD_DB_HOST`                         | Database address                                                                    | `localhost`                             |
 | `TRUSTD_DB_MAX_CONN`                     | Database max connections                                                            | `75`                                    |
 | `TRUSTD_DB_MIN_CONN`                     | Database min connections                                                            | `25`                                    |
-| `TRUSTD_DB_CONNECT_TIMEOUT`              | Database connect timeout (humantime)                                                | `8s`                                    |
-| `TRUSTD_DB_ACQUIRE_TIMEOUT`              | Database acquire timeout (humantime)                                                | `8s`                                    |
-| `TRUSTD_DB_MAX_LIFETIME`                 | Database max lifetime (humantime)                                                   | `7200s`                                 |
-| `TRUSTD_DB_IDLE_TIMEOUT`                 | Database idle timeout (humantime)                                                   | `600s`                                  |
+| `TRUSTD_DB_CONNECT_TIMEOUT`              | Database connect timeout (seconds)                                                  | `8`                                     |
+| `TRUSTD_DB_ACQUIRE_TIMEOUT`              | Database acquire timeout (seconds)                                                  | `8`                                     |
+| `TRUSTD_DB_MAX_LIFETIME`                 | Database max lifetime (seconds)                                                     | `7200`                                  |
+| `TRUSTD_DB_IDLE_TIMEOUT`                 | Database idle timeout (seconds)                                                     | `600`                                   |
 | `TRUSTD_DB_NAME`                         | Database name                                                                       | `trustify`                              |
 | `TRUSTD_DB_PASSWORD`                     | Database password (ignored when IAM authentication is enabled)                      | `trustify`                              |
 | `TRUSTD_DB_PORT`                         | Database port                                                                       | `5432`                                  |
 | `TRUSTD_DB_USER`                         | Database username                                                                   | `postgres`                              |
+| `TRUSTD_DB_SSLMODE`                      | Database SSL mode: disable, allow, prefer, require, verify-ca, verify-full          | `prefer`                                |
 | `TRUSTD_DB_IAM_AUTH`                     | Authenticate with an AWS RDS/Aurora IAM token instead of a password                 | `false`                                 |
 | `TRUSTD_DB_IAM_REGION`                   | AWS region of the RDS/Aurora instance (required when `TRUSTD_DB_IAM_AUTH=true`)     |                                         |
+| `TRUSTD_DB_RO_URL`                       | Complete URL of the read-only database; falls back to `TRUSTD_DB_URL`               |                                         |
+| `TRUSTD_DB_RO_HOST`                      | Address of the read-only database; falls back to `TRUSTD_DB_HOST`                   |                                         |
+| `TRUSTD_DB_RO_PORT`                      | Port of the read-only database; falls back to `TRUSTD_DB_PORT`                      |                                         |
+| `TRUSTD_DB_RO_NAME`                      | Name of the read-only database; falls back to `TRUSTD_DB_NAME`                      |                                         |
+| `TRUSTD_DB_RO_USER`                      | Username of the read-only database; falls back to `TRUSTD_DB_USER`                  |                                         |
+| `TRUSTD_DB_RO_PASSWORD`                  | Password of the read-only database; falls back to `TRUSTD_DB_PASSWORD`              |                                         |
+| `TRUSTD_DB_RO_SSLMODE`                   | SSL mode of the read-only database; falls back to `TRUSTD_DB_SSLMODE`               |                                         |
+| `TRUSTD_DB_RO_MAX_CONN`                  | Max connections of the read-only database; falls back to `TRUSTD_DB_MAX_CONN`       |                                         |
+| `TRUSTD_DB_RO_MIN_CONN`                  | Min connections of the read-only database; falls back to `TRUSTD_DB_MIN_CONN`       |                                         |
+| `TRUSTD_DB_RO_CONNECT_TIMEOUT`           | Connect timeout (seconds) of the read-only database; falls back to `TRUSTD_DB_CONNECT_TIMEOUT`|                                         |
+| `TRUSTD_DB_RO_ACQUIRE_TIMEOUT`           | Acquire timeout (seconds) of the read-only database; falls back to `TRUSTD_DB_ACQUIRE_TIMEOUT`|                                         |
+| `TRUSTD_DB_RO_MAX_LIFETIME`              | Max lifetime (seconds) of the read-only database; falls back to `TRUSTD_DB_MAX_LIFETIME`|                                         |
+| `TRUSTD_DB_RO_IDLE_TIMEOUT`              | Idle timeout (seconds) of the read-only database; falls back to `TRUSTD_DB_IDLE_TIMEOUT`|                                         |
 | `TRUSTD_PAGINATION_TOTAL_CACHE_TTL`      | TTL for cached pagination total counts (humantime)                                  | `60s`                                   |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
 | `TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS` | Number of days before now used as a published-date cutoff when finding latest SBOMs [disabled by default] |                                         |
 | `TRUSTD_READ_ONLY`                       | Enable read-only mode, rejecting all mutating API requests                          | `false`                                 |
+| `TRUSTD_SBOM_UPLOAD_LIMIT`               | Size limit of SBOMs, uncompressed                                                   | `1 GiB`                                 |
+| `TRUSTD_ADVISORY_UPLOAD_LIMIT`           | Size limit of advisories, uncompressed                                              | `128 MiB`                               |
+| `TRUSTD_DATASET_ENTRY_LIMIT`             | Size limit of documents in a dataset, uncompressed                                  | `1 GiB`                                 |
+| `TRUSTD_SCAN_LIMIT`                      | Size limit of documents for a scan, uncompressed                                    | `1 GiB`                                 |
+| `TRUSTD_MAX_GROUP_NAME_LENGTH`           | Maximum length of a group name                                                      | `255`                                   |
+| `TRUSTD_RECOMMEND_REPORT_PACKAGE_LIMIT`  | Maximum number of packages (across all SBOMs) of one recommendation report request  | `10000`                                 |
+| `TRUSTD_PAGINATION_MAX_LIMIT`            | Maximum limit of pagination queries (`0` = no maximum)                              | `1000`                                  |
+| `TRUSTIFY_ANALYSIS_CONCURRENCY`          | Number of concurrent analysis tasks (must be > 0)                                   | `10`                                    |
 | `TRUSTD_WORKER_JOBS`                     | Jobs `trustd worker` runs (comma-separated): `correlation`                          | all jobs                                |
 | `TRUSTD_RECOMMEND_PATTERNS`              | Comma-separated list of regex patterns, each with exactly one capture group that extracts the upstream base version. Example: `^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$`. Absent or empty causes endpoints to return HTTP 422 with `CapabilityDisabled`. | (empty) |
 | `TRUSTD_S3_ACCESS_KEY`                   | S3 access key                                                                       |                                         |
@@ -75,6 +103,7 @@
 | `TRUSTD_S3_REGION`                       | S3 region name                                                                      |                                         |
 | `TRUSTD_S3_SECRET_KEY`                   | S3 secret key                                                                       |                                         |
 | `TRUSTD_SLOW_SQL_THRESHOLD`              | Override threshold for slow SQL statements (humantime)                              | `1m`                                    |
+| `TRUSTD_STORAGE_COMPRESSION`             | Compression of stored documents: none, zstd                                         | `none`                                  |
 | `TRUSTD_STORAGE_FS_PATH`                 | Path for storage file system strategy                                               | `./.trustify/storage`                   |
 | `TRUSTD_STORAGE_STRATEGY`                | Specifies the storage strategy to use                                               | `File system`                           |
 | `TRUSTD_VALIDATORS_CONFIG`               | Path to a semantic validators configuration file (YAML); unset disables validation  |                                         |
@@ -87,11 +116,13 @@
 | `EXPLOIT_INTELLIGENCE_MAX_RETRIES`       | Maximum number of retry attempts before marking a job as permanently failed         | `3`                                     |
 | `EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL`| How often each worker loop checks for jobs (humantime)                            | `5s`                                    |
 | `EXPLOIT_INTELLIGENCE_CONCURRENCY`       | Number of concurrent worker loops processing EI jobs                                | `5`                                     |
+| `EXPLOIT_INTELLIGENCE_AUTH_TOKEN`        | Static authentication token for the EI service (for backward compatibility)         |                                         |
 | `EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL`   | OIDC issuer URL for EI service authentication (client credentials flow with discovery) |                                      |
 | `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID`    | OIDC client ID for EI service authentication                                        |                                         |
 | `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET`| OIDC client secret for EI service authentication                                    |                                         |
 | `EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE`| Duration an EI access token must still be valid before requesting a new one        | `30s`                                   |
 | `EXPLOIT_INTELLIGENCE_OIDC_TLS_INSECURE` | Allow insecure TLS connections with the EI OIDC issuer                              | `false`                                 |
+| `EXPLOIT_INTELLIGENCE_OIDC_SCOPE`        | OAuth scope(s) of the EI token request, space-separated; unset sends no scope       |                                         |
 
 ## TLS key-exchange groups
 
