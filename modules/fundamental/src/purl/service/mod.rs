@@ -188,7 +188,7 @@ impl InputPurl {
         let input_version_str = purl.version.as_ref()?;
         let input_version = lenient_semver::parse(input_version_str)
             .inspect_err(|_| {
-                log::debug!(
+                tracing::debug!(
                     "input purl {} version {:?} failed to parse",
                     purl,
                     input_version_str
@@ -695,8 +695,8 @@ impl PurlService {
     /// batch call groups both winners' statuses under the same base PURL ID, and the
     /// `best_by_vuln` picker could then assign a status of one version to the other. Synthetic winners (in `synthesized_vp_ids`, without
     /// a persisted `versioned_purl` row) fall back to matching their version literally. VendorFix
-    /// statuses are appended last because a fixed version sits at an exclusive range boundary,
-    /// which ordinary version matching does not return.
+    /// statuses are appended last because the fixed version is outside the affected range or
+    /// absent from its exact-version fallback statuses, so ordinary version matching cannot find it.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn resolve_winner_statuses<C: ConnectionTrait>(
         base_purl_id: Uuid,
@@ -1094,8 +1094,8 @@ impl PurlService {
     }
 
     /// Fetches the OSV fixed events of the given base PURLs in one query: non-default `affected`
-    /// statuses whose VendorFix remediation fixes exactly the exclusive upper bound of the status
-    /// range.
+    /// statuses whose VendorFix remediation fixes the exclusive upper bound of the status range,
+    /// or is attached to an exact-version fallback status with inclusive, equal bounds.
     ///
     /// The filtering runs in SQL so the cost follows the number of fixed events rather than the
     /// number of `affected` statuses, and the only bind parameters are the given base PURL IDs, so
@@ -1139,10 +1139,35 @@ impl PurlService {
             .filter(purl_status::Column::IsDefault.eq(false))
             .filter(status::Column::Slug.eq("affected"))
             .filter(remediation::Column::Category.eq(remediation::RemediationCategory::VendorFix))
-            .filter(version_range::Column::HighInclusive.eq(false))
+            .filter(fixed_version.clone().is_not_null())
             .filter(
-                Expr::col((version_range::Entity, version_range::Column::HighVersion))
-                    .eq(fixed_version),
+                Condition::any()
+                    .add(
+                        Condition::all()
+                            .add(version_range::Column::HighInclusive.eq(false))
+                            .add(
+                                Expr::col((
+                                    version_range::Entity,
+                                    version_range::Column::HighVersion,
+                                ))
+                                .eq(fixed_version),
+                            ),
+                    )
+                    .add(
+                        Condition::all()
+                            .add(version_range::Column::LowInclusive.eq(true))
+                            .add(version_range::Column::HighInclusive.eq(true))
+                            .add(
+                                Expr::col((
+                                    version_range::Entity,
+                                    version_range::Column::LowVersion,
+                                ))
+                                .eq(Expr::col((
+                                    version_range::Entity,
+                                    version_range::Column::HighVersion,
+                                ))),
+                            ),
+                    ),
             )
             .into_model::<VendorFixRow>()
             .all(connection)
@@ -1198,7 +1223,7 @@ impl PurlService {
                 let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
                 let upstream = lenient_semver::parse(upstream_str)
                     .inspect_err(|_| {
-                        log::debug!(
+                        tracing::debug!(
                             "extracted upstream version {:?} from {:?} failed to parse",
                             upstream_str,
                             vp.version

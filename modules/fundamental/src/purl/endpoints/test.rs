@@ -656,14 +656,32 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     Ok(())
 }
 
-/// Verifies that an advisory-only OSV fixed event synthesizes a recommendation and report entry.
+/// Verifies that range-based and exact-version OSV fixed events synthesize recommendations and report entries.
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[case::known_scheme(
+    "Maven",
+    "org.springframework:spring-expression",
+    "pkg:maven/org.springframework/spring-expression",
+    "pkg:maven/org.springframework/spring-expression@5.3.18",
+    "pkg:maven/org.springframework/spring-expression@5.3.18.rhlw-00010"
+)]
+#[case::exact_version_fallback(
+    "Debian",
+    "spring-expression",
+    "pkg:deb/debian/spring-expression",
+    "pkg:deb/debian/spring-expression@5.3.18",
+    "pkg:deb/debian/spring-expression@5.3.18.rhlw-00010"
+)]
+#[test_log::test(actix_web::test)]
 async fn get_recommendations_osv_fixed_event_advisory_only(
     ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] package_name: &str,
+    #[case] base_purl: &str,
+    #[case] upstream_purl: &str,
+    #[case] fixed_purl: &str,
 ) -> Result<(), anyhow::Error> {
-    const UPSTREAM_PURL: &str = "pkg:maven/org.springframework/spring-expression@5.3.18";
-    const FIXED_PURL: &str = "pkg:maven/org.springframework/spring-expression@5.3.18.rhlw-00010";
     const FIXED_VERSION: &str = "5.3.18.rhlw-00010";
 
     // Given an upstream SBOM and an OSV fixed event, without a persisted vendor PURL
@@ -671,7 +689,7 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
         &ctx.ingest_json(minimal_cdx(
             "springexpr-5.3.18-base",
             "00000000-0000-0000-0000-726300000001",
-            &[("spring-expression", "5.3.18", UPSTREAM_PURL)],
+            &[("spring-expression", "5.3.18", upstream_purl)],
         ))
         .await?
         .id,
@@ -684,9 +702,9 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
         "aliases": ["CVE-2023-20861"],
         "affected": [{
             "package": {
-                "ecosystem": "Maven",
-                "name": "org.springframework:spring-expression",
-                "purl": "pkg:maven/org.springframework/spring-expression"
+                "ecosystem": ecosystem,
+                "name": package_name,
+                "purl": base_purl
             },
             "ranges": [{
                 "type": "ECOSYSTEM",
@@ -694,7 +712,8 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
                     {"introduced": "5.3.18"},
                     {"fixed": FIXED_VERSION}
                 ]
-            }]
+            }],
+            "versions": ["5.3.18", "5.3.18+build.1"]
         }]
     }))
     .await?;
@@ -705,11 +724,10 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
             versioned_purl::Relation::BasePurl.def(),
         )
         .filter(base_purl::Column::Name.eq("spring-expression"))
-        .filter(versioned_purl::Column::Version.eq(FIXED_VERSION))
-        .count(&ctx.db)
-        .await?;
+        .filter(versioned_purl::Column::Version.eq(FIXED_VERSION));
     assert_eq!(
-        persisted_vendor_purls, 0,
+        persisted_vendor_purls.clone().count(&ctx.db).await?,
+        0,
         "the fixed candidate must come from advisory metadata, not a persisted vendor PURL"
     );
 
@@ -724,14 +742,14 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
     .await?;
 
     // When requesting recommendations for the upstream package
-    let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
+    let recommendations = recommend(&app, &[upstream_purl]).await;
 
     // Then the fixed-event candidate and its remediation are returned
-    let entries = recommendations["recommendations"][UPSTREAM_PURL]
+    let entries = recommendations["recommendations"][upstream_purl]
         .as_array()
         .unwrap();
     assert_eq!(entries.len(), 1);
-    assert_eq!(entries[0]["package"], FIXED_PURL);
+    assert_eq!(entries[0]["package"], fixed_purl);
     let vulnerabilities = entries[0]["vulnerabilities"].as_array().unwrap();
     assert_eq!(vulnerabilities.len(), 1);
     assert_eq!(vulnerabilities[0]["id"], "CVE-2023-20861");
@@ -752,8 +770,8 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
     // And the report marks that package and vulnerability as addressed
     let report = recommend_report_req(&app, &[sbom_id]).await;
     assert_eq!(report["packages"].as_array().unwrap().len(), 1);
-    assert_eq!(report["packages"][0]["purl"], UPSTREAM_PURL);
-    assert_eq!(report["packages"][0]["recommended_purl"], FIXED_PURL);
+    assert_eq!(report["packages"][0]["purl"], upstream_purl);
+    assert_eq!(report["packages"][0]["recommended_purl"], fixed_purl);
     assert_eq!(
         report["packages"][0]["vulnerabilities"],
         json!(["CVE-2023-20861"])
@@ -761,26 +779,57 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
     assert_eq!(report["impact_summary"]["addressable_packages"], 1);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
     assert_eq!(report["sboms"][0]["addressable_packages"], 1);
+    assert_eq!(
+        persisted_vendor_purls.count(&ctx.db).await?,
+        0,
+        "query-time synthesis must not persist the fixed candidate"
+    );
 
     Ok(())
 }
 
-/// Verifies that a `last_affected` boundary does not synthesize a fixed recommendation.
+/// Verifies that neither range-based nor exact-version `last_affected` statuses synthesize fixed recommendations.
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[case::known_scheme(
+    "Maven",
+    "org.example:last-affected",
+    "pkg:maven/org.example/last-affected",
+    "pkg:maven/org.example/last-affected@1.0.0"
+)]
+#[case::exact_version_fallback(
+    "Debian",
+    "last-affected",
+    "pkg:deb/debian/last-affected",
+    "pkg:deb/debian/last-affected@1.0.0"
+)]
+#[test_log::test(actix_web::test)]
 async fn get_recommendations_osv_last_affected_is_not_candidate(
     ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] package_name: &str,
+    #[case] base_purl: &str,
+    #[case] upstream_purl: &str,
 ) -> Result<(), anyhow::Error> {
-    // Given an OSV range ending at a last_affected version, with no fixed event
+    // Given an upstream SBOM and an OSV last_affected event, with no fixed event
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "last-affected-base",
+            "00000000-0000-0000-0000-736400000002",
+            &[("last-affected", "1.0.0", upstream_purl)],
+        ))
+        .await?
+        .id,
+    )?;
     ctx.ingest_json(json!({
         "schema_version": "1.7.3",
         "id": "GHSA-test-rhlw-last-affected",
         "modified": "2025-01-01T00:00:00Z",
         "affected": [{
             "package": {
-                "ecosystem": "Maven",
-                "name": "org.example:last-affected",
-                "purl": "pkg:maven/org.example/last-affected"
+                "ecosystem": ecosystem,
+                "name": package_name,
+                "purl": base_purl
             },
             "ranges": [{
                 "type": "ECOSYSTEM",
@@ -788,7 +837,8 @@ async fn get_recommendations_osv_last_affected_is_not_candidate(
                     {"introduced": "0"},
                     {"last_affected": "1.0.0.rhlw-00001"}
                 ]
-            }]
+            }],
+            "versions": ["1.0.0"]
         }]
     }))
     .await?;
@@ -803,12 +853,15 @@ async fn get_recommendations_osv_last_affected_is_not_candidate(
     )
     .await?;
 
-    // When requesting a recommendation for the upstream package
-    let upstream_purl = "pkg:maven/org.example/last-affected@1.0.0";
+    // When requesting recommendations and a report for the upstream package
     let recommendations = recommend(&app, &[upstream_purl]).await;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
 
     // Then the last_affected boundary is not presented as fixed
     assert_eq!(recommendations["recommendations"][upstream_purl], json!([]));
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 0);
 
     Ok(())
 }
