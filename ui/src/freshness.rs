@@ -341,9 +341,7 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
             <StackItem>{ job_progress(job, overview) }</StackItem>
             if let Some(job) = active {
                 <StackItem>{ eta(job, overview.checked_at) }</StackItem>
-                if let Some(current) = &job.current {
-                    { current_document("Refreshing", current, overview.checked_at) }
-                }
+                { for job.current.iter().map(|current| current_document("Refreshing", current, overview.checked_at)) }
             } else if overview.needs_refresh > 0 {
                 <StackItem>{ "Waiting to retry failed documents." }</StackItem>
             }

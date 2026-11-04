@@ -113,6 +113,7 @@ mod m0002650_correlation_node_class;
 mod m0002660_correlation_verdict_current;
 mod m0002670_correlation_evidence_index;
 mod m0002680_correlation_verdict_dirty_distinct;
+mod m0002690_correlation_refresh_parallel;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -241,6 +242,7 @@ impl MigratorExt for Migrator {
             .normal(m0002660_correlation_verdict_current::Migration)
             .normal(m0002670_correlation_evidence_index::Migration)
             .normal(m0002680_correlation_verdict_dirty_distinct::Migration)
+            .normal(m0002690_correlation_refresh_parallel::Migration)
     }
 }
 

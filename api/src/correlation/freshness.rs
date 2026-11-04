@@ -120,9 +120,10 @@ pub struct RefreshJob {
     pub estimated_completion_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,
     pub finished_at: Option<OffsetDateTime>,
-    /// The document an active job is extracting right now, if any.
+    /// The documents an active job is extracting right now, by when they started. Workers of
+    /// several instances extract documents of the same job in parallel.
     #[serde(default)]
-    pub current: Option<CurrentSbom>,
+    pub current: Vec<CurrentSbom>,
 }
 
 /// An SBOM being processed right now, e.g. extracted by a refresh job.
