@@ -13,7 +13,7 @@ use yew::prelude::*;
 #[function_component(UnmatchedTable)]
 pub(super) fn unmatched_table(props: &CorrelationContentProps) -> Html {
     let (page, pagination, loading, error, ..) =
-        use_collection::<ComponentRef>(props.sbom_id, "/unmatched", false);
+        use_collection::<ComponentRef>(props.sbom_id, "/unmatched", false, props.reload);
     let total = page.total.and_then(|n| usize::try_from(n).ok());
     let rows = use_memo(page.items.clone(), |items| {
         items
