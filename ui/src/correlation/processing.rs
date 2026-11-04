@@ -223,6 +223,7 @@ mod test {
                 pending: 1,
                 failed: 1,
                 oldest_pending_at: None,
+                ..Default::default()
             },
             Some(ExtractionLag {
                 pending_advisories: 5,

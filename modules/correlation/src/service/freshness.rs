@@ -187,7 +187,7 @@ impl JobRow {
         &self,
         pending: u64,
         now: OffsetDateTime,
-        current: Option<RefreshCurrent>,
+        current: Option<CurrentSbom>,
     ) -> Result<RefreshJob, Error> {
         let mut job = RefreshJob {
             id: self.id,
@@ -236,20 +236,27 @@ impl JobRow {
             .await?
             .map(|row| CurrentRow::from_query_result(&row, ""))
             .transpose()?
-            .map(|row| RefreshCurrent {
-                sbom_id: row.sbom_id,
-                name: row.name,
-                started_at: row.started_at,
-            });
+            .map(CurrentSbom::from);
         self.model(pending, now, current)
     }
 }
 
 #[derive(FromQueryResult)]
-struct CurrentRow {
+pub(super) struct CurrentRow {
     sbom_id: Uuid,
     name: Option<String>,
     started_at: OffsetDateTime,
+}
+
+impl From<CurrentRow> for CurrentSbom {
+    fn from(row: CurrentRow) -> Self {
+        Self {
+            sbom_id: row.sbom_id,
+            name: row.name,
+            started_at: row.started_at,
+            progress: None,
+        }
+    }
 }
 
 /// Estimate the remaining documents and completion time of an active job.

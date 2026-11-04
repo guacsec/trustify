@@ -288,17 +288,40 @@ fn stage_card(title: &str, state: StageState, headline: String, details: Html) -
     }
 }
 
-/// The document a job is extracting, and for how long, measured against the server's clock.
-fn current_document(current: &RefreshCurrent, checked_at: OffsetDateTime) -> Html {
+/// What is being done with an SBOM, for how long, and how far it is, measured against the
+/// server's clock.
+fn current_document(action: &str, current: &CurrentSbom, checked_at: OffsetDateTime) -> Html {
     let id = current.sbom_id.to_string();
     let name = current.name.clone().unwrap_or_else(|| id.clone());
+    let elapsed = checked_at - current.started_at;
     html! {
         <>
-            { "Refreshing " }
-            <Link<AppRoute> to={AppRoute::Correlation { id }}>{ name }</Link<AppRoute>>
-            { format!(", started {} ago", approximate(checked_at - current.started_at)) }
+            <StackItem>
+                { format!("{action} ") }
+                <Link<AppRoute> to={AppRoute::Correlation { id }}>{ name }</Link<AppRoute>>
+                { format!(", started {} ago", approximate(elapsed)) }
+            </StackItem>
+            if let Some(progress) = current.progress.filter(|p| p.total > 0) {
+                <StackItem>
+                    <Progress
+                        value={progress.done as f64 / progress.total as f64}
+                        description={remaining(progress, elapsed)}
+                        value_text={format!("{} of {}", Number(progress.done), Number(progress.total))}
+                        size={ProgressSize::Small}
+                    />
+                </StackItem>
+            }
         </>
     }
+}
+
+/// The remaining time of a piece of work, extrapolated from its rate so far.
+fn remaining(progress: WorkProgress, elapsed: Duration) -> String {
+    if progress.done == 0 {
+        return "Estimating remaining time…".to_string();
+    }
+    let left = progress.total.saturating_sub(progress.done) as f64 / progress.done as f64;
+    format!("{} remaining", approximate(elapsed * left))
 }
 
 /// "Oldest pending: <timestamp>", or nothing when caught up.
@@ -319,7 +342,7 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
             if let Some(job) = active {
                 <StackItem>{ eta(job, overview.checked_at) }</StackItem>
                 if let Some(current) = &job.current {
-                    <StackItem>{ current_document(current, overview.checked_at) }</StackItem>
+                    { current_document("Refreshing", current, overview.checked_at) }
                 }
             } else if overview.needs_refresh > 0 {
                 <StackItem>{ "Waiting to retry failed documents." }</StackItem>
@@ -361,9 +384,10 @@ fn advisory_card(lag: Option<&ExtractionLag>) -> Html {
 }
 
 /// Verdict computation: snapshots resolved from the extracted evidence.
-fn verdict_card(lag: &VerdictLag) -> Html {
+fn verdict_card(lag: &VerdictLag, checked_at: OffsetDateTime) -> Html {
     let details = html! {
         <>
+            { for lag.current.iter().map(|current| current_document("Computing the verdicts of", current, checked_at)) }
             { oldest("Oldest outstanding work", lag.oldest_pending_at.as_ref()) }
             if lag.failed > 0 {
                 <StackItem>{ format!("{} waiting for retry; see server logs.", Number(lag.failed)) }</StackItem>
@@ -525,7 +549,7 @@ pub fn freshness_page() -> Html {
                     <Grid gutter=true>
                         { sbom_card(&data.overview, data.overview.latest_job.as_ref()) }
                         { advisory_card(data.overview.extraction_lag.as_ref()) }
-                        { verdict_card(&data.overview.verdict_lag) }
+                        { verdict_card(&data.overview.verdict_lag, data.overview.checked_at) }
                     </Grid>
                 </StackItem>
                 if let Some(details) = data.failures.as_ref().filter(|details| details.failure_total > 0) {
