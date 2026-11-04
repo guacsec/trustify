@@ -58,7 +58,7 @@ pub(crate) const ANY_MATCH: f64 = 0.9;
 const CHUNK: usize = 5000;
 
 /// Depth limit of the ancestor walks (within an SBOM, and across SBOMs).
-const MAX_DEPTH: i32 = 16;
+pub(crate) const MAX_DEPTH: i32 = 16;
 
 /// A CPE putting a node into a product, and how it got there.
 #[derive(Clone, Debug, PartialEq)]
@@ -568,7 +568,7 @@ pub async fn load_contexts<C: ConnectionTrait>(
 
 /// Relationships from a parent (left) to a child (right) node, by their stored value: contains,
 /// the dependencies, ancestor of, variant, and describes.
-const PARENT_RELATIONSHIPS: &str = "0, 1, 2, 3, 4, 5, 6, 9, 10, 13";
+pub(crate) const PARENT_RELATIONSHIPS: &str = "0, 1, 2, 3, 4, 5, 6, 9, 10, 13";
 
 /// The nodes (bound as `$1` SBOM IDs and `$2` node IDs), and their ancestors `up` within the SBOM,
 /// with the distance (0 for the node itself).

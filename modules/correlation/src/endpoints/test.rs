@@ -377,7 +377,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "under_investigation": 0,
             "none": 0,
             "remediations": 0, "verdict_freshness": {"status":"unknown", "generation":null, "completed_at":null, "required_revision":0, "completed_revision":null},
-            "freshness": {"status":"unknown", "required_revision":1, "completed_revision":null, "completed_at":null},
+            "freshness": {"status":"unknown", "required_revision":2, "completed_revision":null, "completed_at":null},
         })
     };
     assert_eq!(body, serde_json::json!([zero(a), zero(b)]));
