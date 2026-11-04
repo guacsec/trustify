@@ -4,6 +4,7 @@ use trustify_infrastructure::health::{Check, checks::Local};
 
 pub mod api;
 pub mod importer;
+pub mod worker;
 
 /// A common database check
 pub fn spawn_db_check(db: Database) -> anyhow::Result<impl Check> {
