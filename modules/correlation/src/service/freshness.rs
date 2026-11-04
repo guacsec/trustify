@@ -494,8 +494,15 @@ pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<boo
     if job.revision != revision {
         tx.execute_raw(sql("UPDATE correlation_refresh_job SET status = 'superseded', finished_at = clock_timestamp() WHERE id = $1", vec![job.id.into()])).await?;
         clear_current(&tx, job.id).await?;
+        // replace it right away, so documents behind the revision always have a job
+        let needed = tx
+            .query_one_raw(sql(NEEDS_JOB_SQL, vec![revision.into()]))
+            .await?
+            .is_some();
+        if needed {
+            start(&tx).await?;
+        }
         tx.commit().await?;
-        // The next step schedules a job for the new revision.
         return Ok(true);
     }
     let row = tx
