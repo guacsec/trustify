@@ -41,6 +41,7 @@
 | `OPENAI_API_KEY`                         | OpenAI access key                                                                   |                                         |
 | `OPENAI_API_BASE`                        | To set the base URL path for API requests                                           | `https://api.openapi.com/v1`            |
 | `OPENAI_MODEL`                           | OpenAI model                                                                        | `gpt-4o`                                |
+| `TRUSTD_CORRELATION_WORK_MEM`            | PostgreSQL `work_mem` of the correlation worker's transactions (e.g. `256MiB`); unset keeps the database's setting |    |
 | `TRUSTD_DEVMODE_ADDITIONAL_CLIENTS`      | Additional allowed development OAuth clients                                        |                                         |
 | `TRUSTD_DISABLE_FORMATS`                 | Disable these document formats (comma-separated); use `*` to disable all            |                                         |
 | `TRUSTD_DISABLE_IMPORTERS`               | Disable these importer types (comma-separated); use `*` to disable all              |                                         |
