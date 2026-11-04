@@ -2,7 +2,7 @@
 //!
 //! Never-extracted SBOMs and SBOMs outdated by a settings change are handled alike:
 //! whenever any document is behind the current revision, the worker schedules a job.
-use crate::{error::Error, extractor::Extractors, model::*};
+use crate::{error::Error, extractor::Extractors, model::*, service::tuning::WorkerConfig};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, FromQueryResult,
     JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait, TransactionTrait,
@@ -484,8 +484,13 @@ pub async fn job(
 /// Process one document while holding the durable job row, scheduling a job first when
 /// documents are behind the revision. A crash rolls back both evidence and the outcome,
 /// so any instance can resume the job without a lease timeout.
-pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<bool, Error> {
+pub async fn run_step(
+    db: &db::ReadWrite,
+    extractors: &Extractors,
+    config: &WorkerConfig,
+) -> Result<bool, Error> {
     let tx = db.begin().await?;
+    config.apply(&tx).await?;
     let revision = lock_revision(&tx).await?;
     // NO KEY UPDATE excludes other workers, but not the key share taken by publishing
     // the current document from a separate transaction.

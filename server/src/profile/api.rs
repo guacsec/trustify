@@ -83,7 +83,10 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
-use trustify_module_correlation::extractor::worker::run_extraction_worker;
+use trustify_module_correlation::{
+    extractor::worker::run_extraction_worker,
+    service::tuning::{WorkerConfig, parse_work_mem},
+};
 use trustify_module_exploit_intelligence::{
     auth::build_provider,
     runner::worker::start_worker,
@@ -110,6 +113,12 @@ pub struct Run {
     /// Disable the correlation API and background extraction and refresh worker
     #[arg(long, env = "TRUSTD_DISABLE_CORRELATION")]
     pub disable_correlation: bool,
+
+    /// The `work_mem` of the correlation worker's transactions (e.g. `256MiB`).
+    ///
+    /// When unset (the default), the database's setting applies.
+    #[arg(long, env = "TRUSTD_CORRELATION_WORK_MEM", value_parser = parse_work_mem)]
+    pub correlation_work_mem: Option<ByteSize>,
 
     /// Inject example importer configurations during startup
     #[arg(long, env)]
@@ -486,6 +495,7 @@ struct InitData {
     validators: Vec<Arc<dyn Validator>>,
     format_filter: VariantFilter,
     importer_filter: VariantFilter,
+    correlation: WorkerConfig,
 }
 
 /// Groups all module configurations.
@@ -697,6 +707,9 @@ impl InitData {
             validators,
             format_filter,
             importer_filter,
+            correlation: WorkerConfig {
+                work_mem: run.correlation_work_mem,
+            },
         })
     }
 
@@ -814,7 +827,8 @@ fn build_correlation_worker_task(init: &InitData) -> Option<Task> {
     }
     let broadcaster = init.broadcaster.clone();
     let db_rw = init.db_rw.clone();
-    Some(async move { run_extraction_worker(broadcaster, db_rw).await }.boxed_local())
+    let config = init.correlation.clone();
+    Some(async move { run_extraction_worker(broadcaster, db_rw, config).await }.boxed_local())
 }
 
 pub fn default_openapi_info() -> Info {
@@ -1352,6 +1366,7 @@ mod test {
             validators: Vec::new(),
             format_filter: VariantFilter::default(),
             importer_filter: VariantFilter::default(),
+            correlation: WorkerConfig::default(),
         };
         let graph = Graph::new();
 

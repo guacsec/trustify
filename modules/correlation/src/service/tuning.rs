@@ -1,0 +1,99 @@
+//! Database session settings of the correlation worker.
+
+use crate::error::Error;
+use bytesize::ByteSize;
+use sea_orm::{ConnectionTrait, DatabaseTransaction};
+use trustify_common::db::sql;
+
+/// The smallest `work_mem` PostgreSQL accepts.
+const MIN_WORK_MEM: ByteSize = ByteSize::kib(64);
+/// The largest `work_mem` PostgreSQL accepts (`INT_MAX` kB).
+const MAX_WORK_MEM: ByteSize = ByteSize::kib(i32::MAX as u64);
+
+/// Settings applied to the transactions of the correlation worker.
+///
+/// Unset values keep the database's settings.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WorkerConfig {
+    /// The `work_mem` of the worker's transactions.
+    ///
+    /// Matching packages with many statements (e.g. the kernel of a RHEL SBOM) aggregates
+    /// millions of rows, which spill to disk with PostgreSQL's default of 4 MB.
+    pub work_mem: Option<ByteSize>,
+}
+
+impl WorkerConfig {
+    /// Apply the settings to a transaction, for its duration only (`SET LOCAL`).
+    pub async fn apply(&self, tx: &DatabaseTransaction) -> Result<(), Error> {
+        if let Some(work_mem) = self.work_mem {
+            tx.execute_raw(sql(
+                "SELECT set_config('work_mem', $1, true)",
+                vec![format!("{}kB", work_mem.as_u64() / 1024).into()],
+            ))
+            .await?;
+        }
+        Ok(())
+    }
+}
+
+/// Parse a `work_mem` value, within the range PostgreSQL accepts.
+pub fn parse_work_mem(value: &str) -> Result<ByteSize, String> {
+    let size = value.parse::<ByteSize>()?;
+    if (MIN_WORK_MEM..=MAX_WORK_MEM).contains(&size) {
+        Ok(size)
+    } else {
+        Err(format!(
+            "must be between {} and {}",
+            MIN_WORK_MEM.display().iec(),
+            MAX_WORK_MEM.display().iec()
+        ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_context::test_context;
+    use test_log::test;
+    use trustify_test_context::TrustifyContext;
+
+    #[test]
+    fn parse() {
+        assert_eq!(parse_work_mem("256MiB"), Ok(ByteSize::mib(256)));
+        assert_eq!(parse_work_mem("64KiB"), Ok(ByteSize::kib(64)));
+        assert_eq!(
+            parse_work_mem("1KiB"),
+            Err("must be between 64.0 KiB and 2.0 TiB".to_string())
+        );
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn applies_to_the_transaction_only(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        use sea_orm::TransactionTrait;
+
+        let show = async |tx: &DatabaseTransaction| -> anyhow::Result<String> {
+            let row = tx
+                .query_one_raw(sql("SHOW work_mem", vec![]))
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("no work_mem"))?;
+            Ok(row.try_get("", "work_mem")?)
+        };
+
+        let tx = ctx.db.begin().await?;
+        let default = show(&tx).await?;
+        WorkerConfig::default().apply(&tx).await?;
+        assert_eq!(show(&tx).await?, default);
+        WorkerConfig {
+            work_mem: Some(ByteSize::mib(256)),
+        }
+        .apply(&tx)
+        .await?;
+        assert_eq!(show(&tx).await?, "256MB");
+        tx.commit().await?;
+
+        let tx = ctx.db.begin().await?;
+        assert_eq!(show(&tx).await?, default);
+        Ok(())
+    }
+}

@@ -25,6 +25,13 @@ Re-enabling resumes processing both ingestion work and existing refresh jobs.
 SBOM and advisory ingestion, browsing, and the existing fundamental APIs remain
 available independently of this capability.
 
+### Worker tuning
+
+`--correlation-work-mem` (`TRUSTD_CORRELATION_WORK_MEM`, e.g. `256MiB`) sets PostgreSQL's
+`work_mem` for the worker's transactions only (`SET LOCAL`). Matching packages with many
+statements, such as the kernel of a RHEL SBOM, aggregates millions of rows, which spill to disk
+with PostgreSQL's default of 4 MB. When unset, the database's setting applies.
+
 ## API
 
 ### Get correlation verdicts for an SBOM

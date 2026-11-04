@@ -29,6 +29,7 @@ pub mod projection;
 mod remediation;
 pub mod resolution;
 pub mod statement;
+pub mod tuning;
 
 #[cfg(test)]
 mod test;

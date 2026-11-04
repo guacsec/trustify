@@ -1,6 +1,6 @@
 use crate::{
     extractor::Extractors,
-    service::{extraction, freshness, projection},
+    service::{extraction, freshness, projection, tuning::WorkerConfig},
 };
 use tokio::sync::broadcast;
 use trustify_common::db::{self, change::ChangeBroadcaster};
@@ -10,6 +10,7 @@ use trustify_common::db::{self, change::ChangeBroadcaster};
 pub async fn run_extraction_worker(
     broadcaster: ChangeBroadcaster,
     db: db::ReadWrite,
+    config: WorkerConfig,
 ) -> anyhow::Result<()> {
     let extractors = Extractors::default();
     let mut rx = broadcaster.subscribe();
@@ -27,7 +28,7 @@ pub async fn run_extraction_worker(
                 std::time::Duration::from_secs(1)
             }) => {},
         }
-        pending = match extraction::run_step(&db, &extractors).await {
+        pending = match extraction::run_step(&db, &extractors, &config).await {
             Ok(pending) => pending,
             Err(err) => {
                 tracing::warn!(error = %err, "correlation extraction worker failed");
@@ -35,14 +36,14 @@ pub async fn run_extraction_worker(
             }
         };
         // Give requested refreshes a turn even during a continuous import.
-        pending |= match freshness::run_step(&db, &extractors).await {
+        pending |= match freshness::run_step(&db, &extractors, &config).await {
             Ok(pending) => pending,
             Err(err) => {
                 tracing::warn!(error = %err, "correlation refresh worker failed");
                 false
             }
         };
-        pending |= match projection::run_step(&db).await {
+        pending |= match projection::run_step(&db, &config).await {
             Ok(pending) => pending,
             Err(err) => {
                 tracing::warn!(error = %err, "verdict worker failed");
