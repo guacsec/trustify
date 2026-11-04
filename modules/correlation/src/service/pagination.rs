@@ -20,14 +20,19 @@ pub(super) struct EvidenceGroup {
 }
 
 /// Select evidence for an SBOM, applying optional node and vulnerability filters.
-fn evidence_query(
+///
+/// The evidence of a node is the one of its class' representative.
+pub(super) fn evidence_query(
     sbom_id: Uuid,
     request: &ResolutionRequest,
 ) -> Select<correlation_evidence::Entity> {
     let mut query = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
     if let Some(node) = &request.node_id {
-        query = query.filter(correlation_evidence::Column::NodeId.eq(node));
+        query = query.filter(
+            Expr::col(correlation_evidence::Column::NodeId)
+                .eq(class::representative(sbom_id, node)),
+        );
     }
     if let Some(vulnerability) = &request.vulnerability_id {
         query = query.filter(correlation_evidence::Column::VulnerabilityId.eq(vulnerability));
@@ -93,11 +98,16 @@ impl CorrelationService {
             .column(correlation_evidence::Column::NodeId)
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
             .filter(
+                // the evidence of the node's class
                 Expr::col((
                     correlation_evidence::Entity,
                     correlation_evidence::Column::NodeId,
                 ))
-                .equals((sbom_node::Entity, sbom_node::Column::NodeId)),
+                .eq(Expr::cust(
+                    "coalesce((SELECT c.representative_node_id FROM correlation_node_class c \
+                     WHERE c.sbom_id = sbom_node.sbom_id AND c.node_id = sbom_node.node_id), \
+                     sbom_node.node_id)",
+                )),
             );
         let root = sbom::Entity::find()
             .select_only()

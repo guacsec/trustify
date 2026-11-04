@@ -6,6 +6,7 @@
 //! work against the trait. Adding a new identifier type means adding a module
 //! here and registering it in [`Extractors::default`].
 
+pub mod class;
 pub mod context;
 pub mod cpe;
 pub mod digest;
