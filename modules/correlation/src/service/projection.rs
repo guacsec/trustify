@@ -222,8 +222,10 @@ pub async fn run_step(db: &db::ReadWrite) -> Result<bool, Error> {
     let revision: i64 = revision.try_get("", "revision")?;
     // Lock the parent before the work row, matching cascading deletion's lock order.
     // An exclusive row claim lets other workers skip this SBOM while permitting FK checks.
+    // SBOMs waiting for an extraction are skipped: their evidence is about to be replaced, which
+    // changes their inputs again.
     let Some(parent) = tx.query_one_raw(sql(
-        "SELECT sbom.sbom_id FROM sbom JOIN correlation_verdict_state s USING(sbom_id) WHERE retry_at <= now() AND (completed_revision <> $1 OR completed_input_revision <> input_revision) ORDER BY retry_at,s.sbom_id LIMIT 1 FOR NO KEY UPDATE OF sbom SKIP LOCKED",
+        "SELECT sbom.sbom_id FROM sbom JOIN correlation_verdict_state s USING(sbom_id) JOIN correlation_extraction_state e USING(sbom_id) WHERE retry_at <= now() AND (s.completed_revision <> $1 OR completed_input_revision <> input_revision) AND e.completed_revision = (SELECT revision FROM correlation_extraction_revision) ORDER BY retry_at,s.sbom_id LIMIT 1 FOR NO KEY UPDATE OF sbom SKIP LOCKED",
         vec![revision.into()],
     )).await? else { return Ok(false); };
     let id: Uuid = parent.try_get("", "sbom_id")?;

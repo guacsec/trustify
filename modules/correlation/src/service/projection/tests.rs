@@ -49,6 +49,42 @@ async fn zero_findings_are_distinct_from_uncomputed(ctx: &TrustifyContext) -> an
     Ok(())
 }
 
+/// Verdicts of an SBOM waiting for an extraction are computed after it, not from the evidence
+/// about to be replaced.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn stale_extraction_is_computed_after_its_refresh(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    while run_step(&db).await? {}
+
+    // new settings, and new inputs for the verdicts
+    ctx.db
+        .execute_raw(sql(
+            "UPDATE correlation_extraction_revision SET revision = revision + 1",
+            vec![],
+        ))
+        .await?;
+    ctx.db
+        .execute_raw(sql(
+            "UPDATE correlation_verdict_state SET input_revision = input_revision + 1 WHERE sbom_id = $1",
+            vec![id.into()],
+        ))
+        .await?;
+    assert!(!run_step(&db).await?);
+
+    drain_extraction(ctx).await?;
+    assert!(run_step(&db).await?);
+    let tx = ctx.db.begin().await?;
+    assert_eq!(
+        state(&[id], &tx).await?[&id].status,
+        FreshnessStatus::Current
+    );
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
 async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
