@@ -8,21 +8,36 @@ PROPOSED
 
 ## Context
 
-Trustify is a Rust project, but its UI is not. The UI is a TypeScript application built on React and
-PatternFly React, developed in a separate repository (`guacsec/trustify-ui`) and consumed by the server
-as the `trustify-ui` crate.
+Trustify is a Rust project, but its main UI is not. Two UIs are built and embedded in the server on the `main` branch today:
 
-This creates the following problems:
+| UI | Stack | Served at | Location |
+|---|---|---|---|
+| Trustify UI | TypeScript, React, PatternFly React, built with npm | `/` | separate repository (`guacsec/trustify-ui`), consumed as the `trustify-ui` crate |
+| Trustify Console | Rust, Yew, `patternfly-yew`, built to WebAssembly with Trunk | `/console/` | this repository (`ui/`, crate `trustify-correlation-ui`) |
+
+Both are optional Cargo features of `trustd` (`trustify-ui` and `ui-console`), and both are enabled by
+default on `main`. The Console is a proof of concept (POC): it is part of the default build of `main`,
+but it is not intended for release branches. It declares `patternfly-yew` as a dependency in
+`ui/Cargo.toml`, and it also uses npm to obtain PatternFly CSS and Font Awesome assets
+(`ui/package.json`). It is built as an application with Trunk, not with a JavaScript bundler.
+
+The Console is a Rust/Wasm UI for the correlation engine. It shows that a Rust UI can be built and
+embedded in the server. Its component layer is `patternfly-yew`, which is the question this ADR
+addresses.
+
+The current setup has the following problems:
 
 1. **Split tech stack.** The project needs Rust and TypeScript/React skills, two toolchains, two test
-   setups and two release flows. The UI lives in a different repository from the API it consumes, so
-   API changes and UI changes cannot be built, tested and released together.
+   setups and two release flows for the UI, and ships two UIs built on different stacks. The React UI
+   lives in a different repository from the API it consumes, so API changes and UI changes cannot be
+   built, tested and released together.
 
 2. **No dedicated UI team.** The project has no UI team, and help from additional UI developers has not
    materialised. Every UI dependency is therefore maintenance work for backend engineers.
 
 3. **npm maintenance burden.** The React UI brings a large transitive npm dependency tree. Keeping it
-   free of known vulnerabilities is a recurring, mostly mechanical effort.
+   free of known vulnerabilities is a recurring, mostly mechanical effort. The Console's npm use is
+   much smaller (CSS and font assets) but still requires Node in its build.
 
 4. **Downstream.** Downstream products are aligned with PatternFly. Any change to the UI stack must not
    make the downstream build, support or UX alignment harder.
@@ -30,8 +45,9 @@ This creates the following problems:
 A Rust/WebAssembly UI removes the second stack, but it needs a component layer that provides the
 PatternFly look and feel. The usual answer is a Rust wrapper crate such as `patternfly-yew`. A wrapper
 has to follow every PatternFly release, is tied to one Rust UI framework, and is not maintained by the
-PatternFly project. Using it means either depending on a library the project does not control or
-spending UI resources it does not have.
+PatternFly project. In practice only one Trustify contributor is currently working on `patternfly-yew`,
+so keeping it current with PatternFly depends on a single person. Using it means either depending on a
+library the project does not control or spending UI resources it does not have.
 
 Web components offer another way. They are a browser standard supported by all major browsers
 (including Declarative Shadow DOM), they are used by large design systems, and Red Hat publishes the
@@ -40,12 +56,8 @@ PatternFly design system as web components: [PatternFly Elements](https://patter
 `<pf-v6-button variant="primary">`) and does not depend on a UI framework, so it can be used from
 Rust/Wasm with a small amount of `web-sys` glue.
 
-A short-lived prototype (a Yew console served next to the React UI) showed that a Rust/Wasm UI can be
-built and embedded in the server. It used `patternfly-yew` and is not part of the product. It is being
-removed and is not a basis for this decision, except as evidence that the approach is feasible.
-
-This ADR concerns only the choice of the component layer for a Rust UI. It does not decide to retire
-the React UI.
+This ADR concerns only the choice of the component layer for a Rust UI. It does not decide the fate of
+either existing UI. The status of the Console is described under Consequences.
 
 ## Decision
 
@@ -67,8 +79,8 @@ In detail:
    pre-built files, not by running a JavaScript build in the Trustify build.
 
 4. **Framework choice is separate.** This ADR does not pick between Yew, Leptos and Dioxus. The choice
-   is made during the prototype below, and can be changed later because web components do not depend on
-   the framework.
+   is made during the validation prototype below, and can be changed later because web components do
+   not depend on the framework.
 
 5. **Standards over wrappers.** When a UI element is needed, the order of preference is: a standard web
    component (PFE), then plain HTML and CSS using PatternFly tokens, and only then a project-owned
@@ -114,9 +126,10 @@ The decision stands if:
 
 ### Rust UI with `patternfly-yew`
 
-- Pros: Rust-only, idiomatic for Yew, and proven by the earlier prototype.
+- Pros: Rust-only, idiomatic for Yew, and already used by the Console POC on `main`.
 - Cons: a Rust-specific wrapper that the project depends on and would need to maintain or update for
-  PF6. It ties the UI to one Rust framework.
+  PF6. Only one Trustify contributor currently works on it, so it is a single point of failure. It
+  ties the UI to one Rust framework.
 
 ### Write and maintain Rust components in Trustify
 
@@ -146,12 +159,17 @@ The decision stands if:
   layer is designed.
 - **Shared types.** A Rust UI in the same repository can reuse the API types, which reduces drift
   between the API and the UI.
-- **Existing UI.** The React UI is not removed by this ADR. Any migration is a separate decision, taken
-  when the Rust UI covers the required functionality.
+- **Existing UIs.** Neither the React UI nor the Console POC is removed or changed by this ADR. Any
+  migration or removal is a separate change, taken when the Rust UI covers the required functionality.
 
 ## Consequences
 
-- No Rust UI ships until the validation is done. The project keeps the React UI in the meantime.
+- The Console POC remains in the default build of `main`, with `patternfly-yew` and its npm-provided
+  assets, until a separate change removes it or ports it to PFE. It is not intended for release
+  branches. This ADR does not remove it, and documentation must keep describing it as present on
+  `main`.
+- The project does not adopt `patternfly-yew` for any release. New Rust UI work targets PFE.
+- The React UI continues to ship at `/`, including in release branches, in the meantime.
 - A coverage matrix and a prototype are produced before the decision becomes final.
 - The project avoids owning a PatternFly component library for Rust.
 - The project accepts a dependency on PFE's PF6 roadmap and coverage.
