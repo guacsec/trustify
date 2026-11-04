@@ -173,20 +173,21 @@ outdated, even for a publisher-specific change. Changing only the reason does no
 results. Provider aliases still take effect during verdict resolution without extraction.
 
 Whenever an SBOM is unchecked or outdated, the worker schedules a refresh job automatically;
-there is no manual action. At most one job is active. It uses the stored document data; it
+there is no manual action. At most one job is active, but workers of all instances extract its
+documents in parallel, each claiming a different document. It uses the stored document data; it
 does not download or ingest documents again. Each document's evidence and context links are
 replaced atomically, including when there are no remaining matches. A job processes unchecked
 documents first, so SBOMs ingested during a long refresh are picked up by the running job.
 Failures retain previous results and stay in the backlog; a new job retries them 30 seconds
 after a job with failures finished. Jobs resume after restart. If matching settings change
-during a job, it finishes the current document, becomes superseded, and a job for the new
+during a job, it finishes the documents in flight, becomes superseded, and a job for the new
 settings is scheduled.
 
 Active jobs report their `remaining` documents and an `estimated_completion_at`,
 extrapolated from the job's average rate so far. Document sizes vary, so this is a rough
-estimate; it is absent until the first document has been processed. While a document is extracted, the job
-also reports it as `current`, with its start time. The job's own progress commits only with
-the document, so workers publish the current document from a separate, short transaction.
+estimate; it is absent until the first document has been processed. While documents are extracted, the job
+also reports them as `current`, with their start times. A worker's progress commits only with
+its document, so workers publish their current document from a separate, short transaction.
 
 Freshness describes matching settings, not completion of newly ingested advisory events.
 Partial advisory extraction does not mark an outdated SBOM current. A read of an SBOM result
