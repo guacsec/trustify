@@ -59,32 +59,6 @@ pub fn is_refreshing(job: Option<&RefreshJob>, freshness: &ExtractionFreshness) 
     })
 }
 
-pub fn freshness_banner(freshness: &ExtractionFreshness, refreshing: bool) -> Html {
-    let message = match freshness.status {
-        FreshnessStatus::Current => return Html::default(),
-        FreshnessStatus::Stale => {
-            "Matching settings changed. These results may be incomplete or outdated."
-        }
-        FreshnessStatus::Unknown => {
-            "These results have not been checked against current matching settings."
-        }
-    };
-
-    if refreshing {
-        return html! {
-            <Alert title="These results are being refreshed. They will be updated once the refresh has finished." r#type={AlertType::Info} inline=true>
-                <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View refresh progress" }</Link<AppRoute>>
-            </Alert>
-        };
-    }
-
-    html! {
-        <Alert title={message} r#type={AlertType::Warning} inline=true>
-            <Link<AppRoute> to={AppRoute::CorrelationStatus}>{ "View refresh progress" }</Link<AppRoute>>
-        </Alert>
-    }
-}
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum Column {
     Sbom,

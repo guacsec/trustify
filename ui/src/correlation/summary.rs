@@ -1,9 +1,8 @@
-//! SBOM-wide verdict counts and extraction freshness.
+//! SBOM-wide verdict counts. Their freshness is shown by [`super::processing::SbomStatus`].
 use super::{CorrelationContentProps, common::status_label, pagination::use_collection};
 use crate::number::Number;
 use crate::{
     api,
-    freshness::{freshness_banner, is_refreshing},
     model::{ComponentRef, VerdictStatus},
 };
 use patternfly_yew::prelude::*;
@@ -29,7 +28,7 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
         });
     }
     let (unmatched, _, _, unmatched_error, ..) =
-        use_collection::<ComponentRef>(props.sbom_id, "/unmatched", true);
+        use_collection::<ComponentRef>(props.sbom_id, "/unmatched", true, props.reload);
     let latest_token = use_latest_access_token();
     let token = latest_token.as_ref().and_then(|t| t.access_token());
     {
@@ -60,8 +59,9 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
     let Some(counts) = &*counts else {
         return html!(<Spinner size={SpinnerSize::Md} />);
     };
+    // the status above explains why there are no counts yet
     if counts.verdict_freshness.generation.is_none() {
-        return html!(<Alert title="Verdicts not computed yet" r#type={AlertType::Info} inline=true>{"Counts will be available after background processing."}</Alert>);
+        return Html::default();
     }
     let summary = [
         (VerdictStatus::Affected, counts.affected),
@@ -74,11 +74,6 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
         (VerdictStatus::None, counts.none),
     ];
     html! {
-        <>
-        { freshness_banner(
-            &counts.freshness,
-            is_refreshing(props.active_job.as_ref(), &counts.freshness),
-        ) }
         <Gallery gutter=true>
             { for summary.into_iter().map(|(status, count)| html! {
                 <Card><CardBody>
@@ -99,6 +94,5 @@ pub(super) fn correlation_summary(props: &CorrelationContentProps) -> Html {
                 </div>
             </CardBody></Card>
         </Gallery>
-        </>
     }
 }
