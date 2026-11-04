@@ -7,8 +7,8 @@ use super::{
 use crate::{
     error::Error,
     model::{
-        ResolutionRequest, SbomVerdictCounts, SbomVerdictPage, VerdictFreshness, VerdictLag,
-        VerdictStatus, VerdictSummary,
+        CurrentSbom, ResolutionRequest, SbomVerdictCounts, SbomVerdictPage, VerdictFreshness,
+        VerdictLag, VerdictStatus, VerdictSummary, WorkProgress,
     },
 };
 use sea_orm::{
@@ -195,15 +195,113 @@ pub async fn counts(
 
 /// Outstanding work includes global revision mismatches, without expanding a queue first.
 pub async fn lag(tx: &DatabaseTransaction) -> Result<VerdictLag, Error> {
-    let row = tx.query_one_raw(sql(
+    let lag = LagRow::find_by_statement(sql(
         "SELECT count(*) pending, count(*) FILTER (WHERE attempts > 0) failed, min(CASE WHEN completed_revision <> r.revision AND completed_input_revision = input_revision THEN r.changed_at WHEN completed_revision <> r.revision THEN least(queued_at,r.changed_at) ELSE queued_at END) oldest_pending_at FROM correlation_verdict_state s CROSS JOIN correlation_verdict_revision r WHERE completed_revision <> r.revision OR completed_input_revision <> input_revision",
         vec![],
-    )).await?.ok_or_else(|| DbErr::Custom("missing verdict backlog".into()))?;
+    ))
+    .one(tx)
+    .await?
+    .ok_or_else(|| DbErr::Custom("missing verdict backlog".into()))?;
+    let current = CurrentRow::find_by_statement(sql(CURRENT_SQL, vec![]))
+        .all(tx)
+        .await?
+        .into_iter()
+        .map(|row| {
+            Ok(CurrentSbom {
+                progress: Some(WorkProgress {
+                    done: u64::try_from(row.done)?,
+                    total: u64::try_from(row.groups)?,
+                }),
+                ..row.sbom.into()
+            })
+        })
+        .collect::<Result<_, Error>>()?;
     Ok(VerdictLag {
-        pending: row.try_get::<i64>("", "pending")? as u64,
-        failed: row.try_get::<i64>("", "failed")? as u64,
-        oldest_pending_at: row.try_get("", "oldest_pending_at")?,
+        pending: u64::try_from(lag.pending)?,
+        failed: u64::try_from(lag.failed)?,
+        oldest_pending_at: lag.oldest_pending_at,
+        current,
     })
+}
+
+#[derive(FromQueryResult)]
+struct LagRow {
+    pending: i64,
+    failed: i64,
+    oldest_pending_at: Option<time::OffsetDateTime>,
+}
+
+/// An SBOM whose verdicts are being computed.
+#[derive(FromQueryResult)]
+struct CurrentRow {
+    #[sea_orm(nested)]
+    sbom: freshness::CurrentRow,
+    groups: i64,
+    done: i64,
+}
+
+/// The SBOMs whose verdicts are being computed. A row not updated for a while is left behind by a
+/// crashed worker, as a batch takes seconds.
+const CURRENT_SQL: &str = r#"
+SELECT c.sbom_id, n.name, c.started_at, c.groups, c.done FROM correlation_verdict_current c
+JOIN sbom s USING (sbom_id)
+LEFT JOIN sbom_node n ON n.sbom_id = s.sbom_id AND n.node_id = s.node_id
+WHERE c.updated_at > now() - interval '10 minutes'
+ORDER BY c.started_at, c.sbom_id
+"#;
+
+/// Publishes the progress of a computation, outside of its transaction. Failing to do so doesn't
+/// fail the computation.
+struct Progress<'a> {
+    db: &'a db::ReadWrite,
+    sbom_id: Uuid,
+}
+
+impl<'a> Progress<'a> {
+    /// Start a computation.
+    async fn start(db: &'a db::ReadWrite, sbom_id: Uuid) -> Progress<'a> {
+        let progress = Self { db, sbom_id };
+        progress
+            .publish(
+                "INSERT INTO correlation_verdict_current(sbom_id, started_at, updated_at, groups, done) \
+                 VALUES ($1, clock_timestamp(), clock_timestamp(), 0, 0) \
+                 ON CONFLICT (sbom_id) DO UPDATE SET started_at = EXCLUDED.started_at, \
+                 updated_at = EXCLUDED.updated_at, groups = 0, done = 0",
+                vec![],
+            )
+            .await;
+        progress
+    }
+
+    /// Update the number of groups, and the ones resolved.
+    async fn update(&self, groups: usize, done: usize) {
+        let count = |n: usize| i64::try_from(n).unwrap_or(i64::MAX);
+        self.publish(
+            "UPDATE correlation_verdict_current SET updated_at = clock_timestamp(), groups = $2, done = $3 \
+             WHERE sbom_id = $1",
+            vec![count(groups).into(), count(done).into()],
+        )
+        .await;
+    }
+
+    /// The computation ended, successfully or not.
+    async fn finish(self) {
+        self.publish(
+            "DELETE FROM correlation_verdict_current WHERE sbom_id = $1",
+            vec![],
+        )
+        .await;
+    }
+
+    async fn publish(&self, statement: &str, values: Vec<sea_orm::Value>) {
+        let mut all = vec![self.sbom_id.into()];
+        all.extend(values);
+        let _ = self
+            .db
+            .execute_raw(sql(statement, all))
+            .await
+            .inspect_err(|err| tracing::warn!(sbom_id = %self.sbom_id, "failed to publish the verdict progress: {err}"));
+    }
 }
 
 /// Claim one SBOM across all instances; failure rolls back its replacement but retains retries.
@@ -232,8 +330,18 @@ pub async fn run_step(db: &db::ReadWrite) -> Result<bool, Error> {
     let Some(row) = tx.query_one_raw(sql("SELECT sbom_id,input_revision FROM correlation_verdict_state WHERE sbom_id=$1 AND retry_at <= now() AND (completed_revision <> $2 OR completed_input_revision <> input_revision) FOR UPDATE SKIP LOCKED", vec![id.into(),revision.into()])).await? else { return Ok(false); };
     let id: Uuid = row.try_get("", "sbom_id")?;
     let input_revision: i64 = row.try_get("", "input_revision")?;
+    let progress = Progress::start(db, id).await;
     let work = tx.begin().await?;
-    match rebuild(id, revision, input_revision, BATCH_SIZE, &work).await {
+    let result = rebuild(
+        id,
+        revision,
+        input_revision,
+        BATCH_SIZE,
+        Some(&progress),
+        &work,
+    )
+    .await;
+    match result {
         Ok(()) => {
             work.commit().await?;
         }
@@ -243,7 +351,9 @@ pub async fn run_step(db: &db::ReadWrite) -> Result<bool, Error> {
             tx.execute_raw(sql("UPDATE correlation_verdict_state SET attempts=attempts+1,retry_at=clock_timestamp()+interval '30 seconds' WHERE sbom_id=$1", vec![id.into()])).await?;
         }
     }
-    tx.commit().await?;
+    let committed = tx.commit().await;
+    progress.finish().await;
+    committed?;
     Ok(true)
 }
 
@@ -253,6 +363,7 @@ async fn rebuild(
     revision: i64,
     input_revision: i64,
     batch_size: usize,
+    progress: Option<&Progress<'_>>,
     tx: &DatabaseTransaction,
 ) -> Result<(), Error> {
     correlation_verdict::Entity::delete_many()
@@ -272,7 +383,11 @@ async fn rebuild(
         .all(tx)
         .instrument(info_span!("loading verdict groups"))
         .await?;
-    for groups in groups.chunks(batch_size.max(1)) {
+    let total = groups.len();
+    if let Some(progress) = progress {
+        progress.update(total, 0).await;
+    }
+    for (batch, groups) in groups.chunks(batch_size.max(1)).enumerate() {
         let evidence = pagination::evidence_for_groups(id, groups, tx).await?;
         let verdicts = service
             .verdicts(id, &request, &evidence, &mut snapshot, tx)
@@ -299,6 +414,11 @@ async fn rebuild(
             correlation_verdict::Entity::insert_many(rows)
                 .exec(tx)
                 .await?;
+        }
+        if let Some(progress) = progress {
+            progress
+                .update(total, total.min((batch + 1) * batch_size.max(1)))
+                .await;
         }
     }
     let updated = tx.execute_raw(sql(
@@ -341,6 +461,7 @@ pub(crate) async fn publish_in_batches_for_test(
         row.try_get("", "revision")?,
         row.try_get("", "input_revision")?,
         batch_size,
+        None,
         tx,
     )
     .await

@@ -49,6 +49,63 @@ async fn zero_findings_are_distinct_from_uncomputed(ctx: &TrustifyContext) -> an
     Ok(())
 }
 
+/// The progress of a computation is visible while it is updated, and gone once it is done.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn progress_is_visible_while_computing(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    let current = || async {
+        let tx = ctx.db.begin().await?;
+        let current = lag(&tx)
+            .await?
+            .current
+            .into_iter()
+            .map(|c| (c.sbom_id, c.progress))
+            .collect::<Vec<_>>();
+        Ok::<_, anyhow::Error>(current)
+    };
+
+    // as published by a worker after its first batch
+    ctx.db
+        .execute_raw(sql(
+            "INSERT INTO correlation_verdict_current(sbom_id, started_at, updated_at, groups, done) VALUES ($1, now(), now(), 3000, 1000)",
+            vec![id.into()],
+        ))
+        .await?;
+    assert_eq!(
+        current().await?,
+        vec![(
+            id,
+            Some(WorkProgress {
+                done: 1000,
+                total: 3000
+            })
+        )]
+    );
+
+    // left behind by a crashed worker
+    ctx.db
+        .execute_raw(sql(
+            "UPDATE correlation_verdict_current SET updated_at = now() - interval '1 hour'",
+            vec![],
+        ))
+        .await?;
+    assert_eq!(current().await?, vec![]);
+
+    // computing replaces it, and removes it when done
+    while run_step(&db).await? {}
+    let rows = ctx
+        .db
+        .query_all_raw(sql(
+            "SELECT sbom_id FROM correlation_verdict_current",
+            vec![],
+        ))
+        .await?;
+    assert_eq!(rows.len(), 0);
+    Ok(())
+}
+
 /// Verdicts of an SBOM waiting for an extraction are computed after it, not from the evidence
 /// about to be replaced.
 #[test_context(TrustifyContext)]

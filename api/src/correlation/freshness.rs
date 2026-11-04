@@ -63,6 +63,10 @@ pub struct VerdictLag {
     pub pending: u64,
     pub failed: u64,
     pub oldest_pending_at: Option<OffsetDateTime>,
+    /// The SBOMs whose verdicts are being computed right now, by when they started, with the
+    /// (component, vulnerability) groups resolved as their progress.
+    #[serde(default)]
+    pub current: Vec<CurrentSbom>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -118,17 +122,29 @@ pub struct RefreshJob {
     pub finished_at: Option<OffsetDateTime>,
     /// The document an active job is extracting right now, if any.
     #[serde(default)]
-    pub current: Option<RefreshCurrent>,
+    pub current: Option<CurrentSbom>,
 }
 
-/// The document a refresh job is currently extracting.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+/// An SBOM being processed right now, e.g. extracted by a refresh job.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct RefreshCurrent {
+pub struct CurrentSbom {
     pub sbom_id: Uuid,
     /// The name of the SBOM's document node, if known.
     pub name: Option<String>,
     pub started_at: OffsetDateTime,
+    /// How far the processing is, if it can tell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<WorkProgress>,
+}
+
+/// The items of a piece of work done so far, out of all of them.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct WorkProgress {
+    pub done: u64,
+    /// Zero while the items are still being determined.
+    pub total: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
