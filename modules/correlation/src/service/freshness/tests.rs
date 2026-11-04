@@ -366,8 +366,7 @@ async fn changed_settings_supersede_a_job(ctx: &TrustifyContext) -> anyhow::Resu
         (0, 0, None)
     );
     tx.rollback().await?;
-    // A follow-up job for the new settings is scheduled automatically.
-    assert!(run_step(&db, &Extractors::default()).await?);
+    // A follow-up job for the new settings is scheduled right away, by the same step.
     let next = counts(ctx).await?.active_job.unwrap();
     assert_ne!(next.id, queued.id);
     assert_eq!(next.revision, queued.revision + 1);
