@@ -61,7 +61,7 @@ struct PurlKey<'a> {
 #[derive(Clone)]
 struct StatusInfo {
     vuln_id: String,
-    status_slug: String,
+    status: VexStatus,
     remediations: Vec<remediation::Model>,
     /// The most recent date from the advisory that reported this status, used to pick the
     /// latest assessment when the same vulnerability appears in multiple advisories.
@@ -118,8 +118,6 @@ struct VersionGroup {
 struct ReportWinner {
     upstream_purl: String,
     recommended_purl: String,
-    base_purl_id: Uuid,
-    winner_version: String,
     winner_vp_id: Uuid,
     found_in: Vec<Uuid>,
 }
@@ -129,6 +127,12 @@ struct Winner<'a> {
     purl_string: String,
     versioned_purl: &'a versioned_purl::Model,
     base: &'a base_purl::Model,
+}
+
+/// A selected recommendation candidate and the version-specific statuses used to rank it.
+struct ResolvedCandidate<'a> {
+    versioned_purl: &'a versioned_purl::Model,
+    statuses: Vec<StatusInfo>,
 }
 
 /// Recommendation candidates per base PURL: persisted versioned PURLs plus the versions
@@ -141,7 +145,8 @@ struct AdvisoryVersionedPurls {
     /// distinguished from persisted rows by UUID alone.
     synthesized_vp_ids: HashSet<Uuid>,
     /// The subset of `synthesized_vp_ids` known only from a VendorFix remediation. Such a version
-    /// may never have shipped, so it is only recommended when no other candidate matches.
+    /// may never have shipped, so it only displaces another candidate when it fixes a vulnerability
+    /// affecting that candidate; otherwise it is a fallback when no other candidate matches.
     vendor_fix_only_vp_ids: HashSet<Uuid>,
     /// Fixed statuses of the candidates whose version is fixed by a VendorFix remediation.
     vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>>,
@@ -639,6 +644,7 @@ impl PurlService {
             .collect();
 
         let mut winners = Vec::new();
+        let mut statuses_by_vp = HashMap::new();
 
         for ip in &input_purls {
             let key = PurlKey::from_purl(&ip.purl);
@@ -647,10 +653,14 @@ impl PurlService {
                 continue;
             };
 
-            if let Some(winner_vp) = self.select_winner(&ip.input_version, base.id, &candidates) {
+            if let Some(selected) = self
+                .select_winner(&ip.input_version, base.id, &candidates, connection)
+                .await?
+            {
+                statuses_by_vp.insert(selected.versioned_purl.id, selected.statuses);
                 winners.push(Winner {
                     purl_string: ip.purl.to_string(),
-                    versioned_purl: winner_vp,
+                    versioned_purl: selected.versioned_purl,
                     base,
                 });
             } else {
@@ -660,22 +670,6 @@ impl PurlService {
 
         if winners.is_empty() {
             return Ok(recommendations);
-        }
-
-        let mut statuses_by_vp = HashMap::new();
-        for winner in &winners {
-            let infos = Self::resolve_winner_statuses(
-                winner.base.id,
-                winner.versioned_purl.id,
-                &winner.versioned_purl.version,
-                &candidates.synthesized_vp_ids,
-                &candidates.vendor_fix_statuses_by_vp,
-                connection,
-            )
-            .await?;
-            if !infos.is_empty() {
-                statuses_by_vp.insert(winner.versioned_purl.id, infos);
-            }
         }
 
         // Assemble recommendations from per-winner statuses
@@ -824,10 +818,20 @@ impl PurlService {
             .load_one(status::Entity, connection)
             .instrument(info_span!("loading statuses"))
             .await?;
-        let status_slug_map = status_models
+        let status_map = status_models
             .into_iter()
             .flatten()
-            .map(|s| (s.id, s.slug))
+            .map(|s| {
+                let status = match s.slug.as_str() {
+                    "affected" => VexStatus::Affected,
+                    "fixed" => VexStatus::Fixed,
+                    "not_affected" => VexStatus::NotAffected,
+                    "under_investigation" => VexStatus::UnderInvestigation,
+                    "recommended" => VexStatus::Recommended,
+                    _ => VexStatus::Other(s.slug),
+                };
+                (s.id, status)
+            })
             .collect::<HashMap<_, _>>();
         let remediations = all_statuses
             .load_many_to_many(
@@ -847,16 +851,16 @@ impl PurlService {
             .zip(remediations)
         {
             if let (Some(v), Some(advisory)) = (vuln, advisory) {
-                let slug = status_slug_map
+                let status = status_map
                     .get(&ps.status_id)
                     .cloned()
-                    .unwrap_or_else(|| "unknown".to_string());
+                    .unwrap_or_else(|| VexStatus::Other("unknown".to_string()));
                 statuses_by_base
                     .entry(ps.base_purl_id)
                     .or_insert_with(|| Vec::with_capacity(status_capacity))
                     .push(StatusInfo {
                         vuln_id: v.id,
-                        status_slug: slug,
+                        status,
                         remediations: rems,
                         advisory_date: advisory.modified.or(advisory.published),
                         advisory_id: Some(advisory.identifier),
@@ -865,6 +869,22 @@ impl PurlService {
         }
 
         Ok(statuses_by_base)
+    }
+
+    /// Picks the latest assessment per vulnerability, preserving the first status on date ties.
+    fn latest_statuses(infos: &[StatusInfo]) -> HashMap<&str, &StatusInfo> {
+        let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
+        for info in infos {
+            best_by_vuln
+                .entry(&info.vuln_id)
+                .and_modify(|existing| {
+                    if info.advisory_date > existing.advisory_date {
+                        *existing = info;
+                    }
+                })
+                .or_insert(info);
+        }
+        best_by_vuln
     }
 
     /// Builds a single recommendation entry from a winner and its vulnerability statuses.
@@ -885,44 +905,22 @@ impl PurlService {
         }
         .to_string();
 
-        // When the same vulnerability appears in multiple advisories with different statuses,
-        // keep the one from the most recent advisory so that newer assessments (e.g. "fixed")
-        // take precedence over older ones (e.g. "affected").
-        let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-        for info in statuses_by_vp
-            .get(&winner.versioned_purl.id)
-            .into_iter()
-            .flatten()
-        {
-            best_by_vuln
-                .entry(&info.vuln_id)
-                .and_modify(|existing| {
-                    if info.advisory_date > existing.advisory_date {
-                        *existing = info;
-                    }
-                })
-                .or_insert(info);
-        }
+        let best_by_vuln = Self::latest_statuses(
+            statuses_by_vp
+                .get(&winner.versioned_purl.id)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
+        );
 
         RecommendEntry {
             package: package_str,
             vulnerabilities: best_by_vuln
                 .into_values()
-                .map(|info| {
-                    let vex_status = match info.status_slug.as_str() {
-                        "affected" => VexStatus::Affected,
-                        "fixed" => VexStatus::Fixed,
-                        "not_affected" => VexStatus::NotAffected,
-                        "under_investigation" => VexStatus::UnderInvestigation,
-                        "recommended" => VexStatus::Recommended,
-                        other => VexStatus::Other(other.to_string()),
-                    };
-                    VulnerabilityStatus {
-                        id: info.vuln_id.clone(),
-                        status: Some(vex_status),
-                        justification: None,
-                        remediations: RemediationSummary::from_entities(&info.remediations),
-                    }
+                .map(|info| VulnerabilityStatus {
+                    id: info.vuln_id.clone(),
+                    status: Some(info.status.clone()),
+                    justification: None,
+                    remediations: RemediationSummary::from_entities(&info.remediations),
                 })
                 .collect(),
         }
@@ -1077,7 +1075,7 @@ impl PurlService {
                     .or_default()
                     .push(StatusInfo {
                         vuln_id: row.vulnerability_id,
-                        status_slug: "fixed".to_string(),
+                        status: VexStatus::Fixed,
                         remediations: vec![remediation::Model {
                             id: row.remediation_id,
                             advisory_id: row.remediation_advisory_id,
@@ -1181,32 +1179,93 @@ impl PurlService {
     /// Selects the recommended candidate of a base PURL for an upstream version, across all
     /// recommend patterns.
     ///
-    /// A version known only from an advisory's VendorFix remediation may never have shipped, so
-    /// it is only a fallback: the highest persisted (or exact advisory status) candidate wins, and
-    /// VendorFix-only candidates are considered only when no such candidate matches.
-    fn select_winner<'a>(
+    /// Prefer the highest persisted (or exact advisory status) candidate, unless a higher
+    /// VendorFix-only candidate fixes a vulnerability whose latest assessment affects that build.
+    /// When no persisted or exact-status candidate matches, retain the highest advisory-only fallback.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn select_winner<'a, C: ConnectionTrait>(
         &self,
         input_version: &semver::Version,
         base_purl_id: Uuid,
         candidates: &'a AdvisoryVersionedPurls,
-    ) -> Option<&'a versioned_purl::Model> {
-        let versioned_purls = candidates.by_base.get(&base_purl_id)?;
-        let highest = |include_vendor_fix_only: bool| {
-            self.recommend_patterns
-                .iter()
-                .filter_map(|pattern| {
-                    Self::find_highest_vendor_patch(
-                        pattern,
-                        input_version,
-                        versioned_purls.iter().filter(|vp| {
-                            include_vendor_fix_only
-                                || !candidates.vendor_fix_only_vp_ids.contains(&vp.id)
-                        }),
-                    )
-                })
-                .max_by(|a, b| a.version.cmp(&b.version))
+        connection: &C,
+    ) -> Result<Option<ResolvedCandidate<'a>>, Error> {
+        let Some(versioned_purls) = candidates.by_base.get(&base_purl_id) else {
+            return Ok(None);
         };
-        highest(false).or_else(|| highest(true))
+        let mut matching = versioned_purls
+            .iter()
+            .filter(|vp| {
+                self.recommend_patterns.iter().any(|pattern| {
+                    Self::find_highest_vendor_patch(pattern, input_version, once(*vp)).is_some()
+                })
+            })
+            .collect::<Vec<_>>();
+        matching.sort_unstable_by(|a, b| b.version.cmp(&a.version));
+
+        let Some(&preferred) = matching
+            .iter()
+            .find(|vp| !candidates.vendor_fix_only_vp_ids.contains(&vp.id))
+            .or_else(|| matching.first())
+        else {
+            return Ok(None);
+        };
+        let statuses = Self::resolve_winner_statuses(
+            base_purl_id,
+            preferred.id,
+            &preferred.version,
+            &candidates.synthesized_vp_ids,
+            &candidates.vendor_fix_statuses_by_vp,
+            connection,
+        )
+        .await?;
+        let affected = Self::latest_statuses(&statuses)
+            .into_iter()
+            .filter(|(_, info)| info.status == VexStatus::Affected)
+            .map(|(id, _)| id)
+            .collect::<HashSet<_>>();
+
+        // Only inspect higher, relevant fixes. Reuse the resolved statuses for the response, and
+        // check candidates separately so statuses from different versions cannot contaminate one another.
+        for candidate in matching
+            .into_iter()
+            .take_while(|vp| vp.version > preferred.version)
+            .filter(|vp| {
+                candidates.vendor_fix_only_vp_ids.contains(&vp.id)
+                    && candidates
+                        .vendor_fix_statuses_by_vp
+                        .get(&vp.id)
+                        .is_some_and(|infos| {
+                            infos
+                                .iter()
+                                .any(|info| affected.contains(info.vuln_id.as_str()))
+                        })
+            })
+        {
+            let infos = Self::resolve_winner_statuses(
+                base_purl_id,
+                candidate.id,
+                &candidate.version,
+                &candidates.synthesized_vp_ids,
+                &candidates.vendor_fix_statuses_by_vp,
+                connection,
+            )
+            .await?;
+            if Self::latest_statuses(&infos)
+                .into_iter()
+                .any(|(id, info)| affected.contains(id) && info.status == VexStatus::Fixed)
+            {
+                return Ok(Some(ResolvedCandidate {
+                    versioned_purl: candidate,
+                    statuses: infos,
+                }));
+            }
+        }
+
+        Ok(Some(ResolvedCandidate {
+            versioned_purl: preferred,
+            statuses,
+        }))
     }
 
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
@@ -1328,15 +1387,21 @@ impl PurlService {
 
         // Pattern-match each (base, version) to find the highest vendor patch.
         let mut winners: Vec<ReportWinner> = Vec::new();
+        let mut statuses_by_vp = HashMap::new();
 
         for ((base_id, version), group) in &version_groups {
             let Ok(input_version) = lenient_semver::parse(version) else {
                 continue;
             };
 
-            let Some(winner_vp) = self.select_winner(&input_version, *base_id, &candidates) else {
+            let Some(selected) = self
+                .select_winner(&input_version, *base_id, &candidates, connection)
+                .await?
+            else {
                 continue;
             };
+            let winner_vp = selected.versioned_purl;
+            statuses_by_vp.insert(winner_vp.id, selected.statuses);
 
             let upstream_purl = Purl {
                 ty: group.purl_type.clone(),
@@ -1359,8 +1424,6 @@ impl PurlService {
             winners.push(ReportWinner {
                 upstream_purl,
                 recommended_purl,
-                base_purl_id: *base_id,
-                winner_version: winner_vp.version.clone(),
                 winner_vp_id: winner_vp.id,
                 found_in: group.sbom_ids.clone(),
             });
@@ -1382,22 +1445,6 @@ impl PurlService {
             });
         }
 
-        let mut statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
-        for winner in &winners {
-            let infos = Self::resolve_winner_statuses(
-                winner.base_purl_id,
-                winner.winner_vp_id,
-                &winner.winner_version,
-                &candidates.synthesized_vp_ids,
-                &candidates.vendor_fix_statuses_by_vp,
-                connection,
-            )
-            .await?;
-            if !infos.is_empty() {
-                statuses_by_vp.insert(winner.winner_vp_id, infos);
-            }
-        }
-
         // Per-SBOM accumulators for the sboms list.
         let mut sbom_addressable: HashMap<Uuid, HashSet<String>> = HashMap::new();
         let mut sbom_vulns: HashMap<Uuid, HashSet<String>> = HashMap::new();
@@ -1405,29 +1452,21 @@ impl PurlService {
         let mut packages: Vec<RecommendReportPackage> = Vec::with_capacity(winners.len());
 
         for winner in &winners {
-            // Pick the best StatusInfo per vulnerability (most recent advisory wins).
-            let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-            for info in statuses_by_vp
-                .get(&winner.winner_vp_id)
-                .into_iter()
-                .flatten()
-            {
-                best_by_vuln
-                    .entry(&info.vuln_id)
-                    .and_modify(|existing| {
-                        if info.advisory_date > existing.advisory_date {
-                            *existing = info;
-                        }
-                    })
-                    .or_insert(info);
-            }
+            let best_by_vuln = Self::latest_statuses(
+                statuses_by_vp
+                    .get(&winner.winner_vp_id)
+                    .map(Vec::as_slice)
+                    .unwrap_or_default(),
+            );
 
             // Only include vulnerabilities the recommended PURL actually addresses
             // (fixed or not_affected). CVEs where the recommended version is still
             // affected or under investigation are not remediated and must be excluded.
             let vulnerabilities: Vec<String> = best_by_vuln
                 .iter()
-                .filter(|(_, info)| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
+                .filter(|(_, info)| {
+                    matches!(info.status, VexStatus::Fixed | VexStatus::NotAffected)
+                })
                 .map(|(id, _)| id.to_string())
                 .collect();
 
@@ -1438,7 +1477,7 @@ impl PurlService {
             // Advisory ID from the most recent advisory among addressed vulnerabilities.
             let advisory_id = best_by_vuln
                 .values()
-                .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
+                .filter(|info| matches!(info.status, VexStatus::Fixed | VexStatus::NotAffected))
                 .max_by(|a, b| a.advisory_date.cmp(&b.advisory_date))
                 .and_then(|info| info.advisory_id.clone());
 
