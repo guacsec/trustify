@@ -10061,6 +10061,7 @@ dependencies = [
  "spdx-rs",
  "sqlx",
  "strum 0.28.0",
+ "temp-env",
  "test-log",
  "thiserror 2.0.21",
  "time",

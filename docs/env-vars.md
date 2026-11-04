@@ -59,10 +59,10 @@
 | `TRUSTD_DB_HOST`                         | Database address                                                                    | `localhost`                             |
 | `TRUSTD_DB_MAX_CONN`                     | Database max connections                                                            | `75`                                    |
 | `TRUSTD_DB_MIN_CONN`                     | Database min connections                                                            | `25`                                    |
-| `TRUSTD_DB_CONNECT_TIMEOUT`              | Database connect timeout (seconds)                                                  | `8`                                     |
-| `TRUSTD_DB_ACQUIRE_TIMEOUT`              | Database acquire timeout (seconds)                                                  | `8`                                     |
-| `TRUSTD_DB_MAX_LIFETIME`                 | Database max lifetime (seconds)                                                     | `7200`                                  |
-| `TRUSTD_DB_IDLE_TIMEOUT`                 | Database idle timeout (seconds)                                                     | `600`                                   |
+| `TRUSTD_DB_CONNECT_TIMEOUT`              | Database connect timeout (humantime, or seconds)                                    | `8s`                                    |
+| `TRUSTD_DB_ACQUIRE_TIMEOUT`              | Database acquire timeout (humantime, or seconds)                                    | `8s`                                    |
+| `TRUSTD_DB_MAX_LIFETIME`                 | Database max lifetime (humantime, or seconds)                                       | `2h`                                    |
+| `TRUSTD_DB_IDLE_TIMEOUT`                 | Database idle timeout (humantime, or seconds)                                       | `10m`                                   |
 | `TRUSTD_DB_NAME`                         | Database name                                                                       | `trustify`                              |
 | `TRUSTD_DB_PASSWORD`                     | Database password (ignored when IAM authentication is enabled)                      | `trustify`                              |
 | `TRUSTD_DB_PORT`                         | Database port                                                                       | `5432`                                  |
@@ -79,10 +79,10 @@
 | `TRUSTD_DB_RO_SSLMODE`                   | SSL mode of the read-only database; falls back to `TRUSTD_DB_SSLMODE`               |                                         |
 | `TRUSTD_DB_RO_MAX_CONN`                  | Max connections of the read-only database; falls back to `TRUSTD_DB_MAX_CONN`       |                                         |
 | `TRUSTD_DB_RO_MIN_CONN`                  | Min connections of the read-only database; falls back to `TRUSTD_DB_MIN_CONN`       |                                         |
-| `TRUSTD_DB_RO_CONNECT_TIMEOUT`           | Connect timeout (seconds) of the read-only database; falls back to `TRUSTD_DB_CONNECT_TIMEOUT`|                                         |
-| `TRUSTD_DB_RO_ACQUIRE_TIMEOUT`           | Acquire timeout (seconds) of the read-only database; falls back to `TRUSTD_DB_ACQUIRE_TIMEOUT`|                                         |
-| `TRUSTD_DB_RO_MAX_LIFETIME`              | Max lifetime (seconds) of the read-only database; falls back to `TRUSTD_DB_MAX_LIFETIME`|                                         |
-| `TRUSTD_DB_RO_IDLE_TIMEOUT`              | Idle timeout (seconds) of the read-only database; falls back to `TRUSTD_DB_IDLE_TIMEOUT`|                                         |
+| `TRUSTD_DB_RO_CONNECT_TIMEOUT`           | Connect timeout (humantime, or seconds) of the read-only database; falls back to `TRUSTD_DB_CONNECT_TIMEOUT`|                                         |
+| `TRUSTD_DB_RO_ACQUIRE_TIMEOUT`           | Acquire timeout (humantime, or seconds) of the read-only database; falls back to `TRUSTD_DB_ACQUIRE_TIMEOUT`|                                         |
+| `TRUSTD_DB_RO_MAX_LIFETIME`              | Max lifetime (humantime, or seconds) of the read-only database; falls back to `TRUSTD_DB_MAX_LIFETIME`|                                         |
+| `TRUSTD_DB_RO_IDLE_TIMEOUT`              | Idle timeout (humantime, or seconds) of the read-only database; falls back to `TRUSTD_DB_IDLE_TIMEOUT`|                                         |
 | `TRUSTD_PAGINATION_TOTAL_CACHE_TTL`      | TTL for cached pagination total counts (humantime)                                  | `60s`                                   |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
