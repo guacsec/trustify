@@ -1,9 +1,7 @@
 use anyhow::anyhow;
-use clap::ValueEnum;
+use clap::Parser;
 use hide::Hide;
-use humantime::parse_duration;
-use std::env;
-use time::ext::NumericalStdDuration;
+use std::time::Duration;
 
 const DB_NAME: &str = "trustify";
 const DB_USER: &str = "postgres";
@@ -12,10 +10,10 @@ const DB_HOST: &str = "localhost";
 const DB_PORT: u16 = 5432;
 const DB_MAX_CONN: u32 = 75;
 const DB_MIN_CONN: u32 = 25;
-const DB_CONNECT_TIMEOUT: u64 = 8;
-const DB_ACQUIRE_TIMEOUT: u64 = 8;
-const DB_MAX_LIFETIME: u64 = 7200;
-const DB_IDLE_TIMEOUT: u64 = 600;
+const DB_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+const DB_ACQUIRE_TIMEOUT: Duration = Duration::from_secs(8);
+const DB_MAX_LIFETIME: Duration = Duration::from_secs(7200);
+const DB_IDLE_TIMEOUT: Duration = Duration::from_secs(600);
 
 const ENV_DB_URL: &str = "TRUSTD_DB_URL";
 const ENV_DB_NAME: &str = "TRUSTD_DB_NAME";
@@ -46,6 +44,15 @@ const ENV_DB_RO_ACQUIRE_TIMEOUT: &str = "TRUSTD_DB_RO_ACQUIRE_TIMEOUT";
 const ENV_DB_RO_MAX_LIFETIME: &str = "TRUSTD_DB_RO_MAX_LIFETIME";
 const ENV_DB_RO_IDLE_TIMEOUT: &str = "TRUSTD_DB_RO_IDLE_TIMEOUT";
 const ENV_DB_RO_SSLMODE: &str = "TRUSTD_DB_RO_SSLMODE";
+
+/// Parse a duration of the database connection pool: a humantime duration (e.g. `8s`, `2h`),
+/// or, for compatibility, a number of seconds.
+fn parse_duration(value: &str) -> Result<humantime::Duration, humantime::DurationError> {
+    match value.parse::<u64>() {
+        Ok(seconds) => Ok(Duration::from_secs(seconds).into()),
+        Err(_) => value.parse(),
+    }
+}
 
 /// PostgreSQL SSL mode
 #[derive(Copy, Clone, Debug, Default, clap::ValueEnum, Eq, PartialEq, strum::Display)]
@@ -102,75 +109,22 @@ pub struct Database {
     #[arg(id="db-region", long, env = ENV_DB_REGION, conflicts_with = "db-url", required_if_eq("db-iam-auth", "true"))]
     pub region: Option<String>,
 
-    #[arg(id="db-conn-timeout", long, env = ENV_DB_CONNECT_TIMEOUT, default_value_t=DB_CONNECT_TIMEOUT.into(), conflicts_with = "db-url")]
-    pub connect_timeout: u64,
-    #[arg(id="db-acquire-timeout", long, env = ENV_DB_ACQUIRE_TIMEOUT, default_value_t=DB_ACQUIRE_TIMEOUT.into(), conflicts_with = "db-url")]
-    pub acquire_timeout: u64,
-    #[arg(id="db-max-lifetime", long, env = ENV_DB_MAX_LIFETIME, default_value_t=DB_MAX_LIFETIME.into(), conflicts_with = "db-url")]
-    pub max_lifetime: u64,
-    #[arg(id="db-idle-timeout", long, env = ENV_DB_IDLE_TIMEOUT, default_value_t=DB_IDLE_TIMEOUT.into(), conflicts_with = "db-url")]
-    pub idle_timeout: u64,
+    #[arg(id = "db-conn-timeout", long, env = ENV_DB_CONNECT_TIMEOUT, value_parser = parse_duration, default_value_t = DB_CONNECT_TIMEOUT.into(), conflicts_with = "db-url")]
+    pub connect_timeout: humantime::Duration,
+    #[arg(id = "db-acquire-timeout", long, env = ENV_DB_ACQUIRE_TIMEOUT, value_parser = parse_duration, default_value_t = DB_ACQUIRE_TIMEOUT.into(), conflicts_with = "db-url")]
+    pub acquire_timeout: humantime::Duration,
+    #[arg(id = "db-max-lifetime", long, env = ENV_DB_MAX_LIFETIME, value_parser = parse_duration, default_value_t = DB_MAX_LIFETIME.into(), conflicts_with = "db-url")]
+    pub max_lifetime: humantime::Duration,
+    #[arg(id = "db-idle-timeout", long, env = ENV_DB_IDLE_TIMEOUT, value_parser = parse_duration, default_value_t = DB_IDLE_TIMEOUT.into(), conflicts_with = "db-url")]
+    pub idle_timeout: humantime::Duration,
 }
 
 impl Database {
+    /// Read the configuration from the environment, like the command line arguments do.
+    ///
+    /// Unset variables take their default, invalid ones fail.
     pub fn from_env() -> Result<Database, anyhow::Error> {
-        Ok(Database {
-            url: env::var(ENV_DB_URL).ok(),
-            username: env::var(ENV_DB_USER).unwrap_or(DB_USER.into()),
-            password: env::var(ENV_DB_PASS).unwrap_or(DB_PASS.into()).into(),
-            name: env::var(ENV_DB_NAME).unwrap_or(DB_NAME.into()),
-            host: env::var(ENV_DB_HOST).unwrap_or(DB_HOST.into()),
-            port: match env::var(ENV_DB_PORT) {
-                Ok(s) => s.parse::<u16>()?,
-                _ => DB_PORT,
-            },
-            max_conn: match env::var(ENV_DB_MAX_CONN) {
-                Ok(s) => s.parse::<u32>()?,
-                _ => DB_MAX_CONN,
-            },
-            min_conn: match env::var(ENV_DB_MIN_CONN) {
-                Ok(s) => s.parse::<u32>()?,
-                _ => DB_MIN_CONN,
-            },
-            connect_timeout: match env::var(ENV_DB_CONNECT_TIMEOUT) {
-                Ok(s) => parse_duration(&s)
-                    .unwrap_or(DB_IDLE_TIMEOUT.std_seconds())
-                    .as_secs(),
-                _ => DB_CONNECT_TIMEOUT,
-            },
-            acquire_timeout: match env::var(ENV_DB_ACQUIRE_TIMEOUT) {
-                Ok(s) => parse_duration(&s)
-                    .unwrap_or(DB_ACQUIRE_TIMEOUT.std_seconds())
-                    .as_secs(),
-                _ => DB_ACQUIRE_TIMEOUT,
-            },
-            max_lifetime: match env::var(ENV_DB_MAX_LIFETIME) {
-                Ok(s) => parse_duration(&s)
-                    .unwrap_or(DB_MAX_LIFETIME.std_seconds())
-                    .as_secs(),
-                _ => DB_MAX_LIFETIME,
-            },
-            idle_timeout: match env::var(ENV_DB_IDLE_TIMEOUT) {
-                Ok(s) => parse_duration(&s)
-                    .unwrap_or(DB_IDLE_TIMEOUT.std_seconds())
-                    .as_secs(),
-                _ => DB_IDLE_TIMEOUT,
-            },
-            sslmode: match env::var(ENV_DB_SSLMODE) {
-                Ok(s) => SslMode::from_str(&s, false)
-                    .map_err(|s| anyhow!("Failed to convert '{s}' to SslMode"))?,
-                _ => Default::default(),
-            },
-            iam_auth: match env::var(ENV_DB_IAM_AUTH) {
-                Ok(s) => s.parse::<bool>().map_err(|_| {
-                    anyhow!(
-                        "Invalid boolean for {ENV_DB_IAM_AUTH}: '{s}' (expected 'true' or 'false')"
-                    )
-                })?,
-                _ => false,
-            },
-            region: env::var(ENV_DB_REGION).ok(),
-        })
+        Ok(Self::try_parse_from(["database"])?)
     }
 
     pub fn to_url(&self) -> String {
@@ -228,14 +182,14 @@ pub struct DatabaseReadOnly {
     pub min_conn: Option<u32>,
     #[arg(id = "db-ro-sslmode", long, env = ENV_DB_RO_SSLMODE, value_enum)]
     pub sslmode: Option<SslMode>,
-    #[arg(id = "db-ro-conn-timeout", long, env = ENV_DB_RO_CONNECT_TIMEOUT)]
-    pub connect_timeout: Option<u64>,
-    #[arg(id = "db-ro-acquire-timeout", long, env = ENV_DB_RO_ACQUIRE_TIMEOUT)]
-    pub acquire_timeout: Option<u64>,
-    #[arg(id = "db-ro-max-lifetime", long, env = ENV_DB_RO_MAX_LIFETIME)]
-    pub max_lifetime: Option<u64>,
-    #[arg(id = "db-ro-idle-timeout", long, env = ENV_DB_RO_IDLE_TIMEOUT)]
-    pub idle_timeout: Option<u64>,
+    #[arg(id = "db-ro-conn-timeout", long, env = ENV_DB_RO_CONNECT_TIMEOUT, value_parser = parse_duration)]
+    pub connect_timeout: Option<humantime::Duration>,
+    #[arg(id = "db-ro-acquire-timeout", long, env = ENV_DB_RO_ACQUIRE_TIMEOUT, value_parser = parse_duration)]
+    pub acquire_timeout: Option<humantime::Duration>,
+    #[arg(id = "db-ro-max-lifetime", long, env = ENV_DB_RO_MAX_LIFETIME, value_parser = parse_duration)]
+    pub max_lifetime: Option<humantime::Duration>,
+    #[arg(id = "db-ro-idle-timeout", long, env = ENV_DB_RO_IDLE_TIMEOUT, value_parser = parse_duration)]
+    pub idle_timeout: Option<humantime::Duration>,
 }
 
 impl DatabaseReadOnly {
@@ -305,10 +259,10 @@ mod test {
                 name: DB_NAME.into(),
                 max_conn: DB_MAX_CONN,
                 min_conn: DB_MIN_CONN,
-                connect_timeout: DB_CONNECT_TIMEOUT,
-                acquire_timeout: DB_ACQUIRE_TIMEOUT,
-                max_lifetime: DB_MAX_LIFETIME,
-                idle_timeout: DB_IDLE_TIMEOUT,
+                connect_timeout: DB_CONNECT_TIMEOUT.into(),
+                acquire_timeout: DB_ACQUIRE_TIMEOUT.into(),
+                max_lifetime: DB_MAX_LIFETIME.into(),
+                idle_timeout: DB_IDLE_TIMEOUT.into(),
                 sslmode: SslMode::default(),
                 iam_auth: false,
                 region: None,
@@ -332,10 +286,10 @@ mod test {
                 name: DB_NAME.into(),
                 max_conn: DB_MAX_CONN,
                 min_conn: DB_MIN_CONN,
-                connect_timeout: DB_CONNECT_TIMEOUT,
-                acquire_timeout: DB_ACQUIRE_TIMEOUT,
-                max_lifetime: DB_MAX_LIFETIME,
-                idle_timeout: DB_IDLE_TIMEOUT,
+                connect_timeout: DB_CONNECT_TIMEOUT.into(),
+                acquire_timeout: DB_ACQUIRE_TIMEOUT.into(),
+                max_lifetime: DB_MAX_LIFETIME.into(),
+                idle_timeout: DB_IDLE_TIMEOUT.into(),
                 sslmode: SslMode::Disable,
                 iam_auth: false,
                 region: None,
@@ -349,6 +303,73 @@ mod test {
         );
     }
 
+    /// Durations take humantime, or a number of seconds for compatibility.
+    #[test]
+    fn durations() {
+        let result = Database::try_parse_from([
+            "test",
+            "--db-conn-timeout",
+            "1m",
+            "--db-acquire-timeout",
+            "1500ms",
+            "--db-max-lifetime",
+            "2h",
+            "--db-idle-timeout",
+            "30",
+        ])
+        .expect("must parse");
+
+        assert_eq!(
+            Database {
+                connect_timeout: Duration::from_secs(60).into(),
+                acquire_timeout: Duration::from_millis(1500).into(),
+                max_lifetime: Duration::from_secs(7200).into(),
+                idle_timeout: Duration::from_secs(30).into(),
+                ..rw_default()
+            },
+            result
+        );
+    }
+
+    /// The read-only database parses its durations the same way.
+    #[test]
+    fn ro_durations() {
+        let result = DatabaseReadOnly::try_parse_from(["test", "--db-ro-idle-timeout", "5m"])
+            .expect("must parse");
+
+        assert_eq!(
+            DatabaseReadOnly {
+                idle_timeout: Some(Duration::from_secs(300).into()),
+                ..Default::default()
+            },
+            result
+        );
+    }
+
+    /// The environment is read like the command line, and an invalid value fails instead of
+    /// falling back to the default.
+    #[test]
+    fn from_env() {
+        temp_env::with_vars(
+            [
+                (ENV_DB_URL, None),
+                (ENV_DB_HOST, None),
+                (ENV_DB_CONNECT_TIMEOUT, Some("2s")),
+                (ENV_DB_IDLE_TIMEOUT, None),
+            ],
+            || {
+                assert_eq!(
+                    Database::from_env().expect("must parse").connect_timeout,
+                    Duration::from_secs(2).into()
+                );
+            },
+        );
+        temp_env::with_vars([(ENV_DB_IDLE_TIMEOUT, Some("soon"))], || {
+            let err = Database::from_env().expect_err("must fail").to_string();
+            assert!(err.contains("soon"), "unexpected error: {err}");
+        });
+    }
+
     /// Helper to create a default R/W config for use in R/O fallback tests.
     fn rw_default() -> Database {
         Database {
@@ -360,10 +381,10 @@ mod test {
             name: DB_NAME.into(),
             max_conn: DB_MAX_CONN,
             min_conn: DB_MIN_CONN,
-            connect_timeout: DB_CONNECT_TIMEOUT,
-            acquire_timeout: DB_ACQUIRE_TIMEOUT,
-            max_lifetime: DB_MAX_LIFETIME,
-            idle_timeout: DB_IDLE_TIMEOUT,
+            connect_timeout: DB_CONNECT_TIMEOUT.into(),
+            acquire_timeout: DB_ACQUIRE_TIMEOUT.into(),
+            max_lifetime: DB_MAX_LIFETIME.into(),
+            idle_timeout: DB_IDLE_TIMEOUT.into(),
             sslmode: SslMode::default(),
             iam_auth: false,
             region: None,

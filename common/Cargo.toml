@@ -44,6 +44,7 @@ sea-query = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 cyclonedx-rs = { workspace = true }
 serde_json = { workspace = true }
+temp-env = { workspace = true }
 spdx-expression = { workspace = true }
 spdx-rs = { workspace = true }
 sqlx = { workspace = true }
@@ -63,6 +64,7 @@ chrono = { workspace = true }
 rand = { workspace = true }
 rstest = { workspace = true }
 serde_json = { workspace = true }
+temp-env = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["full"] }
