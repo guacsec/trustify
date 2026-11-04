@@ -1,6 +1,6 @@
 //! Durable default verdict snapshots. Reads never run the resolver.
 use super::{
-    CorrelationService, freshness,
+    CorrelationService, class, freshness,
     pagination::{self, EvidenceGroup},
     resolution::ProviderSnapshot,
 };
@@ -12,15 +12,16 @@ use crate::{
     },
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ExprTrait, QueryFilter,
-    QueryOrder, QuerySelect, Set, TransactionTrait, sea_query::Expr,
+    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ExprTrait,
+    FromQueryResult, JoinType, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
+    sea_query::Expr,
 };
 use std::collections::{HashMap, HashSet};
 use trustify_common::{
-    db::{self, limiter::LimiterTrait, pagination_cache::PaginationCache, sql},
+    db::{self, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::Pagination,
 };
-use trustify_entity::{correlation_verdict, correlation_verdict_freshness};
+use trustify_entity::{correlation_node_class, correlation_verdict, correlation_verdict_freshness};
 use uuid::Uuid;
 
 /// Bump in a migration together with changes to the default resolver's semantics.
@@ -74,10 +75,26 @@ impl CorrelationService {
             .await?
             .remove(&sbom_id)
             .unwrap_or_default();
+        // a verdict of a representative is one for each member of its class
+        let member = Expr::cust(MEMBER);
         let mut query = correlation_verdict::Entity::find()
+            .join(
+                JoinType::LeftJoin,
+                correlation_verdict::Entity::belongs_to(correlation_node_class::Entity)
+                    .from((
+                        correlation_verdict::Column::SbomId,
+                        correlation_verdict::Column::NodeId,
+                    ))
+                    .to((
+                        correlation_node_class::Column::SbomId,
+                        correlation_node_class::Column::RepresentativeNodeId,
+                    ))
+                    .into(),
+            )
+            .column_as(member.clone(), "member_node_id")
             .filter(correlation_verdict::Column::SbomId.eq(sbom_id));
         if let Some(node) = &request.node_id {
-            query = query.filter(correlation_verdict::Column::NodeId.eq(node));
+            query = query.filter(member.clone().eq(node));
         }
         if let Some(vuln) = &request.vulnerability_id {
             query = query.filter(correlation_verdict::Column::VulnerabilityId.eq(vuln));
@@ -92,12 +109,19 @@ impl CorrelationService {
         let generation = freshness.generation.unwrap_or_default();
         query = query.filter(Expr::val(generation).eq(generation));
         let selected = query
-            .order_by_asc(correlation_verdict::Column::NodeId)
+            .order_by_asc(member)
             .order_by_asc(correlation_verdict::Column::VulnerabilityId)
-            .limiting(tx, paginated, cache)?
+            .limiting_as::<VerdictRow>(tx, paginated, cache)?
             .fetch()
             .await?;
         let total = selected.total.requested(paginated.total()).await?;
+        let members = selected
+            .items
+            .iter()
+            .filter(|row| row.member_node_id != row.node_id)
+            .map(|row| row.member_node_id.clone())
+            .collect::<Vec<_>>();
+        let names = class::names(sbom_id, members, tx).await?;
         let items = selected
             .items
             .into_iter()
@@ -107,7 +131,7 @@ impl CorrelationService {
                 if !request.include_explanation {
                     verdict.resolution.explanation = None;
                 }
-                Ok(verdict)
+                Ok(class::for_member(verdict, &row.member_node_id, &names))
             })
             .collect::<Result<_, Error>>()?;
         Ok(SbomVerdictPage {
@@ -118,7 +142,19 @@ impl CorrelationService {
     }
 }
 
-/// Read published counts without materializing verdict payloads.
+/// The member node of a verdict row, see [`class`].
+const MEMBER: &str = "coalesce(correlation_node_class.node_id, correlation_verdict.node_id)";
+
+/// A published verdict, for one member of the class of its node.
+#[derive(FromQueryResult)]
+struct VerdictRow {
+    node_id: String,
+    member_node_id: String,
+    snapshot: serde_json::Value,
+}
+
+/// Read published counts without materializing verdict payloads. A verdict counts once per member
+/// of the class of its node.
 pub async fn counts(
     ids: &[Uuid],
     tx: &DatabaseTransaction,
@@ -130,7 +166,7 @@ pub async fn counts(
     let extraction = freshness::for_sboms(tx, ids).await?;
     let mut counts = HashMap::new();
     for row in tx.query_all_raw(sql(
-        "SELECT sbom_id, count(*) FILTER (WHERE status='affected') affected, count(*) FILTER (WHERE status='fixed') fixed, count(*) FILTER (WHERE status='not_affected') not_affected, count(*) FILTER (WHERE status='under_investigation') under_investigation, count(*) FILTER (WHERE status='none') none, sum(remediation_count)::bigint remediations FROM correlation_verdict WHERE sbom_id=ANY($1) GROUP BY sbom_id",
+        "SELECT v.sbom_id, count(*) FILTER (WHERE status='affected') affected, count(*) FILTER (WHERE status='fixed') fixed, count(*) FILTER (WHERE status='not_affected') not_affected, count(*) FILTER (WHERE status='under_investigation') under_investigation, count(*) FILTER (WHERE status='none') none, sum(remediation_count)::bigint remediations FROM correlation_verdict v LEFT JOIN correlation_node_class c ON c.sbom_id=v.sbom_id AND c.representative_node_id=v.node_id WHERE v.sbom_id=ANY($1) GROUP BY v.sbom_id",
         vec![ids.to_vec().into()],
     )).await? {
         let sbom_id = row.try_get("", "sbom_id")?;

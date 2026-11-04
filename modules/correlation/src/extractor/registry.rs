@@ -1,5 +1,6 @@
 use super::{
     Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef,
+    class::{classify, members},
     context::{self, NodeCpe, Scope, Scoper},
     cpe::CpeExtractor,
     digest::DigestExtractor,
@@ -67,10 +68,13 @@ impl Extractors {
     ) -> Result<usize, Error> {
         lock_revision(tx).await?;
         lock_sboms(tx, vec![sbom_id]).await?;
+        // the other members of a class have the same evidence as its representative
+        let representatives = classify(sbom_id, tx).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
         for extractor in &self.extractors {
-            let node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
+            let mut node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
+            node_identifiers.retain(|id| representatives.contains(&id.node.node_id));
             if node_identifiers.is_empty() {
                 continue;
             }
@@ -115,15 +119,22 @@ impl Extractors {
         lock_sboms(tx, sboms.into_iter().collect()).await?;
         let mut total = 0;
         let mut scoper = Scoper::default();
+        // the evidence of the other members of a class is the one of its representative
+        let nodes = batches
+            .iter()
+            .flat_map(|(_, matches)| matches.iter().map(|m| m.node.clone()))
+            .collect();
+        let members = members(nodes, tx).await?;
         for (extractor_id, matches) in batches {
+            let matches = matches
+                .into_iter()
+                .filter(|m| !members.contains(&m.node))
+                .map(|NodeMatch { node, assertion }| (node, assertion))
+                .collect::<Vec<_>>();
             if matches.is_empty() {
                 continue;
             }
 
-            let matches = matches
-                .into_iter()
-                .map(|NodeMatch { node, assertion }| (node, assertion))
-                .collect::<Vec<_>>();
             let matches = retain_in_range(matches, tx).await?;
             let count = write_scoped(matches, &mut scoper, tx).await?;
 
