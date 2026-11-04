@@ -10430,6 +10430,7 @@ dependencies = [
  "test-context",
  "test-log",
  "tokio",
+ "tracing",
  "trustify-api",
  "trustify-auth",
  "trustify-common",

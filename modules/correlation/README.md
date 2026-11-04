@@ -38,6 +38,20 @@ progress.
 statements, such as the kernel of a RHEL SBOM, aggregates millions of rows, which spill to disk
 with PostgreSQL's default of 4 MB. When unset, the database's setting applies.
 
+### Dedicated worker
+
+By default, the API server runs the correlation worker in-process. To scale the worker apart
+from the API, run it as its own process and disable it in the API servers:
+
+```shell
+trustd api --disable-correlation-worker
+trustd worker --job correlation --correlation-workers 4
+```
+
+`trustd worker` takes the same database (`--db-*`), read-only database (`--db-ro-*`),
+notification and worker tuning options as the API server. Any number of worker processes can
+run side by side.
+
 ## API
 
 ### Get correlation verdicts for an SBOM

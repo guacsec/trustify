@@ -44,6 +44,7 @@
 | `TRUSTD_CORRELATION_WORKERS`             | Number of correlation workers of an instance, processing advisories, SBOMs and verdicts in parallel | `1` |
 | `TRUSTD_CORRELATION_WORK_MEM`            | PostgreSQL `work_mem` of the correlation worker's transactions (e.g. `256MiB`); unset keeps the database's setting |    |
 | `TRUSTD_DEVMODE_ADDITIONAL_CLIENTS`      | Additional allowed development OAuth clients                                        |                                         |
+| `TRUSTD_DISABLE_CORRELATION_WORKER`      | Don't run the correlation worker in the API server, leaving the work to `trustd worker` | `false` |
 | `TRUSTD_DISABLE_FORMATS`                 | Disable these document formats (comma-separated); use `*` to disable all            |                                         |
 | `TRUSTD_DISABLE_IMPORTERS`               | Disable these importer types (comma-separated); use `*` to disable all              |                                         |
 | `TRUSTD_ENABLE_FORMATS`                  | Enable only these document formats (comma-separated); conflicts with `TRUSTD_DISABLE_FORMATS` |                                |
@@ -66,6 +67,7 @@
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
 | `TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS` | Number of days before now used as a published-date cutoff when finding latest SBOMs [disabled by default] |                                         |
 | `TRUSTD_READ_ONLY`                       | Enable read-only mode, rejecting all mutating API requests                          | `false`                                 |
+| `TRUSTD_WORKER_JOBS`                     | Jobs `trustd worker` runs (comma-separated): `correlation`                          | all jobs                                |
 | `TRUSTD_RECOMMEND_PATTERNS`              | Comma-separated list of regex patterns, each with exactly one capture group that extracts the upstream base version. Example: `^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$`. Absent or empty causes endpoints to return HTTP 422 with `CapabilityDisabled`. | (empty) |
 | `TRUSTD_S3_ACCESS_KEY`                   | S3 access key                                                                       |                                         |
 | `TRUSTD_S3_BUCKET`                       | S3 bucket name                                                                      |                                         |

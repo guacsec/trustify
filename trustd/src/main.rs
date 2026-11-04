@@ -9,7 +9,9 @@ use tokio::{
     select,
     task::{LocalSet, spawn_local},
 };
-use trustify_server::profile::{api::Run as ApiRun, importer::Run as ImporterRun};
+use trustify_server::profile::{
+    api::Run as ApiRun, importer::Run as ImporterRun, worker::Run as WorkerRun,
+};
 
 mod db;
 mod openapi;
@@ -21,6 +23,8 @@ pub enum Command {
     Api(ApiRun),
     /// Run the importer server
     Importer(ImporterRun),
+    /// Run background jobs, like the correlation worker
+    Worker(WorkerRun),
     /// Manage the database
     Db(db::Run),
     /// Access OpenAPI related information of the API server
@@ -44,6 +48,7 @@ impl Trustd {
         match self.command {
             Some(Command::Api(run)) => run.run().await,
             Some(Command::Importer(run)) => run.run().await,
+            Some(Command::Worker(run)) => run.run().await,
             Some(Command::Db(run)) => run.run().await,
             Some(Command::Openapi(run)) => run.run().await,
             None => pm_mode().await,
