@@ -1,8 +1,9 @@
-//! Database session settings of the correlation worker.
+//! Settings of the correlation worker.
 
 use crate::error::Error;
 use bytesize::ByteSize;
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
+use std::num::NonZeroUsize;
 use trustify_common::db::sql;
 
 /// The smallest `work_mem` PostgreSQL accepts.
@@ -10,16 +11,26 @@ const MIN_WORK_MEM: ByteSize = ByteSize::kib(64);
 /// The largest `work_mem` PostgreSQL accepts (`INT_MAX` kB).
 const MAX_WORK_MEM: ByteSize = ByteSize::kib(i32::MAX as u64);
 
-/// Settings applied to the transactions of the correlation worker.
-///
-/// Unset values keep the database's settings.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Settings of the correlation worker.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkerConfig {
-    /// The `work_mem` of the worker's transactions.
+    /// The number of workers of an instance, see
+    /// [`run_extraction_workers`](crate::extractor::worker::run_extraction_workers).
+    pub workers: NonZeroUsize,
+    /// The `work_mem` of the worker's transactions, `None` keeps the database's setting.
     ///
     /// Matching packages with many statements (e.g. the kernel of a RHEL SBOM) aggregates
     /// millions of rows, which spill to disk with PostgreSQL's default of 4 MB.
     pub work_mem: Option<ByteSize>,
+}
+
+impl Default for WorkerConfig {
+    fn default() -> Self {
+        Self {
+            workers: NonZeroUsize::MIN,
+            work_mem: None,
+        }
+    }
 }
 
 impl WorkerConfig {
@@ -86,6 +97,7 @@ mod tests {
         assert_eq!(show(&tx).await?, default);
         WorkerConfig {
             work_mem: Some(ByteSize::mib(256)),
+            ..Default::default()
         }
         .apply(&tx)
         .await?;
