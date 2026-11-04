@@ -7,7 +7,7 @@ use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
 use regex::Regex;
-use std::{env, path::PathBuf, process::ExitCode, sync::Arc};
+use std::{env, num::NonZeroUsize, path::PathBuf, process::ExitCode, sync::Arc};
 use trustify_api::{FrontendInfo, FrontendOidcInfo};
 
 /// Clap value parser for `TRUSTD_RECOMMEND_PATTERNS`: compiles the regex and validates it has exactly one capture group.
@@ -84,7 +84,7 @@ use trustify_infrastructure::{
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_correlation::{
-    extractor::worker::run_extraction_worker,
+    extractor::worker::run_extraction_workers,
     service::tuning::{WorkerConfig, parse_work_mem},
 };
 use trustify_module_exploit_intelligence::{
@@ -119,6 +119,12 @@ pub struct Run {
     /// When unset (the default), the database's setting applies.
     #[arg(long, env = "TRUSTD_CORRELATION_WORK_MEM", value_parser = parse_work_mem)]
     pub correlation_work_mem: Option<ByteSize>,
+
+    /// The number of correlation workers of this instance.
+    ///
+    /// Workers of all instances process different advisories, SBOMs and verdicts in parallel.
+    #[arg(long, env = "TRUSTD_CORRELATION_WORKERS", default_value = "1")]
+    pub correlation_workers: NonZeroUsize,
 
     /// Inject example importer configurations during startup
     #[arg(long, env)]
@@ -708,6 +714,7 @@ impl InitData {
             format_filter,
             importer_filter,
             correlation: WorkerConfig {
+                workers: run.correlation_workers,
                 work_mem: run.correlation_work_mem,
             },
         })
@@ -828,7 +835,7 @@ fn build_correlation_worker_task(init: &InitData) -> Option<Task> {
     let broadcaster = init.broadcaster.clone();
     let db_rw = init.db_rw.clone();
     let config = init.correlation.clone();
-    Some(async move { run_extraction_worker(broadcaster, db_rw, config).await }.boxed_local())
+    Some(async move { run_extraction_workers(broadcaster, db_rw, config).await }.boxed_local())
 }
 
 pub fn default_openapi_info() -> Info {

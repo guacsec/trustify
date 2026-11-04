@@ -1,5 +1,6 @@
 use super::*;
-use crate::extractor::{Extractor, NodeIdentifier, NodeMatch, worker::run_extraction_worker};
+use crate::extractor::{Extractor, NodeIdentifier, NodeMatch, worker::run_extraction_workers};
+use std::num::NonZeroUsize;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::change::{
@@ -273,6 +274,10 @@ async fn worker_drains_ingestion_committed_before_it_subscribed(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     ctx.ingest_document("spdx/simple.json").await?;
+    ctx.ingest_document("correlation/openssl_el8_newer.cdx.json")
+        .await?;
+    ctx.ingest_document("correlation/osv/hyper-0.14.1.cdx.json")
+        .await?;
     ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     // Simulate a restart after notification history has already been cleaned up.
     ctx.db.execute_unprepared("DELETE FROM change_log").await?;
@@ -283,12 +288,15 @@ async fn worker_drains_ingestion_committed_before_it_subscribed(
         std::time::Duration::from_secs(30),
         std::time::Duration::from_secs(300),
     )?;
-    let worker = tokio::spawn(run_extraction_worker(
+    let worker = tokio::spawn(run_extraction_workers(
         broadcaster,
         db,
-        WorkerConfig::default(),
+        WorkerConfig {
+            workers: NonZeroUsize::new(3).unwrap(),
+            ..Default::default()
+        },
     ));
-    // The same worker drains the advisory queue and refreshes never-extracted SBOMs.
+    // The workers drain the advisory queue and refresh never-extracted SBOMs, sharing the job.
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), async {
         while status(ctx).await? != ExtractionLag::default()
             || freshness::overview(&ctx.db.begin().await?)
