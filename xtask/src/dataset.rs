@@ -19,7 +19,7 @@ use trustify_db::embedded;
 use trustify_module_correlation::{
     extractor::Extractors,
     model::ExtractionLag,
-    service::{extraction, freshness},
+    service::{extraction, freshness, tuning::WorkerConfig},
 };
 use trustify_module_importer::{
     model::{
@@ -199,8 +199,10 @@ impl GenerateDump {
             // Advisories are extracted from the ingestion queue, SBOMs by refresh jobs.
             let mut events = 0u64;
             loop {
-                let advisory = extraction::run_step(&db_rw, &extractors).await?;
-                let sbom = freshness::run_step(&db_rw, &extractors).await?;
+                let advisory =
+                    extraction::run_step(&db_rw, &extractors, &WorkerConfig::default()).await?;
+                let sbom =
+                    freshness::run_step(&db_rw, &extractors, &WorkerConfig::default()).await?;
                 if !advisory && !sbom {
                     break;
                 }

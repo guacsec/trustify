@@ -1,6 +1,11 @@
 //! Durable advisory ingestion backlog. Notifications only wake the worker; PostgreSQL owns
 //! the work. SBOMs are extracted by the automatically scheduled refresh jobs instead.
-use crate::{error::Error, extractor::Extractors, model::ExtractionLag, service::freshness};
+use crate::{
+    error::Error,
+    extractor::Extractors,
+    model::ExtractionLag,
+    service::{freshness, tuning::WorkerConfig},
+};
 use sea_orm::{
     ConnectionTrait, DatabaseTransaction, DbBackend, FromQueryResult, Statement, TransactionTrait,
 };
@@ -35,8 +40,13 @@ pub async fn lag(tx: &DatabaseTransaction) -> Result<ExtractionLag, Error> {
 
 /// Claim one event across all server instances. The queue row remains visible to
 /// readers until evidence commits, and a crash rolls back the acknowledgement.
-pub async fn run_step(db: &db::ReadWrite, extractors: &Extractors) -> Result<bool, Error> {
+pub async fn run_step(
+    db: &db::ReadWrite,
+    extractors: &Extractors,
+    config: &WorkerConfig,
+) -> Result<bool, Error> {
     let tx = db.begin().await?;
+    config.apply(&tx).await?;
     freshness::lock_revision(&tx).await?;
     let Some(row) = tx
         .query_one_raw(Statement::from_string(

@@ -48,9 +48,9 @@ async fn two_thousand_advisories_remain_pending_until_extraction_commits(
     let db = db::ReadWrite::new(ctx.db.clone());
     for _ in 0..2000 {
         // A fresh registry simulates the absence of any in-memory job state.
-        assert!(run_step(&db, &Extractors::new(vec![])).await?);
+        assert!(run_step(&db, &Extractors::new(vec![]), &WorkerConfig::default()).await?);
     }
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(status(ctx).await?, ExtractionLag::default());
     Ok(())
 }
@@ -141,7 +141,7 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
     ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     let failing = Extractors::new(vec![Box::new(FailingExtractor)]);
-    assert!(run_step(&db, &failing).await?);
+    assert!(run_step(&db, &failing, &WorkerConfig::default()).await?);
     let failed = status(ctx).await?;
     assert_eq!(
         failed,
@@ -160,7 +160,7 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
         crate::model::FreshnessStatus::Unknown
     );
     // Retry is delayed, preventing a bad document from spinning or starving others.
-    assert!(!run_step(&db, &failing).await?);
+    assert!(!run_step(&db, &failing, &WorkerConfig::default()).await?);
     record_change(
         &ctx.db,
         ChangeEntity::Advisory,
@@ -168,12 +168,12 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
         ChangeOperation::Added,
     )
     .await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(status(ctx).await?, failed);
     ctx.db
         .execute_unprepared("UPDATE correlation_extraction_queue SET retry_at = clock_timestamp()")
         .await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(status(ctx).await?, ExtractionLag::default());
     Ok(())
 }
@@ -189,7 +189,7 @@ async fn claims_are_exclusive_and_deleted_documents_do_not_block_the_queue(
         .execute_unprepared("SELECT id FROM correlation_extraction_queue FOR UPDATE")
         .await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(!run_step(&db, &Extractors::default()).await?);
+    assert!(!run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     // An advisory deleted (or never stored) before processing has nothing to extract.
     record_change(
         &ctx.db,
@@ -199,7 +199,7 @@ async fn claims_are_exclusive_and_deleted_documents_do_not_block_the_queue(
     )
     .await?;
     // A second worker can handle another event while the first is claimed.
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     let pending = status(ctx).await?;
     assert_eq!(
         pending,
@@ -214,7 +214,7 @@ async fn claims_are_exclusive_and_deleted_documents_do_not_block_the_queue(
         }
     );
     claim.rollback().await?;
-    assert!(run_step(&db, &Extractors::default()).await?);
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
     assert_eq!(status(ctx).await?, ExtractionLag::default());
     Ok(())
 }
@@ -257,7 +257,8 @@ async fn running_extraction_stays_visible_until_evidence_and_acknowledgement_com
     let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
     let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
     let db = db::ReadWrite::new(ctx.db.clone());
-    let worker = tokio::spawn(async move { run_step(&db, &extractors).await });
+    let worker =
+        tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await });
     tokio::time::timeout(std::time::Duration::from_secs(10), barrier.wait()).await?;
     assert_eq!(status(ctx).await?, pending);
     barrier.wait().await;
@@ -282,7 +283,11 @@ async fn worker_drains_ingestion_committed_before_it_subscribed(
         std::time::Duration::from_secs(30),
         std::time::Duration::from_secs(300),
     )?;
-    let worker = tokio::spawn(run_extraction_worker(broadcaster, db));
+    let worker = tokio::spawn(run_extraction_worker(
+        broadcaster,
+        db,
+        WorkerConfig::default(),
+    ));
     // The same worker drains the advisory queue and refreshes never-extracted SBOMs.
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), async {
         while status(ctx).await? != ExtractionLag::default()

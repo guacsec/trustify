@@ -12,8 +12,8 @@ use trustify_test_context::TrustifyContext;
 async fn drain_extraction(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let db = db::ReadWrite::new(ctx.db.clone());
     let extractors = Extractors::default();
-    while extraction::run_step(&db, &extractors).await?
-        | freshness::run_step(&db, &extractors).await?
+    while extraction::run_step(&db, &extractors, &WorkerConfig::default()).await?
+        | freshness::run_step(&db, &extractors, &WorkerConfig::default()).await?
     {}
     Ok(())
 }
@@ -38,7 +38,12 @@ async fn zero_findings_are_distinct_from_uncomputed(ctx: &TrustifyContext) -> an
     assert!(lag(&tx).await?.pending > 0);
     tx.commit().await?;
     drain_extraction(ctx).await?;
-    while run_step(&db::ReadWrite::new(ctx.db.clone())).await? {}
+    while run_step(
+        &db::ReadWrite::new(ctx.db.clone()),
+        &WorkerConfig::default(),
+    )
+    .await?
+    {}
     let tx = ctx.db.begin().await?;
     assert!(state(&[id], &tx).await?[&id].generation.is_some());
     assert_eq!(counts(&[id], &tx).await?[0].affected, 0);
@@ -94,7 +99,7 @@ async fn progress_is_visible_while_computing(ctx: &TrustifyContext) -> anyhow::R
     assert_eq!(current().await?, vec![]);
 
     // computing replaces it, and removes it when done
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let rows = ctx
         .db
         .query_all_raw(sql(
@@ -115,7 +120,7 @@ async fn stale_extraction_is_computed_after_its_refresh(
 ) -> anyhow::Result<()> {
     let id = fixture(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
 
     // new settings, and new inputs for the verdicts
     ctx.db
@@ -130,10 +135,10 @@ async fn stale_extraction_is_computed_after_its_refresh(
             vec![id.into()],
         ))
         .await?;
-    assert!(!run_step(&db).await?);
+    assert!(!run_step(&db, &WorkerConfig::default()).await?);
 
     drain_extraction(ctx).await?;
-    assert!(run_step(&db).await?);
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     assert_eq!(
         state(&[id], &tx).await?[&id].status,
@@ -149,7 +154,7 @@ async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
 ) -> anyhow::Result<()> {
     let id = fixture(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let tx = ctx.db.begin().await?;
     let service = CorrelationService::default();
     let cache = PaginationCache::new(std::time::Duration::from_secs(60), 25);
@@ -186,7 +191,7 @@ async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
     ))
     .await?;
     tx.commit().await?;
-    assert!(run_step(&db).await?);
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     let failed = service
         .verdict_page(id, &request, Paginated::default(), &cache, &tx)
@@ -217,7 +222,7 @@ async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
     let tx = ctx.db.begin().await?;
     freshness::refresh_sbom(&Extractors::default(), id, &tx).await?;
     tx.commit().await?;
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let tx = ctx.db.begin().await?;
     assert_eq!(
         state(&[id], &tx).await?[&id].status,
@@ -235,7 +240,7 @@ async fn upstream_work_and_global_revisions_invalidate_without_eager_queue_expan
 ) -> anyhow::Result<()> {
     let id = fixture(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let tx = ctx.db.begin().await?;
     let before = state(&[id], &tx).await?[&id].clone();
     tx.execute_raw(sql("INSERT INTO correlation_extraction_queue(id,entity_type,entity_id) VALUES($1,'advisory',$2)", vec![Uuid::now_v7().into(),Uuid::now_v7().into()])).await?;
@@ -251,7 +256,7 @@ async fn upstream_work_and_global_revisions_invalidate_without_eager_queue_expan
     assert_eq!(lag(&tx).await?.pending, 1);
     assert_eq!(state(&[id], &tx).await?[&id].status, FreshnessStatus::Stale);
     tx.commit().await?;
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let tx = ctx.db.begin().await?;
     assert_eq!(
         state(&[id], &tx).await?[&id].status,
@@ -264,7 +269,7 @@ async fn upstream_work_and_global_revisions_invalidate_without_eager_queue_expan
     )
     .await?;
     tx.commit().await?;
-    assert!(!run_step(&db).await?);
+    assert!(!run_step(&db, &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     assert_eq!(lag(&tx).await?.pending, 1);
     Ok(())
@@ -277,7 +282,7 @@ async fn publication_rolls_back_and_cached_totals_follow_the_generation(
 ) -> anyhow::Result<()> {
     let id = fixture(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let service = CorrelationService::default();
     let cache = PaginationCache::new(std::time::Duration::from_secs(60), 25);
     let page = Paginated {
@@ -307,7 +312,7 @@ async fn publication_rolls_back_and_cached_totals_follow_the_generation(
     ))
     .await?;
     tx.commit().await?;
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     let tx = ctx.db.begin().await?;
     let empty = service
         .verdict_page(id, &ResolutionRequest::default(), page, &cache, &tx)
@@ -349,9 +354,9 @@ async fn batched_computation_and_workers_preserve_complete_groups(
             vec![id.into()],
         ))
         .await?;
-    assert!(!run_step(&db).await?);
+    assert!(!run_step(&db, &WorkerConfig::default()).await?);
     claim.rollback().await?;
-    assert!(run_step(&db).await?);
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
     let tx = ctx.db.begin().await?;
     let service = CorrelationService::default();
     let cache = PaginationCache::for_test();
@@ -400,12 +405,12 @@ async fn workers_skip_claimed_sboms_and_publish_other_work(
         ))
         .await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    assert!(run_step(&db).await?);
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
     let states = state(&[first, second], &ctx.db).await?;
     assert!(states[&first].generation.is_none());
     assert!(states[&second].generation.is_some());
     claim.rollback().await?;
-    assert!(run_step(&db).await?);
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
     assert!(state(&[first], &ctx.db).await?[&first].generation.is_some());
     Ok(())
 }
@@ -417,7 +422,7 @@ async fn workers_skip_claimed_sboms_and_publish_other_work(
 async fn published_page_scale(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let id = fixture(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
-    while run_step(&db).await? {}
+    while run_step(&db, &WorkerConfig::default()).await? {}
     for size in [100_i32, 10_000] {
         let tx = ctx.db.begin().await?;
         tx.execute_raw(sql("INSERT INTO correlation_verdict(sbom_id,node_id,vulnerability_id,status,snapshot,remediation_count) SELECT sbom_id,'scale-'||lpad(n::text,6,'0'),vulnerability_id,status,snapshot,remediation_count FROM (SELECT * FROM correlation_verdict WHERE sbom_id=$1 LIMIT 1) sample CROSS JOIN generate_series(1,$2) n ON CONFLICT DO NOTHING",vec![id.into(),size.into()])).await?;
