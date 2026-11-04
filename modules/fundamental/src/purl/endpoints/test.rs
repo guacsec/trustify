@@ -16,7 +16,9 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, JoinType, PaginatorTrait, QueryFilter, QuerySelect,
     RelationTrait,
 };
-use trustify_entity::{base_purl, purl_status};
+use trustify_entity::{
+    base_purl, purl_status, remediation, remediation_purl_status, versioned_purl,
+};
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
 ///
@@ -653,6 +655,249 @@ async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), 
     assert_eq!(report["impact_summary"]["addressable_packages"], 1);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
 
+    Ok(())
+}
+
+/// Ingests three fixed statuses with distinct remediation links and an upstream report SBOM.
+async fn ingest_recommendation_remediations(ctx: &TrustifyContext) -> Result<Uuid, anyhow::Error> {
+    let mut advisory = minimal_csaf_vex(
+        "TEST-REMEDIATIONS-001",
+        "Remediation Product",
+        &[(
+            "remediationlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/remediationlib@1.0.0.redhat-00001",
+        )],
+        &[
+            ("CVE-2099-40001", "fixed", &[0]),
+            ("CVE-2099-40002", "fixed", &[0]),
+            ("CVE-2099-40003", "fixed", &[0]),
+        ],
+    );
+    advisory["vulnerabilities"][0]["remediations"] = json!([{
+        "category": "vendor_fix",
+        "details": "Install the patched remediationlib build",
+        "url": "https://example.com/remediationlib/fix",
+        "product_ids": ["Remediation Product:remediationlib-1.0.0.redhat-00001"],
+        "restart_required": { "category": "service" }
+    }]);
+    advisory["vulnerabilities"][1]["remediations"] = json!([{
+        "category": "mitigation",
+        "details": "Disable the vulnerable feature",
+        "url": "https://example.com/remediationlib/mitigation",
+        "product_ids": ["Remediation Product:remediationlib-1.0.0.redhat-00001"],
+        "entitlements": ["support"]
+    }]);
+    ctx.ingest_json(advisory).await?;
+
+    Ok(Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-remediations-report",
+            "00000000-0000-0000-0000-400000000001",
+            &[(
+                "remediationlib",
+                "1.0.0",
+                "pkg:maven/com.example/remediationlib@1.0.0",
+            )],
+        ))
+        .await?
+        .id,
+    )?)
+}
+
+/// Returns literal per-CVE expectations, including full CSAF remediation data and an empty case.
+fn expected_recommendation_remediations() -> Value {
+    json!([
+        {
+            "id": "CVE-2099-40001",
+            "status": "Fixed",
+            "remediations": [{
+                "category": "vendor_fix",
+                "details": "Install the patched remediationlib build",
+                "url": "https://example.com/remediationlib/fix",
+                "data": {
+                    "category": "vendor_fix",
+                    "details": "Install the patched remediationlib build",
+                    "url": "https://example.com/remediationlib/fix",
+                    "product_ids": ["Remediation Product:remediationlib-1.0.0.redhat-00001"],
+                    "restart_required": { "category": "service" }
+                }
+            }]
+        },
+        {
+            "id": "CVE-2099-40002",
+            "status": "Fixed",
+            "remediations": [{
+                "category": "mitigation",
+                "details": "Disable the vulnerable feature",
+                "url": "https://example.com/remediationlib/mitigation",
+                "data": {
+                    "category": "mitigation",
+                    "details": "Disable the vulnerable feature",
+                    "url": "https://example.com/remediationlib/mitigation",
+                    "product_ids": ["Remediation Product:remediationlib-1.0.0.redhat-00001"],
+                    "entitlements": ["support"]
+                }
+            }]
+        },
+        { "id": "CVE-2099-40003", "status": "Fixed", "remediations": [] }
+    ])
+}
+
+/// Checks raw status/link rows independently of the recommendation loader and returns status IDs.
+async fn assert_recommendation_remediation_links(
+    ctx: &TrustifyContext,
+) -> Result<Vec<Uuid>, anyhow::Error> {
+    let mut statuses = purl_status::Entity::find()
+        .filter(purl_status::Column::VulnerabilityId.is_in([
+            "CVE-2099-40001",
+            "CVE-2099-40002",
+            "CVE-2099-40003",
+        ]))
+        .all(&ctx.db)
+        .await?;
+    statuses.sort_by(|a, b| a.vulnerability_id.cmp(&b.vulnerability_id));
+
+    let mut stored = Vec::new();
+    for status in &statuses {
+        assert_ne!(status.id, status.version_range_id);
+        let links = remediation_purl_status::Entity::find()
+            .filter(remediation_purl_status::Column::PurlStatusId.eq(status.id))
+            .find_also_related(remediation::Entity)
+            .all(&ctx.db)
+            .await?;
+        let remediations = links
+            .into_iter()
+            .map(|(_, remediation)| {
+                let remediation = remediation.expect("linked remediation must exist");
+                assert_eq!(remediation.advisory_id, status.advisory_id);
+                assert_eq!(remediation.vulnerability_id, status.vulnerability_id);
+                json!({
+                    "category": remediation.category,
+                    "details": remediation.details,
+                    "url": remediation.url,
+                    "data": remediation.data
+                })
+            })
+            .collect::<Vec<_>>();
+        stored.push(json!({
+            "id": status.vulnerability_id,
+            "status": "Fixed",
+            "remediations": remediations
+        }));
+    }
+    assert_eq!(json!(stored), expected_recommendation_remediations());
+    Ok(statuses.into_iter().map(|status| status.id).collect())
+}
+
+/// Checks exact recommendation associations and the unchanged report contract for either winner mode.
+async fn assert_recommendation_remediations(app: &impl CallService, sbom_id: Uuid) {
+    let mut recommendations = recommend(app, &["pkg:maven/com.example/remediationlib@1.0.0"]).await;
+    recommendations["recommendations"]["pkg:maven/com.example/remediationlib@1.0.0"][0]
+        ["vulnerabilities"]
+        .as_array_mut()
+        .expect("recommendation must contain vulnerabilities")
+        .sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    assert_eq!(
+        recommendations,
+        json!({ "recommendations": {
+            "pkg:maven/com.example/remediationlib@1.0.0": [{
+                "package": "pkg:maven/com.example/remediationlib@1.0.0.redhat-00001",
+                "vulnerabilities": expected_recommendation_remediations()
+            }]
+        } })
+    );
+
+    let mut report = recommend_report_req(app, &[sbom_id]).await;
+    report["packages"][0]["vulnerabilities"]
+        .as_array_mut()
+        .expect("report must contain addressed CVEs")
+        .sort_by(|a, b| a.as_str().cmp(&b.as_str()));
+    assert_eq!(
+        report["packages"],
+        json!([{
+            "purl": "pkg:maven/com.example/remediationlib@1.0.0",
+            "recommended_purl": "pkg:maven/com.example/remediationlib@1.0.0.redhat-00001",
+            "advisory_id": "https://test.example.com/#TEST-REMEDIATIONS-001",
+            "vulnerabilities": ["CVE-2099-40001", "CVE-2099-40002", "CVE-2099-40003"],
+            "found_in": [sbom_id]
+        }])
+    );
+}
+
+/// Verifies persisted winners retain exact per-status remediations, without cross-CVE leakage.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_remediations_persisted(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given distinct status/range IDs with two different remediation links and one empty status
+    let sbom_id = ingest_recommendation_remediations(ctx).await?;
+    assert_recommendation_remediation_links(ctx).await?;
+
+    // When requesting recommendations and a report for the persisted vendor version
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // Then each CVE retains exactly its own remediations and report provenance is unchanged
+    assert_recommendation_remediations(&app, sbom_id).await;
+    Ok(())
+}
+
+/// Verifies synthesized winners retain the same remediation links after the vendor version is removed.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_remediations_advisory_only(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given advisory statuses and remediations whose vendor version is no longer persisted
+    let sbom_id = ingest_recommendation_remediations(ctx).await?;
+    let status_ids = assert_recommendation_remediation_links(ctx).await?;
+    let detached = ctx
+        .db
+        .execute_unprepared(
+            "UPDATE purl_status SET qualified_purl_id = NULL \
+         WHERE qualified_purl_id IN ( \
+             SELECT qp.id FROM qualified_purl qp \
+             JOIN versioned_purl vp ON vp.id = qp.versioned_purl_id \
+             JOIN base_purl bp ON bp.id = vp.base_purl_id \
+             WHERE bp.type = 'maven' AND bp.namespace = 'com.example' \
+               AND bp.name = 'remediationlib' AND vp.version = '1.0.0.redhat-00001' \
+         )",
+        )
+        .await?;
+    assert_eq!(detached.rows_affected(), 3);
+    let vendor_version = versioned_purl::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            versioned_purl::Relation::BasePurl.def(),
+        )
+        .filter(base_purl::Column::Type.eq("maven"))
+        .filter(base_purl::Column::Namespace.eq("com.example"))
+        .filter(base_purl::Column::Name.eq("remediationlib"))
+        .filter(versioned_purl::Column::Version.eq("1.0.0.redhat-00001"))
+        .one(&ctx.db)
+        .await?
+        .expect("fixture must persist the vendor version initially");
+    let deleted = versioned_purl::Entity::delete_by_id(vendor_version.id)
+        .exec(&ctx.db)
+        .await?;
+    assert_eq!(deleted.rows_affected, 1);
+    assert!(
+        versioned_purl::Entity::find_by_id(vendor_version.id)
+            .one(&ctx.db)
+            .await?
+            .is_none(),
+        "the vendor version must be absent to force advisory synthesis"
+    );
+    assert_eq!(
+        assert_recommendation_remediation_links(ctx).await?,
+        status_ids
+    );
+
+    // When requesting recommendations and a report without a persisted vendor version
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // Then synthesized statuses retain exactly their original remediations and report provenance
+    assert_recommendation_remediations(&app, sbom_id).await;
     Ok(())
 }
 
