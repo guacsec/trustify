@@ -92,6 +92,16 @@ impl ProviderSnapshot {
                 }
             }
         }
+        result.load_advisories(connection, advisories).await?;
+        Ok(result)
+    }
+
+    /// Extend advisory identities without reloading the snapshot's provider aliases or suppliers.
+    pub async fn load_advisories(
+        &mut self,
+        connection: &DatabaseTransaction,
+        advisories: &[Uuid],
+    ) -> Result<(), Error> {
         if !advisories.is_empty() {
             let rows = advisory::Entity::find()
                 .filter(advisory::Column::Id.is_in(advisories.iter().copied()))
@@ -128,10 +138,10 @@ impl ProviderSnapshot {
                 } else {
                     ProviderIdentity::default()
                 };
-                result.advisory_providers.insert(row.id, provider);
+                self.advisory_providers.insert(row.id, provider);
             }
         }
-        Ok(result)
+        Ok(())
     }
 
     pub fn context(&self, request: &ResolutionRequest) -> Result<ResolutionContext, Error> {

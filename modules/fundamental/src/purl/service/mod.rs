@@ -53,7 +53,7 @@ use trustify_module_correlation::{
         context::{NodeCpe, format_cpe, load_node_cpes},
     },
     service::{
-        CorrelationService,
+        CorrelationService, ReportQueryCache,
         resolution::{ProviderSnapshot, store::provider_identifiers},
     },
 };
@@ -1355,10 +1355,11 @@ impl PurlService {
         let mut sbom_vulns: HashMap<Uuid, HashSet<String>> = HashMap::new();
         let mut package_rows = HashMap::<ReportPackageKey, ReportPackageAccumulator>::new();
         let correlation = CorrelationService::default();
+        let mut query_cache = ReportQueryCache::new(providers);
 
         for winner in &winners {
             let query = correlation
-                .query_identifier_with_node_context(
+                .query_identifier_with_node_context_cached(
                     IdentifierRef {
                         kind: IdentifierKind::Purl,
                         value: winner.recommended_purl.clone(),
@@ -1368,6 +1369,7 @@ impl PurlService {
                         ..Default::default()
                     },
                     &winner.product_context,
+                    &mut query_cache,
                     connection,
                 )
                 .await
