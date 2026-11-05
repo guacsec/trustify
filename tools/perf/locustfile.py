@@ -64,6 +64,7 @@ from locust import events
 from capabilities import (
     CapabilityDiscoveryError,
     discover_capabilities,
+    filter_taskless_user_classes,
     filter_user_classes,
 )
 
@@ -99,21 +100,30 @@ if TOOLS_PERF_API_VERSION in ("v2", "all"):
 
 @events.init.add_listener
 def configure_capability_workloads(environment, **_kwargs) -> None:
-    """Discover capabilities before Locust starts spawning users."""
-    required = [
-        user_class
+    """Select runnable workloads before Locust starts spawning users."""
+    filter_taskless_user_classes(environment)
+    required = any(
+        getattr(user_class, "required_capability", None)
         for user_class in environment.user_classes
-        if getattr(user_class, "required_capability", None)
-    ]
-    if not required:
-        return
+    )
+    if required:
+        try:
+            capabilities = discover_capabilities(environment.host)
+        except CapabilityDiscoveryError as exc:
+            # Let Locust treat discovery failures as setup failures rather than
+            # silently producing a partial performance run.
+            log.error("Capability discovery failed: %s", exc)
+            raise
 
-    try:
-        capabilities = discover_capabilities(environment.host)
-    except CapabilityDiscoveryError as exc:
-        # Let Locust treat discovery failures as setup failures rather than
-        # silently producing a partial performance run.
-        log.error("Capability discovery failed: %s", exc)
-        raise
+        filter_user_classes(environment, capabilities)
 
-    filter_user_classes(environment, capabilities)
+    if not environment.user_classes:
+        raise ValueError(
+            "No runnable workloads remain after tag and capability filtering. "
+            "Check --tags, --exclude-tags, and enabled capabilities."
+        )
+
+    log.info(
+        "Selected workloads: %s",
+        ", ".join(user_class.__name__ for user_class in environment.user_classes),
+    )
