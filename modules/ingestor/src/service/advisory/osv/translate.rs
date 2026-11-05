@@ -1,3 +1,4 @@
+use super::ecosystem::native_ecosystem;
 use osv::schema::{Ecosystem, Package};
 use packageurl::PackageUrl;
 
@@ -11,7 +12,12 @@ pub fn to_purl(
         purl: _,
     }: &Package,
 ) -> Option<PackageUrl<'_>> {
-    translate(ecosystem, name)
+    let native = native_ecosystem(ecosystem);
+    match (ecosystem, native) {
+        // Keep the legacy alias adapter specific to the newly supported wrapper.
+        (Ecosystem::RedHatLightwell(_), Ecosystem::Python) => PackageUrl::new("pypi", name).ok(),
+        _ => translate(native, name),
+    }
 }
 
 /// Also see: <https://ossf.github.io/osv-schema/#affectedpackage-field>
@@ -86,6 +92,29 @@ mod test {
         Some("pkg:maven/groupid/artifactid?repository_url=http:%2F%2Fother%2Frepo")
     )]
     #[case(Ecosystem::PyPI, "aiohttp", Some("pkg:pypi/aiohttp"))]
+    #[case(Ecosystem::Python, "aiohttp", None)]
+    #[case(
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::Maven(MAVEN_DEFAULT_REPO.to_string()))),
+        "io.netty:netty-codec-dns",
+        Some("pkg:maven/io.netty/netty-codec-dns")
+    )]
+    #[case(
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::Maven("https://maven.google.com".to_string()))),
+        "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fmaven.google.com")
+    )]
+    #[case(
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::PyPI)),
+        "pypdf2",
+        Some("pkg:pypi/pypdf2")
+    )]
+    #[case(
+        Ecosystem::RedHatLightwell(Box::new(Ecosystem::Python)),
+        "aiohttp",
+        Some("pkg:pypi/aiohttp")
+    )]
+    #[case(Ecosystem::RedHatLightwell(Box::new(Ecosystem::Debian(Some("12".into())))), "package", None)]
+    #[case(Ecosystem::RedHat(None), "package", None)]
     #[case(Ecosystem::Go, "tailscale.com", Some("pkg:golang/tailscale.com"))]
     #[case(
         Ecosystem::Go,

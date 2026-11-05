@@ -75,6 +75,8 @@ unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
     "https://github.com/ctron/spdx-rs",
+    # v0.3.0 Lightwell backport until an upstream release can be adopted
+    "https://github.com/dejanb/osv",
     "https://github.com/guacsec/trustify-ui.git",
 ]
 
