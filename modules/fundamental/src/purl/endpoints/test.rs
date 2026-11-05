@@ -1981,3 +1981,73 @@ async fn recommend_report_excludes_unaddressed_package(
 
     Ok(())
 }
+
+/// Verifies that importing a Red Hat Lightwell OSV advisory does not change another vendor's
+/// recommendation assessment for the same upstream CVE and package (non-Lightwell builds).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn lightwell_preserves_redhat_recommendations(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given a Red Hat `fixed` assessment for the winner, an SBOM with the upstream build,
+    // and the recommendations before any Lightwell import
+    let input = "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final";
+    let winner = "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final-redhat-00001";
+    let cve = "CVE-2026-42579";
+    ctx.ingest_json(minimal_csaf_vex(
+        "REVIEW-LIGHTWELL-RECOMMEND-001",
+        "Red Hat Review Product",
+        &[("netty-codec-dns-redhat", winner)],
+        &[(cve, "fixed", &[0])],
+    ))
+    .await?;
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "review-lightwell-upstream",
+            "00000000-0000-0000-0000-000000284600",
+            &[("netty-codec-dns", "4.1.132.Final", input)],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)[.-]redhat-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let before = recommend(&app, &[input]).await;
+    let before_report = recommend_report_req(&app, &[sbom_id]).await;
+    // Look the CVE up by ID: the order of `vulnerabilities` is not part of the contract.
+    let cve_status = |response: &Value| {
+        response["recommendations"][input][0]["vulnerabilities"]
+            .as_array()
+            .and_then(|vulns| vulns.iter().find(|vuln| vuln["id"] == cve))
+            .map(|vuln| vuln["status"].clone())
+    };
+    assert_eq!(before["recommendations"][input][0]["package"], winner);
+    assert_eq!(cve_status(&before), Some(Value::from("Fixed")));
+    assert_eq!(before_report["packages"].as_array().unwrap().len(), 1);
+
+    // When the unmodified Lightwell advisory for the same CVE and package is imported
+    ctx.ingest_document("osv/RHLW-2026-02416b185203289c.json")
+        .await?;
+    let after = recommend(&app, &[input]).await;
+    let after_report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the Red Hat recommendation and the report are unchanged
+    assert_eq!(after["recommendations"][input][0]["package"], winner);
+    assert_eq!(
+        cve_status(&after),
+        Some(Value::from("Fixed")),
+        "Lightwell must not override another vendor's fixed assessment",
+    );
+    assert_eq!(after_report["packages"], before_report["packages"]);
+    // Known gap, same as on main (#2833): the Lightwell range is stored on the base PURL, so
+    // an additional `RHLW-…` finding is still listed for the non-Lightwell winner. Fixing this
+    // needs vendor/repository-aware matching, tracked upstream in TC-7423.
+    Ok(())
+}
