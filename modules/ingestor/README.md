@@ -37,10 +37,13 @@ PURL:
 
 Other `affected` entries of the same record are still processed.
 
-On this branch, vulnerabilities and package statuses are keyed on CVE IDs. Lightwell
-records list their CVEs in `upstream` rather than `aliases`, so for records with a
-Lightwell package the `CVE-` entries of `upstream` are used in addition to those of
-`aliases`. The `RHLW-…` record ID identifies the advisory, not a vulnerability.
+Vulnerabilities and package statuses are keyed on the `CVE-` entries of `aliases`.
+Lightwell records list their CVEs in `upstream` and have no `aliases`, so, as on
+`main`, a Lightwell record without a CVE alias is keyed on its own record ID
+(`RHLW-…`). Its `upstream` CVEs are not used: statuses stored under a CVE are shared
+with every other advisory for that CVE and package, and recommendations do not
+isolate vendors, so a Lightwell range would override other vendors' assessments of
+non-Lightwell builds. Ordinary records without a CVE alias store no statuses.
 
 Repository qualifiers are not used for matching: package statuses are stored against
 the base PURL (type, namespace and name), so repository information does not provide

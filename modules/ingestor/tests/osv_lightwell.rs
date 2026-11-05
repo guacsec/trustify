@@ -18,8 +18,6 @@ use uuid::Uuid;
 // Fixtures are public advisories from https://github.com/project-lightwell/lightwell-osv.
 struct LightwellCase {
     id: &'static str,
-    /// The `CVE-` entry of `upstream`; release/0.7.z keys vulnerabilities on it.
-    cve: &'static str,
     purl: &'static str,
     scheme: VersionScheme,
     base: &'static str,
@@ -29,12 +27,11 @@ struct LightwellCase {
 }
 
 /// Verifies that unmodified Lightwell fixtures import and store native-scheme statuses under the
-/// upstream CVE (reproducer for TC-7303 on release/0.7.z).
+/// record ID (reproducer for TC-7303 on release/0.7.z).
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case::maven(LightwellCase {
     id: "RHLW-2026-02416b185203289c",
-    cve: "CVE-2026-42579",
     purl: "pkg:maven/io.netty/netty-codec-dns",
     scheme: VersionScheme::Maven,
     base: "4.1.132.Final",
@@ -43,7 +40,6 @@ struct LightwellCase {
 })]
 #[case::pypi(LightwellCase {
     id: "RHLW-2026-821eaab8409c2a61",
-    cve: "CVE-2023-36464",
     purl: "pkg:pypi/pypdf2",
     scheme: VersionScheme::Python,
     base: "3.0.1",
@@ -89,13 +85,14 @@ async fn lightwell_native_ranges(
         assert_eq!(advisory.document_id, case.id);
         assert_eq!(advisory.identifier, case.id);
 
-        // And the vulnerability is the upstream CVE
+        // And the vulnerability is the record ID, not the upstream CVE, so that Lightwell
+        // statuses cannot override other vendors' assessments of that CVE
         let vulnerabilities = advisory_vulnerability::Entity::find()
             .filter(advisory_vulnerability::Column::AdvisoryId.eq(advisory_id))
             .all(&ctx.db)
             .await?;
         assert_eq!(vulnerabilities.len(), 1);
-        assert_eq!(vulnerabilities[0].vulnerability_id, case.cve);
+        assert_eq!(vulnerabilities[0].vulnerability_id, case.id);
         // Upstream links (advisory_vulnerability_upstream) are not applicable on release/0.7.z.
 
         // And the statuses use the native scheme
@@ -109,7 +106,7 @@ async fn lightwell_native_ranges(
         let mut native_ranges = 0;
         let mut fixed_statuses = 0;
         for (statement, range) in statuses {
-            assert_eq!(statement.vulnerability_id, case.cve);
+            assert_eq!(statement.vulnerability_id, case.id);
             let purl = statement
                 .find_related(base_purl::Entity)
                 .one(&ctx.db)
@@ -246,13 +243,12 @@ async fn ambiguous_and_unsupported_entries_warn_without_losing_valid_siblings(
 #[test_context(TrustifyContext)]
 #[test_log::test(tokio::test)]
 async fn lightwell_warnings_are_not_repeated_per_cve(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    // Given a valid entry and a repository conflict, in a record with two upstream CVEs
+    // Given a valid entry and a repository conflict, in a record with two CVE aliases
     let bytes = document_bytes("osv/RHLW-2026-02416b185203289c.json").await?;
     let mut document: Value = serde_json::from_slice(&bytes)?;
-    document["upstream"]
-        .as_array_mut()
-        .unwrap()
-        .push("CVE-2026-0003".into());
+    // Real Lightwell records have no aliases; they are the only way to get several
+    // vulnerability IDs for a Lightwell record.
+    document["aliases"] = serde_json::json!(["CVE-2026-0003", "CVE-2026-0004"]);
     let valid = document["affected"][0].clone();
     let mut conflicting = valid.clone();
     conflicting["package"]["ecosystem"] =
@@ -284,7 +280,7 @@ async fn lightwell_warnings_are_not_repeated_per_cve(ctx: &TrustifyContext) -> a
             .iter()
             .map(|statement| statement.vulnerability_id.as_str())
             .collect::<HashSet<_>>(),
-        HashSet::from(["CVE-2026-42579", "CVE-2026-0003"])
+        HashSet::from(["CVE-2026-0003", "CVE-2026-0004"])
     );
     // Generic affected, Maven affected and Maven fixed, for each CVE.
     assert_eq!(statements.len(), 6);

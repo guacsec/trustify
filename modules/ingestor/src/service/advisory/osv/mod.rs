@@ -7,7 +7,7 @@ pub mod translate;
 use crate::{graph::cvss::ScoreCreator, service::Error};
 use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use osv::schema::{Ecosystem, SeverityType, Vulnerability};
-use std::{collections::HashSet, str::FromStr};
+use std::str::FromStr;
 
 /// Load a [`Vulnerability`] from YAML.
 pub fn from_yaml(data: &[u8]) -> Result<Vulnerability, serde_saphyr::Error> {
@@ -28,28 +28,32 @@ pub fn parse(buffer: &[u8]) -> Result<Vulnerability, Error> {
     Ok(osv)
 }
 
-/// Extract the vulnerability (CVE) IDs an OSV record is linked to.
+/// Extract the vulnerability IDs an OSV record is linked to.
 ///
-/// These are the `CVE-` entries of `aliases`. Red Hat Lightwell records list their CVEs in
-/// `upstream` instead, so for records with any Lightwell package the `CVE-` entries of
-/// `upstream` are included too. Duplicates are removed, keeping first-seen order.
+/// These are the `CVE-` entries of `aliases`. A Red Hat Lightwell record (any Lightwell package)
+/// without a CVE alias is keyed on its own record ID (`RHLW-…`), as on `main`, so its statuses
+/// stay out of the CVE status pool and cannot override other vendors' assessments of the
+/// upstream CVE. Ordinary records without a CVE alias yield no IDs.
 pub fn extract_vulnerability_ids(osv: &Vulnerability) -> Vec<&str> {
+    let cves = osv
+        .aliases
+        .iter()
+        .flatten()
+        .filter(|alias| alias.starts_with("CVE-"))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+
     let lightwell = osv
         .affected
         .iter()
         .flatten()
         .filter_map(|affected| affected.package.as_ref())
         .any(|package| matches!(package.ecosystem, Ecosystem::RedHatLightwell(_)));
-    let upstream = osv.upstream.iter().flatten().filter(|_| lightwell);
 
-    let mut seen = HashSet::new();
-    osv.aliases
-        .iter()
-        .flatten()
-        .chain(upstream)
-        .map(String::as_str)
-        .filter(|id| id.starts_with("CVE-") && seen.insert(*id))
-        .collect()
+    match cves.is_empty() && lightwell {
+        true => vec![osv.id.as_str()],
+        false => cves,
+    }
 }
 
 /// extract scores from OSV
@@ -122,7 +126,7 @@ mod test {
     use super::*;
     use rstest::rstest;
 
-    /// Verifies which `aliases` and `upstream` entries are used as vulnerability IDs.
+    /// Verifies which IDs are used as vulnerability IDs for ordinary and Lightwell records.
     #[rstest]
     #[case::ordinary_aliases("PyPI", Some(&["CVE-1", "GHSA-1"][..]), None, &["CVE-1"][..])]
     #[case::ordinary_upstream_only("PyPI", None, Some(&["CVE-1"][..]), &[][..])]
@@ -130,13 +134,13 @@ mod test {
         "Red Hat Lightwell:PyPI",
         None,
         Some(&["CVE-1", "GHSA-1"][..]),
-        &["CVE-1"][..]
+        &["TEST-1"][..]
     )]
-    #[case::lightwell_deduplicated(
+    #[case::lightwell_aliases(
         "Red Hat Lightwell:Maven",
-        Some(&["CVE-2", "CVE-1"][..]),
-        Some(&["CVE-1", "CVE-3", "CVE-2"][..]),
-        &["CVE-2", "CVE-1", "CVE-3"][..]
+        Some(&["CVE-2", "GHSA-1", "CVE-1"][..]),
+        Some(&["CVE-3"][..]),
+        &["CVE-2", "CVE-1"][..]
     )]
     fn vulnerability_ids(
         #[case] ecosystem: &str,
