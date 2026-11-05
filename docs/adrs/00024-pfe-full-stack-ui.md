@@ -48,6 +48,11 @@ The current setup has the following problems:
 4. **Downstream.** Downstream products are aligned with PatternFly. Any change to the UI stack must not
    make the downstream build, support or UX alignment harder.
 
+5. **UX backlog.** The current UI has a backlog of UX improvements and gaps, including information
+   users need that is not currently presented. A new UI should be designed around prioritized user
+   needs rather than treating the existing React UI as a specification to reproduce page for page.
+   This UX work is a product-design concern; choosing PFE does not by itself resolve it.
+
 A Rust/WebAssembly UI removes the second stack, but it needs a component layer that provides the
 PatternFly look and feel. The usual answer is a Rust wrapper crate such as `patternfly-yew`. A wrapper
 has to follow every PatternFly release, is tied to one Rust UI framework, and is not maintained by the
@@ -99,22 +104,23 @@ In detail:
 
 Before the status moves to ACCEPTED, the following is done:
 
-- **Migration scope.** Define the planned migration: the list of pages and features of the existing
-  UI that the Rust UI is expected to replace. The coverage matrix is built against this scope, not
-  against the prototype page.
-- **Coverage matrix.** List every PatternFly component used by the pages in the migration scope
-  (tables, toolbars, filters, modals, select, tabs, pagination, and so on), taken from the existing
-  React UI, and mark each one as available in PFE for PF6, available with caveats, or missing. For
-  each component that is not fully available, record one of:
+- **Initial UI scope.** Define the initial user workflows and capabilities for the new UI. This is
+  not a page-for-page migration plan: use the existing React UI as a reference for current behaviour
+  and functionality, while identifying UX gaps and prioritizing what the new UI should provide.
+- **Coverage matrix.** List every PatternFly component needed by the agreed initial UI scope
+  (tables, toolbars, filters, modals, select, tabs, pagination, and so on), informed by the existing
+  React UI but not limited to its current pages. Mark each one as available in PFE for PF6, available
+  with caveats, or missing. For each component that is not fully available, record one of:
   - an acceptable workaround, with its estimated size and the maintainer who owns it, or
   - a fallback (a project-owned component, plain HTML and CSS with PatternFly tokens, or a deferral of
     the feature) that the maintainers have explicitly approved, with the reason, the estimated cost
     and the owner.
   The matrix is reviewed and approved together with this ADR, and its approval is recorded in the
   ADR or linked from it.
-- **Prototype.** Build one non-trivial page (for example the SBOM list with table, filters and
-  pagination) with PFE and a Rust UI framework. This includes the `web-sys` glue for complex
-  properties, authentication and the API client.
+- **Prototype.** Build a representative, non-trivial workflow from the agreed initial UI scope with
+  PFE and a Rust UI framework. The prototype validates the component layer and integration approach;
+  it is not a migration of an existing React page. Include the `web-sys` glue for complex properties,
+  authentication and the API client.
 - **Build.** Measure CI build time, the size of the Wasm and JS assets, and the first page load.
   Confirm that the build works with the project's offline and downstream build setup.
 - **Accessibility and i18n.** Confirm the keyboard, screen reader and localisation behaviour of the
@@ -125,12 +131,13 @@ Before the status moves to ACCEPTED, the following is done:
 
 The decision stands if:
 
-- The coverage matrix shows that every component needed for the planned migration has acceptable PFE
-  coverage, or an explicitly approved fallback. A component without either blocks acceptance.
+- The coverage matrix shows that every component needed for the agreed initial UI scope has
+  acceptable PFE coverage, or an explicitly approved fallback. A component without either blocks
+  acceptance.
 - The total project-owned component work implied by the approved fallbacks is small enough that it
   does not amount to maintaining a PatternFly component library, which is what this ADR sets out to
   avoid. The maintainers state the accepted limit when they approve the matrix.
-- The prototype page works with the available PFE components.
+- The representative prototype demonstrates that the agreed workflow can be implemented with the available PFE components.
 - The glue code is limited and does not amount to a de facto component library.
 - The build fits into the Trustify build and the downstream build without a JavaScript build.
 - Load time and asset size are acceptable.
@@ -158,11 +165,13 @@ The decision stands if:
 - Pros: full control.
 - Cons: the same maintenance cost as a wrapper crate, with no sharing outside the project.
 
-### Move the React UI into this repository
+### Move the React UI into this repository (not considered a realistic option)
 
 - Pros: keeps the UI and API together for building, testing and releasing.
-- Cons: solves the repository split but not the stack split or the npm workload. It is compatible with
-  this ADR as an interim step but does not replace it.
+- Cons: this solves only the repository split; it retains the TypeScript/React stack and npm
+  maintenance burden, and leaves backend engineers responsible for UI maintenance without a
+  dedicated UI team. It is therefore not considered a realistic path forward or an interim step for
+  this ADR.
 
 ## Considerations
 
@@ -181,8 +190,10 @@ The decision stands if:
   layer is designed.
 - **Shared types.** A Rust UI in the same repository can reuse the API types, which reduces drift
   between the API and the UI.
-- **Existing UIs.** Neither the React UI nor the Console POC is removed or changed by this ADR. Any
-  migration or removal is a separate change, taken when the Rust UI covers the required functionality.
+- **Existing UIs.** Neither the React UI nor the Console POC is removed or changed by this ADR. The
+  new UI may be developed around prioritized workflows rather than by migrating React pages one for
+  one. Replacing or retiring an existing UI is a separate decision, made when the new UI is ready and
+  its supported scope is agreed.
 
 ## Consequences
 
@@ -192,8 +203,9 @@ The decision stands if:
   `main`.
 - The project does not adopt `patternfly-yew` for any release. New Rust UI work targets PFE.
 - The React UI continues to ship at `/`, including in release branches, in the meantime.
-- A coverage matrix for the whole planned migration and a prototype are produced before the decision
-  becomes final. The decision is not accepted on the strength of the prototype alone.
+- A coverage matrix for the agreed initial UI scope and a representative prototype are produced
+  before the decision becomes final. The decision is not accepted on the strength of the prototype
+  alone. This validation does not require migrating the existing React UI.
 - The project avoids owning a PatternFly component library for Rust.
 - The project accepts a dependency on PFE's PF6 roadmap and coverage.
 - The long-term effect on the React UI (keep, freeze or retire) is left to a later ADR.
