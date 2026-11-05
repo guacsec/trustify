@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793813312730,
+  "lastUpdate": 1793896367028,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24469,6 +24469,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mrizzi@redhat.com",
+            "name": "mrizzi",
+            "username": "mrizzi"
+          },
+          "committer": {
+            "email": "mrizzi@users.noreply.github.com",
+            "name": "Marco Rizzi",
+            "username": "mrizzi"
+          },
+          "distinct": false,
+          "id": "e67d5ea3bd1e48529992a45e38962002252bae23",
+          "message": "fix(ci): select the migration dump by the run's base branch\n\nOn pull_request runs the checkout is detached, so the test harness\ncan't discover the branch from git and silently falls back to the\n`main` migration dump. For PRs into a release branch that dump contains\nmigrations the branch doesn't have, failing the migration tests with\n\"this migration has been applied but its file is missing\".\n\nSet TRUSTIFY_MIGRATION_BRANCH to the base branch (or the ref name on\npush / merge queue). This forward-ports the change from #2654, which\nwas only applied to release/0.6.z.\n\nImplements TC-7412\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-11-05T14:55:26Z",
+          "tree_id": "922fdab5d2ecabac4865711ddc48efe6c229e030",
+          "url": "https://github.com/guacsec/trustify/commit/e67d5ea3bd1e48529992a45e38962002252bae23"
+        },
+        "date": 1793896364312,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
