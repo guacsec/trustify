@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793896367028,
+  "lastUpdate": 1793897878199,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24498,6 +24498,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "mrizzi@users.noreply.github.com",
+            "name": "Marco Rizzi",
+            "username": "mrizzi"
+          },
+          "distinct": true,
+          "id": "f283636a231e25c2935b6eebb65e4b24eb3165ce",
+          "message": "perf(purl): reuse report advisory metadata per request\n\nReuse provider aliases and advisory metadata within each report while keeping matching and verdict decisions unchanged. Cover repeated lookups, request refresh and weighted-context parity.\n\nRefs TC-6908\n\nAssisted-by: OpenCode",
+          "timestamp": "2026-11-05T15:31:04Z",
+          "tree_id": "2345c0ff929e9fe334ca78a6ed03bb19bd90f94b",
+          "url": "https://github.com/guacsec/trustify/commit/f283636a231e25c2935b6eebb65e4b24eb3165ce"
+        },
+        "date": 1793897875397,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
