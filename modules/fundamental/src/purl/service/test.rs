@@ -13,6 +13,297 @@ use trustify_common::{
 };
 use trustify_test_context::{Dataset, TrustifyContext};
 
+/// Equal assessment rows must retain the stable union of full remediation content.
+#[test]
+fn assemble_recommend_entry_merges_remediations() {
+    use super::{StatusInfo, Winner};
+    use std::collections::HashMap;
+    use trustify_entity::{base_purl, remediation, versioned_purl};
+    use uuid::Uuid;
+
+    let base = base_purl::Model {
+        id: Uuid::from_u128(1),
+        r#type: "maven".into(),
+        namespace: Some("com.example".into()),
+        name: "streamlib".into(),
+    };
+    let version = versioned_purl::Model {
+        id: Uuid::from_u128(2),
+        base_purl_id: base.id,
+        version: "1.0.0.redhat-00001".into(),
+    };
+    let winner = Winner {
+        purl_string: "pkg:maven/com.example/streamlib@1.0.0".into(),
+        versioned_purl: &version,
+        base: &base,
+    };
+    let remediation = remediation::Model {
+        id: Uuid::from_u128(3),
+        advisory_id: Uuid::from_u128(4),
+        vulnerability_id: "CVE-2099-73930".into(),
+        category: remediation::RemediationCategory::VendorFix,
+        details: Some("Apply A".into()),
+        url: Some("https://example.com/errata/shared".into()),
+        data: serde_json::json!({"step": 1}),
+    };
+    let mut equivalent = remediation.clone();
+    equivalent.id = Uuid::from_u128(5);
+    let mut different_data = remediation.clone();
+    different_data.id = Uuid::from_u128(6);
+    different_data.data = serde_json::json!({"step": 2});
+    let mut different_details = different_data.clone();
+    different_details.id = Uuid::from_u128(7);
+    different_details.details = Some("Apply B".into());
+
+    for reversed in [false, true] {
+        let make_status = |remediations| StatusInfo {
+            vuln_id: "CVE-2099-73930".into(),
+            status_slug: "fixed".into(),
+            remediations,
+            advisory_id: Some("TEST-STREAMS".into()),
+            advisory_date: None,
+        };
+        let mut rows = vec![
+            make_status(vec![different_details.clone(), remediation.clone()]),
+            make_status(vec![equivalent.clone(), different_data.clone()]),
+        ];
+        if reversed {
+            rows.reverse();
+            for row in &mut rows {
+                row.remediations.reverse();
+            }
+        }
+        let entry =
+            PurlService::assemble_recommend_entry(&winner, &HashMap::from([(version.id, rows)]));
+        let response = serde_json::to_value(entry).unwrap();
+        assert_eq!(
+            response["vulnerabilities"],
+            serde_json::json!([{
+                "id": "CVE-2099-73930", "status": "Fixed", "advisory_id": "TEST-STREAMS",
+                "remediations": [
+                    {"category": "vendor_fix", "details": "Apply A", "url": "https://example.com/errata/shared", "data": {"step": 1}},
+                    {"category": "vendor_fix", "details": "Apply A", "url": "https://example.com/errata/shared", "data": {"step": 2}},
+                    {"category": "vendor_fix", "details": "Apply B", "url": "https://example.com/errata/shared", "data": {"step": 2}}
+                ]
+            }])
+        );
+    }
+}
+
+/// A batch must key each assessment by its exact winner, including non-persisted versions.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommendation_status_batch_keeps_winner_versions_separate(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    ctx.ingest_json(serde_json::json!({
+        "id": "NEWER-HYPER", "modified": "2024-01-15T00:00:00Z",
+        "aliases": ["CVE-2099-60001"],
+        "affected": [{"package": {"ecosystem": "crates.io", "name": "hyper"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "0.15.0"}, {"fixed": "0.16.0"}]}]}]
+    })).await?;
+    let old = Purl::from_str("pkg:cargo/hyper@0.14.1")?;
+    let newer = Purl::from_str("pkg:cargo/hyper@0.15.0")?;
+    let synthetic = Purl::from_str("pkg:cargo/hyper@0.14.2")?;
+    for purl in [&old, &newer] {
+        ctx.graph.ingest_package_version(purl, &ctx.db).await?;
+    }
+    assert!(
+        ctx.graph
+            .get_package_version(&synthetic, &ctx.db)
+            .await?
+            .is_none()
+    );
+
+    let statuses = PurlService::fetch_vulnerability_statuses(
+        [&old, &newer, &synthetic, &old].map(|purl| {
+            (
+                purl.package_uuid(),
+                purl.version.as_deref().unwrap(),
+                purl.version_uuid(),
+            )
+        }),
+        &ctx.db,
+    )
+    .await?;
+    assert_eq!(
+        statuses.len(),
+        3,
+        "one status group per distinct matching winner"
+    );
+    for (purl, cve, advisory) in [
+        (&old, "CVE-2021-32714", "RUSTSEC-2021-0079"),
+        (&newer, "CVE-2099-60001", "NEWER-HYPER"),
+        (&synthetic, "CVE-2021-32714", "RUSTSEC-2021-0079"),
+    ] {
+        let infos = &statuses[&purl.version_uuid()];
+        assert_eq!(infos.len(), 1);
+        assert_eq!(infos[0].vuln_id, cve);
+        assert_eq!(infos[0].status_slug, "affected");
+        assert_eq!(infos[0].advisory_id.as_deref(), Some(advisory));
+    }
+    Ok(())
+}
+
+/// Repeated statuses in a batch must not duplicate associations across bind-limit chunks.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommendation_remediation_loading_deduplicates_status_ids_across_chunks(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::{EntityTrait, Set};
+    use trustify_entity::{purl_status, remediation, remediation_purl_status};
+
+    ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let status = purl_status::Entity::find().one(&ctx.db).await?.unwrap();
+    let remediation_id = uuid::Uuid::new_v4();
+    remediation::Entity::insert(remediation::ActiveModel {
+        id: Set(remediation_id),
+        advisory_id: Set(status.advisory_id),
+        vulnerability_id: Set(status.vulnerability_id.clone()),
+        category: Set(remediation::RemediationCategory::VendorFix),
+        details: Set(Some("Upgrade".into())),
+        url: Set(None),
+        data: Set(serde_json::json!({})),
+    })
+    .exec(&ctx.db)
+    .await?;
+    remediation_purl_status::Entity::insert(remediation_purl_status::ActiveModel {
+        remediation_id: Set(remediation_id),
+        purl_status_id: Set(status.id),
+    })
+    .exec(&ctx.db)
+    .await?;
+    let repeated = vec![status; 65_536];
+    let remediations = PurlService::load_remediations(&repeated, &ctx.db).await?;
+    assert_eq!(remediations.len(), repeated.len());
+    assert!(
+        remediations
+            .iter()
+            .all(|items| items.len() == 1 && items[0].id == remediation_id)
+    );
+    Ok(())
+}
+
+/// Synthetic winners beyond a single VALUES bind budget must all retain their status.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommendation_status_batch_chunks_large_inputs(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let base = Purl::from_str("pkg:cargo/hyper")?.package_uuid();
+    let winners = (0..22_000)
+        .map(|index| {
+            let version = format!("0.14.2+{index}");
+            let id = uuid::Uuid::new_v5(&base, version.as_bytes());
+            (version, id)
+        })
+        .collect::<Vec<_>>();
+    let statuses = PurlService::fetch_vulnerability_statuses(
+        winners
+            .iter()
+            .map(|(version, id)| (base, version.as_str(), *id)),
+        &ctx.db,
+    )
+    .await?;
+    assert_eq!(statuses.len(), 22_000);
+    for (_, id) in winners {
+        let infos = &statuses[&id];
+        assert_eq!(infos.len(), 1);
+        assert_eq!(infos[0].vuln_id, "CVE-2021-32714");
+        assert_eq!(infos[0].status_slug, "affected");
+    }
+    Ok(())
+}
+
+/// Two individually safe winners must not overflow relation-query binds when batched.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommendation_status_batch_chunks_distinct_vulnerabilities(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    use sea_orm::{
+        ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, QueryFilter, Set, Statement,
+    };
+    use trustify_entity::{purl_status, status, version_range, version_scheme::VersionScheme};
+    use uuid::Uuid;
+
+    ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let template = purl_status::Entity::find()
+        .inner_join(status::Entity)
+        .filter(status::Column::Slug.eq("affected"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    let ranges = [Uuid::new_v4(), Uuid::new_v4()];
+    // The OSV fixture may have several original status rows; isolate the generated CVEs.
+    purl_status::Entity::delete_many()
+        .filter(purl_status::Column::BasePurlId.eq(template.base_purl_id))
+        .exec(&ctx.db)
+        .await?;
+    version_range::Entity::insert_many(ranges.into_iter().zip(["0.14.1", "0.14.2"]).map(
+        |(id, version)| version_range::ActiveModel {
+            id: Set(id),
+            version_scheme_id: Set(VersionScheme::Semver),
+            low_version: Set(Some(version.into())),
+            low_inclusive: Set(Some(true)),
+            high_version: Set(Some(version.into())),
+            high_inclusive: Set(Some(true)),
+        },
+    ))
+    .exec(&ctx.db)
+    .await?;
+    // Each exact version gets 32,768 disjoint CVEs, below the bind limit individually.
+    let inserted = ctx.db.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        "WITH new_vulnerabilities AS ( \
+             INSERT INTO vulnerability (id) \
+             SELECT 'CVE-2099-' || (700000 + n)::text FROM generate_series(1, 65536) AS n \
+             RETURNING id \
+         ), new_associations AS ( \
+             INSERT INTO advisory_vulnerability (advisory_id, vulnerability_id) \
+             SELECT $1, id FROM new_vulnerabilities RETURNING vulnerability_id \
+         ) \
+         INSERT INTO purl_status (advisory_id, vulnerability_id, status_id, base_purl_id, version_range_id) \
+         SELECT $1, vulnerability_id, $2, $3, \
+                CASE WHEN vulnerability_id < 'CVE-2099-732769' THEN $4 ELSE $5 END \
+         FROM new_associations",
+        [template.advisory_id.into(), template.status_id.into(), template.base_purl_id.into(), ranges[0].into(), ranges[1].into()],
+    )).await?;
+    assert_eq!(inserted.rows_affected(), 65_536);
+    let winners = ["0.14.1", "0.14.2"].map(|version| {
+        (
+            template.base_purl_id,
+            version,
+            Uuid::new_v5(&template.base_purl_id, version.as_bytes()),
+        )
+    });
+    let statuses = PurlService::fetch_vulnerability_statuses(winners, &ctx.db).await?;
+    assert_eq!(statuses.len(), 2);
+    for ((_, _, winner), (first, last)) in winners
+        .into_iter()
+        .zip([(700001, 732768), (732769, 765536)])
+    {
+        let mut cves = statuses[&winner]
+            .iter()
+            .map(|info| info.vuln_id.as_str())
+            .collect::<Vec<_>>();
+        cves.sort_unstable();
+        assert_eq!(cves.len(), 32_768);
+        assert_eq!(cves[0], format!("CVE-2099-{first}"));
+        assert_eq!(cves[cves.len() - 1], format!("CVE-2099-{last}"));
+        assert!(
+            statuses[&winner]
+                .iter()
+                .all(|info| info.status_slug == "affected"
+                    && info.advisory_id.as_deref() == Some("RUSTSEC-2021-0079"))
+        );
+    }
+    Ok(())
+}
+
 async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.graph
         .ingest_package(&Purl::from_str("pkg:maven/org.myspace/tom")?, &ctx.db)

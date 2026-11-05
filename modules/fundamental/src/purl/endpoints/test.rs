@@ -26,10 +26,7 @@ fn vendor_config() -> Config {
     }
 }
 use serde_json::{Value, json};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    str::FromStr,
-};
+use std::{collections::BTreeSet, str::FromStr};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{
@@ -363,7 +360,7 @@ async fn get_recommendations(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     )
     .await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then a single recommendation entry is returned with both CVEs
     assert_eq!(
@@ -441,7 +438,7 @@ async fn get_recommendations_multi_stream(ctx: &TrustifyContext) -> Result<(), a
     )
     .await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then each base version gets its own stream's vendor rebuild
     let rec_1 = &recommendations["recommendations"]["pkg:maven/org.example/test-lib@1.0.0"];
@@ -495,6 +492,124 @@ async fn drop_persisted_version(
     Ok(())
 }
 
+/// Conflicting sources must both survive, with their advisory identifiers.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_multi_advisory_statuses(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    for (id, status) in [("VENDOR-FIX", "fixed"), ("UPSTREAM", "known_affected")] {
+        ctx.ingest_json(minimal_csaf_vex(
+            id,
+            "Crosslib Product",
+            &[(
+                "crosslib",
+                "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+            )],
+            &[("CVE-2099-30001", status, &[0])],
+        ))
+        .await?;
+    }
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let response = recommend(&app, &["pkg:maven/com.example/crosslib@1.0.0"]).await;
+    assert_eq!(
+        response["recommendations"]["pkg:maven/com.example/crosslib@1.0.0"][0]["vulnerabilities"],
+        json!([
+            {"id": "CVE-2099-30001", "status": "Affected", "remediations": [], "advisory_id": "https://test.example.com/#UPSTREAM"},
+            {"id": "CVE-2099-30001", "status": "Fixed", "remediations": [], "advisory_id": "https://test.example.com/#VENDOR-FIX"}
+        ])
+    );
+    Ok(())
+}
+
+/// Republishing an advisory must not expose the superseded assessment.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_ignores_deprecated_revisions(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    for (date, status) in [
+        ("2024-01-15T00:00:00+00:00", "known_affected"),
+        ("2024-02-15T00:00:00+00:00", "fixed"),
+    ] {
+        ctx.ingest_json(minimal_csaf_vex_at(
+            "REV-1",
+            date,
+            "Revision Product",
+            &[("revlib", "pkg:maven/com.example/revlib@1.0.0.redhat-00001")],
+            &[("CVE-2099-40001", status, &[0])],
+        ))
+        .await?;
+    }
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let response = recommend(&app, &["pkg:maven/com.example/revlib@1.0.0"]).await;
+    assert_eq!(
+        response["recommendations"]["pkg:maven/com.example/revlib@1.0.0"][0]["vulnerabilities"],
+        json!([{"id": "CVE-2099-40001", "status": "Fixed", "remediations": [], "advisory_id": "https://test.example.com/#REV-1"}])
+    );
+    Ok(())
+}
+
+/// A deprecated exact-version fix must not seed the highest synthetic recommendation.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_excludes_deprecated_synthetic_candidates(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    for (date, version, status) in [
+        ("2024-01-15T00:00:00+00:00", "1.0.0.redhat-00002", "fixed"),
+        (
+            "2024-02-15T00:00:00+00:00",
+            "1.0.0.redhat-00001",
+            "known_affected",
+        ),
+    ] {
+        ctx.ingest_json(minimal_csaf_vex_at(
+            "STALE-CANDIDATE",
+            date,
+            "Candidate Product",
+            &[(
+                "candidate",
+                &format!("pkg:maven/com.example/candidate@{version}"),
+            )],
+            &[("CVE-2099-40002", status, &[0])],
+        ))
+        .await?;
+    }
+    drop_persisted_version(ctx, "candidate", "1.0.0.redhat-00002").await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let response = recommend(&app, &["pkg:maven/com.example/candidate@1.0.0"]).await;
+    assert_eq!(
+        response["recommendations"]["pkg:maven/com.example/candidate@1.0.0"][0]["package"],
+        "pkg:maven/com.example/candidate@1.0.0.redhat-00001"
+    );
+    Ok(())
+}
+
+/// Multiple product contexts in one advisory must yield one assessment, not duplicate rows.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_no_duplicates_for_multi_stream_vex(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("csaf/RHSA-CVE-2024-29025.json.bz2")
+        .await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let response = recommend(&app, &["pkg:maven/com.cronutils/cron-utils@9.2.1"]).await;
+    let vulnerabilities = response["recommendations"]["pkg:maven/com.cronutils/cron-utils@9.2.1"]
+        [0]["vulnerabilities"]
+        .as_array()
+        .unwrap();
+    assert_eq!(vulnerabilities.len(), 1);
+    assert_eq!(vulnerabilities[0]["id"], "CVE-2024-29025");
+    assert_eq!(vulnerabilities[0]["status"], "NotAffected");
+    assert_eq!(
+        vulnerabilities[0]["advisory_id"],
+        "https://www.redhat.com/#CVE-2024-29025"
+    );
+    assert!(
+        !vulnerabilities[0]["remediations"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    Ok(())
+}
+
 /// Moves the status of `cve` onto a new version range with the given bounds.
 async fn set_status_range(
     ctx: &TrustifyContext,
@@ -528,7 +643,7 @@ async fn recommended_statuses(
     ctx: &TrustifyContext,
     input: &str,
     expected_winner: &str,
-) -> Result<BTreeMap<String, String>, anyhow::Error> {
+) -> Result<BTreeSet<(String, String)>, anyhow::Error> {
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &[input]).await;
     let rec = &recommendations["recommendations"][input][0];
@@ -663,10 +778,11 @@ async fn setup_range_scenario(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     Ok(())
 }
 
-/// Expected statuses for [`setup_range_scenario`]: the newer range-based assessments win.
-fn expected_range_statuses() -> BTreeMap<String, String> {
+/// Exact and range-based assessments from different advisories are both retained.
+fn expected_range_statuses() -> BTreeSet<(String, String)> {
     [
         ("CVE-2099-30001".to_string(), "Affected".to_string()),
+        ("CVE-2099-30001".to_string(), "Fixed".to_string()),
         ("CVE-2099-30002".to_string(), "Affected".to_string()),
     ]
     .into()
@@ -899,8 +1015,9 @@ async fn get_recommendations_high_remediation_fanout(
                  FROM purl_status WHERE vulnerability_id = 'CVE-2099-50001' \
              ), new_remediations AS ( \
                  INSERT INTO remediation (advisory_id, vulnerability_id, category, data) \
-                 SELECT advisory_id, vulnerability_id, 'vendor_fix', '{}'::jsonb \
-                 FROM target_status CROSS JOIN generate_series(1, 65536) \
+                  SELECT advisory_id, vulnerability_id, 'vendor_fix', \
+                         jsonb_build_object('index', generated.index) \
+                  FROM target_status CROSS JOIN generate_series(1, 65536) AS generated(index) \
                  RETURNING id \
              ) \
              INSERT INTO remediation_purl_status (remediation_id, purl_status_id) \
@@ -951,7 +1068,7 @@ async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), any
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then no recommendations are returned
     assert_eq!(
@@ -965,7 +1082,7 @@ async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), any
     Ok(())
 }
 
-/// Verifies that duplicate advisories for the same CVE produce a single vulnerability entry.
+/// Distinct advisory sources for the same CVE must each be reported once.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -987,18 +1104,21 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
-    // Then the recommendation contains a single deduplicated vulnerability
+    // Then both advisory assessments survive without duplicate context rows.
     let entry =
         &recommendations["recommendations"].as_object().unwrap()["pkg:cargo/hyper@0.14.1"][0];
-    assert_eq!(entry["vulnerabilities"].as_array().unwrap().len(), 1);
-    assert_eq!(
-        entry["vulnerabilities"].as_array().unwrap()[0]["id"]
-            .as_str()
-            .unwrap(),
-        "CVE-2021-32714"
-    );
+    let vulnerabilities = entry["vulnerabilities"].as_array().unwrap();
+    assert_eq!(vulnerabilities.len(), 2);
+    assert_eq!(vulnerabilities[0]["advisory_id"], "DUPLICATE");
+    assert_eq!(vulnerabilities[1]["advisory_id"], "RUSTSEC-2021-0079");
+    for vulnerability in vulnerabilities {
+        assert_eq!(vulnerability["id"], "CVE-2021-32714");
+        assert_eq!(vulnerability["status"], "Affected");
+        // This release's OSV loader does not ingest fix remediations.
+        assert_eq!(vulnerability["remediations"], json!([]));
+    }
 
     Ok(())
 }
@@ -1046,7 +1166,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
-    log::info!("{recommendations:#?}");
+    tracing::info!("{recommendations:#?}");
 
     // Then the vulnerability status reflects the custom status
     let entry =
@@ -1149,7 +1269,7 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
     );
     assert_eq!(
         entry[0]["vulnerabilities"],
-        json!([{"id": "CVE-2022-45787", "status": "NotAffected", "remediations": []}])
+        json!([{"id": "CVE-2022-45787", "status": "NotAffected", "remediations": [], "advisory_id": "https://www.redhat.com/#CVE-2022-45787"}])
     );
     assert_eq!(
         recommendations["recommendations"]["pkg:maven/com.example/nonexistent@1.0.0"],
@@ -1463,7 +1583,7 @@ async fn recommend_report_aggregated_data(ctx: &TrustifyContext) -> Result<(), a
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom1, sbom2]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then the impact summary reflects 2 SBOMs and 1 distinct addressable package
     assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 2);
@@ -1711,7 +1831,7 @@ async fn recommend_report_filters_to_addressed_vulns(
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then the vendor patch is found (package entry exists)
     let packages = report["packages"].as_array().unwrap();
@@ -1745,6 +1865,25 @@ async fn recommend_report_filters_to_addressed_vulns(
 /// and `component_indices` indexes into the `components` slice.
 fn minimal_csaf_vex(
     tracking_id: &str,
+    product_name: &str,
+    components: &[(&str, &str)],
+    vulns: &[(&str, &str, &[usize])],
+) -> Value {
+    minimal_csaf_vex_at(
+        tracking_id,
+        MINIMAL_CSAF_RELEASE_DATE,
+        product_name,
+        components,
+        vulns,
+    )
+}
+
+const MINIMAL_CSAF_RELEASE_DATE: &str = "2024-01-15T00:00:00+00:00";
+
+/// Builds a dated revision so ingestion can deprecate the previous advisory.
+fn minimal_csaf_vex_at(
+    tracking_id: &str,
+    release_date: &str,
     product_name: &str,
     components: &[(&str, &str)],
     vulns: &[(&str, &str, &[usize])],
@@ -1806,9 +1945,9 @@ fn minimal_csaf_vex(
             },
             "title": format!("Test VEX {tracking_id}"),
             "tracking": {
-                "current_release_date": "2024-01-15T00:00:00+00:00",
+                "current_release_date": release_date,
                 "id": tracking_id,
-                "initial_release_date": "2024-01-15T00:00:00+00:00",
+                "initial_release_date": MINIMAL_CSAF_RELEASE_DATE,
                 "revision_history": [{
                     "date": "2024-01-15T00:00:00+00:00",
                     "number": "1",
@@ -1900,7 +2039,7 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then the package appears with only the fixed CVE
     let packages = report["packages"].as_array().unwrap();
@@ -1929,6 +2068,100 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
     assert_eq!(report["impact_summary"]["addressable_packages"], 1);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
 
+    Ok(())
+}
+
+/// An upstream affected assessment must not erase an older vendor fix from the report.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_vendor_fix_with_newer_upstream_affected(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    for (id, date, status) in [
+        ("REPORT-VENDOR", "2024-01-15T00:00:00+00:00", "fixed"),
+        (
+            "REPORT-ALSO-VENDOR",
+            "2024-01-15T00:00:00+00:00",
+            "known_not_affected",
+        ),
+        (
+            "REPORT-UPSTREAM",
+            "2024-02-15T00:00:00+00:00",
+            "known_affected",
+        ),
+    ] {
+        ctx.ingest_json(minimal_csaf_vex_at(
+            id,
+            date,
+            "Report Crosslib Product",
+            &[(
+                "crosslib",
+                "pkg:maven/com.example/crosslib@1.0.0.redhat-00001",
+            )],
+            &[("CVE-2099-50001", status, &[0])],
+        ))
+        .await?;
+    }
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "report-cross-source",
+            "00000000-0000-0000-0000-300000000001",
+            &[("crosslib", "1.0.0", "pkg:maven/com.example/crosslib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1);
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/com.example/crosslib@1.0.0.redhat-00001"
+    );
+    assert_eq!(packages[0]["vulnerabilities"], json!(["CVE-2099-50001"]));
+    assert_eq!(
+        packages[0]["advisory_id"],
+        "https://test.example.com/#REPORT-VENDOR"
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    Ok(())
+}
+
+/// A superseded fixed revision must not address a CVE once the current revision says affected.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_ignores_deprecated_fixed_revision(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    for (date, status) in [
+        ("2024-01-15T00:00:00+00:00", "fixed"),
+        ("2024-02-15T00:00:00+00:00", "known_affected"),
+    ] {
+        ctx.ingest_json(minimal_csaf_vex_at(
+            "REPORT-REVISION",
+            date,
+            "Report Revision Product",
+            &[("revlib", "pkg:maven/com.example/revlib@1.0.0.redhat-00001")],
+            &[("CVE-2099-50002", status, &[0])],
+        ))
+        .await?;
+    }
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "report-revision",
+            "00000000-0000-0000-0000-300000000002",
+            &[("revlib", "1.0.0", "pkg:maven/com.example/revlib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
     Ok(())
 }
 
@@ -1964,7 +2197,7 @@ async fn recommend_report_excludes_unaddressed_package(
     let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    log::info!("{report:#?}");
+    tracing::info!("{report:#?}");
 
     // Then no packages appear — none are addressable
     let packages = report["packages"].as_array().unwrap();
