@@ -5635,8 +5635,7 @@ dependencies = [
 [[package]]
 name = "osv"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ffef7407bf9c524aacc99d04433f55d656ae88ba0dd735d1fe1d1e1ba40bf0b"
+source = "git+https://github.com/dejanb/osv?rev=bf43a6edd6ef26a40060b43b214a9baeb80391f8#bf43a6edd6ef26a40060b43b214a9baeb80391f8"
 dependencies = [
  "chrono",
  "lazy-regex",
