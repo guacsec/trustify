@@ -54,17 +54,7 @@ impl<'g> OsvLoader<'g> {
 
         let issuer = issuer.or(detect_organization(&osv));
 
-        let cve_ids: Vec<String> = osv
-            .aliases
-            .iter()
-            .flat_map(|aliases| {
-                aliases
-                    .iter()
-                    .filter(|e| e.starts_with("CVE-"))
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let cve_ids = extract_vulnerability_ids(&osv);
 
         let information = AdvisoryInformation {
             id: osv.id.clone(),
@@ -100,7 +90,7 @@ impl<'g> OsvLoader<'g> {
         // Batch create all vulnerabilities
         let mut vuln_creator = VulnerabilityCreator::new();
         for cve_id in &cve_ids {
-            vuln_creator.add(cve_id, ());
+            vuln_creator.add(*cve_id, ());
         }
         vuln_creator.create(tx).await?;
 
@@ -111,7 +101,22 @@ impl<'g> OsvLoader<'g> {
 
         extract_scores(&osv, &mut score_creator);
 
-        for cve_id in extract_vulnerability_ids(&osv) {
+        // The affected entries with a package, and their PURLs. Resolved once, not per CVE, so
+        // that PURL warnings are reported once, even without any CVE.
+        let affected = osv
+            .affected
+            .iter()
+            .flatten()
+            .filter_map(|affected| {
+                let Some(package) = &affected.package else {
+                    tracing::debug!(osv = osv.id, "OSV 'affected' entry without a package");
+                    return None;
+                };
+                Some((affected, package, package_purls(package, &warnings)))
+            })
+            .collect::<Vec<_>>();
+
+        for cve_id in cve_ids {
             self.graph.ingest_vulnerability(cve_id, (), tx).await?;
 
             let advisory_vuln = advisory
@@ -130,19 +135,7 @@ impl<'g> OsvLoader<'g> {
                 )
                 .await?;
 
-            for affected in osv.affected.iter().flatten() {
-                // we only process it when we have a package
-
-                let Some(package) = &affected.package else {
-                    tracing::debug!(
-                        osv = osv.id,
-                        "OSV document did not contain an 'affected' section",
-                    );
-                    continue;
-                };
-
-                let purls = package_purls(package, &warnings);
-
+            for (affected, package, purls) in &affected {
                 for purl in purls {
                     // iterate through the known versions, apply the version, and create them
                     for version in affected.versions.iter().flatten() {
@@ -170,13 +163,13 @@ impl<'g> OsvLoader<'g> {
 
                         match version_scheme(&range.range_type, &package.ecosystem) {
                             Some(scheme) => process_status_entries(
-                                build_package_status(&advisory_vuln, &purl, range, scheme),
+                                build_package_status(&advisory_vuln, purl, range, scheme),
                                 &mut purl_status_creator,
                             ),
                             None => process_status_entries(
                                 build_package_status_versions(
                                     &advisory_vuln,
-                                    &purl,
+                                    purl,
                                     range,
                                     affected.versions.iter().flatten(),
                                 ),
