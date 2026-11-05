@@ -25,6 +25,7 @@
 | `HTTP_SERVER_TLS_CIPHERS`                | TLS 1.2 cipher list in OpenSSL format (custom profile only)                         |                                         |
 | `HTTP_SERVER_TLS_CIPHERSUITES`           | TLS 1.3 ciphersuites in OpenSSL format (custom profile only)                        |                                         |
 | `HTTP_SERVER_TLS_ENABLED`                | Enable TLS                                                                          | `false`                                 |
+| `HTTP_SERVER_TLS_GROUPS`                 | Key-exchange groups in OpenSSL format, preference order, `:` separated (all profiles) |                                       |
 | `HTTP_SERVER_TLS_KEY_FILE`               | Path to the TLS key file in PEM format                                              |                                         |
 | `HTTP_SERVER_TLS_MIN_VERSION`            | Minimum TLS version for custom profile: 1.0, 1.1, 1.2, 1.3                         |                                         |
 | `HTTP_SERVER_TLS_SECURITY_PROFILE`       | TLS security profile: old, intermediate, modern, custom                             | `modern`                                |
@@ -87,6 +88,77 @@
 | `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET`| OIDC client secret for EI service authentication                                    |                                         |
 | `EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE`| Duration an EI access token must still be valid before requesting a new one        | `30s`                                   |
 | `EXPLOIT_INTELLIGENCE_OIDC_TLS_INSECURE` | Allow insecure TLS connections with the EI OIDC issuer                              | `false`                                 |
+
+## TLS key-exchange groups
+
+`HTTP_SERVER_TLS_GROUPS` sets the key-exchange groups the HTTPS listener
+offers, most preferred first, in OpenSSL's `:`-separated syntax:
+
+```
+HTTP_SERVER_TLS_GROUPS=X25519MLKEM768:X25519:secp256r1
+```
+
+It differs from the other TLS settings in three ways worth knowing.
+
+**It applies to every profile.** `HTTP_SERVER_TLS_CIPHERS` and
+`HTTP_SERVER_TLS_CIPHERSUITES` are only read for the `custom` profile, but
+groups are independent of the cipher suites, so this is honored whatever
+`HTTP_SERVER_TLS_SECURITY_PROFILE` is set to.
+
+**It is how post-quantum key exchange is configured.** Hybrid PQC in TLS 1.3 is
+delivered through the key-exchange *group* `X25519MLKEM768` (X25519 +
+ML-KEM-768, NIST FIPS 203), not through a cipher suite — the cipher suites are
+unchanged. It requires TLS 1.3 and OpenSSL 3.5 or later. Note that
+`X25519MLKEM768` is not FIPS-approved and must be left out of the list on a
+server running in FIPS mode.
+
+**Always keep a classical group in the list unless the listener is TLS 1.3
+only.** The hybrid groups exist only in TLS 1.3. A list like
+
+```
+HTTP_SERVER_TLS_GROUPS=X25519MLKEM768
+```
+
+leaves a TLS 1.2 client that insists on ECDHE with no group in common, and its
+handshake fails with "handshake failure" — while TLS 1.3 keeps working, which
+makes it easy to miss. On the `old` and `intermediate` profiles, and on any
+`custom` profile whose minimum is below 1.3, pair the hybrid group with
+`X25519` or `secp256r1`:
+
+```
+HTTP_SERVER_TLS_GROUPS=X25519MLKEM768:X25519:secp256r1
+```
+
+Clients that support the hybrid group still get it; the classical entries are
+only reached by those that cannot. With `modern`, or any profile pinned to
+TLS 1.3, a PQC-only list is fine.
+
+**Leaving it unset is a reasonable default.** The listener then uses the system
+or OpenSSL default group list. On RHEL and Fedora — including the RHEL 10 based
+container images — that is the *system* list: `crypto-policies` sets `Groups`
+in `/etc/crypto-policies/back-ends/opensslcnf.config`, and the default policy
+already offers `X25519MLKEM768` ahead of the classical groups. So an
+unconfigured server on those images negotiates hybrid PQC and still serves
+TLS 1.2 ECDHE clients. Set this when you need the choice pinned rather than
+inherited from the host policy.
+
+A value that is set but blank (empty or whitespace only) is treated as unset
+rather than as an empty list, because an empty list is never what is meant and
+OpenSSL accepts it silently: it would start the server and then fail every
+TLS 1.3 handshake.
+
+The names are passed through to OpenSSL unchanged, so any group the local
+OpenSSL knows is accepted; the ones that appear in OpenShift's TLS profiles are
+`X25519MLKEM768`, `SecP256r1MLKEM768`, `SecP384r1MLKEM1024`, `X25519`,
+`secp256r1`, `secp384r1` and `secp521r1`. OpenSSL rejects the whole list if it
+contains a single name it does not recognise, and the server then fails to
+start rather than silently falling back to a different key exchange — so a
+typo, or a group newer than the OpenSSL in the image, is loud rather than
+quiet.
+
+Under the RHTPA operator this is normally not set by hand: enabling
+`modules.tlsConfigurator.operandTls` makes the operator derive it from the
+cluster-wide OpenShift TLS profile and publish it to the server.
 
 ## Data Migration
 
