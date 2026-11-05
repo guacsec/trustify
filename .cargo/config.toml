@@ -4,3 +4,4 @@ xtask-ai = "run --features ai --package xtask --"
 
 [env]
 CARGO_WORKSPACE_ROOT = { value = "", relative = true }
+POSTGRESQL_VERSION = { value = "=17.2.1", force = false }
