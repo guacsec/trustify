@@ -38,8 +38,10 @@ The current setup has the following problems:
    lives in a different repository from the API it consumes, so API changes and UI changes cannot be
    built, tested and released together.
 
-2. **No dedicated UI team.** The project has no UI team, and help from additional UI developers has not
-   materialised. Every UI dependency is therefore maintenance work for backend engineers.
+2. **Skills mismatch.** The current UI stack (TypeScript/React) overlaps little with the team's
+   existing Rust/backend skills. The project has no dedicated UI team, and help from additional UI
+   developers has not materialised, so UI maintenance falls to backend engineers working outside
+   their main area of expertise.
 
 3. **npm maintenance burden.** The React UI brings a large transitive npm dependency tree. Keeping it
    free of known vulnerabilities is a recurring, mostly mechanical effort. The Console's npm use is
