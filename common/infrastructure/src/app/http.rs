@@ -13,7 +13,10 @@ use actix_web::{
 use anyhow::{Context, anyhow};
 use bytesize::ByteSize;
 use clap::{Arg, ArgMatches, Args, Command, Error, FromArgMatches, value_parser};
-use openssl::ssl::{SslFiletype, SslVersion};
+use openssl::{
+    error::ErrorStack,
+    ssl::{SslFiletype, SslOptions, SslVersion},
+};
 use opentelemetry_instrumentation_actix_web::{RequestMetrics, RequestTracing, RouteFormatter};
 use std::{
     fmt::{self, Debug},
@@ -278,6 +281,17 @@ where
     )]
     pub tls_ciphersuites: Option<String>,
 
+    /// Key-exchange groups in OpenSSL format, in preference order, separated by
+    /// `:` (for example `X25519MLKEM768:X25519:secp256r1`).
+    ///
+    /// Unlike the cipher settings this applies to every profile, because the
+    /// groups are orthogonal to the cipher suites: the hybrid post-quantum key
+    /// exchange `X25519MLKEM768` is a group, not a cipher. Leaving it unset
+    /// keeps OpenSSL's own default list, which on OpenSSL 3.5 and later already
+    /// offers `X25519MLKEM768` first.
+    #[arg(id = "http-server-tls-groups", long, env = "HTTP_SERVER_TLS_GROUPS")]
+    pub tls_groups: Option<String>,
+
     /// Disable the request log
     #[arg(id = "http-disable-log", long, env = "HTTP_SERVER_DISABLE_LOG")]
     pub disable_log: bool,
@@ -380,6 +394,7 @@ where
             tls_min_version: None,
             tls_ciphers: None,
             tls_ciphersuites: None,
+            tls_groups: None,
             disable_log: false,
             cors_allowed_origins: Vec::new(),
             cors_permissive: false,
@@ -480,13 +495,41 @@ where
                 })?,
                 security_profile: value.tls_security_profile,
                 min_version: value.tls_min_version,
-                ciphers: value.tls_ciphers,
-                ciphersuites: value.tls_ciphersuites,
+                ciphers: optional_list(value.tls_ciphers),
+                ciphersuites: optional_list(value.tls_ciphersuites),
+                groups: optional_list(value.tls_groups),
             });
         }
 
         Ok(result)
     }
+}
+
+/// Normalise one of the optional OpenSSL list settings (ciphers, ciphersuites,
+/// key-exchange groups) into "configured" or "not configured".
+///
+/// An environment variable that is *set but empty* arrives here as `Some("")`,
+/// which is not the same thing as unset — and an empty list is never what the
+/// operator meant. Passed straight through to OpenSSL the three behave
+/// differently, and two of them fail quietly:
+///
+///  * `SSL_CTX_set1_groups_list("")` succeeds and installs an empty group
+///    list. The server starts, and then every TLS 1.3 handshake fails with
+///    "handshake failure" because no key-exchange group is on offer.
+///  * `SSL_CTX_set_ciphersuites("")` succeeds and disables every TLS 1.3
+///    cipher suite, with the same result on a TLS 1.3 listener.
+///  * `SSL_CTX_set_cipher_list("")` is the only one that errors, so that one
+///    at least fails loudly at startup.
+///
+/// Treating empty and whitespace-only as unset means a blank value falls back
+/// to the system or OpenSSL default, which is the sane reading of "I did not
+/// configure this". Surrounding whitespace is trimmed from real values too:
+/// OpenSSL treats spaces as list separators, so a stray leading space would
+/// otherwise be parsed as an empty element.
+fn optional_list(value: Option<String>) -> Option<String> {
+    value
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
 }
 
 pub type ConfiguratorFn =
@@ -525,17 +568,73 @@ pub struct TlsConfiguration {
     min_version: Option<TlsMinVersion>,
     ciphers: Option<String>,
     ciphersuites: Option<String>,
+    groups: Option<String>,
+}
+
+/// Cipher list for protocol versions below TLS 1.2, mirroring the cipher list
+/// of OpenShift's `Old` TLS security profile (`configv1.TLSProfiles[Old]`,
+/// itself Mozilla's "old" configuration).
+///
+/// `mozilla_intermediate_v5` configures AEAD suites only -- GCM and
+/// ChaCha20-Poly1305 -- and those are defined for TLS 1.2 and above. TLS 1.0
+/// and 1.1 can only negotiate CBC suites, so a profile that permits the older
+/// protocols but keeps the intermediate cipher list has nothing to offer a
+/// legacy client and the handshake fails on cipher negotiation.
+///
+/// The AEAD suites are kept, and first: a profile that allows TLS 1.0 still
+/// serves modern clients over TLS 1.2+, and should prefer the strong suites
+/// when it can. The CBC suites are the fallback that makes the older protocols
+/// actually usable. Keeping a SECLEVEL-acceptable suite at the head also means
+/// `set_cipher_list` still succeeds on hosts whose OpenSSL configuration
+/// filters the weak tail out entirely.
+const LEGACY_CIPHER_LIST: &str = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\
+     ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:\
+     ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:\
+     ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:\
+     ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:\
+     ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:\
+     ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:\
+     AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:\
+     AES128-SHA:AES256-SHA";
+
+/// Permit TLS 1.0 and 1.1 on a builder derived from `mozilla_intermediate_v5`.
+///
+/// Two things stand in the way, and clearing only the first is what made this
+/// subtly broken before:
+///
+///  1. The protocol vetoes. `mozilla_intermediate_v5` disables TLS 1.0 and 1.1
+///     through `SslOptions`, not only through the minimum protocol version, so
+///     lowering the minimum alone has no effect.
+///  2. The cipher list. See [`LEGACY_CIPHER_LIST`] -- the inherited list is
+///     AEAD-only and cannot be negotiated below TLS 1.2.
+///
+/// An explicit cipher list from the caller takes precedence and is applied
+/// afterwards, so this only supplies the default.
+///
+/// Note that the host's OpenSSL configuration can still refuse: a
+/// `TLS.MinProtocol` setting or a security level of 2 or above (the default
+/// under RHEL's and Fedora's crypto-policies) prohibits TLS below 1.2
+/// regardless of what the application asks for. That is deliberately left
+/// alone -- overriding a system-wide cryptographic policy is the
+/// administrator's decision, not this server's.
+fn allow_legacy_protocols(
+    builder: &mut openssl::ssl::SslAcceptorBuilder,
+) -> Result<(), ErrorStack> {
+    builder.clear_options(SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1);
+    builder.set_cipher_list(LEGACY_CIPHER_LIST)
 }
 
 /// Build an SSL acceptor configured according to the given TLS profile.
 fn build_ssl_acceptor(tls: &TlsConfiguration) -> anyhow::Result<openssl::ssl::SslAcceptorBuilder> {
-    let acceptor = match tls.security_profile {
+    let mut acceptor = match tls.security_profile {
         TlsSecurityProfile::Old => {
             let mut builder = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls_server())
                 .context("creating Old TLS profile acceptor")?;
             builder
                 .set_min_proto_version(None)
                 .context("clearing min TLS version for Old profile")?;
+            allow_legacy_protocols(&mut builder)
+                .context("configuring legacy protocols for Old profile")?;
             builder
         }
         TlsSecurityProfile::Intermediate => {
@@ -548,6 +647,12 @@ fn build_ssl_acceptor(tls: &TlsConfiguration) -> anyhow::Result<openssl::ssl::Ss
             let mut builder = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls_server())
                 .context("creating Custom TLS profile acceptor")?;
             if let Some(min_version) = tls.min_version {
+                if matches!(min_version, TlsMinVersion::Tls1_0 | TlsMinVersion::Tls1_1) {
+                    // Supplies the legacy cipher default; an explicit
+                    // tls.ciphers below overrides it.
+                    allow_legacy_protocols(&mut builder)
+                        .context("configuring legacy protocols for Custom profile")?;
+                }
                 builder
                     .set_min_proto_version(Some(min_version.to_ssl_version()))
                     .context("setting custom min TLS version")?;
@@ -565,6 +670,18 @@ fn build_ssl_acceptor(tls: &TlsConfiguration) -> anyhow::Result<openssl::ssl::Ss
             builder
         }
     };
+
+    // Applied to every profile: the key-exchange groups are independent of the
+    // cipher suites, and the hybrid post-quantum exchange is selected here
+    // rather than through a cipher. An unknown group name makes OpenSSL reject
+    // the whole list, so this fails loudly instead of silently serving a
+    // different key exchange than the one that was asked for.
+    if let Some(ref groups) = tls.groups {
+        acceptor
+            .set_groups_list(groups)
+            .with_context(|| format!("setting TLS key-exchange groups ({groups})"))?;
+    }
+
     Ok(acceptor)
 }
 
@@ -1021,5 +1138,453 @@ mod test {
             ..Default::default()
         };
         HttpServerBuilder::try_from(config).unwrap();
+    }
+
+    fn tls_config(profile: TlsSecurityProfile) -> TlsConfiguration {
+        TlsConfiguration {
+            certificate: PathBuf::from("/tmp/cert.pem"),
+            key: PathBuf::from("/tmp/key.pem"),
+            security_profile: profile,
+            min_version: None,
+            ciphers: None,
+            ciphersuites: None,
+            groups: None,
+        }
+    }
+
+    /// The `Old` profile is built from Mozilla's *intermediate* configuration,
+    /// which vetoes TLS 1.0 and 1.1 through `SslOptions` as well as through the
+    /// minimum protocol version. Clearing the minimum version alone leaves
+    /// those options in place, so the profile would reject exactly the legacy
+    /// clients it exists to serve.
+    #[test]
+    fn old_profile_really_allows_legacy_protocols() {
+        let mut acceptor = build_ssl_acceptor(&tls_config(TlsSecurityProfile::Old)).unwrap();
+
+        assert_eq!(
+            acceptor.min_proto_version(),
+            None,
+            "the Old profile must not pin a minimum protocol version"
+        );
+        let options = acceptor.options();
+        assert!(
+            !options.contains(SslOptions::NO_TLSV1) && !options.contains(SslOptions::NO_TLSV1_1),
+            "the Old profile still vetoes TLS 1.0/1.1 through SslOptions: {options:?}"
+        );
+    }
+
+    /// The same trap, reached the other way: a Custom profile that explicitly
+    /// asks for a minimum of TLS 1.0.
+    #[test]
+    fn custom_profile_honors_a_legacy_min_version() {
+        let mut tls = tls_config(TlsSecurityProfile::Custom);
+        tls.min_version = Some(TlsMinVersion::Tls1_0);
+
+        let mut acceptor = build_ssl_acceptor(&tls).unwrap();
+
+        assert_eq!(acceptor.min_proto_version(), Some(SslVersion::TLS1));
+        let options = acceptor.options();
+        assert!(
+            !options.contains(SslOptions::NO_TLSV1) && !options.contains(SslOptions::NO_TLSV1_1),
+            "a minimum of TLS 1.0 is vetoed by SslOptions: {options:?}"
+        );
+    }
+
+    /// A Custom profile that stays at TLS 1.2 must keep the veto: clearing it
+    /// unconditionally would quietly re-enable TLS 1.0 for everyone.
+    #[test]
+    fn custom_profile_keeps_the_veto_above_tls_1_1() {
+        let mut tls = tls_config(TlsSecurityProfile::Custom);
+        tls.min_version = Some(TlsMinVersion::Tls1_2);
+
+        let acceptor = build_ssl_acceptor(&tls).unwrap();
+
+        let options = acceptor.options();
+        assert!(
+            options.contains(SslOptions::NO_TLSV1) && options.contains(SslOptions::NO_TLSV1_1),
+            "TLS 1.0/1.1 must stay disabled for a TLS 1.2 minimum: {options:?}"
+        );
+    }
+
+    /// Key-exchange groups apply to every profile, not just Custom: they are
+    /// orthogonal to the cipher suites, and the cluster TLS profile can name
+    /// them independently of everything else.
+    #[test]
+    fn groups_apply_to_every_profile() {
+        for profile in [
+            TlsSecurityProfile::Old,
+            TlsSecurityProfile::Intermediate,
+            TlsSecurityProfile::Modern,
+            TlsSecurityProfile::Custom,
+        ] {
+            let mut tls = tls_config(profile);
+            tls.groups = Some("X25519:secp256r1".to_string());
+            build_ssl_acceptor(&tls)
+                .unwrap_or_else(|e| panic!("groups rejected for {profile} profile: {e}"));
+        }
+    }
+
+    /// An unknown group name must fail loudly. OpenSSL rejects the whole list
+    /// when one entry is unknown, so accepting the error here is what stops the
+    /// server from silently negotiating a different key exchange than the one
+    /// it was configured with.
+    #[test]
+    fn unknown_group_is_rejected() {
+        let mut tls = tls_config(TlsSecurityProfile::Modern);
+        tls.groups = Some("X25519:NotARealGroup".to_string());
+
+        let err = match build_ssl_acceptor(&tls) {
+            Err(e) => e,
+            Ok(_) => panic!("an unknown group must be rejected"),
+        };
+        assert!(
+            err.to_string().contains("NotARealGroup"),
+            "the error should name the group list, got: {err}"
+        );
+    }
+
+    /// The hybrid post-quantum group is what PQC in TLS 1.3 actually is -- a
+    /// key-exchange group, not a cipher suite. It needs OpenSSL 3.5 or later,
+    /// which is what the RHEL 10 based images ship; older build hosts skip.
+    #[test]
+    fn pqc_group_is_accepted() {
+        const OPENSSL_3_5_0: i64 = 0x3050_0000;
+        if openssl::version::number() < OPENSSL_3_5_0 {
+            eprintln!(
+                "skipping: X25519MLKEM768 needs OpenSSL >= 3.5, found {}",
+                openssl::version::version()
+            );
+            return;
+        }
+
+        let mut tls = tls_config(TlsSecurityProfile::Modern);
+        tls.groups = Some("X25519MLKEM768:X25519".to_string());
+        build_ssl_acceptor(&tls).expect("X25519MLKEM768 should be accepted on OpenSSL >= 3.5");
+    }
+
+    /// No groups configured means OpenSSL's own default list, which is what
+    /// every deployment that does not opt in keeps getting.
+    #[test]
+    fn no_groups_configured_is_accepted() {
+        build_ssl_acceptor(&tls_config(TlsSecurityProfile::Modern)).unwrap();
+    }
+
+    /// A self-signed certificate, so the handshake tests have something to
+    /// serve. Verification is disabled on the client side, so the contents
+    /// beyond the key do not matter.
+    fn self_signed() -> (
+        openssl::x509::X509,
+        openssl::pkey::PKey<openssl::pkey::Private>,
+    ) {
+        let rsa = openssl::rsa::Rsa::generate(2048).unwrap();
+        let key = openssl::pkey::PKey::from_rsa(rsa).unwrap();
+
+        let mut name = openssl::x509::X509NameBuilder::new().unwrap();
+        name.append_entry_by_text("CN", "localhost").unwrap();
+        let name = name.build();
+
+        let mut cert = openssl::x509::X509::builder().unwrap();
+        cert.set_version(2).unwrap();
+        cert.set_subject_name(&name).unwrap();
+        cert.set_issuer_name(&name).unwrap();
+        cert.set_pubkey(&key).unwrap();
+        cert.set_not_before(&openssl::asn1::Asn1Time::days_from_now(0).unwrap())
+            .unwrap();
+        cert.set_not_after(&openssl::asn1::Asn1Time::days_from_now(1).unwrap())
+            .unwrap();
+        cert.sign(&key, openssl::hash::MessageDigest::sha256())
+            .unwrap();
+
+        (cert.build(), key)
+    }
+
+    /// Run one real handshake against an acceptor built from `tls`, with a
+    /// client pinned to `client_max`, and report the negotiated protocol
+    /// version.
+    ///
+    /// Both ends have their security level lowered to 0. That is a *test*
+    /// measure, not something the server does: the host's OpenSSL
+    /// configuration (RHEL and Fedora crypto-policies set `@SECLEVEL=2` and
+    /// `TLS.MinProtocol = TLSv1.2`) otherwise rejects TLS 1.0 on version
+    /// grounds before a cipher is ever chosen, which would mask exactly the
+    /// cipher-negotiation behaviour these tests exist to pin.
+    fn handshake(tls: &TlsConfiguration, client_max: SslVersion) -> Result<String, String> {
+        handshake_with(tls, client_max, "ALL:@SECLEVEL=0")
+    }
+
+    fn handshake_with(
+        tls: &TlsConfiguration,
+        client_max: SslVersion,
+        client_ciphers: &str,
+    ) -> Result<String, String> {
+        use openssl::ssl::{Ssl, SslConnector, SslVerifyMode};
+        use std::io::{Read, Write};
+
+        let (cert, key) = self_signed();
+        let mut builder = build_ssl_acceptor(tls).map_err(|e| format!("build: {e}"))?;
+        builder.set_security_level(0);
+        builder.set_certificate(&cert).unwrap();
+        builder.set_private_key(&key).unwrap();
+        let acceptor = builder.build();
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || match listener.accept() {
+            Ok((sock, _)) => match acceptor.accept(sock) {
+                Ok(mut stream) => {
+                    let version = stream.ssl().version_str().to_string();
+                    let _ = stream.write_all(b"ok");
+                    Ok(version)
+                }
+                Err(e) => Err(format!("server: {e}")),
+            },
+            Err(e) => Err(format!("accept: {e}")),
+        });
+
+        let mut connector = SslConnector::builder(SslMethod::tls_client()).unwrap();
+        connector.set_security_level(0);
+        connector.set_verify(SslVerifyMode::NONE);
+        connector
+            .set_min_proto_version(Some(SslVersion::TLS1))
+            .unwrap();
+        connector.set_max_proto_version(Some(client_max)).unwrap();
+        connector.set_cipher_list(client_ciphers).unwrap();
+        let context = connector.build().into_context();
+
+        let sock = std::net::TcpStream::connect(addr).unwrap();
+        let mut ssl = Ssl::new(&context).unwrap();
+        ssl.set_verify(SslVerifyMode::NONE);
+        let client = match openssl::ssl::SslStream::new(ssl, sock) {
+            Ok(mut stream) => match std::io::Write::flush(&mut stream).and_then(|()| {
+                openssl::ssl::SslStream::connect(&mut stream)
+                    .map_err(std::io::Error::other)
+                    .map(|()| stream)
+            }) {
+                Ok(mut stream) => {
+                    let mut buf = [0u8; 2];
+                    let _ = stream.read(&mut buf);
+                    Ok(())
+                }
+                Err(e) => Err(format!("client: {e}")),
+            },
+            Err(e) => Err(format!("client setup: {e}")),
+        };
+
+        let served = server.join().unwrap();
+        client.and(served)
+    }
+
+    /// Cipher list for a legacy client in these tests.
+    ///
+    /// RSA key transport, deliberately: below TLS 1.2 an ECDHE suite signs its
+    /// ServerKeyExchange with MD5+SHA1, and OpenSSL under RHEL's and Fedora's
+    /// crypto-policies refuses to produce a SHA1 signature at all ("invalid
+    /// digest"), at any security level. RSA key transport needs no such
+    /// signature, so it is the part of the legacy cipher list that can
+    /// actually be exercised here. A deployment that genuinely needs ECDHE
+    /// over TLS 1.0 needs a host crypto policy that permits SHA1 signatures --
+    /// nothing the server can configure.
+    const LEGACY_CLIENT_CIPHERS: &str = "AES128-SHA:AES256-SHA";
+
+    /// The regression this exists for: the `Old` profile permitted TLS 1.0 and
+    /// 1.1 at the protocol level but inherited `mozilla_intermediate_v5`'s
+    /// AEAD-only cipher list. AEAD suites are TLS 1.2 and above, so a legacy
+    /// client got all the way to cipher negotiation and then failed with
+    /// "handshake failure" -- the profile was old in name only.
+    #[test]
+    fn old_profile_completes_a_legacy_handshake() {
+        let tls = tls_config(TlsSecurityProfile::Old);
+
+        for (version, client_max) in [("TLSv1", SslVersion::TLS1), ("TLSv1.1", SslVersion::TLS1_1)]
+        {
+            match handshake_with(&tls, client_max, LEGACY_CLIENT_CIPHERS) {
+                Ok(negotiated) => assert_eq!(
+                    negotiated, version,
+                    "the Old profile should negotiate {version}"
+                ),
+                Err(e) => panic!("the Old profile could not serve a {version} client: {e}"),
+            }
+        }
+    }
+
+    /// Permitting the old protocols must not cost the modern ones: the AEAD
+    /// suites stay at the head of the list, so a current client still gets
+    /// TLS 1.3.
+    #[test]
+    fn old_profile_still_serves_modern_clients() {
+        let negotiated = handshake(&tls_config(TlsSecurityProfile::Old), SslVersion::TLS1_3)
+            .expect("the Old profile should still serve a modern client");
+        assert_eq!(negotiated, "TLSv1.3");
+    }
+
+    /// The same trap by the other route: a Custom profile asking for a TLS 1.0
+    /// minimum without naming its own ciphers.
+    #[test]
+    fn custom_profile_with_legacy_min_completes_a_handshake() {
+        let mut tls = tls_config(TlsSecurityProfile::Custom);
+        tls.min_version = Some(TlsMinVersion::Tls1_0);
+
+        let negotiated = handshake_with(&tls, SslVersion::TLS1, LEGACY_CLIENT_CIPHERS)
+            .expect("a Custom profile with a TLS 1.0 minimum should serve a TLS 1.0 client");
+        assert_eq!(negotiated, "TLSv1");
+    }
+
+    /// An explicit cipher list still wins: the legacy default is only a
+    /// default. Here the caller names AEAD-only suites alongside a TLS 1.0
+    /// minimum, so TLS 1.0 becomes unnegotiable again -- their choice, and the
+    /// server must honor it rather than quietly widening the list.
+    #[test]
+    fn explicit_ciphers_override_the_legacy_default() {
+        let mut tls = tls_config(TlsSecurityProfile::Custom);
+        tls.min_version = Some(TlsMinVersion::Tls1_0);
+        tls.ciphers = Some("ECDHE-RSA-AES128-GCM-SHA256".to_string());
+
+        let err = handshake_with(&tls, SslVersion::TLS1, LEGACY_CLIENT_CIPHERS)
+            .expect_err("an AEAD-only cipher list cannot negotiate TLS 1.0");
+        assert!(
+            err.contains("handshake failure") || err.contains("no shared cipher"),
+            "want a cipher negotiation failure, got: {err}"
+        );
+    }
+
+    /// A profile that does not ask for the old protocols keeps the inherited
+    /// AEAD cipher list, so the legacy default cannot leak into Intermediate
+    /// or Modern.
+    #[test]
+    fn modern_profile_rejects_a_legacy_client() {
+        let err = handshake(&tls_config(TlsSecurityProfile::Modern), SslVersion::TLS1)
+            .expect_err("the Modern profile must not serve a TLS 1.0 client");
+        assert!(
+            err.contains("protocol version") || err.contains("handshake failure"),
+            "want a version or cipher rejection, got: {err}"
+        );
+    }
+
+    /// Unit-level view of the normaliser, including the values that only a
+    /// shell or a ConfigMap produces.
+    #[test]
+    fn optional_list_treats_blank_as_unset() {
+        assert_eq!(optional_list(None), None);
+        assert_eq!(optional_list(Some(String::new())), None);
+        assert_eq!(optional_list(Some("   ".to_string())), None);
+        assert_eq!(optional_list(Some("\t\n ".to_string())), None);
+        // Real values survive, with surrounding whitespace trimmed: OpenSSL
+        // treats a space as a list separator, so a stray one would be read as
+        // an empty element.
+        assert_eq!(
+            optional_list(Some("  X25519MLKEM768:X25519 ".to_string())),
+            Some("X25519MLKEM768:X25519".to_string())
+        );
+    }
+
+    /// `HTTP_SERVER_TLS_GROUPS=` (set, but empty) must not reach OpenSSL.
+    ///
+    /// This is the quiet one: `set_groups_list("")` *succeeds*, so the server
+    /// starts normally and then fails every TLS 1.3 handshake because it
+    /// offers no key-exchange group. A startup error would have been kinder.
+    #[test]
+    fn empty_groups_fall_back_to_the_default() {
+        let mut tls = tls_config(TlsSecurityProfile::Modern);
+        tls.groups = optional_list(Some(String::new()));
+        assert_eq!(tls.groups, None, "an empty group list must read as unset");
+
+        let negotiated = handshake(&tls, SslVersion::TLS1_3)
+            .expect("an empty group list must not break TLS 1.3");
+        assert_eq!(negotiated, "TLSv1.3");
+    }
+
+    /// The same for a whitespace-only value, which is what a YAML
+    /// `HTTP_SERVER_TLS_GROUPS: " "` produces.
+    #[test]
+    fn whitespace_only_groups_fall_back_to_the_default() {
+        let mut tls = tls_config(TlsSecurityProfile::Modern);
+        tls.groups = optional_list(Some("   ".to_string()));
+        assert_eq!(tls.groups, None);
+
+        let negotiated = handshake(&tls, SslVersion::TLS1_3)
+            .expect("a whitespace-only group list must not break TLS 1.3");
+        assert_eq!(negotiated, "TLSv1.3");
+    }
+
+    /// The other quiet one: an empty ciphersuite list is accepted by OpenSSL
+    /// and disables every TLS 1.3 suite.
+    #[test]
+    fn empty_ciphersuites_fall_back_to_the_default() {
+        let mut tls = tls_config(TlsSecurityProfile::Modern);
+        tls.ciphersuites = optional_list(Some(String::new()));
+        assert_eq!(tls.ciphersuites, None);
+
+        let negotiated = handshake(&tls, SslVersion::TLS1_3)
+            .expect("an empty ciphersuite list must not disable TLS 1.3");
+        assert_eq!(negotiated, "TLSv1.3");
+    }
+
+    /// An empty cipher list is the one OpenSSL rejects outright, so before
+    /// normalisation this took the server down at startup.
+    #[test]
+    fn empty_ciphers_fall_back_to_the_default() {
+        let mut tls = tls_config(TlsSecurityProfile::Custom);
+        tls.min_version = Some(TlsMinVersion::Tls1_2);
+        tls.ciphers = optional_list(Some("  ".to_string()));
+        assert_eq!(tls.ciphers, None);
+
+        build_ssl_acceptor(&tls).expect("an empty cipher list must not fail the build");
+    }
+
+    /// End to end through the config conversion, which is where the
+    /// normalisation actually happens for a deployed server.
+    #[test]
+    fn blank_tls_list_env_vars_are_ignored() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            tls_enabled: true,
+            tls_key_file: Some(PathBuf::from("/tmp/key.pem")),
+            tls_certificate_file: Some(PathBuf::from("/tmp/cert.pem")),
+            tls_security_profile: TlsSecurityProfile::Custom,
+            tls_min_version: Some(TlsMinVersion::Tls1_2),
+            tls_ciphers: Some(String::new()),
+            tls_ciphersuites: Some("  ".to_string()),
+            tls_groups: Some(String::new()),
+            ..Default::default()
+        };
+
+        let builder = HttpServerBuilder::try_from(config).expect("blank values must not be fatal");
+        let tls = builder.tls.expect("TLS should be configured");
+        assert_eq!(tls.ciphers, None);
+        assert_eq!(tls.ciphersuites, None);
+        assert_eq!(tls.groups, None);
+    }
+
+    /// A PQC-only group list cannot serve a TLS 1.2 client that insists on
+    /// ECDHE: the hybrid group is TLS 1.3 only, so the two have nothing in
+    /// common. This is why the documentation tells operators to keep a
+    /// classical group in the list unless the profile is TLS 1.3 only.
+    #[test]
+    fn pqc_only_groups_lock_out_tls12_ecdhe_clients() {
+        const ECDHE_ONLY: &str = "ECDHE-RSA-AES128-GCM-SHA256";
+
+        let mut tls = tls_config(TlsSecurityProfile::Intermediate);
+        tls.groups = Some("X25519MLKEM768".to_string());
+        let err = handshake_with(&tls, SslVersion::TLS1_2, ECDHE_ONLY)
+            .expect_err("a PQC-only group list has nothing to offer TLS 1.2 ECDHE");
+        assert!(
+            err.contains("handshake failure"),
+            "want a group negotiation failure, got: {err}"
+        );
+
+        // TLS 1.3 is unaffected, which is what makes this easy to miss.
+        let mut tls13 = tls_config(TlsSecurityProfile::Intermediate);
+        tls13.groups = Some("X25519MLKEM768".to_string());
+        assert_eq!(
+            handshake_with(&tls13, SslVersion::TLS1_3, ECDHE_ONLY).unwrap(),
+            "TLSv1.3"
+        );
+
+        // Adding a classical group restores TLS 1.2 without losing PQC above.
+        let mut both = tls_config(TlsSecurityProfile::Intermediate);
+        both.groups = Some("X25519MLKEM768:X25519".to_string());
+        assert_eq!(
+            handshake_with(&both, SslVersion::TLS1_2, ECDHE_ONLY).unwrap(),
+            "TLSv1.2"
+        );
     }
 }
