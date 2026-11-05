@@ -63,7 +63,9 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ci
+          shared-key: check
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
 
       - name: Cache Theseus Postgresql Installation
         uses: actions/cache@v6
@@ -100,7 +102,9 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ci
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -209,7 +213,8 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ui-e2e
+          shared-key: check
+          save-if: false
       - uses: ./.github/actions/setup-console
       - name: Install host dependencies
         run: |
@@ -278,6 +283,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: container
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
 
       - uses: ./.github/actions/setup-console
 
