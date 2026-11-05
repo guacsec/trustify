@@ -65,9 +65,10 @@ library the project does not control or spending UI resources it does not have.
 Web components offer another way. They are a browser standard supported by all major browsers
 (including Declarative Shadow DOM), they are used by large design systems, and Red Hat publishes the
 PatternFly design system as web components: [PatternFly Elements](https://patternflyelements.org)
-(PFE). A web component is used like any HTML element (for example
-`<pf-v6-button variant="primary">`) and does not depend on a UI framework, so it can be used from
-Rust/Wasm with a small amount of `web-sys` glue.
+(PFE). Web components provide a standardized, framework-independent layer for consistent UX. They
+are used like HTML elements (for example `<pf-v6-button variant="primary">`), which should keep the
+additional learning curve lower than adopting and maintaining a Rust-specific PatternFly component
+library. They can be used from Rust/Wasm with a small amount of `web-sys` glue.
 
 This ADR concerns only the choice of the component layer for a Rust UI. It does not decide the fate of
 either existing UI. The status of the Console is described under Consequences.
