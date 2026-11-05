@@ -6,7 +6,7 @@ use crate::{
         QueryMatch, QueryResult, QueryVerdict, RangeBound, SbomVerdictCounts, ScoreRef,
         ScoreSeverity, VerdictStatus, combine,
     },
-    service::CorrelationService,
+    service::{CorrelationService, ReportQueryCache, resolution::ProviderSnapshot},
 };
 use rstest::rstest;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
@@ -110,6 +110,58 @@ async fn query_identifier_preserves_weighted_context(
             &tx,
         )
         .await?;
+
+    // The report's request-local metadata reuse must preserve the full weighted response.
+    let mut cache = ReportQueryCache::new(ProviderSnapshot::load(&tx, &[], &[]).await?);
+    let cached = CorrelationService::default()
+        .query_identifier_with_node_context_cached(
+            IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: "pkg:generic/weighted-context@1.0.0".into(),
+            },
+            &ResolutionRequest::default(),
+            &contexts,
+            &mut cache,
+            &tx,
+        )
+        .await?;
+    assert_eq!(
+        serde_json::to_value(&cached)?,
+        serde_json::to_value(&result)?
+    );
+
+    // Reusing metadata cannot reuse a verdict across components with different weighted context.
+    let mut changed = contexts.clone();
+    changed[0].source = affected_source;
+    changed[0].distance = affected_distance;
+    changed[1].source = fixed_source;
+    changed[1].distance = fixed_distance;
+    let changed_identifier = IdentifierRef {
+        kind: IdentifierKind::Purl,
+        value: "pkg:generic/weighted-context@1.0.0".into(),
+    };
+    let uncached_changed = CorrelationService::default()
+        .query_identifier_with_node_context(
+            changed_identifier.clone(),
+            &ResolutionRequest::default(),
+            &changed,
+            &tx,
+        )
+        .await?;
+    let cached_changed = CorrelationService::default()
+        .query_identifier_with_node_context_cached(
+            changed_identifier,
+            &ResolutionRequest::default(),
+            &changed,
+            &mut cache,
+            &tx,
+        )
+        .await?;
+    assert_ne!(cached_changed.verdicts[0].status, expected_status);
+    assert_eq!(
+        serde_json::to_value(cached_changed)?,
+        serde_json::to_value(uncached_changed)?
+    );
 
     // Then confidence, verdict and winning advisory reflect source and distance, not status alone.
     assert_eq!(result.verdicts.len(), 1);

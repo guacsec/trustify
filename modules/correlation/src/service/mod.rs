@@ -9,6 +9,7 @@ use crate::{
         IdentifierKind, IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict,
         ResolutionRequest, SbomVerdictCounts, ScoreRef, VerdictSummary, VulnerabilityRef,
     },
+    service::resolution::ProviderSnapshot,
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, QueryFilter,
@@ -39,6 +40,46 @@ mod test;
 #[derive(Default)]
 pub struct CorrelationService {
     extractors: Extractors,
+}
+
+/// Advisory metadata shared by the winners of one recommendation report.
+///
+/// Matches and verdicts are never cached. Drop this value at the end of the report so another
+/// request reloads provider aliases and advisory metadata from its own transaction.
+pub struct ReportQueryCache {
+    providers: ProviderSnapshot,
+    advisory_names: HashMap<Uuid, AdvisoryName>,
+    loaded_advisories: HashSet<Uuid>,
+}
+
+impl ReportQueryCache {
+    /// Reuse the provider snapshot already loaded to identify the report's component suppliers.
+    pub fn new(providers: ProviderSnapshot) -> Self {
+        Self {
+            providers,
+            advisory_names: HashMap::new(),
+            loaded_advisories: HashSet::new(),
+        }
+    }
+
+    async fn load(
+        &mut self,
+        advisory_ids: &[Uuid],
+        connection: &DatabaseTransaction,
+    ) -> Result<(), Error> {
+        let missing = advisory_ids
+            .iter()
+            .filter(|id| !self.loaded_advisories.contains(*id))
+            .copied()
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            let names = load_advisory_names(&missing, connection).await?;
+            self.providers.load_advisories(connection, &missing).await?;
+            self.advisory_names.extend(names);
+            self.loaded_advisories.extend(missing);
+        }
+        Ok(())
+    }
 }
 
 impl CorrelationService {
@@ -321,7 +362,7 @@ impl CorrelationService {
         request: &ResolutionRequest,
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
-        self.query_identifier_in_context(identifier, request, None, connection)
+        self.query_identifier_in_context(identifier, request, None, None, connection)
             .await
     }
 
@@ -336,13 +377,27 @@ impl CorrelationService {
         node_cpes: &[NodeCpe],
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
-        if !request.product_context.is_empty() {
-            return Err(Error::BadRequest(
-                "Weighted node context cannot be combined with ad-hoc product context".into(),
-            ));
-        }
-        self.query_identifier_in_context(identifier, request, Some(node_cpes), connection)
+        self.query_identifier_in_context(identifier, request, Some(node_cpes), None, connection)
             .await
+    }
+
+    /// Resolve a report winner with weighted node context and request-scoped advisory metadata.
+    pub async fn query_identifier_with_node_context_cached(
+        &self,
+        identifier: IdentifierRef,
+        request: &ResolutionRequest,
+        node_cpes: &[NodeCpe],
+        cache: &mut ReportQueryCache,
+        connection: &DatabaseTransaction,
+    ) -> Result<QueryResult, Error> {
+        self.query_identifier_in_context(
+            identifier,
+            request,
+            Some(node_cpes),
+            Some(cache),
+            connection,
+        )
+        .await
     }
 
     /// Shares provider resolution and verdict assembly between ad-hoc and weighted-node queries.
@@ -351,8 +406,14 @@ impl CorrelationService {
         identifier: IdentifierRef,
         request: &ResolutionRequest,
         node_cpes: Option<&[NodeCpe]>,
+        cache: Option<&mut ReportQueryCache>,
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
+        if node_cpes.is_some() && !request.product_context.is_empty() {
+            return Err(Error::BadRequest(
+                "Weighted node context cannot be combined with ad-hoc product context".into(),
+            ));
+        }
         if request.node_id.is_some() {
             return Err(Error::BadRequest(
                 "Node selection requires an SBOM target".into(),
@@ -386,8 +447,16 @@ impl CorrelationService {
             .into_iter()
             .collect::<Vec<_>>();
 
-        let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
-        let snapshot = resolution::ProviderSnapshot::load(connection, &[], &advisory_ids).await?;
+        let fresh_names;
+        let fresh_snapshot;
+        let (advisory_map, snapshot) = if let Some(cache) = cache {
+            cache.load(&advisory_ids, connection).await?;
+            (&cache.advisory_names, &cache.providers)
+        } else {
+            fresh_names = load_advisory_names(&advisory_ids, connection).await?;
+            fresh_snapshot = ProviderSnapshot::load(connection, &[], &advisory_ids).await?;
+            (&fresh_names, &fresh_snapshot)
+        };
         let context = snapshot.context(request)?;
         let mut provider_identifiers = vec![identifier.clone()];
         provider_identifiers.extend(request.product_context.clone());
@@ -413,7 +482,7 @@ impl CorrelationService {
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
         let mut groups = BTreeMap::<&str, Vec<(AssertionStatus, QueryMatch)>>::new();
         for assertion in &matches {
-            let advisory = AdvisoryName::of(&advisory_map, assertion.advisory_id);
+            let advisory = AdvisoryName::of(advisory_map, assertion.advisory_id);
 
             groups
                 .entry(assertion.vulnerability_id.as_str())

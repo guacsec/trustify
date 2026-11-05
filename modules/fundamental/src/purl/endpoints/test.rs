@@ -1755,6 +1755,114 @@ fn contextual_cdx(name: &str, serial: &str, purl: &str, supplier: &str, cpe: &st
     })
 }
 
+/// Repeated report winners share advisory metadata only within one request; new requests reload it.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_reuses_advisory_metadata_per_request(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    // Given three winners: two share one advisory, while the third introduces another advisory.
+    ctx.ingest_json(minimal_csaf_vex(
+        "REPORT-LOOKUP-A",
+        "Lookup Product A",
+        &[
+            (
+                "lookup-a",
+                "pkg:maven/com.example/lookup-a@1.0.0.redhat-00001",
+            ),
+            (
+                "lookup-b",
+                "pkg:maven/com.example/lookup-b@1.0.0.redhat-00001",
+            ),
+        ],
+        &[("CVE-2099-95001", "fixed", &[0, 1])],
+    ))
+    .await?;
+    ctx.ingest_json(minimal_csaf_vex(
+        "REPORT-LOOKUP-B",
+        "Lookup Product B",
+        &[(
+            "lookup-c",
+            "pkg:maven/com.example/lookup-c@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-95002", "fixed", &[0])],
+    ))
+    .await?;
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "report-lookup-reuse",
+            "00000000-0000-0000-0000-950000000001",
+            &[
+                ("lookup-a", "1.0.0", "pkg:maven/com.example/lookup-a@1.0.0"),
+                ("lookup-b", "1.0.0", "pkg:maven/com.example/lookup-b@1.0.0"),
+                ("lookup-c", "1.0.0", "pkg:maven/com.example/lookup-c@1.0.0"),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(spans.clone()));
+
+    // When two requests use the same app, with an advisory metadata update between them.
+    let (first, second) = async {
+        let first = recommend_report_req(&app, &[sbom_id]).await;
+        let updated = ctx.db.execute_unprepared(
+            "UPDATE advisory SET identifier = 'https://test.example.com/#REPORT-LOOKUP-A-RENAMED' \
+             WHERE identifier = 'https://test.example.com/#REPORT-LOOKUP-A'",
+        ).await?;
+        assert_eq!(updated.rows_affected(), 1);
+        let second = recommend_report_req(&app, &[sbom_id]).await;
+        Ok::<_, anyhow::Error>((first, second))
+    }
+    .with_subscriber(subscriber)
+    .await?;
+
+    // Then each package keeps its own CVE/source, and the second request sees fresh metadata.
+    for (report, shared_source) in [
+        (&first, "https://test.example.com/#REPORT-LOOKUP-A"),
+        (&second, "https://test.example.com/#REPORT-LOOKUP-A-RENAMED"),
+    ] {
+        assert_eq!(report["impact_summary"]["addressable_packages"], 3);
+        assert_eq!(report["sboms"][0]["vulnerability_count"], 2);
+        let packages = report["packages"].as_array().unwrap();
+        assert_eq!(packages.len(), 3);
+        for (name, vulnerability, source) in [
+            ("lookup-a", "CVE-2099-95001", shared_source),
+            ("lookup-b", "CVE-2099-95001", shared_source),
+            (
+                "lookup-c",
+                "CVE-2099-95002",
+                "https://test.example.com/#REPORT-LOOKUP-B",
+            ),
+        ] {
+            let purl = format!("pkg:maven/com.example/{name}@1.0.0");
+            let package = packages
+                .iter()
+                .find(|package| package["purl"] == purl)
+                .unwrap();
+            assert_eq!(package["recommended_purl"], format!("{purl}.redhat-00001"));
+            assert_eq!(package["vulnerabilities"], json!([vulnerability]));
+            assert_eq!(package["advisory_id"], source);
+            assert_eq!(package["found_in"], json!([sbom_id]));
+        }
+    }
+
+    // Each advisory is loaded once when first encountered in each request, not once per winner.
+    assert_eq!(
+        spans
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|name| **name == "loading advisories")
+            .count(),
+        4,
+        "three winners sharing two advisories should require two metadata loads per request"
+    );
+    Ok(())
+}
+
 /// Verifies that a report for two SBOMs returns correct aggregated data.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
