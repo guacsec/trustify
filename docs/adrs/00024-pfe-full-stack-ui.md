@@ -66,9 +66,55 @@ Web components offer another way. They are a browser standard supported by all m
 (including Declarative Shadow DOM), they are used by large design systems, and Red Hat publishes the
 PatternFly design system as web components: [PatternFly Elements](https://patternflyelements.org)
 (PFE). Web components provide a standardized, framework-independent layer for consistent UX. They
-are used like HTML elements (for example `<pf-v6-button variant="primary">`), which should keep the
-additional learning curve lower than adopting and maintaining a Rust-specific PatternFly component
-library. They can be used from Rust/Wasm with a small amount of `web-sys` glue.
+should keep the additional learning curve lower than adopting and maintaining a Rust-specific
+PatternFly component library. Yew can render PFE elements directly. When a custom-element property
+expects a DOM object rather than an HTML attribute, application code can set it with `web-sys` and
+`js-sys`, as illustrated here:
+
+```rust
+use js_sys::Reflect;
+use wasm_bindgen::JsValue;
+use web_sys::{Element, HtmlFormElement};
+use yew::prelude::*;
+
+#[function_component(PfeForm)]
+fn pfe_form() -> Html {
+    let form_ref = use_node_ref();
+    let button_ref = use_node_ref();
+
+    {
+        let form_ref = form_ref.clone();
+        let button_ref = button_ref.clone();
+        use_effect_with((), move |_| {
+            if let (Some(button), Some(form)) = (
+                button_ref.cast::<Element>(),
+                form_ref.cast::<HtmlFormElement>(),
+            ) {
+                // Assumes this PFE button exposes a `form` DOM property.
+                let _ = Reflect::set(
+                    button.as_ref(),
+                    &JsValue::from_str("form"),
+                    form.as_ref(),
+                );
+            }
+            || ()
+        });
+    }
+
+    html! {
+        <>
+            <form ref={form_ref}></form>
+            <pf-v6-button ref={button_ref} variant="primary">{"Submit"}</pf-v6-button>
+        </>
+    }
+}
+```
+
+This illustrates where application-level glue would live if a PFE component exposed a DOM-object
+property. The specific property must be supported by the chosen PFE element; this is illustrative,
+not a claim that `pf-v6-button` itself exposes a `form` property. PFE's JavaScript assets must
+register the custom element. The prototype and coverage assessment below will validate the actual
+PFE integration and component coverage.
 
 This ADR concerns only the choice of the component layer for a Rust UI. It does not decide the fate of
 either existing UI. The status of the Console is described under Consequences.
