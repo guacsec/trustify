@@ -1,0 +1,32 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:4b7d2c1e-8a3f-4e6b-9c0d-2e5f7a1b3c4d",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-buildah",
+      "type": "application",
+      "name": "buildah-el9-4",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-buildah",
+      "type": "library",
+      "name": "buildah",
+      "version": "1.33.15-1.el9_4.1",
+      "purl": "pkg:rpm/redhat/buildah@1.33.15-1.el9_4.1?arch=x86_64"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-buildah",
+      "dependsOn": [
+        "pkg-buildah"
+      ]
+    }
+  ]
+}

@@ -13,7 +13,10 @@ use sea_orm::{
 use serde_json::json;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::rpm::{Evr, stream_major};
+use trustify_common::{
+    db::sql,
+    rpm::{Evr, stream_major},
+};
 use trustify_entity::{
     correlation_evidence, correlation_evidence_context,
     correlation_evidence_context::ContextSource,
@@ -1863,6 +1866,119 @@ async fn sql_streams_agree_with_rust(ctx: &TrustifyContext) -> anyhow::Result<()
     Ok(())
 }
 
+/// The matched rows of an advisory, as [`load_advisory_purl_matches`] reads them.
+async fn advisory_rows<'a>(
+    advisory_id: Uuid,
+    sources: &[(Source<'a>, Candidates)],
+    tx: &DatabaseTransaction,
+) -> anyhow::Result<Vec<(NodeRef, Source<'a>, PurlStatusRow)>> {
+    let (query, values) = purl_status_matches(&Scope::Advisory(advisory_id), sources)
+        .ok_or_else(|| anyhow::anyhow!("no statement"))?
+        .build(PostgresQueryBuilder);
+    let stated = load_stated(
+        Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId)).eq(advisory_id),
+        tx,
+    )
+    .await?;
+    let rows = AdvisoryPurlMatch::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        query,
+        values,
+    ))
+    .all(tx)
+    .await?
+    .into_iter()
+    .map(|row| {
+        let node = NodeRef {
+            sbom_id: row.sbom_id,
+            node_id: row.node_id,
+        };
+        let source = source_of(sources, row.matched.source)?;
+        Ok(row
+            .matched
+            .into_rows(&stated, &row.sbom_qualifiers)
+            .into_iter()
+            .map(|status| (node.clone(), source, status))
+            .collect::<Vec<_>>())
+    })
+    .collect::<Result<Vec<_>, Error>>()?
+    .into_iter()
+    .flatten()
+    .collect();
+    Ok(rows)
+}
+
+fn sorted_matches(mut matches: Vec<NodeMatch>) -> Vec<NodeMatch> {
+    matches.sort_by_cached_key(|m| format!("{m:?}"));
+    matches
+}
+
+const BUILDAH_SBOM: &str = "correlation/buildah_el9_4.cdx.json";
+const BUILDAH_VEX: &str = "correlation/cve-2024-34155.json.xz";
+
+/// The fixes of one package state ranges of several streams under one rule, here a module build
+/// without a stream and `el9_4`. Only the own stream's applies without a context, and the result
+/// doesn't depend on the order of the rows.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_streams_of_any_row_order(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom = ctx.ingest_document(BUILDAH_SBOM).await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document(BUILDAH_VEX).await?.id)?;
+    // Rows without their PURL and product, as stored by earlier versions: the module build isn't
+    // filtered by its `rpmmod` qualifier, and is merged with the package's other fixes.
+    ctx.db
+        .execute_raw(sql(
+            "UPDATE purl_status SET qualified_purl_id = NULL, assertion_context_id = NULL \
+             WHERE advisory_id = $1",
+            vec![advisory_id.into()],
+        ))
+        .await?;
+
+    let tx = ctx.db.begin().await?;
+    let rules = rules(&tx).await?;
+    let sources = sources(&rules).collect::<Vec<_>>();
+    let rows = advisory_rows(advisory_id, &sources, &tx).await?;
+    assert!(rows.len() > 1);
+    let matches = |rows: Vec<_>| {
+        sorted_matches(
+            group(rows)
+                .map(|(node, assertion)| NodeMatch { node, assertion })
+                .collect(),
+        )
+    };
+    let mut reversed = rows.clone();
+    reversed.reverse();
+    assert_eq!(matches(rows), matches(reversed));
+    tx.rollback().await?;
+
+    let expected = vec![(
+        "pkg-buildah".to_string(),
+        "CVE-2024-34155".to_string(),
+        FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
+        AssertionStatus::Affected,
+        0.9,
+        Some(MatchedValue {
+            source_provider: None,
+            origin: AssertionOrigin::PublisherPolicy,
+            identifier: "pkg:rpm/redhat/buildah".into(),
+            // an omitted epoch is zero, so this version is below the fix of epoch 2
+            ranges: fixed_in("rpm", &["2:1.33.9-1.el9_4"]),
+            enabled_by: Some(redhat_first_fixed()),
+        }),
+    )];
+    extract_for_sbom(ctx, sbom_id).await?;
+    assert_eq!(range_evidence(ctx, sbom_id).await?, expected);
+
+    correlation_evidence::Entity::delete_many()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .exec(&ctx.db)
+        .await?;
+    extract_for_advisory(ctx, advisory_id).await?;
+    assert_eq!(range_evidence(ctx, sbom_id).await?, expected);
+    Ok(())
+}
+
 /// Grouping the advisory's rows per node while reading them gives the same matches as grouping
 /// all rows at once, also with several SBOMs sharing versions and node IDs.
 #[test_context(TrustifyContext)]
@@ -1880,45 +1996,8 @@ async fn advisory_rows_group_per_node(ctx: &TrustifyContext) -> anyhow::Result<(
     let tx = ctx.db.begin().await?;
     let rules = rules(&tx).await?;
     let sources = sources(&rules).collect::<Vec<_>>();
-
-    let (sql, values) = purl_status_matches(&Scope::Advisory(advisory_id), &sources)
-        .ok_or_else(|| anyhow::anyhow!("no statement"))?
-        .build(PostgresQueryBuilder);
-    let stated = load_stated(
-        Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId)).eq(advisory_id),
-        &tx,
-    )
-    .await?;
-    let rows = AdvisoryPurlMatch::find_by_statement(Statement::from_sql_and_values(
-        DbBackend::Postgres,
-        sql,
-        values,
-    ))
-    .all(&tx)
-    .await?
-    .into_iter()
-    .map(|row| {
-        let node = NodeRef {
-            sbom_id: row.sbom_id,
-            node_id: row.node_id,
-        };
-        let source = source_of(&sources, row.matched.source)?;
-        Ok(row
-            .matched
-            .into_rows(&stated, &row.sbom_qualifiers)
-            .into_iter()
-            .map(|status| (node.clone(), source, status))
-            .collect::<Vec<_>>())
-    })
-    .collect::<Result<Vec<_>, Error>>()?
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
-    let sorted = |mut matches: Vec<NodeMatch>| {
-        matches.sort_by_cached_key(|m| format!("{m:?}"));
-        matches
-    };
-    let at_once = sorted(
+    let rows = advisory_rows(advisory_id, &sources, &tx).await?;
+    let at_once = sorted_matches(
         group(rows)
             .map(|(node, assertion)| NodeMatch { node, assertion })
             .collect(),
@@ -1932,7 +2011,7 @@ async fn advisory_rows_group_per_node(ctx: &TrustifyContext) -> anyhow::Result<(
             > 1
     );
     assert_eq!(
-        sorted(load_advisory_purl_matches(advisory_id, &sources, &tx).await?),
+        sorted_matches(load_advisory_purl_matches(advisory_id, &sources, &tx).await?),
         at_once
     );
     Ok(())
