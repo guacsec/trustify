@@ -79,6 +79,18 @@ pub struct ExtractionLag {
     pub failed: u64,
     /// Enqueue time of the oldest pending event; null when caught up.
     pub oldest_pending_at: Option<OffsetDateTime>,
+    /// The advisories being extracted right now, by when they started.
+    #[serde(default)]
+    pub current: Vec<CurrentAdvisory>,
+}
+
+/// An advisory being extracted right now.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct CurrentAdvisory {
+    pub advisory_id: Uuid,
+    pub identifier: String,
+    pub started_at: OffsetDateTime,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -3,7 +3,7 @@
 use crate::{
     error::Error,
     extractor::Extractors,
-    model::ExtractionLag,
+    model::{CurrentAdvisory, ExtractionLag},
     service::{freshness, tuning::WorkerConfig},
 };
 use sea_orm::{
@@ -31,11 +31,52 @@ pub async fn lag(tx: &DatabaseTransaction) -> Result<ExtractionLag, Error> {
         .await?
         .ok_or_else(|| sea_orm::DbErr::Custom("missing extraction lag".into()))?;
     let row = Lag::from_query_result(&row, "")?;
+    let current =
+        CurrentRow::find_by_statement(Statement::from_string(DbBackend::Postgres, CURRENT_SQL))
+            .all(tx)
+            .await?
+            .into_iter()
+            .map(|row| CurrentAdvisory {
+                advisory_id: row.advisory_id,
+                identifier: row.identifier,
+                started_at: row.started_at,
+            })
+            .collect();
     Ok(ExtractionLag {
         pending_advisories: row.pending_advisories as u64,
         failed: row.failed as u64,
         oldest_pending_at: row.oldest_pending_at,
+        current,
     })
+}
+
+#[derive(FromQueryResult)]
+struct CurrentRow {
+    advisory_id: Uuid,
+    identifier: String,
+    started_at: OffsetDateTime,
+}
+
+/// The advisories being extracted. An old row is left behind by a crashed worker, as an extraction
+/// takes minutes at most.
+const CURRENT_SQL: &str = "SELECT c.advisory_id, a.identifier, c.started_at \
+    FROM correlation_extraction_current c JOIN advisory a ON a.id = c.advisory_id \
+    WHERE c.started_at > now() - interval '1 hour' \
+    ORDER BY c.started_at, c.advisory_id";
+
+/// Publish what a worker is extracting, outside of its transaction. Failing to do so doesn't fail
+/// the extraction.
+async fn publish_current(db: &db::ReadWrite, statement: &str, advisory: Uuid) {
+    let _ = db
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            statement,
+            vec![advisory.into()],
+        ))
+        .await
+        .inspect_err(|err| {
+            tracing::warn!(%advisory, "failed to publish the extraction progress: {err}");
+        });
 }
 
 /// Claim one event across all server instances. The queue row remains visible to
@@ -65,6 +106,14 @@ pub async fn run_step(
 
     // Keep the claim while rolling back evidence on failure. Other workers can
     // claim different rows; failed events cannot block the rest of an import.
+    publish_current(
+        db,
+        "INSERT INTO correlation_extraction_current(advisory_id, started_at) \
+         SELECT id, clock_timestamp() FROM advisory WHERE id = $1 \
+         ON CONFLICT (advisory_id) DO UPDATE SET started_at = EXCLUDED.started_at",
+        entity_id,
+    )
+    .await;
     let work = tx.begin().await?;
     let result = extract(&work, extractors, &entity_type, entity_id).await;
     match result {
@@ -89,7 +138,14 @@ pub async fn run_step(
             .await?;
         }
     }
-    tx.commit().await?;
+    let committed = tx.commit().await;
+    publish_current(
+        db,
+        "DELETE FROM correlation_extraction_current WHERE advisory_id = $1",
+        entity_id,
+    )
+    .await;
+    committed?;
     Ok(true)
 }
 

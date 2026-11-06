@@ -7126,6 +7126,22 @@ components:
             type: string
           v3Signatures:
             type: boolean
+    CurrentAdvisory:
+      type: object
+      description: An advisory being extracted right now.
+      required:
+      - advisory_id
+      - identifier
+      - started_at
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        identifier:
+          type: string
+        started_at:
+          type: string
+          format: date-time
     CurrentSbom:
       type: object
       description: An SBOM being processed right now, e.g. extracted by a refresh job.
@@ -7667,6 +7683,11 @@ components:
       - pending_advisories
       - failed
       properties:
+        current:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrentAdvisory'
+          description: The advisories being extracted right now, by when they started.
         failed:
           type: integer
           format: int64
