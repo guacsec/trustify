@@ -415,6 +415,152 @@ async fn workers_skip_claimed_sboms_and_publish_other_work(
     Ok(())
 }
 
+/// Add evidence for a new node, by copying the SBOM's evidence.
+async fn add_evidence(id: Uuid, node: &str, tx: &impl ConnectionTrait) -> anyhow::Result<()> {
+    tx.execute_raw(sql(
+        "INSERT INTO sbom_node(sbom_id,node_id,name) VALUES ($1,$2,$2)",
+        vec![id.into(), node.into()],
+    ))
+    .await?;
+    tx.execute_raw(sql(
+        "INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),sbom_id,$2,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions FROM correlation_evidence WHERE sbom_id=$1",
+        vec![id.into(), node.into()],
+    ))
+    .await?;
+    Ok(())
+}
+
+async fn verdict_revision(tx: &impl ConnectionTrait) -> anyhow::Result<i64> {
+    let row = tx
+        .query_one_raw(sql(
+            "SELECT revision FROM correlation_verdict_revision",
+            vec![],
+        ))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("missing verdict revision"))?;
+    Ok(row.try_get("", "revision")?)
+}
+
+/// The nodes of the published verdicts, and the input revisions: completed and current.
+async fn published(id: Uuid, db: &impl ConnectionTrait) -> anyhow::Result<(Vec<String>, i64, i64)> {
+    let nodes = db
+        .query_all_raw(sql(
+            "SELECT DISTINCT node_id FROM correlation_verdict WHERE sbom_id=$1 ORDER BY node_id",
+            vec![id.into()],
+        ))
+        .await?
+        .into_iter()
+        .map(|row| row.try_get("", "node_id"))
+        .collect::<Result<Vec<String>, _>>()?;
+    let row = db
+        .query_one_raw(sql(
+            "SELECT completed_input_revision, input_revision FROM correlation_verdict_state WHERE sbom_id=$1",
+            vec![id.into()],
+        ))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("missing verdict state"))?;
+    Ok((
+        nodes,
+        row.try_get("", "completed_input_revision")?,
+        row.try_get("", "input_revision")?,
+    ))
+}
+
+/// A claimed SBOM keeps other workers off, but evidence can still be written.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn evidence_changes_do_not_wait_for_a_computation(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let worker = ctx.db.begin().await?;
+    let revision = verdict_revision(&worker).await?;
+    assert_eq!(claim(revision, &worker).await?, Some(id));
+
+    let other_worker = ctx.db.begin().await?;
+    assert_eq!(claim(revision, &other_worker).await?, None);
+    other_worker.rollback().await?;
+
+    let writer = ctx.db.begin().await?;
+    writer
+        .execute_raw(sql("SET LOCAL lock_timeout = '5s'", vec![]))
+        .await?;
+    add_evidence(id, "during-computation", &writer).await?;
+    writer.commit().await?;
+
+    worker.rollback().await?;
+    Ok(())
+}
+
+/// A computation publishes what its snapshot saw, and changes after it make the SBOM pending.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn computation_publishes_its_snapshot(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+
+    let reads = db.begin_read().await?;
+    let seen = input_revision(id, &reads).await?;
+    add_evidence(id, "after-snapshot", &ctx.db).await?;
+
+    let writes = ctx.db.begin().await?;
+    let revision = verdict_revision(&writes).await?;
+    rebuild(id, revision, seen, BATCH_SIZE, None, &reads, &writes).await?;
+    reads.rollback().await?;
+    writes.commit().await?;
+
+    let (nodes, completed, current) = published(id, &ctx.db).await?;
+    assert!(!nodes.is_empty());
+    assert!(!nodes.contains(&"after-snapshot".to_string()));
+    assert_eq!(completed, seen);
+    assert!(current > seen);
+
+    // computed again, now with the change
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
+    let mut expected = nodes;
+    expected.push("after-snapshot".to_string());
+    expected.sort();
+    assert_eq!(published(id, &ctx.db).await?, (expected, current, current));
+    Ok(())
+}
+
+/// An SBOM with an evidence writer in flight is left for later, without idling on it.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn claim_skips_sboms_with_a_writer_in_flight(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let first = fixture(ctx).await?;
+    let second = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    drain_extraction(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+
+    // the one a worker would pick first
+    let peek = ctx.db.begin().await?;
+    let revision = verdict_revision(&peek).await?;
+    let held = claim(revision, &peek)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("nothing to claim"))?;
+    peek.rollback().await?;
+    let other = if held == first { second } else { first };
+
+    let writer = ctx.db.begin().await?;
+    writer
+        .execute_raw(sql(
+            "SELECT correlation_verdict_dirty(ARRAY[$1]::uuid[])",
+            vec![held.into()],
+        ))
+        .await?;
+
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
+    let states = state(&[held, other], &ctx.db).await?;
+    assert!(states[&held].generation.is_none());
+    assert!(states[&other].generation.is_some());
+
+    writer.commit().await?;
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
+    assert!(state(&[held], &ctx.db).await?[&held].generation.is_some());
+    Ok(())
+}
+
 /// Reproducible read-path scale check; run explicitly when changing the projection or indexes.
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
