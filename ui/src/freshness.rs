@@ -292,8 +292,60 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
     )
 }
 
+/// How long the advisory rate is measured over.
+const RATE_WINDOW: Duration = Duration::minutes(5);
+/// How long the advisory rate must be measured for, to be meaningful.
+const RATE_MINIMUM: Duration = Duration::seconds(30);
+
+/// The number of pending advisories over time.
+type PendingSamples = Vec<(OffsetDateTime, u64)>;
+
+/// Add a sample, dropping the ones outside of the window.
+fn add_sample(samples: &mut PendingSamples, at: OffsetDateTime, pending: u64) {
+    samples.retain(|(sampled, _)| at - *sampled <= RATE_WINDOW);
+    samples.push((at, pending));
+}
+
+/// Advisories finished per minute. Advisories added meanwhile raise the count, which isn't work
+/// done, so only decreases count. `None` until there is enough to tell.
+fn advisory_rate(samples: &[(OffsetDateTime, u64)]) -> Option<f64> {
+    let (first, last) = (samples.first()?.0, samples.last()?.0);
+    let span = last - first;
+    if span < RATE_MINIMUM {
+        return None;
+    }
+    let done = samples
+        .windows(2)
+        .map(|pair| pair[0].1.saturating_sub(pair[1].1))
+        .sum::<u64>();
+    Some(done as f64 / span.as_seconds_f64() * 60.0)
+}
+
+/// The rate of the advisory extraction, and how long the pending ones will take at that rate.
+fn rate_text(rate: Option<f64>, pending: u64) -> Option<String> {
+    if pending == 0 {
+        return None;
+    }
+    Some(match rate {
+        None => "Measuring the rate…".to_string(),
+        Some(rate) if rate <= 0.0 => format!(
+            "None finished in the last {} min",
+            RATE_WINDOW.whole_minutes()
+        ),
+        Some(rate) => format!(
+            "About {} per minute, {} remaining",
+            Number(rate.round() as u64),
+            approximate(Duration::seconds_f64(pending as f64 / rate * 60.0))
+        ),
+    })
+}
+
 /// Advisory extraction: the ingestion queue matching new advisories against SBOMs.
-fn advisory_card(lag: Option<&ExtractionLag>) -> Html {
+fn advisory_card(
+    lag: Option<&ExtractionLag>,
+    rate: Option<f64>,
+    checked_at: OffsetDateTime,
+) -> Html {
     let Some(lag) = lag else {
         return stage_card(
             "Advisory extraction",
@@ -304,6 +356,18 @@ fn advisory_card(lag: Option<&ExtractionLag>) -> Html {
     };
     let details = html! {
         <>
+            { for lag.current.iter().map(|current| html! {
+                <StackItem>
+                    { format!(
+                        "Extracting {}, started {} ago",
+                        current.identifier,
+                        approximate(checked_at - current.started_at)
+                    ) }
+                </StackItem>
+            }) }
+            if let Some(text) = rate_text(rate, lag.pending_advisories) {
+                <StackItem>{ text }</StackItem>
+            }
             { oldest("Oldest pending change", lag.oldest_pending_at.as_ref()) }
             if lag.failed > 0 {
                 <StackItem>{ format!("{} waiting for retry; see server logs.", Number(lag.failed)) }</StackItem>
@@ -345,6 +409,8 @@ pub fn freshness_page() -> Html {
     let in_flight = use_mut_ref(|| 0usize);
     // The last loaded view, readable by the request without re-running the effect.
     let last = use_mut_ref(|| None::<View>);
+    let samples = use_mut_ref(PendingSamples::new);
+    let rate = use_state(|| None::<f64>);
     let total = view.as_ref().and_then(|v| v.total);
     let pagination = use_stored_pagination("correlation-status", total);
     let failure_page = use_state(|| 0usize);
@@ -370,6 +436,8 @@ pub fn freshness_page() -> Html {
         let token = token.clone();
         let in_flight = in_flight.clone();
         let last = last.clone();
+        let samples = samples.clone();
+        let rate = rate.clone();
         use_effect_with(
             (
                 *generation,
@@ -422,6 +490,15 @@ pub fn freshness_page() -> Html {
                     if !pending.get() {
                         match loaded {
                             Ok(data) => {
+                                if let Some(lag) = &data.overview.extraction_lag {
+                                    let mut samples = samples.borrow_mut();
+                                    add_sample(
+                                        &mut samples,
+                                        data.overview.checked_at,
+                                        lag.pending_advisories,
+                                    );
+                                    rate.set(advisory_rate(&samples));
+                                }
                                 *last.borrow_mut() = Some(data.clone());
                                 view.set(Some(data));
                                 error.set(None);
@@ -468,7 +545,7 @@ pub fn freshness_page() -> Html {
                 <StackItem>
                     <Grid gutter=true>
                         { sbom_card(&data.overview, data.overview.latest_job.as_ref()) }
-                        { advisory_card(data.overview.extraction_lag.as_ref()) }
+                        { advisory_card(data.overview.extraction_lag.as_ref(), *rate, data.overview.checked_at) }
                         { verdict_card(&data.overview.verdict_lag, data.overview.checked_at) }
                     </Grid>
                 </StackItem>
@@ -537,8 +614,42 @@ pub fn freshness_page() -> Html {
 
 #[cfg(test)]
 mod test {
-    use super::approximate;
-    use time::Duration;
+    use super::{PendingSamples, add_sample, advisory_rate, approximate, rate_text};
+    use time::{Duration, OffsetDateTime};
+
+    #[test]
+    fn advisory_rates() {
+        let start = OffsetDateTime::UNIX_EPOCH;
+        let mut samples = PendingSamples::new();
+        add_sample(&mut samples, start, 1000);
+        assert_eq!(advisory_rate(&samples), None);
+
+        // added advisories aren't work done
+        add_sample(&mut samples, start + Duration::seconds(30), 990);
+        add_sample(&mut samples, start + Duration::seconds(60), 1500);
+        add_sample(&mut samples, start + Duration::seconds(120), 1480);
+        assert_eq!(advisory_rate(&samples), Some(15.0));
+
+        // old samples drop out of the window
+        add_sample(&mut samples, start + Duration::minutes(10), 1480);
+        add_sample(&mut samples, start + Duration::minutes(11), 1480);
+        assert_eq!(samples.len(), 2);
+        assert_eq!(advisory_rate(&samples), Some(0.0));
+    }
+
+    #[test]
+    fn rate_texts() {
+        assert_eq!(rate_text(Some(15.0), 0), None);
+        assert_eq!(rate_text(None, 5).as_deref(), Some("Measuring the rate…"));
+        assert_eq!(
+            rate_text(Some(0.0), 5).as_deref(),
+            Some("None finished in the last 5 min")
+        );
+        assert!(
+            rate_text(Some(15.0), 1800)
+                .is_some_and(|text| text.ends_with("per minute, about 2 h 0 min remaining"))
+        );
+    }
 
     #[test]
     fn approximate_durations() {
