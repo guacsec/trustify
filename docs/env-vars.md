@@ -29,7 +29,7 @@
 | `HTTP_SERVER_TLS_MIN_VERSION`            | Minimum TLS version for custom profile: 1.0, 1.1, 1.2, 1.3                         |                                         |
 | `HTTP_SERVER_TLS_SECURITY_PROFILE`       | TLS security profile: old, intermediate, modern, custom                             | `modern`                                |
 | `HTTP_SERVER_WORKERS`                    | Number of worker threads, defaults to zero, which falls back to the number of cores | `0`                                     |
-| `IMPORTER_CONCURRENCY`                   | The maximum number of jobs run simultaneously by the importer                       | `1`                                     |
+| `IMPORTER_CONCURRENCY`                   | The maximum number of jobs run simultaneously by the importer; `0` for one per available CPU | `1` |
 | `IMPORTER_CREDENTIAL_PATHS`              | Comma-separated list of allowed base paths for file credential sources; empty = deny all file credentials | |
 | `IMPORTER_ENV_PREFIXES`                  | Comma-separated list of required prefixes for env var credential sources; empty = deny all env var credentials | |
 | `IMPORTER_WORKING_DIR`                   | Where the importer downloads documents prior to ingesting them                      | `tempdir`                               |

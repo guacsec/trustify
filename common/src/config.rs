@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use clap::Parser;
 use hide::Hide;
-use std::time::Duration;
+use std::{num::NonZeroUsize, thread::available_parallelism, time::Duration};
 
 const DB_NAME: &str = "trustify";
 const DB_USER: &str = "postgres";
@@ -44,6 +44,15 @@ const ENV_DB_RO_ACQUIRE_TIMEOUT: &str = "TRUSTD_DB_RO_ACQUIRE_TIMEOUT";
 const ENV_DB_RO_MAX_LIFETIME: &str = "TRUSTD_DB_RO_MAX_LIFETIME";
 const ENV_DB_RO_IDLE_TIMEOUT: &str = "TRUSTD_DB_RO_IDLE_TIMEOUT";
 const ENV_DB_RO_SSLMODE: &str = "TRUSTD_DB_RO_SSLMODE";
+
+/// Parse a concurrency setting, where `0` means one per CPU available to the process.
+pub fn parse_concurrency(value: &str) -> Result<NonZeroUsize, String> {
+    let concurrency = value.parse::<usize>().map_err(|err| err.to_string())?;
+    match NonZeroUsize::new(concurrency) {
+        Some(concurrency) => Ok(concurrency),
+        None => available_parallelism().map_err(|err| format!("unable to detect the CPUs: {err}")),
+    }
+}
 
 /// Parse a duration of the database connection pool: a humantime duration (e.g. `8s`, `2h`),
 /// or, for compatibility, a number of seconds.
@@ -301,6 +310,20 @@ mod test {
             result.to_url(),
             "postgres://postgres:trustify@localhost:5432/trustify?sslmode=disable"
         );
+    }
+
+    #[test]
+    fn concurrency() -> anyhow::Result<()> {
+        assert_eq!(
+            parse_concurrency("3"),
+            Ok(NonZeroUsize::new(3).ok_or_else(|| anyhow!("zero"))?)
+        );
+        assert_eq!(parse_concurrency("0"), Ok(available_parallelism()?));
+        assert_eq!(
+            parse_concurrency("-1"),
+            Err("invalid digit found in string".to_string())
+        );
+        Ok(())
     }
 
     /// Durations take humantime, or a number of seconds for compatibility.
