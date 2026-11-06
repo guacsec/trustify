@@ -222,6 +222,14 @@ The decision stands if:
   dedicated UI team. It is therefore not considered a realistic path forward or an interim step for
   this ADR.
 
+### Provide a CLI instead of a web UI
+
+- Pros: avoids maintaining a browser-based UI and builds on Rust skills already present in the
+  project. A CLI can suit scripting, automation and users who prefer terminal workflows.
+- Cons: it does not provide the graphical, interactive experience needed by users who rely on a web
+  interface, and it would not address the existing web UI's UX needs for those users. A CLI is
+  therefore not a substitute for the web UI; it could be considered as a complementary interface.
+
 ## Considerations
 
 - **PFE coverage.** PFE is moving to PF6 and its coverage is not yet complete. The coverage matrix is
