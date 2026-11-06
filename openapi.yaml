@@ -3069,10 +3069,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendReportResponse'
+        '409':
+          description: Required source supplier attribution is ambiguous
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInformation'
         '413':
-          description: Total package count across requested SBOMs exceeds the configured limit
+          description: Package count or source-recovery resource limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInformation'
         '422':
           description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
+        '503':
+          description: Required report evidence cannot be recovered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInformation'
   /api/v3/purl/{key}:
     get:
       tags:

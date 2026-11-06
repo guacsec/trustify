@@ -1,6 +1,6 @@
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
 use regex::Regex;
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr, sync::Arc};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{
@@ -12,13 +12,16 @@ use trustify_common::{
     purl::Purl,
 };
 use trustify_test_context::{Dataset, TrustifyContext};
+use uuid::Uuid;
 
 /// Equal assessment rows must retain the stable union of full remediation content.
 #[test]
 fn assemble_recommend_entry_merges_remediations() {
-    use super::{StatusInfo, Winner};
+    use super::{StatusInfo, Winner, report::ProviderIdentity};
     use std::collections::HashMap;
-    use trustify_entity::{base_purl, remediation, versioned_purl};
+    use trustify_entity::{
+        base_purl, remediation, version_range, version_scheme::VersionScheme, versioned_purl,
+    };
     use uuid::Uuid;
 
     let base = base_purl::Model {
@@ -61,7 +64,20 @@ fn assemble_recommend_entry_merges_remediations() {
             status_slug: "fixed".into(),
             remediations,
             advisory_id: Some("TEST-STREAMS".into()),
-            advisory_date: None,
+            source_id: Uuid::nil(),
+            status_id: Uuid::nil(),
+            advisory_pk: Uuid::nil(),
+            context_cpe_id: None,
+            range: Arc::new(version_range::Model {
+                id: Uuid::nil(),
+                version_scheme_id: VersionScheme::Generic,
+                low_version: None,
+                low_inclusive: None,
+                high_version: None,
+                high_inclusive: None,
+            }),
+            provider: ProviderIdentity::default(),
+            csaf: false,
         };
         let mut rows = vec![
             make_status(vec![different_details.clone(), remediation.clone()]),
@@ -157,7 +173,7 @@ async fn recommendation_remediation_loading_deduplicates_status_ids_across_chunk
 
     ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
     let status = purl_status::Entity::find().one(&ctx.db).await?.unwrap();
-    let remediation_id = uuid::Uuid::new_v4();
+    let remediation_id = Uuid::new_v4();
     remediation::Entity::insert(remediation::ActiveModel {
         id: Set(remediation_id),
         advisory_id: Set(status.advisory_id),
@@ -197,7 +213,7 @@ async fn recommendation_status_batch_chunks_large_inputs(
     let winners = (0..22_000)
         .map(|index| {
             let version = format!("0.14.2+{index}");
-            let id = uuid::Uuid::new_v5(&base, version.as_bytes());
+            let id = Uuid::new_v5(&base, version.as_bytes());
             (version, id)
         })
         .collect::<Vec<_>>();
@@ -301,6 +317,13 @@ async fn recommendation_status_batch_chunks_distinct_vulnerabilities(
                     && info.advisory_id.as_deref() == Some("RUSTSEC-2021-0079"))
         );
     }
+    // Shared range metadata must not be allocated once per CVE or status chunk.
+    let range_allocations = statuses
+        .values()
+        .flatten()
+        .map(|info| info.range.high_version.as_ref().unwrap().as_ptr() as usize)
+        .collect::<HashSet<_>>();
+    assert_eq!(range_allocations.len(), 2);
     Ok(())
 }
 

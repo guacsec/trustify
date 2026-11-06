@@ -1,5 +1,7 @@
-use crate::sbom::endpoints::ExternalReferenceQueryParseError;
-use actix_web::{HttpResponse, ResponseError, body::BoxBody};
+use crate::{
+    purl::service::report::ReportError, sbom::endpoints::ExternalReferenceQueryParseError,
+};
+use actix_web::{HttpResponse, ResponseError, body::BoxBody, http::StatusCode};
 use sea_orm::DbErr;
 use std::borrow::Cow;
 use trustify_auth::authenticator::error::AuthorizationError;
@@ -15,6 +17,8 @@ use trustify_module_storage::service::StorageKeyError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    Report(#[from] ReportError),
     #[error(transparent)]
     IdKey(#[from] IdError),
     #[error(transparent)]
@@ -114,6 +118,19 @@ impl From<DbError> for Error {
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse<BoxBody> {
         match self {
+            Self::Report(err) => {
+                let (status, code) = match err {
+                    ReportError::Ambiguous { .. } => {
+                        (StatusCode::CONFLICT, "ReportEvidenceAmbiguous")
+                    }
+                    ReportError::Limit { .. } => {
+                        (StatusCode::PAYLOAD_TOO_LARGE, "ReportEvidenceLimitExceeded")
+                    }
+                    _ => (StatusCode::SERVICE_UNAVAILABLE, "ReportEvidenceUnavailable"),
+                };
+                log::warn!("{err:?}");
+                HttpResponse::build(status).json(ErrorInformation::new(code, err))
+            }
             Self::Purl(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("InvalidPurlSyntax", err))
             }
