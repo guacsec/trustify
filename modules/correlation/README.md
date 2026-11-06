@@ -227,7 +227,8 @@ The API exposes:
 
 - `GET /api/v3/correlation/freshness`: exact counts, settings revision, observation time,
   active/latest job summaries, and `extraction_lag` with `pending_advisories`,
-  `failed`, and `oldest_pending_at`. `failed` is a subset of pending changes. A missing
+  `failed`, `oldest_pending_at`, and the advisories being extracted as `current`. `failed` is a
+  subset of pending changes. A missing
   `extraction_lag` from an older server means unavailable, rather than caught up.
 - `GET /api/v3/correlation/freshness/sbom`: paginated SBOMs; optional `status=current|stale|unknown`,
   defaulting to outdated and unchecked documents together.

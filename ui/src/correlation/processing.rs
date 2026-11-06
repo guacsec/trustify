@@ -352,6 +352,7 @@ mod test {
                 pending_advisories: 5,
                 failed: 2,
                 oldest_pending_at: None,
+                current: vec![],
             }),
         );
         data.needs_refresh = 2;

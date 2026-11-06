@@ -154,6 +154,7 @@ async fn failures_stay_in_lag_and_retry_without_partial_completion(
                     .oldest_pending_at
                     .expect("pending work has an enqueue time")
             ),
+            current: vec![],
         }
     );
     assert_eq!(
@@ -253,7 +254,7 @@ impl Extractor for PausedExtractor {
 async fn running_extraction_stays_visible_until_evidence_and_acknowledgement_commit(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
-    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
     let pending = status(ctx).await?;
     let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
     let extractors = Extractors::new(vec![Box::new(PausedExtractor(barrier.clone()))]);
@@ -261,10 +262,56 @@ async fn running_extraction_stays_visible_until_evidence_and_acknowledgement_com
     let worker =
         tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await });
     tokio::time::timeout(std::time::Duration::from_secs(10), barrier.wait()).await?;
-    assert_eq!(status(ctx).await?, pending);
+    let running = status(ctx).await?;
+    let started_at = running
+        .current
+        .first()
+        .map(|current| current.started_at)
+        .ok_or_else(|| anyhow::anyhow!("no current advisory"))?;
+    assert_eq!(
+        running,
+        ExtractionLag {
+            current: vec![CurrentAdvisory {
+                advisory_id,
+                identifier: "https://www.redhat.com/#CVE-2023-33201".into(),
+                started_at,
+            }],
+            ..pending
+        }
+    );
     barrier.wait().await;
     assert!(worker.await??);
     assert_eq!(status(ctx).await?, ExtractionLag::default());
+    Ok(())
+}
+
+/// A row left behind by a crashed worker isn't reported, and the next extraction replaces it.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn crashed_extraction_is_not_reported_as_running(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
+    ctx.db
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "INSERT INTO correlation_extraction_current(advisory_id, started_at) \
+             VALUES ($1, now() - interval '2 hours')",
+            vec![advisory_id.into()],
+        ))
+        .await?;
+    assert_eq!(status(ctx).await?.current, vec![]);
+
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let rows = ctx
+        .db
+        .query_all_raw(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT advisory_id FROM correlation_extraction_current",
+        ))
+        .await?;
+    assert_eq!(rows.len(), 0);
     Ok(())
 }
 
