@@ -1141,3 +1141,14 @@ async fn osv_upstream(ctx: &TrustifyContext) -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+/// Array parameters of empty lookups select nothing, like an empty `IN` list.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn empty_lookups(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let tx = ctx.db.begin().await?;
+    assert_eq!(super::load_advisory_names(&[], &tx).await?.len(), 0);
+    assert_eq!(super::load_vulnerability_titles(&[], &tx).await?.len(), 0);
+    assert_eq!(super::load_scores(&[], &[], &tx).await?.len(), 0);
+    Ok(())
+}

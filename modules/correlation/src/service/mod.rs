@@ -9,6 +9,8 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, QueryFilter,
+    Value,
+    sea_query::{Expr, ExprTrait, PgFunc, SimpleExpr},
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
@@ -164,7 +166,10 @@ impl CorrelationService {
 
         let nodes = sbom_node::Entity::find()
             .filter(sbom_node::Column::SbomId.eq(sbom_id))
-            .filter(sbom_node::Column::NodeId.is_in(node_ids))
+            .filter(is_any(
+                sbom_node::Column::NodeId,
+                node_ids.iter().map(ToString::to_string).collect(),
+            ))
             .all(connection)
             .await?;
 
@@ -496,13 +501,26 @@ impl AdvisoryName {
     }
 }
 
+/// `column = ANY($1)`: one array parameter, instead of one parameter per value of an `IN` list.
+fn is_any<C, T>(column: C, values: Vec<T>) -> SimpleExpr
+where
+    C: ColumnTrait,
+    Value: From<Vec<T>>,
+{
+    Expr::col(column.as_column_ref()).eq(SimpleExpr::FunctionCall(PgFunc::any(Value::from(values))))
+}
+
+fn owned(values: &[&str]) -> Vec<String> {
+    values.iter().map(ToString::to_string).collect()
+}
+
 /// Load advisory identifiers and formats by ID.
 async fn load_advisory_names(
     advisory_ids: &[Uuid],
     connection: &DatabaseTransaction,
 ) -> Result<HashMap<Uuid, AdvisoryName>, Error> {
     let advisories = advisory::Entity::find()
-        .filter(advisory::Column::Id.is_in(advisory_ids.iter().copied()))
+        .filter(is_any(advisory::Column::Id, advisory_ids.to_vec()))
         .all(connection)
         .instrument(info_span!("loading advisories"))
         .await?;
@@ -528,7 +546,7 @@ async fn load_vulnerability_titles(
     connection: &DatabaseTransaction,
 ) -> Result<HashMap<String, Option<String>>, Error> {
     let vulns = vulnerability::Entity::find()
-        .filter(vulnerability::Column::Id.is_in(vuln_ids.iter().copied()))
+        .filter(is_any(vulnerability::Column::Id, owned(vuln_ids)))
         .all(connection)
         .instrument(info_span!("loading vulnerabilities"))
         .await?;
@@ -631,12 +649,14 @@ async fn load_scores(
     connection: &impl ConnectionTrait,
 ) -> Result<HashMap<(Uuid, String), Vec<ScoreRef>>, Error> {
     let rows = advisory_vulnerability_score::Entity::find()
-        .filter(
-            advisory_vulnerability_score::Column::AdvisoryId.is_in(advisory_ids.iter().copied()),
-        )
-        .filter(
-            advisory_vulnerability_score::Column::VulnerabilityId.is_in(vuln_ids.iter().copied()),
-        )
+        .filter(is_any(
+            advisory_vulnerability_score::Column::AdvisoryId,
+            advisory_ids.to_vec(),
+        ))
+        .filter(is_any(
+            advisory_vulnerability_score::Column::VulnerabilityId,
+            owned(vuln_ids),
+        ))
         .all(connection)
         .instrument(info_span!("loading scores"))
         .await?;
