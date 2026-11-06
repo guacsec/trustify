@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793963352337,
+  "lastUpdate": 1793978109856,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24551,6 +24551,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/98581de8c3325c0cc6b89bf0a5e2901d533d7253"
         },
         "date": 1793963349407,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": true,
+          "id": "04e4634d3d5a202043acf3963c2c5c9f8e2c215f",
+          "message": "sec: fix cargo-deny supply chain audit failure\n\nAdd explicit build targets to deny.toml so cargo-deny skips\nwasm32-only transitive deps (pin-utils via wasmtimer), fixing\nthe RUSTSEC-2026-0441 failure without adding an ignore entry.\n\nUpgrade aws-sigv4 1.6.3 → 1.6.4 and openidconnect 4.0.1 → 4.1.0\nto eliminate crypto-bigint 0.5.5, resolving RUSTSEC-2026-0387.\nAlso bump crypto-bigint 0.7.5 → 0.7.10 (yanked version).\n\nRemove four stale advisory ignores whose crates are no longer in\nthe dependency graph (RUSTSEC-2026-0367/0368/0369, RUSTSEC-2026-0387).\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-06T13:50:45Z",
+          "tree_id": "20aed4415228c471d449ff870e0336f671a028c2",
+          "url": "https://github.com/guacsec/trustify/commit/04e4634d3d5a202043acf3963c2c5c9f8e2c215f"
+        },
+        "date": 1793978107656,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
