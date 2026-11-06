@@ -560,6 +560,12 @@ fn group<'a, K: Ord + Clone>(
                 source.is_some_and(|rule| rule.requires_context())
             }
         };
+        // Without a context, any scoping drops it (see `context::scope`). That's most of the rows
+        // of a package with many products (e.g. a kernel's minor stream fallbacks). It's only
+        // dropped here, as it still shadows defaults and other streams.
+        if requires_context && row.stated.assertion_context_id.is_none() {
+            continue;
+        }
         let stated = row.stated.clone();
         let slug = row.matched.slug.clone();
         let range = row.range();
@@ -585,53 +591,50 @@ fn group<'a, K: Ord + Clone>(
                 requires_context,
                 source_assertions: BTreeSet::new(),
             });
-        // the best range of the group decides its confidence
-        if confidence > entry.confidence {
+        // the best range of the group decides its confidence, the own stream on a tie
+        if confidence > entry.confidence
+            || (confidence == entry.confidence && stream == StreamMatch::Exact)
+        {
             entry.confidence = confidence;
             entry.factors = factors;
         }
+        // a row which applies by itself is enough, regardless of the order of the rows
+        entry.requires_context &= requires_context;
         entry.ranges.insert(range);
         entry
             .source_assertions
             .insert(super::SourceAssertionRef::Purl(stated.source_id));
     }
 
-    // An assertion requiring a context, without one, is dropped by any scoping (see
-    // `context::scope`). Those are most of the rows of a package with many products (e.g. a
-    // kernel's minor stream fallbacks), so they are dropped here, before being copied for targets.
-    // They are only dropped after grouping, as they still shadow defaults and other streams.
-    groups
-        .into_iter()
-        .filter(|((.., context_id, _), group)| !group.requires_context || context_id.is_some())
-        .map(
-            |(
-                (target, extractor, advisory_id, vulnerability_id, _, identifier, context_id, _),
-                group,
-            )| {
-                (
-                    target,
-                    Assertion {
-                        extractor,
-                        advisory_id,
-                        vulnerability_id,
-                        status: group.status,
-                        confidence: group.confidence,
-                        factors: group.factors,
-                        matched_value: MatchedValue {
-                            source_provider: group.source_provider,
-                            origin: group.origin,
-                            identifier,
-                            ranges: group.ranges.into_iter().collect(),
-                            enabled_by: group.enabled_by,
-                        },
-                        context_id,
-                        requires_context: group.requires_context,
-                        version_range_id: None,
-                        source_assertions: group.source_assertions,
+    groups.into_iter().map(
+        |(
+            (target, extractor, advisory_id, vulnerability_id, _, identifier, context_id, _),
+            group,
+        )| {
+            (
+                target,
+                Assertion {
+                    extractor,
+                    advisory_id,
+                    vulnerability_id,
+                    status: group.status,
+                    confidence: group.confidence,
+                    factors: group.factors,
+                    matched_value: MatchedValue {
+                        source_provider: group.source_provider,
+                        origin: group.origin,
+                        identifier,
+                        ranges: group.ranges.into_iter().collect(),
+                        enabled_by: group.enabled_by,
                     },
-                )
-            },
-        )
+                    context_id,
+                    requires_context: group.requires_context,
+                    version_range_id: None,
+                    source_assertions: group.source_assertions,
+                },
+            )
+        },
+    )
 }
 
 #[async_trait::async_trait]
