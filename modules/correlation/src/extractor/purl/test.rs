@@ -1913,6 +1913,40 @@ fn sorted_matches(mut matches: Vec<NodeMatch>) -> Vec<NodeMatch> {
     matches
 }
 
+/// Assert that the matches of an advisory don't depend on the order of their rows, which the
+/// statement doesn't define within a node.
+pub(crate) async fn assert_independent_of_row_order(
+    advisory_id: Uuid,
+    tx: &DatabaseTransaction,
+) -> anyhow::Result<()> {
+    let rules = rules(tx).await?;
+    let sources = sources(&rules).collect::<Vec<_>>();
+    let rows = advisory_rows(advisory_id, &sources, tx).await?;
+    let matches = |rows: Vec<_>| {
+        sorted_matches(
+            group(rows)
+                .map(|(node, assertion)| NodeMatch { node, assertion })
+                .collect(),
+        )
+    };
+    let mut reversed = rows.clone();
+    reversed.reverse();
+    let mut rotated = rows.clone();
+    rotated.rotate_left(rows.len() / 2);
+    let (even, odd): (Vec<_>, Vec<_>) = rows
+        .iter()
+        .cloned()
+        .enumerate()
+        .partition(|(index, _)| index % 2 == 0);
+    let interleaved = odd.into_iter().chain(even).map(|(_, row)| row).collect();
+
+    let expected = matches(rows);
+    assert_eq!(matches(reversed), expected);
+    assert_eq!(matches(rotated), expected);
+    assert_eq!(matches(interleaved), expected);
+    Ok(())
+}
+
 const BUILDAH_SBOM: &str = "correlation/buildah_el9_4.cdx.json";
 const BUILDAH_VEX: &str = "correlation/cve-2024-34155.json.xz";
 
