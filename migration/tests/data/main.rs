@@ -2,6 +2,7 @@
 
 mod m0002010;
 mod m0002710;
+mod parallel;
 
 use migration::{
     Migrator, MigratorExt, MigratorTraitSelf,
@@ -30,6 +31,7 @@ impl MigratorTest {
 }
 
 mod sbom {
+    use futures_util::FutureExt;
     use migration::{
         ColumnDef, DeriveIden, DeriveMigrationName, Table, async_trait,
         data::{
@@ -37,7 +39,7 @@ mod sbom {
             sbom::{self, Sbom as SbomDoc},
         },
     };
-    use sea_orm::{ConnectionTrait, DatabaseTransaction, DbErr, Statement};
+    use sea_orm::{ConnectionTrait, DbErr, Statement};
 
     #[derive(DeriveMigrationName)]
     pub struct Migration;
@@ -66,9 +68,8 @@ mod sbom {
                 .await?;
 
             manager
-                .process(
-                    self,
-                    async |sbom: SbomDoc, id: sbom::Id, tx: &DatabaseTransaction| {
+                .process(self, |sbom: SbomDoc, id: sbom::Id, tx| {
+                    async move {
                         // we just pick a random value
                         let value = match sbom {
                             SbomDoc::CycloneDx(sbom) => sbom.serial_number,
@@ -88,8 +89,9 @@ mod sbom {
                         }
 
                         Ok(())
-                    },
-                )
+                    }
+                    .boxed()
+                })
                 .await?;
 
             Ok(())

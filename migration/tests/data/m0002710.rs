@@ -1,5 +1,5 @@
 use migration::{
-    Migrator,
+    Migrator, MigratorTraitSelf,
     data::{Database, Direction, Options, Runner},
 };
 use rstest::rstest;
@@ -304,5 +304,116 @@ JOIN version_range dvr ON dvr.low_version IS NULL AND dvr.high_version = vr.low_
         result[ADVISORIES][0]["publisher_namespace"],
         json!("https://www.redhat.com")
     );
+    Ok(())
+}
+
+/// A document which can't be parsed fails the migration, as its statements would stay wrong.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn unknown_format_fails(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    ctx.ingest_document("spdx/simple.json").await?;
+    make_older(ctx).await?;
+    ctx.db
+        .execute_unprepared(
+            "UPDATE advisory SET source_document_id = \
+             (SELECT source_document_id FROM sbom LIMIT 1)",
+        )
+        .await?;
+
+    let err = run(ctx, Options::default()).await.unwrap_err();
+
+    assert!(
+        err.to_string().contains("unable to parse the document"),
+        "{err}"
+    );
+    Ok(())
+}
+
+/// A document which is missing fails the migration.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn missing_document_fails(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    make_older(ctx).await?;
+    ctx.db
+        .execute_unprepared("UPDATE source_document SET sha256 = repeat('0', 64)")
+        .await?;
+    let before = state(ctx).await?;
+
+    let err = run(ctx, Options::default()).await.unwrap_err();
+
+    assert!(
+        err.to_string().contains("Failed to load source document"),
+        "{err}"
+    );
+    assert_eq!(state(ctx).await?, before);
+    Ok(())
+}
+
+/// Running it before the schema migrations fails, instead of succeeding without any work.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn before_schema_migrations_fails(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.db
+        .execute_unprepared(
+            "DELETE FROM seaql_migrations WHERE version = 'm0002580_remediation_assertions'",
+        )
+        .await?;
+
+    let err = run(ctx, Options::default()).await.unwrap_err();
+
+    assert!(err.to_string().contains("must run first"), "{err}");
+    Ok(())
+}
+
+/// Documents sharing rows (PURLs, versions, organizations) can be processed at the same time.
+#[test_context(TrustifyContext)]
+#[test_log::test(tokio::test(flavor = "multi_thread", worker_threads = 4))]
+async fn several_documents_in_parallel(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    for document in [
+        "correlation/cve-2024-34155.json.xz",
+        "csaf/rhsa-2024_3666.json",
+        "scenarios/S19_sku_correlation/vex/hbsa-2025-0002.json",
+        "scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json",
+        "scenarios/S26_cve_cpe_applicability_kernel/cve/CVE-2024-26581.json",
+        "osv/DSA-5790-1.json",
+        "osv/GHSA-qq9f-q439-2574.json",
+        "osv/PYSEC-2024-55.yaml",
+    ] {
+        ctx.ingest_document(document).await?;
+    }
+    let fresh = rows(ctx).await?;
+    downgrade_statements(ctx).await?;
+
+    run(
+        ctx,
+        Options {
+            concurrent: 8,
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    assert_eq!(rows(ctx).await?, fresh);
+    Ok(())
+}
+
+/// As part of the regular migrations, which run it in one transaction, one document at a time.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn during_regular_migrations(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    ctx.ingest_document("osv/DSA-5790-1.json").await?;
+    let fresh = rows(ctx).await?;
+    let [_, extraction, _] = state(ctx).await?;
+
+    let migrator = Migrator::new(ctx.storage.clone(), ());
+    migrator.down(&ctx.db, Some(1)).await?;
+    downgrade_statements(ctx).await?;
+    migrator.up(&ctx.db, Some(1)).await?;
+
+    assert_eq!(rows(ctx).await?, fresh);
+    assert_eq!(state(ctx).await?[..2], [0, extraction + 1]);
     Ok(())
 }

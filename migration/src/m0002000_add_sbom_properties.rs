@@ -1,7 +1,8 @@
 use crate::data::{
     MigrationTraitWithData, SchemaDataManager, sbom::Id as SbomId, sbom::Sbom as SbomDoc,
 };
-use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
+use futures_util::FutureExt;
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, Set};
 use sea_orm_migration::prelude::*;
 use trustify_common::advisory::cyclonedx::extract_properties_json;
 
@@ -68,9 +69,8 @@ impl MigrationTraitWithData for Migration {
             .await?;
 
         manager
-            .process(
-                self,
-                async |sbom: SbomDoc, id: SbomId, tx: &DatabaseTransaction| {
+            .process(self, |sbom: SbomDoc, id: SbomId, tx| {
+                async move {
                     let mut model = legacy::ActiveModel::new();
                     model.sbom_id = Set(id.sbom);
                     match sbom {
@@ -88,8 +88,9 @@ impl MigrationTraitWithData for Migration {
                     model.save(tx).await?;
 
                     Ok(())
-                },
-            )
+                }
+                .boxed()
+            })
             .await?;
 
         Ok(())

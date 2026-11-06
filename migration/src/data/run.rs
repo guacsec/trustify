@@ -3,6 +3,7 @@ use anyhow::bail;
 use sea_orm::{ConnectOptions, DatabaseConnection, DbErr};
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManager};
 use std::{collections::HashMap, time::SystemTime};
+use tracing::log::LevelFilter;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
@@ -39,13 +40,19 @@ impl From<trustify_common::db::Database> for Database {
 }
 
 impl Database {
-    pub async fn try_into_connection(self) -> Result<DatabaseConnection, DbErr> {
+    /// Get the connection, a configured one limited to the maximum number of connections.
+    pub async fn try_into_connection(
+        self,
+        max_connections: u32,
+    ) -> Result<DatabaseConnection, DbErr> {
         Ok(match self {
             Self::Config { url, schema } => {
                 let schema = schema.clone().unwrap_or_else(|| "public".to_owned());
 
                 let connect_options = ConnectOptions::new(url)
                     .set_schema_search_path(schema)
+                    .max_connections(max_connections)
+                    .sqlx_logging_level(LevelFilter::Trace)
                     .to_owned();
 
                 sea_orm::Database::connect(connect_options).await?
@@ -71,7 +78,11 @@ impl Runner {
             running.push(migration);
         }
 
-        let database = self.database.clone().try_into_connection().await?;
+        let database = self
+            .database
+            .clone()
+            .try_into_connection(self.options.effective_max_connections())
+            .await?;
 
         let manager = SchemaManager::new((&database).into_database_executor());
         let manager =
@@ -96,6 +107,33 @@ impl Runner {
             }
         }
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use test_context::test_context;
+    use trustify_test_context::TrustifyContext;
+
+    #[test_context(TrustifyContext)]
+    #[test_log::test(tokio::test)]
+    async fn configured_database_limits_connections(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let connection = Database::Config {
+            url: format!("postgres://postgres:trustify@localhost:{}/test", ctx.port),
+            schema: None,
+        }
+        .try_into_connection(23)
+        .await?;
+
+        assert_eq!(
+            connection
+                .get_postgres_connection_pool()
+                .options()
+                .get_max_connections(),
+            23
+        );
         Ok(())
     }
 }
