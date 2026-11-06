@@ -18,6 +18,7 @@ use crate::data::{
     Document, MigrationTraitWithData, SchemaDataManager,
     advisory::{Advisory, Id},
 };
+use anyhow::bail;
 use futures_util::FutureExt;
 use sea_orm::{ConnectionTrait, DatabaseTransaction, DbBackend, FromQueryResult, Statement};
 use sea_orm_migration::prelude::*;
@@ -71,8 +72,11 @@ impl Document for OlderAdvisory {
 /// Replace the statements of an advisory.
 async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyhow::Result<()> {
     if matches!(advisory, Advisory::Other(_)) {
-        tracing::warn!(advisory = %id.advisory, "Keeping the statements of an unknown format");
-        return Ok(());
+        // ingestion accepted it, so this isn't the document's fault
+        bail!(
+            "unable to parse the document of advisory {}, keeping its statements would leave it wrong",
+            id.advisory
+        );
     }
 
     tx.execute_unprepared("SET LOCAL trustify.correlation_defer_invalidation = 'on'")
@@ -134,6 +138,20 @@ impl MigrationTraitWithData for Migration {
             return Ok(());
         }
 
+        // without it, no advisory would count as older, and this would succeed without any work
+        let cutoff = manager
+            .get_connection()
+            .query_one_raw(Statement::from_string(
+                DbBackend::Postgres,
+                "SELECT 1 FROM seaql_migrations WHERE version = 'm0002580_remediation_assertions'",
+            ))
+            .await?;
+        if cutoff.is_none() {
+            return Err(DbErr::Migration(
+                "the schema migrations up to m0002580_remediation_assertions must run first".into(),
+            ));
+        }
+
         if OlderAdvisory::all(manager.get_connection())
             .await?
             .is_empty()
@@ -142,12 +160,9 @@ impl MigrationTraitWithData for Migration {
         }
 
         manager
-            .process(
-                self,
-                async |advisory: OlderAdvisory, id: Id, tx: &DatabaseTransaction| {
-                    backfill(advisory.0, id, tx).boxed().await
-                },
-            )
+            .process(self, |advisory: OlderAdvisory, id: Id, tx| {
+                backfill(advisory.0, id, tx).boxed()
+            })
             .await?;
 
         manager

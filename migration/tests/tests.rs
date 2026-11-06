@@ -1,8 +1,20 @@
 #![recursion_limit = "256"]
-use migration::{Migrator, MigratorTraitSelf};
+use migration::{Migrator, MigratorTraitSelf, data::Options};
 use test_context::test_context;
 use test_log::test;
 use trustify_test_context::TrustifyContext;
+
+/// A migrator for testing other migrations, leaving out the backfill which would run on their way
+/// back up.
+fn without_backfill(ctx: &TrustifyContext) -> Migrator {
+    Migrator::new(
+        ctx.storage.clone(),
+        Options {
+            skip: vec!["m0002710_backfill_advisory_assertions".into()],
+            ..Default::default()
+        },
+    )
+}
 
 /// The number of applied migrations from the named one on, to roll back to just before it (and
 /// re-apply them), independent of migrations added later.
@@ -40,7 +52,7 @@ async fn extraction_queue_migration_queues_no_existing_advisories(
     ctx.db
         .execute_unprepared("DELETE FROM correlation_extraction_queue")
         .await?;
-    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrator = without_backfill(ctx);
     let steps = since(&migrator, &ctx.db, "m0002590_correlation_extraction_queue").await?;
     migrator.down(&ctx.db, Some(steps)).await?;
     migrator.up(&ctx.db, Some(steps)).await?;
@@ -83,7 +95,7 @@ async fn unified_refresh_migration_moves_sboms_to_refresh_jobs(
     let sbom = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
     let advisory = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
     assert_eq!(queued().await?, vec![("advisory".to_string(), advisory)]);
-    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrator = without_backfill(ctx);
     let steps = since(&migrator, &ctx.db, "m0002620_correlation_unified_refresh").await?;
     migrator.down(&ctx.db, Some(steps)).await?;
     assert_eq!(
@@ -121,7 +133,7 @@ async fn freshness_migration_preserves_documents_and_resets_to_unknown(
             "UPDATE correlation_extraction_state SET completed_revision=1,completed_at=now()",
         )
         .await?;
-    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrator = without_backfill(ctx);
     let steps = since(&migrator, &ctx.db, "m0002570_correlation_freshness").await?;
     migrator.down(&ctx.db, Some(steps)).await?;
     assert_eq!(evidence_count(&ctx.db).await?, 1);
@@ -188,7 +200,7 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
     use trustify_entity::{correlation_evidence, purl_status, qualified_purl};
     use uuid::Uuid;
 
-    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrator = without_backfill(ctx);
     ctx.ingest_document("csaf/CVE-2024-34502.json").await?;
     let rows = purl_status::Entity::find().all(&ctx.db).await?;
     assert!(!rows.is_empty());
@@ -320,7 +332,7 @@ WHERE vr.id IN ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000
         .await?;
     let advisories = advisory::Entity::find().count(&ctx.db).await?;
     let sboms = sbom::Entity::find().count(&ctx.db).await?;
-    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrator = without_backfill(ctx);
     let migrations = since(&migrator, &ctx.db, "m0002410_create_correlation_evidence").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
     assert_eq!(
@@ -402,7 +414,7 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
         .await?;
     assert!(!legacy_purls.is_empty());
     assert!(!legacy_products.is_empty());
-    let migrator = Migrator::new(ctx.storage.clone(), ());
+    let migrator = without_backfill(ctx);
     let migrations = since(&migrator, &ctx.db, "m0002580_remediation_assertions").await?;
     migrator.down(&ctx.db, Some(migrations)).await?;
     assert_eq!(evidence_count(&ctx.db).await?, 1);

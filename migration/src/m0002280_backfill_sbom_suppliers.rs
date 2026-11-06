@@ -4,7 +4,8 @@ use crate::data::{
     MigrationTraitWithData, SchemaDataManager,
     sbom::{Id, Sbom, SpdxSbom},
 };
-use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
+use futures_util::FutureExt;
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, Set};
 use sea_orm_migration::prelude::*;
 use trustify_module_ingestor::graph::sbom::spdx::suppliers;
 
@@ -32,9 +33,8 @@ mod legacy {
 impl MigrationTraitWithData for Migration {
     async fn up(&self, manager: &SchemaDataManager) -> Result<(), DbErr> {
         manager
-            .process(
-                self,
-                async |sbom: SpdxSbom, id: Id, tx: &DatabaseTransaction| {
+            .process(self, |sbom: SpdxSbom, id: Id, tx| {
+                async move {
                     let Sbom::Spdx(spdx) = sbom.0 else {
                         return Ok(());
                     };
@@ -47,8 +47,9 @@ impl MigrationTraitWithData for Migration {
                     model.save(tx).await?;
 
                     Ok(())
-                },
-            )
+                }
+                .boxed()
+            })
             .await?;
 
         Ok(())

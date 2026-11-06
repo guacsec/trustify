@@ -56,6 +56,10 @@ The migration runners need read access to the original documents.
 | Number of documents processed concurrently within a single runner. `0` auto-detects the number of logical CPUs.
 | `0`
 
+| `MIGRATION_DATA_MAX_CONNECTIONS`
+| Maximum number of database connections of a runner for processing documents, each document being processed holds one. `0` uses the number of concurrent documents.
+| `0`
+
 | `MIGRATION_DATA_TOTAL_RUNNER`
 | Total number of runner instances. Documents are hash-partitioned across runners.
 | `1`
