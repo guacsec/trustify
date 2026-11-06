@@ -385,6 +385,7 @@ async fn patch(ctx: TrustifyContext) {
                 "source": "bar",
             },
         }))
+        .insert_header(("content-type", "application/merge-patch+json"))
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
