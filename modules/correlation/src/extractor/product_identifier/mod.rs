@@ -101,7 +101,11 @@ impl Extractor for ProductIdentifierExtractor {
         ID
     }
 
-    #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
+    #[instrument(
+        skip(self, nodes, tx),
+        fields(nodes = ?nodes.map(<[_]>::len)),
+        err(level = tracing::Level::INFO)
+    )]
     async fn sbom_identifiers(
         &self,
         sbom_id: Uuid,

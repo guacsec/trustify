@@ -200,7 +200,11 @@ impl Extractor for CpeExtractor {
     ///
     /// The stored CPE's `Display` form is a CPE 2.2 URI which can't be parsed back for all
     /// values, so the CPE 2.3 form is used instead, which is also what users know.
-    #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
+    #[instrument(
+        skip(self, nodes, tx),
+        fields(nodes = ?nodes.map(<[_]>::len)),
+        err(level = tracing::Level::INFO)
+    )]
     async fn sbom_identifiers(
         &self,
         sbom_id: Uuid,
