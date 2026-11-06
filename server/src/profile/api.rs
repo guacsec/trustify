@@ -1188,8 +1188,11 @@ mod test {
         #[case] expected: StatusCode,
     ) -> Result<(), anyhow::Error> {
         let app = caller(ctx, read_only).await;
-        let req = TestRequest::default().method(method).uri(uri).to_request();
-        let resp = app.call_service(req).await;
+        let mut req = TestRequest::default().method(method.clone()).uri(uri);
+        if method == Method::PATCH {
+            req = req.insert_header(("content-type", "application/merge-patch+json"));
+        }
+        let resp = app.call_service(req.to_request()).await;
         assert_eq!(resp.status(), expected);
         Ok(())
     }
