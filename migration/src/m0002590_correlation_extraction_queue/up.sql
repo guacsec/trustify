@@ -26,8 +26,7 @@ CREATE TRIGGER correlation_extraction_enqueue AFTER INSERT ON change_log
     FOR EACH ROW EXECUTE FUNCTION correlation_extraction_enqueue();
 
 -- Earlier event delivery had no durable acknowledgement. Recheck existing
--- documents rather than claiming that their extraction already completed.
+-- documents rather than claiming that their extraction already completed. Extracting an SBOM
+-- sees all advisories, so queueing them as well would only repeat that work.
 INSERT INTO correlation_extraction_queue(id, entity_type, entity_id)
     SELECT gen_random_uuid(), 'sbom', sbom_id FROM sbom;
-INSERT INTO correlation_extraction_queue(id, entity_type, entity_id)
-    SELECT gen_random_uuid(), 'advisory', id FROM advisory;
