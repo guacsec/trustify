@@ -24,6 +24,7 @@ bytes = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 csaf-rs = { workspace = true }
 cve = { workspace = true }
+cyclonedx-rs = { workspace = true }
 futures-util = { workspace = true }
 humantime = { workspace = true }
 indicatif = { workspace = true, features = ["tokio", "futures"] }
@@ -31,7 +32,6 @@ osv = { workspace = true, features = ["schema"] }
 sea-orm = { workspace = true }
 sea-orm-cli = { workspace = true }
 sea-orm-migration = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-postgres", "with-uuid"] }
-cyclonedx-rs = { workspace = true }
 serde_json = { workspace = true }
 spdx-rs = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
@@ -48,5 +48,6 @@ trustify-entity = { workspace = true }
 trustify-test-context = { workspace = true }
 
 anyhow = { workspace = true }
+rstest = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }

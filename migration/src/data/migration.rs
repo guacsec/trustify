@@ -47,6 +47,11 @@ impl<'c> SchemaDataManager<'c> {
         }
     }
 
+    /// Check if the data part of a migration is being skipped.
+    pub fn should_skip<N: MigrationName>(&self, name: &N) -> bool {
+        self.options.should_skip(name.name())
+    }
+
     /// Run a data migration
     pub async fn process<D, N>(&self, name: &N, f: impl Handler<D>) -> Result<(), DbErr>
     where
