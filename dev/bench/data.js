@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793897878199,
+  "lastUpdate": 1793963352337,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24522,6 +24522,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/f283636a231e25c2935b6eebb65e4b24eb3165ce"
         },
         "date": 1793897875397,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "98581de8c3325c0cc6b89bf0a5e2901d533d7253",
+          "message": "build: set default POSTGRESQL_VERSION to avoid GitHub API overload\n\nThe postgresql_embedded build script (triggered via the default `pm`\nfeature which enables `bundled`) defaults to version \"*\" when\nPOSTGRESQL_VERSION is unset, listing all releases from\ntheseus-rs/postgresql-binaries. This can fail with rate limits (403)\nor decode errors on the 27 MB API response.\n\nSet POSTGRESQL_VERSION=17.2.1 in .cargo/config.toml so the build script\nfetches only the specific release. force=false preserves the existing\noverride in build-binary.yaml (POSTGRESQL_VERSION=\"=17.2\").\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-06T09:28:04Z",
+          "tree_id": "8b09bcccbe5a9e60831321dbbc9a0e958ad16e31",
+          "url": "https://github.com/guacsec/trustify/commit/98581de8c3325c0cc6b89bf0a5e2901d533d7253"
+        },
+        "date": 1793963349407,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
