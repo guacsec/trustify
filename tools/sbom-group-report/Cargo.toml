@@ -1,0 +1,22 @@
+[package]
+name = "sbom-group-report"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "Apache-2.0"
+publish = false
+
+# Standalone: not part of the trustify workspace, builds and ships on its own.
+[workspace]
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4", features = ["derive", "env"] }
+futures = "0.3"
+reqwest = { version = "0.13", features = ["form", "json"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+trustify-client = "0.1.3"

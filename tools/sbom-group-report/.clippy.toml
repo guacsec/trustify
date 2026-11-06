@@ -1,0 +1,6 @@
+# Mirrors the Trustify root config: this crate is its own workspace, so clippy
+# does not pick up the repository-level file.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+absolute-paths-max-segments = 3
