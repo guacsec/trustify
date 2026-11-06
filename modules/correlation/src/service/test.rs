@@ -1,4 +1,4 @@
-use crate::extractor::Extractors;
+use crate::extractor::{Extractors, purl::test::assert_independent_of_row_order};
 use crate::{
     model::{
         ApiAssertionStatus, AssertionOrigin, ComponentRef, ConfidenceFactor, ConfidenceReason,
@@ -9,11 +9,18 @@ use crate::{
     service::CorrelationService,
 };
 use rstest::rstest;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set,
+    TransactionTrait,
+};
 use std::collections::{BTreeMap, HashSet};
 use test_context::test_context;
 use test_log::test;
-use trustify_entity::correlation_evidence::{self, AssertionStatus};
+use time::OffsetDateTime;
+use trustify_entity::{
+    correlation_evidence::{self, AssertionStatus},
+    correlation_evidence_context,
+};
 use trustify_test_context::{TrustifyContext, document_bytes};
 use uuid::Uuid;
 
@@ -571,6 +578,168 @@ async fn scenario(
         );
     }
 
+    Ok(())
+}
+
+/// The stored evidence, without when it was written, and its contexts.
+async fn stored_evidence(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<(
+    Vec<correlation_evidence::Model>,
+    Vec<correlation_evidence_context::Model>,
+)> {
+    let mut evidence = correlation_evidence::Entity::find()
+        .order_by_asc(correlation_evidence::Column::Id)
+        .all(&ctx.db)
+        .await?;
+    for row in &mut evidence {
+        row.created_at = OffsetDateTime::UNIX_EPOCH;
+    }
+    let contexts = correlation_evidence_context::Entity::find()
+        .order_by_asc(correlation_evidence_context::Column::EvidenceId)
+        .order_by_asc(correlation_evidence_context::Column::ContextId)
+        .order_by_asc(correlation_evidence_context::Column::NodeIdentifier)
+        .order_by_asc(correlation_evidence_context::Column::ContextIdentifier)
+        .all(&ctx.db)
+        .await?;
+    Ok((evidence, contexts))
+}
+
+/// Extracting from the SBOMs and from the advisories must store the same evidence: a new SBOM only
+/// gets the former, a new advisory only the latter. Matching must not depend on the order of the
+/// rows either, including for advisories stored without their PURL and product.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::s1_combined("S1_crossstream_bind-libs", "expected.json")]
+#[case::s2_combined("S2_wrongscheme_golang_oci", "expected.json")]
+#[case::s3_combined("S3_wrongproduct_hummingbird_curl", "expected.json")]
+#[case::s4_combined("S4_wrongproduct_satellite_chardet", "expected.json")]
+#[case::s4_cve("S4_wrongproduct_satellite_chardet", "expected-cve.json")]
+#[case::s4_vex("S4_wrongproduct_satellite_chardet", "expected-vex.json")]
+#[case::s5_combined("S5_positive_baseline_openssl_el8", "expected.json")]
+#[case::s5_cve("S5_positive_baseline_openssl_el8", "expected-cve.json")]
+#[case::s5_vex("S5_positive_baseline_openssl_el8", "expected-vex.json")]
+#[case::s6_combined("S6_positive_baseline_osv_urllib3", "expected.json")]
+#[case::s8_combined("S8_epoch_mismatch_openjdk", "expected.json")]
+#[case::s8_cve("S8_epoch_mismatch_openjdk", "expected-cve.json")]
+#[case::s8_vex("S8_epoch_mismatch_openjdk", "expected-vex.json")]
+#[case::s9_combined("S9_substream_openssl_el8", "expected.json")]
+#[case::s9_cve("S9_substream_openssl_el8", "expected-cve.json")]
+#[case::s9_vex("S9_substream_openssl_el8", "expected-vex.json")]
+#[case::s10_combined("S10_combined_describing_cpe", "expected.json")]
+#[case::s10_cve("S10_combined_describing_cpe", "expected-cve.json")]
+#[case::s10_osv("S10_combined_describing_cpe", "expected-osv.json")]
+#[case::s10_vex("S10_combined_describing_cpe", "expected-vex.json")]
+#[case::s12_combined("S12_notaffected_ignored_thunderbird", "expected.json")]
+#[case::s11_reviewed("S11_bareaffected_substream_firefox", "expected-reviewed.json")]
+#[case::s12_control("S12_notaffected_ignored_thunderbird", "expected-control.json")]
+#[case::s13_combined("S13_aliasless_osv_drop", "expected.json")]
+#[case::s14_combined("S14_productstatus_versionfilter_netty", "expected.json")]
+#[case::s15_combined("S15_versioncmp_rpm_openssh", "expected.json")]
+#[case::s16_combined("S16_crossscheme_purlquery_golang", "expected.json")]
+#[case::s17_combined("S17_crossproduct_ocp_kernel_go", "expected.json")]
+#[case::s30_combined("S30_crossproduct_curl_notaffected", "expected.json")]
+#[case::s20_combined("S20_cpe_range_wago", "expected.json")]
+#[case::s21_combined("S21_cpe_extended_attributes_beckhoff", "expected.json")]
+#[case::s22_combined("S22_cpe_third_party_openssl_phoenix", "expected.json")]
+#[case::s23_combined("S23_suse_codestream_openssl", "expected.json")]
+#[case::s24_combined("S24_rhel10_minor_streams_ubi10", "expected.json")]
+#[case::s25_combined("S25_cve_package_url", "expected.json")]
+#[case::s26_combined("S26_cve_cpe_applicability_kernel", "expected.json")]
+#[case::s27_combined("S27_cve_identifier_synonyms_log4j", "expected.json")]
+#[case::s29_provider("S29_provider_weighting", "expected.json")]
+#[case::s28_regression("S28_fixed_then_regression", "expected.json")]
+#[test_log::test(actix_web::test)]
+async fn directions_agree(
+    ctx: &TrustifyContext,
+    #[case] name: &str,
+    #[case] expectations: &str,
+) -> anyhow::Result<()> {
+    let base = format!("scenarios/{name}");
+    let scenario: Scenario =
+        serde_json::from_slice(&document_bytes(format!("{base}/{expectations}")).await?)?;
+    let advisories = scenario
+        .advisories
+        .iter()
+        .map(|advisory| format!("{base}/{advisory}"))
+        .collect::<Vec<_>>();
+    let sboms = scenario
+        .sboms
+        .keys()
+        .map(|sbom| format!("{base}/{sbom}"))
+        .collect::<Vec<_>>();
+    assert_directions_agree(ctx, &advisories, &sboms).await
+}
+
+/// Like [`directions_agree`], for documents without a verdict manifest, which are the only ones
+/// using digests and product identifiers, or a package with fixes of several kinds of streams.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::s18(&["scenarios/S18_digest_correlation/vex/vde-2025-106.json"], &["scenarios/S18_digest_correlation/sbom/libcrypto.cdx.json"])]
+#[case::s19(&["scenarios/S19_sku_correlation/vex/hbsa-2025-0002.json", "scenarios/S19_sku_correlation/vex/hbsa-2025-0003.json", "scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json"], &["scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json", "scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly.cdx.json", "scenarios/S19_sku_correlation/sbom/jbl_flip4_assembly_fw_4.1.0.cdx.json", "scenarios/S19_sku_correlation/sbom/jbl_flip5.cdx.json"])]
+#[case::s7(&["scenarios/S7_cpeonly_node_hummingbird/cve/CVE-2026-12151.json", "scenarios/S7_cpeonly_node_hummingbird/cve/CVE-2026-16730.json", "scenarios/S7_cpeonly_node_hummingbird/cve/CVE-2026-33815.json"], &["scenarios/S7_cpeonly_node_hummingbird/sbom_cpeonly_hummingbird.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_cpeonly_hummingbird.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_caddy.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_caddy.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_dbusbroker.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_dbusbroker.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_nodejs25.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_nodejs25.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_nodejs26_fixed.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_nodejs26_fixed.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_nodejs26_vuln.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_nodejs26_vuln.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_rust.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_rust.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_rust_detached.cdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_hummingbird_rust_detached.spdx.json", "scenarios/S7_cpeonly_node_hummingbird/sbom_opentofu_image.cdx.json.xz"])]
+#[case::module_and_dist_tag(
+    &["correlation/cve-2024-34155.json.xz"],
+    &["correlation/buildah_el9_4.cdx.json"]
+)]
+#[test_log::test(actix_web::test)]
+async fn directions_agree_without_manifest(
+    ctx: &TrustifyContext,
+    #[case] advisories: &[&str],
+    #[case] sboms: &[&str],
+) -> anyhow::Result<()> {
+    assert_directions_agree(ctx, advisories, sboms).await
+}
+
+async fn assert_directions_agree(
+    ctx: &TrustifyContext,
+    advisories: &[impl AsRef<str>],
+    sboms: &[impl AsRef<str>],
+) -> anyhow::Result<()> {
+    let mut advisory_ids = Vec::new();
+    for advisory in advisories {
+        let id = ctx.ingest_document(advisory.as_ref()).await?.id;
+        advisory_ids.push(Uuid::parse_str(&id)?);
+    }
+    let mut sbom_ids = Vec::new();
+    for sbom in sboms {
+        let id = ctx.ingest_document(sbom.as_ref()).await?.id;
+        sbom_ids.push(Uuid::parse_str(&id)?);
+    }
+
+    let extractors = Extractors::default();
+    for sbom in &sbom_ids {
+        let tx = ctx.db.begin().await?;
+        extractors.extract_for_sbom(*sbom, &tx).await?;
+        tx.commit().await?;
+    }
+    let from_sboms = stored_evidence(ctx).await?;
+
+    correlation_evidence::Entity::delete_many()
+        .exec(&ctx.db)
+        .await?;
+    for advisory in &advisory_ids {
+        let tx = ctx.db.begin().await?;
+        extractors.extract_for_advisory(*advisory, &tx).await?;
+        tx.commit().await?;
+    }
+    assert_eq!(stored_evidence(ctx).await?, from_sboms);
+
+    let tx = ctx.db.begin().await?;
+    for advisory in &advisory_ids {
+        assert_independent_of_row_order(*advisory, &tx).await?;
+    }
+    tx.rollback().await?;
+
+    ctx.db
+        .execute_unprepared(
+            "UPDATE purl_status SET qualified_purl_id = NULL, assertion_context_id = NULL",
+        )
+        .await?;
+    let tx = ctx.db.begin().await?;
+    for advisory in &advisory_ids {
+        assert_independent_of_row_order(*advisory, &tx).await?;
+    }
     Ok(())
 }
 
