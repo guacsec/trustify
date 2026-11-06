@@ -10203,6 +10203,7 @@ dependencies = [
  "sea-orm",
  "sea-orm-cli",
  "sea-orm-migration",
+ "serde-saphyr",
  "serde_json",
  "spdx-rs",
  "strum 0.28.0",
