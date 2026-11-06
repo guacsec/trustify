@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::{
     Error,
@@ -38,12 +39,16 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    advisory, base_purl, license, purl_status,
+    advisory, base_purl, license, organization, purl_status,
     qualified_purl::{self, CanonicalPurl},
     remediation, remediation_purl_status, sbom, sbom_license_expanded, sbom_node,
-    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
+    sbom_node_purl_ref, sbom_package, sbom_package_license, source_document, status, version_range,
+    versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
+use trustify_module_storage::service::dispatch::DispatchBackend;
+
+pub(crate) mod report;
 
 /// Composite key identifying a base PURL by type, namespace, and name (without version).
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -58,9 +63,13 @@ struct StatusInfo {
     vuln_id: String,
     status_slug: String,
     remediations: Vec<remediation::Model>,
-    /// The most recent date from the advisory that reported this status, used to pick the
-    /// latest addressing assessment for report provenance.
-    advisory_date: Option<time::OffsetDateTime>,
+    source_id: Uuid,
+    status_id: Uuid,
+    advisory_pk: Uuid,
+    context_cpe_id: Option<Uuid>,
+    range: Arc<version_range::Model>,
+    provider: report::ProviderIdentity,
+    csaf: bool,
     /// The advisory identifier that reported this status, used for report provenance.
     advisory_id: Option<String>,
 }
@@ -74,14 +83,36 @@ struct WinnerPurlStatus {
 }
 
 /// A PURL-to-SBOM association row fetched for the recommendation report endpoint.
-#[derive(FromQueryResult)]
 struct SbomPurlRow {
     sbom_id: Uuid,
+    node_id: Arc<str>,
+    node_name: Arc<str>,
+    package_group: Option<Arc<str>>,
+    package_version: Option<Arc<str>>,
+    node_purls: Arc<Vec<Purl>>,
     base_purl_id: Uuid,
     version: String,
     purl_type: String,
     purl_namespace: Option<String>,
     purl_name: String,
+}
+
+/// One aggregate per node prevents large attributes being repeated for each PURL association.
+#[derive(FromQueryResult)]
+struct SbomPurlNodeRow {
+    sbom_id: Uuid,
+    node_id: String,
+    node_name: String,
+    package_group: Option<String>,
+    package_version: Option<String>,
+    purls: serde_json::Value,
+}
+
+/// Source sizes are checked before materializing names or identifier arrays from the database.
+#[derive(FromQueryResult)]
+struct ReportInputSource {
+    sbom_id: Uuid,
+    size: i64,
 }
 
 /// SBOM root-node name row used to populate the report's sboms list.
@@ -96,16 +127,26 @@ struct VersionGroup {
     purl_type: String,
     namespace: Option<String>,
     name: String,
-    sbom_ids: Vec<Uuid>,
 }
 
 /// A winning vendor recommendation for an upstream package, assembled during report generation.
 struct ReportWinner {
     upstream_purl: String,
+    target_purl: Purl,
     recommended_purl: String,
     base_purl_id: Uuid,
     winner_vp_id: Uuid,
     winner_version: String,
+    upstream_version: String,
+}
+
+/// Report rows retain the selected verdict, its advisory and equivalent-context membership.
+#[derive(PartialEq, Eq, Hash)]
+struct ReportPackageKey {
+    purl: String,
+    recommended_purl: String,
+    status: String,
+    advisory_id: Option<String>,
     found_in: Vec<Uuid>,
 }
 
@@ -730,6 +771,7 @@ impl PurlService {
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
         let mut statuses_by_vp: HashMap<_, Vec<StatusInfo>> = HashMap::new();
+        let mut ranges_by_id = HashMap::<Uuid, Arc<version_range::Model>>::new();
         // Winner chunking bounds the VALUES query, not the number of matching statuses.
         // Each load_one relation binds one distinct key per status at most; chunk rows
         // as well so even disjoint high-cardinality winners stay within the bind limit.
@@ -750,6 +792,33 @@ impl PurlService {
                 .load_one(status::Entity, connection)
                 .instrument(info_span!("loading statuses"))
                 .await?;
+            let needed_ranges = status_models
+                .iter()
+                .map(|status| status.version_range_id)
+                .filter(|id| !ranges_by_id.contains_key(id))
+                .collect::<HashSet<_>>();
+            if !needed_ranges.is_empty() {
+                ranges_by_id.extend(
+                    version_range::Entity::find()
+                        .filter(version_range::Column::Id.is_in(needed_ranges))
+                        .all(connection)
+                        .await?
+                        .into_iter()
+                        .map(|range| (range.id, Arc::new(range))),
+                );
+            }
+            let issuer_ids = advisories_loaded
+                .iter()
+                .flatten()
+                .filter_map(|advisory| advisory.issuer_id)
+                .collect::<HashSet<_>>();
+            let issuers = organization::Entity::find()
+                .filter(organization::Column::Id.is_in(issuer_ids))
+                .all(connection)
+                .await?
+                .into_iter()
+                .map(|issuer| (issuer.id, issuer.name))
+                .collect::<HashMap<_, _>>();
             let status_slug_map = loaded_statuses
                 .into_iter()
                 .flatten()
@@ -763,7 +832,8 @@ impl PurlService {
                 .zip(batch)
                 .zip(remediations)
             {
-                if let (Some(v), Some(advisory)) = (vuln, advisory) {
+                let range = ranges_by_id.get(&ps.status.version_range_id).cloned();
+                if let (Some(v), Some(advisory), Some(range)) = (vuln, advisory, range) {
                     // Republished advisories retain superseded status rows under the same
                     // identifier. Only the current revision is eligible for recommendations.
                     if advisory.deprecated {
@@ -773,6 +843,17 @@ impl PurlService {
                         .get(&ps.status.status_id)
                         .cloned()
                         .unwrap_or_else(|| "unknown".to_string());
+                    let provider = report::ProviderIdentity::from_advisory(
+                        &advisory,
+                        advisory
+                            .issuer_id
+                            .and_then(|id| issuers.get(&id))
+                            .map(String::as_str),
+                    );
+                    let csaf = advisory
+                        .labels
+                        .get("type")
+                        .is_some_and(|value| value == "csaf");
                     statuses_by_vp
                         .entry(ps.winner_versioned_purl_id)
                         .or_default()
@@ -780,7 +861,13 @@ impl PurlService {
                             vuln_id: v.id,
                             status_slug: slug,
                             remediations: rems,
-                            advisory_date: advisory.modified.or(advisory.published),
+                            source_id: ps.status.id,
+                            status_id: ps.status.status_id,
+                            advisory_pk: advisory.id,
+                            context_cpe_id: ps.status.context_cpe_id,
+                            range,
+                            provider,
+                            csaf,
                             advisory_id: Some(advisory.identifier),
                         });
                 }
@@ -800,8 +887,8 @@ impl PurlService {
         connection: &C,
     ) -> Result<Vec<Vec<remediation::Model>>, Error> {
         let mut remediation_ids_by_status = HashMap::<_, Vec<_>>::new();
-        // A ranged status may match many winners. Load each association only once even
-        // when repeated status IDs would otherwise span several bind-parameter chunks.
+        // Within this invocation, load each ranged status's associations only once,
+        // even when repeated IDs would otherwise span several bind-parameter chunks.
         let status_ids = statuses
             .iter()
             .map(|status| status.id)
@@ -1103,6 +1190,7 @@ impl PurlService {
     pub async fn report_for_sboms<C: ConnectionTrait>(
         &self,
         sbom_ids: &[Uuid],
+        storage: &DispatchBackend,
         connection: &C,
     ) -> Result<RecommendReportResponse, Error> {
         if sbom_ids.is_empty() {
@@ -1131,27 +1219,19 @@ impl PurlService {
             });
         }
 
-        // Group rows by (base_purl_id, version) → VersionGroup with SBOM IDs.
+        // Share candidate selection by base/version, but retain nodes until verdict resolution.
         let mut version_groups: HashMap<(Uuid, String), VersionGroup> = HashMap::new();
         let mut unique_base_ids: HashSet<Uuid> = HashSet::new();
 
         for row in &rows {
-            let group = version_groups
+            version_groups
                 .entry((row.base_purl_id, row.version.clone()))
                 .or_insert_with(|| VersionGroup {
                     purl_type: row.purl_type.clone(),
                     namespace: row.purl_namespace.clone(),
                     name: row.purl_name.clone(),
-                    sbom_ids: Vec::new(),
                 });
-            group.sbom_ids.push(row.sbom_id);
             unique_base_ids.insert(row.base_purl_id);
-        }
-
-        // Deduplicate sbom_ids per group.
-        for group in version_groups.values_mut() {
-            group.sbom_ids.sort();
-            group.sbom_ids.dedup();
         }
 
         // Fetch all versioned PURLs for the relevant base PURLs to find vendor patches.
@@ -1187,31 +1267,32 @@ impl PurlService {
                 continue;
             };
 
-            let upstream_purl = Purl {
+            let upstream = Purl {
                 ty: group.purl_type.clone(),
                 namespace: group.namespace.clone(),
                 name: group.name.clone(),
                 version: Some(version.clone()),
                 qualifiers: Default::default(),
-            }
-            .to_string();
+            };
+            let upstream_purl = upstream.to_string();
 
-            let recommended_purl = Purl {
+            let target_purl = Purl {
                 ty: group.purl_type.clone(),
                 namespace: group.namespace.clone(),
                 name: group.name.clone(),
                 version: Some(winner_vp.version.clone()),
                 qualifiers: Default::default(),
-            }
-            .to_string();
+            };
+            let recommended_purl = target_purl.to_string();
 
             winners.push(ReportWinner {
                 upstream_purl,
+                target_purl,
                 recommended_purl,
                 base_purl_id: *base_id,
                 winner_vp_id: winner_vp.id,
                 winner_version: winner_vp.version.clone(),
-                found_in: group.sbom_ids.clone(),
+                upstream_version: version.clone(),
             });
         }
 
@@ -1243,63 +1324,117 @@ impl PurlService {
         )
         .await?;
 
+        let winner_by_input = winners
+            .iter()
+            .enumerate()
+            .map(|(index, winner)| {
+                (
+                    (winner.base_purl_id, winner.upstream_version.as_str()),
+                    index,
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        // Recovery cannot affect a known-empty result when no assessment is addressing.
+        let participating = rows
+            .into_iter()
+            .filter(|row| {
+                winner_by_input
+                    .get(&(row.base_purl_id, row.version.as_str()))
+                    .is_some_and(|index| {
+                        statuses_by_vp
+                            .get(&winners[*index].winner_vp_id)
+                            .into_iter()
+                            .flatten()
+                            .any(|info| {
+                                matches!(info.status_slug.as_str(), "fixed" | "not_affected")
+                            })
+                    })
+            })
+            .collect::<Vec<_>>();
+        let context =
+            report::ReportContext::load(&participating, &statuses_by_vp, storage, connection)
+                .await?;
+        let mut contextual_winners = HashMap::<_, (BTreeSet<Uuid>, (Uuid, String))>::new();
+        for row in &participating {
+            if let Some(index) = winner_by_input.get(&(row.base_purl_id, row.version.as_str())) {
+                let group = contextual_winners
+                    .entry((*index, context.key(row.sbom_id, &row.node_id)))
+                    .or_insert_with(|| (BTreeSet::new(), (row.sbom_id, row.node_id.to_string())));
+                group.0.insert(row.sbom_id);
+            }
+        }
+
         // Per-SBOM accumulators for the sboms list.
         let mut sbom_addressable: HashMap<Uuid, HashSet<String>> = HashMap::new();
         let mut sbom_vulns: HashMap<Uuid, HashSet<String>> = HashMap::new();
 
-        let mut packages: Vec<RecommendReportPackage> = Vec::with_capacity(winners.len());
-
-        for winner in &winners {
-            // Match /recommend's independent assessments: an upstream source must not
-            // erase an applicable vendor fix merely by publishing a newer assessment.
-            let addressing = statuses_by_vp
+        let mut package_rows = HashMap::<ReportPackageKey, BTreeSet<String>>::new();
+        for ((index, _), (found_in, (sbom_id, node_id))) in contextual_winners {
+            let winner = &winners[index];
+            let statuses = statuses_by_vp
                 .get(&winner.winner_vp_id)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let selected = context.resolve(sbom_id, &node_id, &winner.target_purl, statuses)?;
+            let mut resolved_groups = HashMap::<(String, Option<String>), BTreeSet<String>>::new();
+            // Negative selected outcomes have already defeated conflicting positive evidence.
+            for info in selected
                 .into_iter()
-                .flatten()
                 .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
-                .collect::<Vec<_>>();
-
-            // Only include vulnerabilities the recommended PURL actually addresses
-            // (fixed or not_affected). CVEs where the recommended version is still
-            // affected or under investigation are not remediated and must be excluded.
-            let vulnerabilities = addressing
-                .iter()
-                .map(|info| info.vuln_id.as_str())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .map(str::to_owned)
-                .collect::<Vec<_>>();
-
-            if vulnerabilities.is_empty() {
-                continue;
-            }
-
-            // Advisory ID from the most recent advisory among addressed vulnerabilities.
-            let advisory_id = addressing
-                .iter()
-                .max_by(|a, b| {
-                    (a.advisory_date, &a.advisory_id).cmp(&(b.advisory_date, &b.advisory_id))
-                })
-                .and_then(|info| info.advisory_id.clone());
-
-            for sbom_id in &winner.found_in {
-                sbom_addressable
-                    .entry(*sbom_id)
+            {
+                resolved_groups
+                    .entry((info.status_slug.clone(), info.advisory_id.clone()))
                     .or_default()
-                    .insert(winner.upstream_purl.clone());
-                for vuln in &vulnerabilities {
-                    sbom_vulns.entry(*sbom_id).or_default().insert(vuln.clone());
-                }
+                    .insert(info.vuln_id.clone());
             }
-
-            packages.push(RecommendReportPackage {
-                purl: winner.upstream_purl.clone(),
-                recommended_purl: winner.recommended_purl.clone(),
-                advisory_id,
-                vulnerabilities,
-                found_in: winner.found_in.clone(),
-            });
+            for ((status, advisory_id), vulnerabilities) in resolved_groups {
+                for id in &found_in {
+                    sbom_addressable
+                        .entry(*id)
+                        .or_default()
+                        .insert(winner.upstream_purl.clone());
+                    sbom_vulns
+                        .entry(*id)
+                        .or_default()
+                        .extend(vulnerabilities.iter().cloned());
+                }
+                let key = ReportPackageKey {
+                    purl: winner.upstream_purl.clone(),
+                    recommended_purl: winner.recommended_purl.clone(),
+                    status,
+                    advisory_id,
+                    found_in: found_in.iter().copied().collect(),
+                };
+                package_rows.entry(key).or_default().extend(vulnerabilities);
+            }
         }
+        let mut package_rows = package_rows.into_iter().collect::<Vec<_>>();
+        package_rows.sort_by(|(a, _), (b, _)| {
+            (
+                &a.purl,
+                &a.advisory_id,
+                &a.recommended_purl,
+                &a.found_in,
+                &a.status,
+            )
+                .cmp(&(
+                    &b.purl,
+                    &b.advisory_id,
+                    &b.recommended_purl,
+                    &b.found_in,
+                    &b.status,
+                ))
+        });
+        let packages = package_rows
+            .into_iter()
+            .map(|(key, vulnerabilities)| RecommendReportPackage {
+                purl: key.purl,
+                recommended_purl: key.recommended_purl,
+                advisory_id: key.advisory_id,
+                vulnerabilities: vulnerabilities.into_iter().collect(),
+                found_in: key.found_in,
+            })
+            .collect::<Vec<_>>();
 
         let sboms: Vec<RecommendReportSbom> = sbom_ids
             .iter()
@@ -1313,7 +1448,11 @@ impl PurlService {
 
         let sboms_with_recommendations =
             sboms.iter().filter(|s| s.addressable_packages > 0).count();
-        let addressable_packages = packages.len();
+        let addressable_packages = packages
+            .iter()
+            .map(|package| package.purl.as_str())
+            .collect::<HashSet<_>>()
+            .len();
 
         Ok(RecommendReportResponse {
             impact_summary: RecommendReportImpactSummary {
@@ -1348,31 +1487,119 @@ impl PurlService {
         sbom_ids: &[Uuid],
         connection: &C,
     ) -> Result<Vec<SbomPurlRow>, Error> {
-        Ok(sbom_node_purl_ref::Entity::find()
+        let sources = sbom_node_purl_ref::Entity::find()
             .select_only()
             .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
-            .column_as(versioned_purl::Column::BasePurlId, "base_purl_id")
-            .column_as(versioned_purl::Column::Version, "version")
-            .column_as(base_purl::Column::Type, "purl_type")
-            .column_as(base_purl::Column::Namespace, "purl_namespace")
-            .column_as(base_purl::Column::Name, "purl_name")
+            .column_as(source_document::Column::Size, "size")
+            .join(InnerJoin, sbom_node_purl_ref::Relation::Sbom.def())
+            .join(InnerJoin, sbom::Relation::SourceDocument.def())
+            .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
+            .distinct()
+            .into_model::<ReportInputSource>()
+            .all(connection)
+            .await?;
+        let mut input_bytes = 0usize;
+        for source in sources {
+            if source.size < 0 || source.size as u64 > report::MAX_SOURCE_BYTES as u64 {
+                return Err(report::ReportError::Limit {
+                    sbom_id: source.sbom_id,
+                    reason: "report input source byte limit",
+                }
+                .into());
+            }
+            input_bytes = input_bytes.saturating_add(source.size as usize);
+            if input_bytes > report::MAX_REQUEST_BYTES {
+                return Err(report::ReportError::Limit {
+                    sbom_id: source.sbom_id,
+                    reason: "report input request byte limit",
+                }
+                .into());
+            }
+        }
+        let nodes = sbom_node_purl_ref::Entity::find()
+            .select_only()
+            .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
+            .column_as(sbom_node_purl_ref::Column::NodeId, "node_id")
+            .column_as(sbom_node::Column::Name, "node_name")
+            .column_as(sbom_package::Column::Group, "package_group")
+            .column_as(sbom_package::Column::Version, "package_version")
+            .column_as(
+                SimpleExpr::FunctionCall(Func::cust(Alias::new("jsonb_agg")).arg(Expr::col((
+                    qualified_purl::Entity,
+                    qualified_purl::Column::Purl,
+                )))),
+                "purls",
+            )
             .join(
                 JoinType::InnerJoin,
                 sbom_node_purl_ref::Relation::Purl.def(),
             )
-            .join(
-                JoinType::InnerJoin,
-                qualified_purl::Relation::VersionedPurl.def(),
-            )
-            .join(
-                JoinType::InnerJoin,
-                versioned_purl::Relation::BasePurl.def(),
-            )
+            .join(JoinType::InnerJoin, sbom_node::Relation::Purl.def().rev())
+            .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
             .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
-            .distinct()
-            .into_model::<SbomPurlRow>()
+            .group_by(sbom_node_purl_ref::Column::SbomId)
+            .group_by(sbom_node_purl_ref::Column::NodeId)
+            .group_by(sbom_node::Column::SbomId)
+            .group_by(sbom_node::Column::NodeId)
+            .group_by(sbom_package::Column::SbomId)
+            .group_by(sbom_package::Column::NodeId)
+            .into_model::<SbomPurlNodeRow>()
             .all(connection)
-            .await?)
+            .await?;
+        let mut rows = Vec::new();
+        let mut projected = 0usize;
+        for node in nodes {
+            projected = projected
+                .saturating_add(node.node_id.len())
+                .saturating_add(node.node_name.len())
+                .saturating_add(node.package_group.as_ref().map_or(0, String::len))
+                .saturating_add(node.package_version.as_ref().map_or(0, String::len));
+            let purls: Vec<CanonicalPurl> =
+                serde_json::from_value(node.purls).map_err(|err| Error::Data(err.to_string()))?;
+            for purl in &purls {
+                let bytes = purl.ty.len()
+                    + purl.namespace.as_ref().map_or(0, String::len)
+                    + purl.name.len()
+                    + purl.version.as_ref().map_or(0, String::len)
+                    + purl
+                        .qualifiers
+                        .iter()
+                        .map(|(key, value)| key.len() + value.len() + 64)
+                        .sum::<usize>();
+                projected = projected
+                    .saturating_add(bytes.saturating_mul(6))
+                    .saturating_add(size_of::<SbomPurlRow>());
+            }
+            if projected > report::MAX_REQUEST_BYTES {
+                return Err(report::ReportError::Limit {
+                    sbom_id: node.sbom_id,
+                    reason: "projected report metadata byte limit",
+                }
+                .into());
+            }
+            let node_id: Arc<str> = node.node_id.into();
+            let node_name: Arc<str> = node.node_name.into();
+            let group: Option<Arc<str>> = node.package_group.map(Arc::from);
+            let version: Option<Arc<str>> = node.package_version.map(Arc::from);
+            let node_purls = Arc::new(purls.iter().cloned().map(Purl::from).collect::<Vec<_>>());
+            for purl in purls {
+                let parsed = Purl::from(purl.clone());
+                rows.push(SbomPurlRow {
+                    sbom_id: node.sbom_id,
+                    node_id: node_id.clone(),
+                    node_name: node_name.clone(),
+                    package_group: group.clone(),
+                    package_version: version.clone(),
+                    node_purls: node_purls.clone(),
+                    base_purl_id: parsed.package_uuid(),
+                    version: parsed.version.clone().unwrap_or_default(),
+                    purl_type: parsed.ty,
+                    purl_namespace: parsed.namespace,
+                    purl_name: parsed.name,
+                });
+            }
+        }
+        Ok(rows)
     }
 }
 
