@@ -3,7 +3,7 @@ use crate::{
         Graph, Outcome,
         advisory::{
             AdvisoryContext, AdvisoryInformation, AdvisoryVulnerabilityInformation,
-            advisory_vulnerability::AdvisoryVulnerabilityContext,
+            advisory_vulnerability::ensure_vulnerability_links,
         },
         cvss::ScoreCreator,
         vulnerability::creator::VulnerabilityCreator,
@@ -28,6 +28,7 @@ use std::{fmt::Debug, str::FromStr};
 use tracing::instrument;
 use trustify_common::hashing::Digests;
 use trustify_entity::labels::Labels;
+use uuid::Uuid;
 
 /// Collect the advisory information from a CSAF document.
 fn advisory_information(
@@ -149,6 +150,56 @@ impl<'g> CsafLoader<'g> {
         })
     }
 
+    /// Write the statements of an advisory which already exists, including its vulnerabilities.
+    ///
+    /// For documents ingested by older versions. Values which can't be parsed are skipped with a
+    /// warning, as they were accepted back then, and all the rest should still be stored. The
+    /// statements are derived from the content, so writing them again adds nothing.
+    #[instrument(skip_all, fields(csaf=csaf.document.tracking.id.as_str()), err(level=tracing::Level::INFO))]
+    pub async fn backfill_statements<C: ConnectionTrait>(
+        graph: &'g Graph,
+        csaf: &Csaf,
+        advisory_id: Uuid,
+        report: &dyn ReportSink,
+        connection: &C,
+    ) -> Result<(), Error> {
+        let loader = Self {
+            graph,
+            on_invalid: OnInvalidData::Warn,
+        };
+
+        ensure_vulnerability_links(
+            advisory_id,
+            csaf.vulnerabilities
+                .iter()
+                .filter_map(|vulnerability| vulnerability.cve.as_ref())
+                .map(|cve| cve.as_str()),
+            connection,
+        )
+        .await?;
+
+        for vulnerability in &csaf.vulnerabilities {
+            let (Some(cve_id), Some(product_status)) =
+                (&vulnerability.cve, &vulnerability.product_status)
+            else {
+                continue;
+            };
+            loader
+                .ingest_product_statuses(
+                    csaf,
+                    advisory_id,
+                    cve_id.as_str(),
+                    product_status,
+                    &vulnerability.remediations,
+                    report,
+                    connection,
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip_all,
         fields(
             csaf=csaf.document.tracking.id.as_str(),
@@ -199,7 +250,10 @@ impl<'g> CsafLoader<'g> {
         if let Some(product_status) = &vulnerability.product_status {
             self.ingest_product_statuses(
                 csaf,
-                &advisory_vulnerability,
+                advisory_vulnerability.advisory_vulnerability.advisory_id,
+                &advisory_vulnerability
+                    .advisory_vulnerability
+                    .vulnerability_id,
                 product_status,
                 &vulnerability.remediations,
                 report,
@@ -211,24 +265,19 @@ impl<'g> CsafLoader<'g> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
     async fn ingest_product_statuses<C: ConnectionTrait>(
         &self,
         csaf: &Csaf,
-        advisory_vulnerability: &AdvisoryVulnerabilityContext<'_>,
+        advisory_id: Uuid,
+        vulnerability_id: &str,
         product_status: &ProductStatus,
         remediations: &[Remediation],
         report: &dyn ReportSink,
         connection: &C,
     ) -> Result<(), Error> {
-        let mut creator = StatusCreator::new(
-            csaf,
-            advisory_vulnerability.advisory_vulnerability.advisory_id,
-            advisory_vulnerability
-                .advisory_vulnerability
-                .vulnerability_id
-                .clone(),
-        );
+        let mut creator = StatusCreator::new(csaf, advisory_id, vulnerability_id.to_string());
 
         creator.add_all(&product_status.fixed, "fixed", self.on_invalid, report)?;
         creator.add_all(
@@ -278,11 +327,8 @@ impl<'g> CsafLoader<'g> {
 
         let mut remediation_creator = RemediationCreator::new(
             csaf,
-            advisory_vulnerability.advisory_vulnerability.advisory_id,
-            advisory_vulnerability
-                .advisory_vulnerability
-                .vulnerability_id
-                .clone(),
+            advisory_id,
+            vulnerability_id.to_string(),
             product_id_mapping,
         );
 
@@ -312,7 +358,6 @@ mod test {
         version_scheme::VersionScheme,
     };
     use trustify_test_context::{TrustifyContext, document, document_bytes};
-    use uuid::Uuid;
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]

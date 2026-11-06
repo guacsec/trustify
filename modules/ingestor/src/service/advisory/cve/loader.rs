@@ -1,14 +1,20 @@
 use crate::{
     graph::{
         Graph, Outcome,
-        advisory::{AdvisoryInformation, AdvisoryVulnerabilityInformation},
+        advisory::{
+            AdvisoryInformation, AdvisoryVulnerabilityInformation,
+            advisory_vulnerability::ensure_vulnerability_links,
+        },
         cvss::{ScoreCreator, best_base_score},
         vulnerability::{VulnerabilityInformation, creator::VulnerabilityCreator},
     },
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::cve::{creator::StatementCreator, extract_scores, record::CveRecord},
+        advisory::{
+            cve::{creator::StatementCreator, extract_scores, record::CveRecord},
+            nvd::schema::Configuration,
+        },
     },
 };
 use cve::{
@@ -20,8 +26,10 @@ use sea_query::Expr;
 use std::fmt::Debug;
 use time::OffsetDateTime;
 use tracing::instrument;
+use trustify_api::correlation::ProviderIdentity;
 use trustify_common::hashing::Digests;
 use trustify_entity::{labels::Labels, vulnerability};
+use uuid::Uuid;
 
 /// Loader capable of parsing a CVE Record JSON file
 /// and manipulating the Graph to integrate it into
@@ -138,23 +146,15 @@ impl<'g> CveLoader<'g> {
             .exec(tx)
             .await?;
 
-        let mut statements = StatementCreator::new(
+        Self::ingest_statements(
             advisory.advisory.id,
-            advisory_vuln
-                .advisory_vulnerability
-                .vulnerability_id
-                .clone(),
+            &advisory_vuln.advisory_vulnerability.vulnerability_id,
+            affected,
+            &applicability,
             &warnings,
-        );
-        for (product, provider) in affected {
-            statements.set_provider(provider);
-            statements.add_product(product, tx).await?;
-        }
-        for (configuration, provider) in &applicability {
-            statements.set_provider(provider.clone());
-            statements.add_applicability(configuration);
-        }
-        statements.create(tx).await?;
+            tx,
+        )
+        .await?;
 
         // Manage vulnerability descriptions without needing to query the vulnerability
         Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
@@ -167,6 +167,53 @@ impl<'g> CveLoader<'g> {
             duplicate: false,
             validation: Vec::new(),
         })
+    }
+
+    /// Write the statements of an advisory which already exists.
+    ///
+    /// For documents ingested by older versions. The statements are derived from the content, so
+    /// writing them again adds nothing.
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
+    pub async fn backfill_statements(
+        record: &CveRecord,
+        advisory_id: Uuid,
+        warnings: &Warnings,
+        tx: &(impl ConnectionTrait + TransactionTrait),
+    ) -> Result<(), Error> {
+        ensure_vulnerability_links(advisory_id, [record.cve.id()], tx).await?;
+        let VulnerabilityDetails { affected, .. } = Self::extract_vuln_info(&record.cve);
+        Self::ingest_statements(
+            advisory_id,
+            record.cve.id(),
+            affected,
+            &record.applicability,
+            warnings,
+            tx,
+        )
+        .await
+    }
+
+    /// Write the statements of a record about its vulnerability.
+    async fn ingest_statements(
+        advisory_id: Uuid,
+        vulnerability_id: &str,
+        affected: Vec<(&Product, ProviderIdentity)>,
+        applicability: &[(Configuration, ProviderIdentity)],
+        warnings: &Warnings,
+        tx: &(impl ConnectionTrait + TransactionTrait),
+    ) -> Result<(), Error> {
+        let mut statements =
+            StatementCreator::new(advisory_id, vulnerability_id.to_string(), warnings);
+        for (product, provider) in affected {
+            statements.set_provider(provider);
+            statements.add_product(product, tx).await?;
+        }
+        for (configuration, provider) in applicability {
+            statements.set_provider(provider.clone());
+            statements.add_applicability(configuration);
+        }
+        statements.create(tx).await?;
+        Ok(())
     }
 
     /// Build descriptions
@@ -305,14 +352,14 @@ struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
     pub descriptions: &'a Vec<Description>,
     pub assigned: Option<OffsetDateTime>,
-    pub affected: Vec<(&'a Product, trustify_api::correlation::ProviderIdentity)>,
+    pub affected: Vec<(&'a Product, ProviderIdentity)>,
     pub information: VulnerabilityInformation,
 }
 
 pub(super) fn source_provider(
     metadata: &impl serde::Serialize,
     container: &str,
-) -> trustify_api::correlation::ProviderIdentity {
+) -> ProviderIdentity {
     let value = serde_json::json!(metadata);
     let mut identifiers = vec![format!("container:{container}")];
     if let Some(org) = value.get("orgId").and_then(serde_json::Value::as_str) {
@@ -325,7 +372,7 @@ pub(super) fn source_provider(
     if let Some(name) = &name {
         identifiers.push(format!("name:{name}"));
     }
-    trustify_api::correlation::ProviderIdentity {
+    ProviderIdentity {
         identifiers,
         name,
         unavailable: false,
