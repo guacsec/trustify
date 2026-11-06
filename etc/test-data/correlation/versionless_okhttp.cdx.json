@@ -1,0 +1,31 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:7c1e4a52-3d9b-4f60-8a27-5b6e0c9d1f34",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-versionless",
+      "type": "application",
+      "name": "versionless-okhttp",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-okhttp",
+      "type": "library",
+      "name": "com.squareup.okhttp3-okhttp-parent",
+      "purl": "pkg:generic/redhat/com.squareup.okhttp3-okhttp-parent"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-versionless",
+      "dependsOn": [
+        "pkg-okhttp"
+      ]
+    }
+  ]
+}

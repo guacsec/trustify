@@ -913,6 +913,10 @@ async fn directions_agree(
     &["correlation/cve-2024-34155.json.xz"],
     &["correlation/buildah_el9_4.cdx.json"]
 )]
+#[case::versionless(
+    &["correlation/cve-2025-27148.json"],
+    &["correlation/versionless_okhttp.cdx.json"]
+)]
 #[test_log::test(actix_web::test)]
 async fn directions_agree_without_manifest(
     ctx: &TrustifyContext,

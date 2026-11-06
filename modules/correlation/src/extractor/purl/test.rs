@@ -1950,6 +1950,26 @@ pub(crate) async fn assert_independent_of_row_order(
 const BUILDAH_SBOM: &str = "correlation/buildah_el9_4.cdx.json";
 const BUILDAH_VEX: &str = "correlation/cve-2024-34155.json.xz";
 
+/// A PURL without a version has no version to compare, so a statement without versions doesn't
+/// match it, in either direction.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn versionless_purl_matches_nothing(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("correlation/versionless_okhttp.cdx.json")
+        .await?;
+    let advisory = ctx
+        .ingest_document("correlation/cve-2025-27148.json")
+        .await?;
+
+    let tx = ctx.db.begin().await?;
+    let matches = PurlExtractor
+        .match_advisory(Uuid::parse_str(&advisory.id)?, &tx)
+        .await?;
+
+    assert_eq!(matches, vec![]);
+    Ok(())
+}
+
 /// The fixes of one package state ranges of several streams under one rule, here a module build
 /// without a stream and `el9_4`. Only the own stream's applies without a context, and the result
 /// doesn't depend on the order of the rows.

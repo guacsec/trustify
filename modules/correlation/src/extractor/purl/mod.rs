@@ -1166,28 +1166,33 @@ impl Scope {
         let version = Expr::col((versioned_purl::Entity, versioned_purl::Column::Id));
         match self {
             Self::Versions(ids) => version.eq(ids_param(ids)),
-            // only versions of SBOM nodes, before evaluating ranges for them
-            Self::Advisory(_) => Expr::exists(
-                Query::select()
-                    .expr(Expr::val(1))
-                    .from(qualified_purl::Entity)
-                    .inner_join(
-                        sbom_node_purl_ref::Entity,
-                        Expr::col((
-                            sbom_node_purl_ref::Entity,
-                            sbom_node_purl_ref::Column::QualifiedPurlId,
-                        ))
-                        .equals((qualified_purl::Entity, qualified_purl::Column::Id)),
-                    )
-                    .and_where(
-                        Expr::col((
-                            qualified_purl::Entity,
-                            qualified_purl::Column::VersionedPurlId,
-                        ))
-                        .equals((versioned_purl::Entity, versioned_purl::Column::Id)),
-                    )
-                    .to_owned(),
-            ),
+            // only versions of SBOM nodes, before evaluating ranges for them. A PURL without a
+            // version has nothing to evaluate, and the other direction doesn't look it up.
+            Self::Advisory(_) => {
+                Expr::col((versioned_purl::Entity, versioned_purl::Column::Version))
+                    .ne("")
+                    .and(Expr::exists(
+                        Query::select()
+                            .expr(Expr::val(1))
+                            .from(qualified_purl::Entity)
+                            .inner_join(
+                                sbom_node_purl_ref::Entity,
+                                Expr::col((
+                                    sbom_node_purl_ref::Entity,
+                                    sbom_node_purl_ref::Column::QualifiedPurlId,
+                                ))
+                                .equals((qualified_purl::Entity, qualified_purl::Column::Id)),
+                            )
+                            .and_where(
+                                Expr::col((
+                                    qualified_purl::Entity,
+                                    qualified_purl::Column::VersionedPurlId,
+                                ))
+                                .equals((versioned_purl::Entity, versioned_purl::Column::Id)),
+                            )
+                            .to_owned(),
+                    ))
+            }
         }
     }
 
