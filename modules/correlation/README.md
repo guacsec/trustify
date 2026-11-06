@@ -31,7 +31,11 @@ available independently of this capability.
 of an instance, with `0` meaning one per CPU available to the process. Workers of all instances
 claim different work: advisories of the extraction queue, documents of the refresh job, and SBOMs
 to compute verdicts for. Each worker uses a database connection for as long as it processes a
-document, plus short ones to publish its progress.
+document, plus short ones to publish its progress. Computing verdicts uses two: one reads the
+SBOM's evidence from a snapshot, the other writes the verdicts.
+
+Evidence writes don't wait for a verdict computation. The computation publishes what its snapshot
+saw, and the SBOM stays pending, so a change during a computation leads to another one.
 
 One worker per CPU is primarily meant for a [dedicated worker](#dedicated-worker), in a container
 with CPU and memory limits. Most of the work happens in the database, so the CPUs of the host
