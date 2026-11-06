@@ -28,10 +28,14 @@ available independently of this capability.
 ### Worker tuning
 
 `--correlation-workers` (`TRUSTD_CORRELATION_WORKERS`, default `1`) sets the number of workers
-of an instance. Workers of all instances claim different work: advisories of the extraction
-queue, documents of the refresh job, and SBOMs to compute verdicts for. Each worker uses a
-database connection for as long as it processes a document, plus short ones to publish its
-progress.
+of an instance, with `0` meaning one per CPU available to the process. Workers of all instances
+claim different work: advisories of the extraction queue, documents of the refresh job, and SBOMs
+to compute verdicts for. Each worker uses a database connection for as long as it processes a
+document, plus short ones to publish its progress.
+
+Most of the work happens in the database, so the CPUs of the worker's host don't limit it. Each
+worker also needs memory for the document it processes, and `work_mem` applies per worker, so
+check both before running one worker per CPU.
 
 `--correlation-work-mem` (`TRUSTD_CORRELATION_WORK_MEM`, e.g. `256MiB`) sets PostgreSQL's
 `work_mem` for the worker's transactions only (`SET LOCAL`). Matching packages with many

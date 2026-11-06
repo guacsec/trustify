@@ -9,7 +9,7 @@ use trustify_common::{
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
 use trustify_module_correlation::{
     extractor::worker::run_extraction_workers,
-    service::tuning::{WorkerConfig, parse_work_mem},
+    service::tuning::{WorkerConfig, parse_work_mem, parse_workers},
 };
 use trustify_module_notification::config::NotificationConfig;
 
@@ -22,10 +22,10 @@ pub struct CorrelationWorkerArgs {
     #[arg(long, env = "TRUSTD_CORRELATION_WORK_MEM", value_parser = parse_work_mem)]
     pub correlation_work_mem: Option<ByteSize>,
 
-    /// The number of correlation workers of this instance.
+    /// The number of correlation workers of this instance, `0` for one per available CPU.
     ///
     /// Workers of all instances process different advisories, SBOMs and verdicts in parallel.
-    #[arg(long, env = "TRUSTD_CORRELATION_WORKERS", default_value = "1")]
+    #[arg(long, env = "TRUSTD_CORRELATION_WORKERS", default_value = "1", value_parser = parse_workers)]
     pub correlation_workers: NonZeroUsize,
 }
 
@@ -190,8 +190,24 @@ pub fn correlation_task(context: JobContext, config: WorkerConfig) -> Task {
 mod test {
     use super::*;
     use clap::{Args, Command, FromArgMatches};
+    use std::thread::available_parallelism;
     use test_context::test_context;
     use trustify_test_context::TrustifyContext;
+
+    /// Zero workers mean one per available CPU.
+    #[test]
+    fn workers_per_cpu() -> anyhow::Result<()> {
+        let args = CorrelationWorkerArgs::from_arg_matches(
+            &CorrelationWorkerArgs::augment_args(Command::new("cmd")).get_matches_from([
+                "cmd",
+                "--correlation-workers",
+                "0",
+            ]),
+        )?;
+
+        assert_eq!(args.correlation_workers, available_parallelism()?);
+        Ok(())
+    }
 
     #[test_context(TrustifyContext)]
     #[test_log::test(tokio::test)]

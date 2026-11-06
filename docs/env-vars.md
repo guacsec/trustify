@@ -41,7 +41,7 @@
 | `OPENAI_API_KEY`                         | OpenAI access key                                                                   |                                         |
 | `OPENAI_API_BASE`                        | To set the base URL path for API requests                                           | `https://api.openapi.com/v1`            |
 | `OPENAI_MODEL`                           | OpenAI model                                                                        | `gpt-4o`                                |
-| `TRUSTD_CORRELATION_WORKERS`             | Number of correlation workers of an instance, processing advisories, SBOMs and verdicts in parallel | `1` |
+| `TRUSTD_CORRELATION_WORKERS`             | Number of correlation workers of an instance, processing advisories, SBOMs and verdicts in parallel; `0` for one per available CPU | `1` |
 | `TRUSTD_CORRELATION_WORK_MEM`            | PostgreSQL `work_mem` of the correlation worker's transactions (e.g. `256MiB`); unset keeps the database's setting |    |
 | `TRUSTD_AWS_USE_IMDS`                    | Use the AWS default credential chain including IMDS (`1`, `true`, `yes`, `on`), for running on EC2|                                         |
 | `TRUSTD_CHANGE_LOG_RETENTION`            | Retention of the change log entries, which notify clients and wake up workers (humantime)| `1d`                                    |
