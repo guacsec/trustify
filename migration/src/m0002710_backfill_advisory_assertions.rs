@@ -6,7 +6,8 @@
 //! be updated, as the ID of such a row is derived from its content. So the rows are replaced, using
 //! what ingestion writes, which makes the result the same as ingesting the document now.
 //!
-//! The `product_status` rows are replaced too, as they lack CSAF product IDs.
+//! The `product_status` rows are replaced too, as they lack CSAF product IDs, and so are the
+//! `cpe_status` rows, as older versions wrote different ones.
 //!
 //! This includes what `m0002480` used to do: `advisory.publisher_namespace`, and dropping the
 //! `affected` ranges older versions derived from the `fixed` versions of Red Hat advisories.
@@ -90,6 +91,12 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
     tx.execute_raw(Statement::from_sql_and_values(
         DbBackend::Postgres,
         "DELETE FROM product_status WHERE advisory_id = $1",
+        [id.advisory.into()],
+    ))
+    .await?;
+    tx.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        "DELETE FROM cpe_status WHERE advisory_id = $1",
         [id.advisory.into()],
     ))
     .await?;
