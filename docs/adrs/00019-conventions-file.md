@@ -37,7 +37,7 @@ The conventions file covers:
 
 | Section | Purpose | Examples |
 |---------|---------|---------|
-| **Code Style** | Formatting and lint rules | `rustfmt` defaults, clippy flags, `unwrap()` policy |
+| **Code Style** | Formatting and lint policy | Import style, path qualification, `unwrap()` policy |
 | **Naming Conventions** | Naming patterns for project elements | Entity models, services, endpoints, routes, OpenAPI IDs |
 | **File Organization** | Module structure | Domain module pattern, entity/migration files |
 | **Error Handling** | Error type design and propagation | `thiserror` enums, `ResponseError` mapping, `From<DbErr>` |
@@ -47,7 +47,7 @@ The conventions file covers:
 | **Endpoint Patterns** | HTTP endpoint conventions | `configure()`, authorization, transactions, OpenAPI |
 | **Entity Model Patterns** | ORM model conventions | `DeriveEntityModel`, relations, `Linked` structs |
 | **Migration Patterns** | Database migration conventions | Idempotency guards, naming, raw SQL loading |
-| **Rust Idioms** | Allocation-avoidance patterns | Borrowed references for map keys |
+| **Rust Idioms** | Allocation-avoidance and iteration patterns | Borrowed references for map keys, `.zip()` for pairwise iteration |
 | **SeaORM Query Patterns** | ORM query conventions | `.is_in()`, chunking |
 | **Observability** | Tracing and instrumentation | `#[instrument]` usage, span conventions, error levels |
 
