@@ -37,19 +37,17 @@ The conventions file covers:
 
 | Section | Purpose | Examples |
 |---------|---------|---------|
-| **Language and Framework** | Technology stack and core dependencies | Rust edition, Actix-web, SeaORM, Tokio |
 | **Code Style** | Formatting and lint rules | `rustfmt` defaults, clippy flags, `unwrap()` policy |
-| **Naming Conventions** | Naming patterns for all code elements | Structs, functions, modules, endpoints, OpenAPI IDs |
-| **File Organization** | Workspace layout and module structure | Domain module pattern (endpoints/service/model) |
+| **Naming Conventions** | Naming patterns for project elements | Entity models, services, endpoints, routes, OpenAPI IDs |
+| **File Organization** | Module structure | Domain module pattern, entity/migration files |
 | **Error Handling** | Error type design and propagation | `thiserror` enums, `ResponseError` mapping, `From<DbErr>` |
 | **Testing Conventions** | Test infrastructure and patterns | `TrustifyContext`, test placement, assertion style |
 | **Commit Messages** | Commit format and trailers | Conventional Commits, Jira references |
-| **Pre-commit Workflow** | CI-equivalent local checks | `cargo xtask precommit` steps |
-| **Dependencies** | Dependency management policy | Workspace-level pinning, key crate choices |
+| **Pre-commit Checks** | CI-equivalent local checks | `cargo xtask precommit` steps |
 | **Endpoint Patterns** | HTTP endpoint conventions | `configure()`, authorization, transactions, OpenAPI |
 | **Entity Model Patterns** | ORM model conventions | `DeriveEntityModel`, relations, `Linked` structs |
 | **Migration Patterns** | Database migration conventions | Idempotency guards, naming, raw SQL loading |
-| **Rust Idioms** | Preferred Rust patterns | Type inference, iterator ownership, `.zip()`, capacity |
+| **Rust Idioms** | Allocation-avoidance patterns | Borrowed references for map keys |
 | **SeaORM Query Patterns** | ORM query conventions | `.is_in()`, chunking |
 | **Observability** | Tracing and instrumentation | `#[instrument]` usage, span conventions, error levels |
 
@@ -59,7 +57,7 @@ The conventions file covers:
 2. **Derived from existing code**: conventions are extracted from established patterns in the codebase, not invented
 3. **Minimal and actionable**: each entry should be short enough that a contributor (or AI tool) can apply it without reading surrounding prose
 4. **Reference implementations**: share canonical examples
-5. **No duplication with tooling**: don't restate what `rustfmt` or `clippy` already enforce — reference their configuration instead
+5. **No duplication with tooling or environment**: don't restate what `rustfmt`, `clippy`, or the manifests (`Cargo.toml`, workspace members, dependency versions) already define — reference them instead
 
 ### Maintenance Process
 

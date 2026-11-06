@@ -1,24 +1,9 @@
 # Coding Conventions
 
-## Language and Framework
-
-- Rust (edition and MSRV are defined in the workspace `Cargo.toml`)
-- Web framework: Actix-web 4
-- ORM: SeaORM with `DeriveEntityModel`
-- Database: PostgreSQL
-- API docs: utoipa (OpenAPI generation)
-- Async runtime: Tokio
-- Error handling: `thiserror` for enum errors, `anyhow` for ad-hoc contexts
-- Serialization: serde (JSON)
-
 ## Code Style
 
-- Follow `rustfmt` defaults — run `cargo fmt --check` before committing
-- Clippy is enforced with strict flags (see the exact invocation in [Pre-commit Workflow](#pre-commit-workflow))
-- `unwrap()` and `expect()` are forbidden in production code; they are allowed in tests (configured in `.clippy.toml`)
-- `todo!()`, `panic!()`, and `unimplemented!()` are forbidden in production code; `panic!()` is allowed in tests (configured in `.clippy.toml`)
-- Use `?` operator for error propagation, not `.unwrap()`
-- All CI checks are run via `cargo xtask precommit` (see [Pre-commit Workflow](#pre-commit-workflow))
+- Formatting and lint policy are enforced by `cargo xtask precommit` — see [Pre-commit Checks](#pre-commit-checks)
+- `unwrap()`, `expect()`, `panic!()`, `todo!()`, and `unimplemented!()` are denied in production code; tests are exempt (`.clippy.toml`)
 
 ### Import Nesting
 
@@ -76,32 +61,13 @@ paths are caught during code review.
 
 ## Naming Conventions
 
-- Structs: PascalCase (`SbomService`, `AdvisoryService`, `SbomSummary`)
-- Functions/methods: snake_case (`fetch_sbom_summary`, `fetch_advisories`)
-- Modules: snake_case (`sbom_group`, `source_document`)
 - Entity models: `Model` struct inside each entity module, table names are snake_case (`sbom`, `advisory`, `sbom_group`)
 - Service structs: `<Domain>Service` (e.g., `SbomService`, `AdvisoryService`)
 - Endpoint functions: short verbs — `get`, `all`, `delete`, `upload`, `download`, `packages`, `related`
 - API routes: `/v3/<resource>` (e.g., `/v3/sbom`, `/v3/advisory/{key}`)
 - OpenAPI operation IDs: camelCase (`getSbom`, `listSboms`)
-- Test functions: descriptive snake_case (`upload_with_groups`, `filter_packages`, `query_sboms_by_label`)
 
 ## File Organization
-
-### Workspace layout
-
-```
-Cargo.toml              # workspace root
-entity/src/             # SeaORM entity models (one file per table)
-migration/src/          # Database migrations (m<number>_<description>.rs)
-common/                 # Shared crates: common, common/auth, common/db, common/infrastructure
-modules/                # Domain modules: fundamental, analysis, ingestor, importer, storage, ui, user
-query/                  # Query framework and derive macro
-server/                 # HTTP server assembly
-trustd/                 # CLI binary
-test-context/           # trustify_test_context crate; `TrustifyContext` with `#[test_context]`
-e2e/                    # End-to-end tests (hurl files)
-```
 
 ### Domain module structure (e.g., `modules/fundamental/src/sbom/`)
 
@@ -179,32 +145,22 @@ fn resolve(path: &str) -> anyhow::Result<String> { ... }
 - Follow Conventional Commits: `<type>[optional scope]: <description>`
 - Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 - Reference the Jira issue in the commit footer (e.g., `Implements TC-123`)
-- AI-assisted commits include `--trailer="Assisted-by: Claude Code"`
+- AI-assisted commits include an `Assisted-by: <tool> (<model>)` trailer (e.g., `--trailer="Assisted-by: OpenCode (GPT-6.1 Sol)"`). Name both the harness and the model that produced the change.
 
-## Pre-commit Workflow
+## Pre-commit Checks
 
-Before committing any changes, run:
+Run the full gate before every commit:
 
 ```sh
 cargo xtask precommit
 ```
 
-This command performs the following steps in order:
+It regenerates JSON schemas and `openapi.yaml`, runs clippy with `-D warnings`
+(including unwrap/expect/panic/todo/unimplemented and `-W clippy::absolute_paths`),
+applies `cargo fmt`, and runs `cargo check`. Commit any files it modifies
+(schemas, `openapi.yaml`).
 
-1. **Regenerates JSON schemas** (`cargo xtask generate-schemas`) — updates schema files derived from Rust model types
-2. **Regenerates `openapi.yaml`** (`cargo xtask openapi`) — rebuilds the OpenAPI spec from `#[utoipa::path(...)]` annotations
-3. **Runs clippy** (`cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::todo -D clippy::unimplemented`)
-4. **Runs `cargo fmt`** — applies standard Rust formatting
-5. **Runs `cargo check`** (`--all-targets --all-features`) — verifies the project compiles cleanly
-
-Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must be included in the commit.
-
-## Dependencies
-
-- All dependencies are declared in `[workspace.dependencies]` in the root `Cargo.toml` with pinned versions
-- Member crates reference workspace dependencies via `dependency.workspace = true`
-- Edition 2024 with resolver 3
-- Key crate choices: `actix-web` (HTTP), `sea-orm` (ORM), `utoipa` (OpenAPI), `tokio` (async), `serde` (serialization), `anyhow`/`thiserror` (errors), `clap` (CLI)
+Source of truth: `xtask/src/precommit.rs` — do not run the individual steps separately.
 
 ## CLI Argument Patterns
 
@@ -268,115 +224,6 @@ is used (or the header is omitted), the idempotent 204 behavior applies.
 
 ## Rust Idioms
 
-### Type inference
-
-Omit explicit type annotations when the compiler can infer them. Prefer:
-
-```rust
-let input_purls = purls.iter().map(|p| parse(p)).collect::<Vec<_>>();
-let base_purl_map = base_purls.into_iter().map(|b| (b.key(), b)).collect::<HashMap<_, _>>();
-```
-
-Over:
-
-```rust
-let input_purls: Vec<InputPurl> = purls.iter().map(|p| parse(p)).collect();
-let base_purl_map: HashMap<PurlKey, BasePurl> = base_purls.into_iter().map(|b| (b.key(), b)).collect();
-```
-
-This also applies to SeaORM `.all()` calls (which already return `Vec<Model>`) and `push()` calls
-where the collection type is already known.
-
-#### Turbofish on collection constructors
-
-Prefer plain constructors (`HashMap::new()`, `Vec::new()`) over turbofish-annotated ones
-(`HashMap::<K, V>::new()`) when the compiler can infer the type from context — for example,
-from the function's return type or from a subsequent assignment. This also means avoiding
-redundant `let` type annotations on constructors:
-
-```rust
-// Good — compiler infers HashMap<Uuid, Vec<StatusInfo>> from .insert() calls
-let mut statuses = HashMap::new();
-statuses.insert(id, infos);
-
-// Avoid — redundant annotation when subsequent usage constrains the type
-let mut statuses: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
-statuses.insert(id, infos);
-```
-
-The turbofish is acceptable when the compiler cannot infer the type. Common cases:
-
-- **`.entry().or_default()`** — the compiler needs the value type to resolve `Default::default()`
-- **Type coercion** — the turbofish drives `&String` → `&str` coercion that inference alone
-  would not produce
-- **Generic function parameters** — e.g., `impl IntoIterator<Item = impl AsRef<str>>` does
-  not constrain the concrete collection type
-- **Assertion macros** — `assert_eq!` does not propagate type constraints between its arguments
-
-```rust
-// Good — compiler infers HashSet<&str> from the insert call
-let mut names = HashSet::new();
-names.insert("alice");
-
-// Good — turbofish needed because .or_default() requires type resolution
-let mut map = BTreeMap::<String, Vec<Item>>::new();
-map.entry(key).or_default().push(item);
-
-// Good — turbofish drives &String → &str coercion
-let mut packages = HashSet::<&str>::new();
-packages.insert(&some_string); // &String coerced to &str
-```
-
-### Iterator ownership
-
-Prefer consuming the collection (`for item in items`, which calls `IntoIterator`) over
-`.iter()` + `.clone()` when the source is no longer needed after iteration. This avoids
-unnecessary allocations. When you only need references, use `for item in &items`.
-
-Note: `for item in items` and `for item in items.into_iter()` are equivalent for `Vec`;
-prefer the shorter form in `for` loops. Use explicit `.into_iter()` in iterator chains
-(e.g., `items.into_iter().map(...).collect()`).
-
-```rust
-// Good — consumes the collection, no clones needed
-for item in items { ... }
-
-// Good — borrow elements
-for item in &items { ... }
-
-// Avoid — borrows then clones each element
-for item in items.iter() {
-    let owned = item.clone();
-}
-```
-
-### Zipping parallel collections
-
-When iterating over two collections of the same length in lockstep, use `.zip()` instead of
-`.enumerate()` + index access. This is safer (no panic on mismatched sizes) and matches
-existing codebase patterns:
-
-```rust
-// Good — `zip` accepts `IntoIterator` for the right-hand side
-for (a, b) in vec_a.into_iter().zip(vec_b) { ... }
-
-// Avoid
-for (i, a) in vec_a.iter().enumerate() {
-    let b = &vec_b[i]; // panics if sizes differ
-}
-```
-
-Reference: `modules/fundamental/src/purl/model/details/purl.rs` uses `.zip()` for parallel iteration.
-
-### Pre-allocating collections
-
-Use `Vec::with_capacity(n)` or `HashMap::with_capacity(n)` when the output size is known or
-can be estimated from the input size:
-
-```rust
-let mut results = Vec::with_capacity(input.len());
-```
-
 ### Borrowed keys for map lookups
 
 When creating ephemeral structs used only as map keys (e.g., for `HashMap::get()`), prefer
@@ -437,130 +284,61 @@ let results = chunked_with(ids, |chunk| async {
 }).await?;
 ```
 
-### Accept iterators instead of slices
-
-When a function only iterates over a collection (no indexing, no `.len()`), accept
-`impl IntoIterator<Item = T>` instead of `&[T]`. This avoids forcing callers to
-allocate intermediate `Vec`s just to pass a slice:
-
-```rust
-// Good — caller can pass an iterator directly
-async fn fetch_statuses(
-    base_ids: impl IntoIterator<Item = Uuid>,
-    connection: &C,
-) -> Result<..., Error> { ... }
-
-// Avoid — forces caller to collect into a Vec first
-async fn fetch_statuses(
-    base_ids: &[Uuid],
-    connection: &C,
-) -> Result<..., Error> { ... }
-```
-
 ## Observability
 
-See also: [docs/design/log_tracing.md](docs/design/log_tracing.md) for the full rationale.
+See [docs/design/log_tracing.md](docs/design/log_tracing.md) for the full rationale and log levels.
 
 ### `#[instrument]` attribute conventions
 
-Prefer the `#[instrument]` attribute over manual `.instrument(info_span!(...))` wrappers.
-The attribute automatically captures function arguments and return values, and avoids
-double-wrapping when both the caller and callee are instrumented:
+Prefer `#[instrument]` on the function over manual `.instrument(info_span!(...))` wrappers.
+The attribute captures arguments and return values and avoids double-wrapping when caller
+and callee are both instrumented. Use `.instrument(info_span!(...))` only for calls into
+external code that lacks its own instrumentation (e.g., SeaORM `load_one`,
+`load_many_to_many`, raw `.all()` queries).
 
 ```rust
-// Good — attribute on the function
 #[instrument(skip(self, connection), err(level = tracing::Level::INFO))]
 async fn fetch_base_purls(...) { ... }
-
-// Avoid — redundant span at the call site when callee already has #[instrument]
-let purls = self.fetch_base_purls(input, conn)
-    .instrument(info_span!("loading base purls"))  // noise — already instrumented
-    .await?;
 ```
-
-Use `.instrument(info_span!(...))` only for calls to external code that lacks its own
-instrumentation (e.g., SeaORM `load_one`, `load_many_to_many`, raw `.all()` queries).
-
-### `skip_all` vs listing individual skips
 
 When all arguments are skipped, use `skip_all` instead of listing each one:
 
 ```rust
-// Good
 #[instrument(skip_all, err(level = tracing::Level::INFO))]
-
-// Avoid
-#[instrument(skip(base_ids, vp_ids, connection), err(level = tracing::Level::INFO))]
 ```
-
-### Error level in `#[instrument]`
 
 The default `err` level is `ERROR`, which is reserved for events that potentially disrupt
-normal operation (see the **Levels** section in log_tracing.md). Most service functions should lower the
-error level to `INFO`:
+normal operation (see **Levels** in log_tracing.md). Most service functions should lower
+the error level to `INFO`.
+
+### Instrumentation scope
+
+- **Instrument** external work — database, object storage, HTTP, message queues — via
+  `#[instrument]` on the function or `.instrument(info_span!(...))` on individual awaits
+  when inner helpers lack instrumentation.
+- **Do not instrument** trivial in-memory work (simple mapping, formatting, small transforms).
+- **One span per operation** — either the outer function or an inner `.instrument` on the
+  external call, never both for the same work. Nested spans are fine for distinct external
+  steps (e.g., several SeaORM loads in one function).
+- **Scope by logic, not visibility** — instrument where external I/O happens, including
+  non-`pub` helpers.
 
 ```rust
-#[instrument(err(level = tracing::Level::INFO))]
-```
-
-### Tracing spans on sub-operations
-
-When a function performs multiple external I/O steps (e.g., several DB loads), wrap each
-step with a `.instrument(info_span!(...))` span to make profiling and debugging easier.
-Only apply this to calls that (a) perform external I/O and (b) lack their own `#[instrument]`
-attribute. Do not add `.instrument` at the call site when the **callee** already has
-`#[instrument]` (see the example under [`#[instrument]` attribute conventions](#instrument-attribute-conventions)).
-Nested spans under an instrumented parent are fine for **distinct** external steps (e.g.,
-multiple SeaORM loads in one function). See
-[Instrumentation scope](#instrumentation-scope) for full scoping rules.
-
-```rust
-use tracing::{info_span, Instrument};
-
-// SeaORM calls — no built-in instrumentation, add spans
 let vulns = all_statuses
     .load_one(vulnerability::Entity, connection)
     .instrument(info_span!("loading vulnerabilities"))
     .await?;
-
-let statuses = load_purl_statuses(&base_ids, &txn)
-    .instrument(info_span!("loading purl statuses"))
-    .await?;
 ```
-
-This splits up large functions into measurable chunks and makes it easier to identify
-performance bottlenecks.
-
-### Instrumentation scope
-
-Scope instrumentation to external work — instrument where it matters, not on every `pub`
-method by default.
-
-- **Do instrument** — Logic that calls external systems (database, object storage, HTTP,
-  message queues). Use `#[instrument]` on the function, or `.instrument(info_span!(...))` on
-  individual awaits when inner helpers lack instrumentation.
-- **Do not instrument** — Pure in-memory work that is trivial in context (simple mapping,
-  formatting, small transforms).
-- **Do not double-wrap** — Pick one span per operation: either the outer function or an
-  inner `.instrument` on the external call, not both for the same work.
-- **Scope by logic, not visibility** — Apply spans where external I/O happens, including
-  non-`pub` helpers, not "every public method regardless of what it does."
 
 ### Logging framework
 
-Use `tracing::` for all new code; migrate `log::` when touching a file.
-
-`log::*` calls inside an `#[instrument]`-annotated function do not attach to the tracing
-span, creating gaps in distributed traces. All new code MUST use `tracing::` macros. When
+Use `tracing::` for all new code. `log::*` calls inside an `#[instrument]`-annotated
+function do not attach to the tracing span, creating gaps in distributed traces. When
 modifying a file that uses `log::`, migrate its `log::` calls to `tracing::` in the same
 change.
 
 ```rust
-// Approved
 tracing::debug!("Processing vulnerability {id}");
-
-// Avoid in new code
-log::debug!("Processing vulnerability {id}");
 ```
 
 ## Data Ingestion: Creator Pattern
@@ -683,29 +461,18 @@ under concurrent ingestion.
 
 ## Additional Conventions
 
+The anti-patterns below were identified during code review; each entry states the agreed
+convention.
+
 ### N+1 Query Anti-pattern
 
 **Convention**: Prefer batch loading; allow exceptions when impractical.
 
 Default to batch loading on collection paths — use SQL JOINs, `.is_in()`, or SeaORM
-`load_one`/`load_many` to fetch related data in a single query. Per-entity DB calls inside
-loops are permitted only when batching is impractical or costly. Existing N+1 patterns are
-tech debt to remediate.
-
-```rust
-// Approved: batch load with IN clause
-let vulns = advisory_vulnerability::Entity::find()
-    .filter(advisory_vulnerability::Column::AdvisoryId.is_in(advisory_ids))
-    .all(tx)
-    .await?;
-
-// Approved: SeaORM batch loader
-let orgs = advisories.load_one(organization::Entity, tx).await?;
-```
-
-> **Note**: Loop-based queries for PostgreSQL's 65535 bind-parameter limit are valid
-> patterns, not N+1 issues — see
-> [Query parameter limits and chunking](#query-parameter-limits-and-chunking).
+`load_one`/`load_many`. Per-entity DB calls inside loops are permitted only when batching
+is impractical or costly; existing N+1 patterns are tech debt to remediate. Loop-based
+queries used to stay under PostgreSQL's 65535 bind-parameter limit are not N+1 — see
+[Query parameter limits and chunking](#query-parameter-limits-and-chunking).
 
 ### Unbounded Queries
 
@@ -723,249 +490,123 @@ unbounded if the caller controls scope and the table is known to be bounded in p
 **Convention**: Push filters to SQL; filter in Rust only when the rows are already loaded
 for another purpose in the same scope.
 
-PostgreSQL's query planner handles small datasets efficiently, so "the table is small" is
-not a reason to filter in application code. Filtering in Rust is acceptable when doing so
-eliminates a duplicate query — i.e., the full result set is already materialized for another
-purpose and a second filtered query would be redundant.
-
-```rust
-// Preferred: filter in SQL
-advisory_vulnerability_score::Entity::find()
-    .filter(advisory_vulnerability_score::Column::AdvisoryId.eq(advisory_id))
-    .all(tx)
-    .await?;
-
-// Acceptable: rows already loaded for another purpose, filter avoids a duplicate query
-let all_scores = load_all_scores(tx).await?; // needed elsewhere in this scope
-let filtered: Vec<_> = all_scores.iter()
-    .filter(|s| s.advisory_id == advisory_id)
-    .collect();
-
-// Avoid: fetch-all then filter as the primary access pattern
-let all_scores = advisory_vulnerability_score::Entity::find().all(tx).await?;
-let filtered: Vec<_> = all_scores.into_iter()
-    .filter(|s| s.advisory_id == advisory_id)
-    .collect();
-```
+"The table is small" is not a reason to filter in application code — PostgreSQL's planner
+handles small datasets efficiently. Filtering in Rust is acceptable when it eliminates a
+duplicate query, i.e. the full result set is already materialized for another purpose.
 
 ### Application-Side Counting
 
 **Convention**: Default to SQL `COUNT()`; `.len()` is acceptable if rows are already loaded.
 
 Counts MUST be computed in the database using `COUNT()`, not by materializing rows and
-calling `.len()`. Exception: if the full collection is already materialized for another
-purpose in the same scope, `.len()` is acceptable to avoid a redundant query. For paginated
-endpoints, the `total` count is optional and cached per
-[ADR-00017](docs/adrs/00017-efficient-pagination.md).
-
-```rust
-// Approved: SQL count
-let total = entity::Entity::find()
-    .filter(condition)
-    .count(tx)
-    .await?;
-
-// Avoid (for count-only purposes):
-let items = entity::Entity::find().filter(condition).all(tx).await?;
-let total = items.len();
-```
+calling `.len()`. Exception: the full collection is already materialized for another
+purpose in the same scope. For paginated endpoints, the `total` count is optional and
+cached per [ADR-00017](docs/adrs/00017-efficient-pagination.md).
 
 ### Missing Batch/Bulk Operations
 
 **Convention**: Use bulk operations for multiple items; single operations for single-item
 paths.
 
-Use `insert_many`, `delete_many`, and similar bulk operations when handling multiple entries
-in one operation. When the API or code path handles a single item only (e.g.,
-`DELETE /resource/{id}`), a single `delete_by_id` is acceptable.
-
-```rust
-// Approved: batch delete
-source_document::Entity::delete_many()
-    .filter(source_document::Column::Id.is_in(doc_ids))
-    .exec(tx)
-    .await?;
-
-// Avoid: individual deletes in loop
-for doc in &docs {
-    source_document::Entity::delete_by_id(doc).exec(tx).await?;
-}
-```
+Use `insert_many`, `delete_many`, and similar bulk operations when handling multiple
+entries. Single-item paths (e.g., `DELETE /resource/{id}`) may use a single `delete_by_id`.
 
 ### Recursive Graph Traversal Without Depth Limits
 
 **Convention**: Validate on the way in; error if you cannot handle it.
 
-When data arrives, confirm it can be processed (size, shape, depth, etc.). After validation,
-treat it as safe to walk. If something goes wrong during traversal, return an error — do not
-quietly skip parts of the data.
-
-```rust
-// Approved: validate input, then traverse; propagate errors
-fn ingest_document(doc: &Document) -> Result<(), Error> {
-    validate_depth(doc, MAX_DEPTH)?;
-    walk_tree(doc.root())
-}
-
-fn walk_tree(node: &Node) -> Result<(), Error> {
-    process(node)?;
-    for child in &node.children {
-        walk_tree(child)?;  // errors propagate, never silently skipped
-    }
-    Ok(())
-}
-```
+Validate incoming data (size, shape, depth) before traversal, then treat it as safe to
+walk. If something goes wrong during traversal, return an error — never silently skip
+parts of the data.
 
 ### Missing Database Indexes
 
-**Convention**: Evaluate per-column with a pros/cons analysis.
+**Convention**: Evaluate per-column; record the decision when it is not obvious.
 
-No single rule for every column. Before adding (or skipping) an index, weigh these factors:
-
-| For adding an index | Against adding an index |
-|---------------------|-------------------------|
-| Column is filtered or sorted often in production | Table is small or query volume is low |
-| Slow queries or full scans show up in logs | Writes are heavy; extra indexes slow inserts/updates |
-| Public API / user-facing latency matters | Existing indexes already cover the access pattern |
-| Table is large and still growing | Index would duplicate a UNIQUE constraint |
-| Storage cost justifies the overhead | Index storage overhead is significant on large tables |
-
-Record the decision in the PR or migration comment when it is not obvious. For migration-side
-conventions (naming, `IF NOT EXISTS`, index types), see [Database Indexes](#database-indexes).
+No single rule applies to every column. Weigh the access pattern (filter/sort frequency,
+slow queries, public latency, table growth) against the cost (write amplification, storage,
+redundancy with existing indexes or UNIQUE constraints). Record the decision in the PR or
+migration comment. For migration-side index conventions, see
+[Database Indexes](#database-indexes).
 
 ### Swallowed Errors
 
-**Convention**: Handle by context — no one-size rule.
+**Convention**: Handle by context.
 
-Choose what to do based on the situation:
-
-1. **Instrumentation wrapper exists** — If tracing/metrics will record the failure, no extra
-   logging or handling is required.
-2. **Return to the caller** — If the API or UI can surface the error, return or map it. Do
-   not also log the same failure redundantly.
-3. **Propagate** — If the error stops processing required data, propagate it (`?`,
-   `return Err(...)`) — do not swallow it.
-4. **Expected failure** — If failure is normal for this path (e.g., optimistic lock miss,
-   optional field missing), ignoring it is fine; no log required.
-5. **Log before dropping** — If you must drop the error and cannot report it upstream, log
-   it compactly (e.g., `.inspect_err(|e| tracing::debug!("…: {e}"))`) rather than a verbose
-   `match`.
-
-```rust
-// Approved: compact log before discarding
-serde_json::from_value::<Report>(report)
-    .inspect_err(|e| tracing::warn!("Failed to deserialize report: {e}"))
-    .ok()
-
-// Avoid: silent discard
-serde_json::from_value(report).ok()
-```
+1. **Instrumentation wrapper exists** — no extra logging or handling required.
+2. **Return to the caller** — map it; do not also log the same failure redundantly.
+3. **Propagate** — if the error stops processing required data, propagate it (`?`,
+   `return Err(...)`).
+4. **Expected failure** — if failure is normal for this path, ignoring it is fine.
+5. **Log before dropping** — if you must drop it, log compactly:
+   `.inspect_err(|e| tracing::debug!("…: {e}"))`.
 
 ### Stringly-Typed APIs
 
 **Convention**: Use enums for fixed value sets.
 
-Any value drawn from a fixed set (statuses, directions, relationship types) MUST be
-represented as a Rust enum, not a `String`. The enum is the single source of truth — string
-conversion happens only at serialization boundaries (API input/output, database columns).
-String matching against known values is prohibited. Exception:
-framework-constrained signatures (e.g., `Columns::translator` callback requiring `&str`)
-are exempt until the framework supports typed alternatives.
-
-```rust
-// Approved: enum with serde
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "snake_case")]
-enum VexStatus { Affected, Fixed, NotAffected, UnderInvestigation, Recommended }
-
-// Avoid: string matching
-match status_string.as_str() {
-    "affected" => ...,
-    "fixed" => ...,
-}
-```
+Any value drawn from a fixed set (statuses, directions, relationship types) MUST be an
+enum, not a `String`. The enum is the single source of truth; string conversion happens
+only at serialization boundaries (API input/output, database columns). String matching
+against known values is prohibited. Framework-constrained signatures (e.g.,
+`Columns::translator` requiring `&str`) are exempt until the framework supports typed
+alternatives.
 
 ### Code Duplication
 
 **Convention**: Extract shared logic into generics or traits.
 
-When two or more modules implement the same logic pattern (e.g., label CRUD, license
-filtering), extract it into a shared generic function, trait, or macro parameterized by the
-entity type. Duplicated logic blocks longer than ~20 lines should be consolidated.
-
-```rust
-// Approved: generic label service
-async fn set_labels<E: EntityTrait>(
-    entity_id: Uuid,
-    labels: Labels,
-    connection: &impl ConnectionTrait,
-) -> Result<(), Error> { ... }
-```
+When two or more modules implement the same pattern (e.g., label CRUD, license filtering),
+extract it into a shared generic function, trait, or macro parameterized by the entity
+type. Duplicated logic blocks longer than ~20 lines should be consolidated.
 
 ### Oversized Functions
 
 **Convention**: Decompose functions with more than 3 distinct phases.
 
 No hard line limit, but functions with more than 3 distinct phases (identifiable by
-blank-line-separated blocks or section comments) should be decomposed. Use judgment — a
-150-line function with a single clear flow is better than 5 artificial 30-line helpers.
+blank-line-separated blocks or section comments) should be decomposed. A 150-line
+function with a single clear flow is better than five artificial 30-line helpers.
 
 ### Public API Documentation
 
 **Convention**: Document all public items.
 
 Every public struct, enum, trait, function, and method MUST have a `///` doc comment. One
-line describing what it does is sufficient. Service methods should document their parameters,
-error conditions, and return value semantics when non-obvious. Inside functions, add brief
-`//` comments only where the logic is not obvious from the code.
+line describing what it does is sufficient. Service methods should document parameters,
+error conditions, and return-value semantics when non-obvious. Inside functions, add brief
+`//` comments only where the logic is not obvious.
 
 ### Magic Numbers and Hardcoded Values
 
 **Convention**: Use judgment — prefer named constants when they clarify meaning.
 
-- **Inline in SQL strings** — e.g., `relationship = 13` in raw SQL: prefer leaving the
-  literal in the SQL with a short comment explaining which enum/migration it matches, rather
-  than interpolating a `const` with `format!`.
-- **Single-use imports** — keep the value in the same file for readability unless it is
-  genuinely reused elsewhere.
-
-Where this file documents a specific prescriptive pattern (e.g.,
+Inline literals in SQL strings (e.g., `relationship = 13`) may stay with a short comment
+naming the enum or migration they match, rather than being interpolated with `format!`.
+Single-use values stay in the same file unless genuinely reused. Where this file documents
+a specific prescriptive pattern (e.g.,
 [Shared Table Insert Pattern](#shared-table-insert-pattern-duplicate-key-handling)), that
-documented pattern takes precedence over the general "use judgment" rule.
+pattern takes precedence.
 
 ### Raw SQL Defeating Parameterization
 
 **Convention**: Allow with review gate.
 
-`Statement::from_string` with dynamic content is allowed but must be flagged with a
-`// SAFETY:` comment explaining why parameterization is not possible and confirming that all
+`Statement::from_string` with dynamic content is allowed but must carry a `// SAFETY:`
+comment explaining why parameterization is not possible and confirming that all
 interpolated values are validated. Such code requires explicit reviewer approval.
-
-```rust
-// Approved: static SQL with no dynamic values
-Statement::from_string(DbBackend::Postgres, STATIC_QUERY.to_string())
-
-// Approved with review gate: dynamic content with SAFETY comment
-// SAFETY: `schema_name` is validated against an allowlist in `validate_schema()`.
-// Parameterization is not possible because PostgreSQL does not support bind
-// parameters for schema identifiers.
-let query = format!("SELECT * FROM {schema_name}.entity WHERE id = $1");
-Statement::from_sql_and_values(DbBackend::Postgres, &query, [id.into()])
-```
 
 ### Database Resource Conventions
 
-The following sub-conventions cover database schema patterns. They complement the existing
-[Migration Patterns](#migration-patterns) and
-[Entity Model Patterns](#entity-model-patterns) sections.
+These sub-conventions complement [Migration Patterns](#migration-patterns) and
+[Entity Model Patterns](#entity-model-patterns).
 
 #### Table and Column Naming
 
-All database object names use `snake_case` — see
-[Naming Conventions](#naming-conventions) for the general rule. Tables use singular nouns
-(e.g., `sbom`, `advisory_vulnerability`). Join tables use `<left>_<right>` or a domain term.
-Avoid CamelCase, pluralized table names, or abbreviated column names (e.g., `vulnId`,
-`Advisories`).
+Database object names use `snake_case` (see [Naming Conventions](#naming-conventions)).
+Tables use singular nouns (`sbom`, `advisory_vulnerability`). Join tables use
+`<left>_<right>` or a domain term. Avoid CamelCase, pluralized table names, and
+abbreviated columns (`vulnId`, `Advisories`).
 
 #### Column Types
 
@@ -985,8 +626,8 @@ Use the narrowest correct PostgreSQL type:
 | Integer values | `INTEGER` | `i32` — for integer-backed enums, importer state, discriminators |
 | Fixed value sets | PostgreSQL `ENUM` | `DeriveActiveEnum` (see [Enums](#enums)) |
 
-Avoid using `String` for a column that holds values from a fixed set, using `TIMESTAMP`
-without time zone, or using `INTEGER` for a primary key without a domain reason.
+Avoid `String` for a fixed value set, `TIMESTAMP` without time zone, or `INTEGER` primary
+keys without a domain reason.
 
 #### Enums
 
@@ -1020,39 +661,34 @@ pub enum Relationship {
 }
 ```
 
-Enum type names use `snake_case` (e.g., `cvss3_severity`). Variant string values use the
-domain's canonical representation (e.g., `"3.1"` for CVSS version).
+Enum type names use `snake_case` (`cvss3_severity`). Variant string values use the domain's
+canonical representation (e.g., `"3.1"` for CVSS version).
 
 #### Database Indexes
 
-For idempotency and type guidance, see [Migration Patterns](#migration-patterns)
-(`.if_not_exists()`). For when to add an index, see [Missing Database Indexes](#missing-database-indexes).
-
-Additional migration-side conventions:
+For idempotency and type guidance, see [Migration Patterns](#migration-patterns). For when
+to add an index, see [Missing Database Indexes](#missing-database-indexes).
 
 - **B-tree** is the default for equality and range queries on scalar columns.
-- **GIN** for JSONB containment queries (`@>`), `LIKE`/trigram searches, and array columns.
-- **Composite indexes**: create when queries frequently filter on multiple columns together;
-  column order follows query selectivity (most selective first).
-- **Naming (provisional)**: Match the dominant naming pattern in the migration file you're
-  editing. The team is deciding between `<table>_<col(s)>_idx` suffix (dominant in early
-  migrations) and `idx_<table>_<col(s)>` prefix (dominant in newer migrations).
-  _(Provisional — this stopgap must be replaced with a single naming convention once the
-  team decides.)_
+- **GIN** for JSONB containment (`@>`), `LIKE`/trigram searches, and array columns.
+- **Composite indexes**: create when queries frequently filter on multiple columns
+  together; column order follows selectivity (most selective first).
+- **Naming (provisional)**: match the dominant pattern in the migration file you are
+  editing — `<table>_<col(s)>_idx` or `idx_<table>_<col(s)>`. *(Provisional — replace with
+  a single convention once the team decides.)*
 
 #### Foreign Keys and Constraints
 
 - Every column referencing another table MUST have an explicit `FOREIGN KEY` constraint.
-- Choose `ON DELETE` deliberately: `CASCADE` for child-lifecycle-tied-to-parent (e.g.,
-  `sbom_node` → `sbom`), `RESTRICT` for prevent-delete-if-children-exist, `SET NULL` for
-  nullable optional references.
-- Add `UNIQUE` constraints for natural keys or business identifiers (e.g.,
-  `advisory.identifier`).
+- Choose `ON DELETE` deliberately: `CASCADE` when the child lifecycle is tied to the parent
+  (e.g., `sbom_node` → `sbom`), `RESTRICT` to prevent deletion while children exist,
+  `SET NULL` for nullable optional references.
+- Add `UNIQUE` constraints for natural keys or business identifiers
+  (e.g., `advisory.identifier`).
 - Columns are `NOT NULL` by default; use `NULL` only when absence is a valid domain state.
 - `ON UPDATE` is not used — primary keys (`UUID` and domain-natural `String`) are immutable.
 
 ```rust
-// Explicit foreign key with cascade
 Table::create()
     .table(SbomAi::Table)
     .col(ColumnDef::new(SbomAi::SbomId).uuid().not_null())
@@ -1066,15 +702,13 @@ Table::create()
 
 #### Migrations
 
-See [Migration Patterns](#migration-patterns) for the core conventions (SeaORM framework,
-idempotency guards, raw SQL loading, data migration separation). Additional conventions:
+See [Migration Patterns](#migration-patterns) for the core conventions. Additional
+conventions:
 
 - **Numbering**: increment by 10 (e.g., `m0002190` → `m0002200`) to leave room for
   insertions.
-- **Reversibility**: implement both `up()` and `down()`.
-- **Schema vs. data**: schema migrations registered with `.normal()`; data backfills
-  registered with `.data()`. Prefer no data in schema migrations — separate schema changes
-  from data changes.
+- **Schema vs. data**: schema migrations registered with `.normal()`; data backfills with
+  `.data()`. Prefer no data in schema migrations.
 
 ## References
 
