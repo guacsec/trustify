@@ -13,8 +13,8 @@ use crate::{
     },
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ExprTrait,
-    FromQueryResult, JoinType, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
+    ActiveEnum, ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ExprTrait,
+    FromQueryResult, JoinType, QueryFilter, QueryOrder, QuerySelect, TransactionTrait,
     sea_query::Expr,
 };
 use std::collections::{HashMap, HashSet};
@@ -359,6 +359,52 @@ pub async fn run_step(db: &db::ReadWrite, config: &WorkerConfig) -> Result<bool,
     Ok(true)
 }
 
+/// Insert verdicts with one array parameter per column, instead of one parameter per value.
+async fn insert_verdicts(
+    id: Uuid,
+    verdicts: Vec<VerdictSummary>,
+    tx: &DatabaseTransaction,
+) -> Result<(), Error> {
+    if verdicts.is_empty() {
+        return Ok(());
+    }
+
+    let mut nodes = Vec::with_capacity(verdicts.len());
+    let mut vulnerabilities = Vec::with_capacity(verdicts.len());
+    let mut statuses = Vec::with_capacity(verdicts.len());
+    let mut snapshots = Vec::with_capacity(verdicts.len());
+    let mut remediation_counts = Vec::with_capacity(verdicts.len());
+    for verdict in verdicts {
+        let distinct = verdict
+            .evidence
+            .iter()
+            .flat_map(|e| e.remediations.iter().map(move |r| (e.advisory_id, r)))
+            .collect::<HashSet<_>>();
+        nodes.push(verdict.component.node_id.clone());
+        vulnerabilities.push(verdict.vulnerability.id.clone());
+        statuses.push(correlation_verdict::VerdictStatus::from(verdict.status).to_value());
+        remediation_counts.push(distinct.len() as i64);
+        snapshots.push(serde_json::to_value(verdict).map_err(Error::MatchedValue)?);
+    }
+
+    tx.execute_raw(sql(
+        "INSERT INTO correlation_verdict (sbom_id, node_id, vulnerability_id, status, snapshot, remediation_count) \
+         SELECT $1::uuid, node_id, vulnerability_id, status::verdict_status, snapshot, remediation_count \
+         FROM unnest($2::text[], $3::text[], $4::text[], $5::jsonb[], $6::bigint[]) \
+         AS v(node_id, vulnerability_id, status, snapshot, remediation_count)",
+        vec![
+            id.into(),
+            nodes.into(),
+            vulnerabilities.into(),
+            statuses.into(),
+            snapshots.into(),
+            remediation_counts.into(),
+        ],
+    ))
+    .await?;
+    Ok(())
+}
+
 /// Replace an SBOM's snapshot in bounded groups inside the caller's publication transaction.
 async fn rebuild(
     id: Uuid,
@@ -394,29 +440,7 @@ async fn rebuild(
         let verdicts = service
             .verdicts(id, &request, &evidence, &mut snapshot, tx)
             .await?;
-        let rows = verdicts
-            .into_iter()
-            .map(|verdict| {
-                let distinct = verdict
-                    .evidence
-                    .iter()
-                    .flat_map(|e| e.remediations.iter().map(move |r| (e.advisory_id, r)))
-                    .collect::<HashSet<_>>();
-                Ok(correlation_verdict::ActiveModel {
-                    sbom_id: Set(id),
-                    node_id: Set(verdict.component.node_id.clone()),
-                    vulnerability_id: Set(verdict.vulnerability.id.clone()),
-                    status: Set(verdict.status.into()),
-                    remediation_count: Set(distinct.len() as i64),
-                    snapshot: Set(serde_json::to_value(verdict).map_err(Error::MatchedValue)?),
-                })
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
-        if !rows.is_empty() {
-            correlation_verdict::Entity::insert_many(rows)
-                .exec(tx)
-                .await?;
-        }
+        insert_verdicts(id, verdicts, tx).await?;
         if let Some(progress) = progress {
             progress
                 .update(total, total.min((batch + 1) * batch_size.max(1)))
