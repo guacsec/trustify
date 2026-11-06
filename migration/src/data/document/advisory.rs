@@ -30,6 +30,13 @@ impl From<Bytes> for Advisory {
             })
             .or_else(|_| serde_json::from_slice(&value).map(Advisory::Csaf))
             .or_else(|_| serde_json::from_slice(&value).map(Advisory::Osv))
+            // OSV is the only advisory format which can be ingested as YAML too
+            .or_else(|_| {
+                serde_saphyr::from_slice::<serde_json::Value>(&value)
+                    .map_err(|err| err.to_string())
+                    .and_then(|value| serde_json::from_value(value).map_err(|err| err.to_string()))
+                    .map(Advisory::Osv)
+            })
             .unwrap_or_else(|_err| Advisory::Other(value))
     }
 }
