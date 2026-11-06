@@ -31,7 +31,7 @@ use csaf::schema::csaf2_0::schema::{
 use sbom_walker::report::ReportSink;
 use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
 use sea_query::OnConflict;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 use tracing::instrument;
 use trustify_common::{
     cpe::{Component, Cpe},
@@ -383,7 +383,7 @@ impl<'a> StatusCreator<'a> {
         graph: &Graph,
         connection: &C,
     ) -> Result<HashMap<String, ProductIdStatusMapping>, Error> {
-        let mut product_status_models = Vec::new();
+        let mut product_status_entries = BTreeMap::new();
         let mut purls = PurlCreator::new();
         let mut cpes = CpeCreator::new();
 
@@ -509,15 +509,26 @@ impl<'a> StatusCreator<'a> {
                         .product_status_ids
                         .push(product_status_uuid);
 
-                    // Warn: into_active_model() sets id with Set(), required for sorting
-                    let base_product = product_status
-                        .into_active_model(self.advisory_id, self.vulnerability_id.clone());
-
                     if let Some(cpe) = &product.cpe {
                         cpes.add(cpe.clone());
                     }
 
-                    product_status_models.push(base_product);
+                    // different products can result in the same status, which then originates
+                    // from the CSAF product IDs of all of them
+                    match product_status_entries.entry(product_status_uuid) {
+                        Entry::Vacant(entry) => {
+                            entry.insert(product_status);
+                        }
+                        Entry::Occupied(mut entry) => {
+                            if let Some(ids) = product_status.csaf_product_ids {
+                                entry
+                                    .get_mut()
+                                    .csaf_product_ids
+                                    .get_or_insert_default()
+                                    .extend(ids);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -597,7 +608,14 @@ impl<'a> StatusCreator<'a> {
         version_ranges.sort_by_key(|model| *model.id.as_ref());
         package_statuses.sort_by_key(|model| *model.id.as_ref());
         product_version_ranges.sort_by_key(|model| *model.id.as_ref());
-        product_status_models.sort_by_key(|model| *model.id.as_ref());
+        // the keys are sorted already
+        let product_status_models = product_status_entries.into_values().map(|mut status| {
+            if let Some(ids) = &mut status.csaf_product_ids {
+                ids.sort_unstable();
+                ids.dedup();
+            }
+            status.into_active_model(self.advisory_id, self.vulnerability_id.clone())
+        });
 
         for batch in product_models.chunked() {
             product::Entity::insert_many(batch)
