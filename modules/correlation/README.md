@@ -33,9 +33,10 @@ claim different work: advisories of the extraction queue, documents of the refre
 to compute verdicts for. Each worker uses a database connection for as long as it processes a
 document, plus short ones to publish its progress.
 
-Most of the work happens in the database, so the CPUs of the worker's host don't limit it. Each
-worker also needs memory for the document it processes, and `work_mem` applies per worker, so
-check both before running one worker per CPU.
+One worker per CPU is primarily meant for a [dedicated worker](#dedicated-worker), in a container
+with CPU and memory limits. Most of the work happens in the database, so the CPUs of the host
+don't limit it. Each worker needs memory for the document it processes, `work_mem` applies per
+worker, and in the API server the workers share the connection pool with the API requests.
 
 `--correlation-work-mem` (`TRUSTD_CORRELATION_WORK_MEM`, e.g. `256MiB`) sets PostgreSQL's
 `work_mem` for the worker's transactions only (`SET LOCAL`). Matching packages with many

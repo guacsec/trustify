@@ -3,13 +3,13 @@ use bytesize::ByteSize;
 use futures::{FutureExt, future::LocalBoxFuture};
 use std::{num::NonZeroUsize, process::ExitCode};
 use trustify_common::{
-    config::{Database, DatabaseReadOnly},
+    config::{Database, DatabaseReadOnly, parse_concurrency},
     db::{self, change::ChangeBroadcaster},
 };
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
 use trustify_module_correlation::{
     extractor::worker::run_extraction_workers,
-    service::tuning::{WorkerConfig, parse_work_mem, parse_workers},
+    service::tuning::{WorkerConfig, parse_work_mem},
 };
 use trustify_module_notification::config::NotificationConfig;
 
@@ -25,7 +25,7 @@ pub struct CorrelationWorkerArgs {
     /// The number of correlation workers of this instance, `0` for one per available CPU.
     ///
     /// Workers of all instances process different advisories, SBOMs and verdicts in parallel.
-    #[arg(long, env = "TRUSTD_CORRELATION_WORKERS", default_value = "1", value_parser = parse_workers)]
+    #[arg(long, env = "TRUSTD_CORRELATION_WORKERS", default_value = "1", value_parser = parse_concurrency)]
     pub correlation_workers: NonZeroUsize,
 }
 

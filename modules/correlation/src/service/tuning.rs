@@ -3,7 +3,7 @@
 use crate::error::Error;
 use bytesize::ByteSize;
 use sea_orm::{ConnectionTrait, DatabaseTransaction};
-use std::{num::NonZeroUsize, thread::available_parallelism};
+use std::num::NonZeroUsize;
 use trustify_common::db::sql;
 
 /// The smallest `work_mem` PostgreSQL accepts.
@@ -47,15 +47,6 @@ impl WorkerConfig {
     }
 }
 
-/// Parse a number of workers, where `0` means one per CPU available to the process.
-pub fn parse_workers(value: &str) -> Result<NonZeroUsize, String> {
-    let workers = value.parse::<usize>().map_err(|err| err.to_string())?;
-    match NonZeroUsize::new(workers) {
-        Some(workers) => Ok(workers),
-        None => available_parallelism().map_err(|err| format!("unable to detect the CPUs: {err}")),
-    }
-}
-
 /// Parse a `work_mem` value, within the range PostgreSQL accepts.
 pub fn parse_work_mem(value: &str) -> Result<ByteSize, String> {
     let size = value.parse::<ByteSize>()?;
@@ -85,20 +76,6 @@ mod tests {
             parse_work_mem("1KiB"),
             Err("must be between 64.0 KiB and 2.0 TiB".to_string())
         );
-    }
-
-    #[test]
-    fn parse_number_of_workers() -> anyhow::Result<()> {
-        assert_eq!(
-            parse_workers("3"),
-            Ok(NonZeroUsize::new(3).ok_or_else(|| anyhow::anyhow!("zero"))?)
-        );
-        assert_eq!(parse_workers("0"), Ok(available_parallelism()?));
-        assert_eq!(
-            parse_workers("-1"),
-            Err("invalid digit found in string".to_string())
-        );
-        Ok(())
     }
 
     #[test_context(TrustifyContext)]

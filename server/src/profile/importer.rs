@@ -1,9 +1,9 @@
 use crate::profile::spawn_db_check;
 use futures::FutureExt;
-use std::{path::PathBuf, process::ExitCode};
+use std::{num::NonZeroUsize, path::PathBuf, process::ExitCode};
 use trustify_common::{
     capability::VariantFilter,
-    config::Database,
+    config::{Database, parse_concurrency},
     db::{
         self,
         pagination_cache::{PaginationCache, PaginationConfig},
@@ -44,14 +44,15 @@ pub struct Run {
     #[arg(long, id = "working_dir", env = "IMPORTER_WORKING_DIR")]
     pub working_dir: Option<PathBuf>,
 
-    /// The max number of concurrent importer runs
+    /// The max number of concurrent importer runs, `0` for one per available CPU
     #[arg(
         long,
         id = "concurrency",
         env = "IMPORTER_CONCURRENCY",
-        default_value = "1"
+        default_value = "1",
+        value_parser = parse_concurrency
     )]
-    pub concurrency: usize,
+    pub concurrency: NonZeroUsize,
 
     /// Allowed base paths for file credential sources; files not under these directories are rejected. Default = empty list = allow none.
     #[arg(long, env = "IMPORTER_CREDENTIAL_PATHS", value_delimiter = ',')]
@@ -107,7 +108,7 @@ struct InitData {
     cache: PaginationCache,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
-    concurrency: usize,
+    concurrency: NonZeroUsize,
     read_only: bool,
     credential_config: CredentialConfig,
     importer_filter: VariantFilter,
@@ -179,7 +180,7 @@ impl InitData {
                 storage,
                 self.working_dir,
                 None, // Running the importer, we don't need an analysis graph update
-                self.concurrency,
+                self.concurrency.get(),
                 self.read_only,
                 self.credential_config,
                 self.importer_filter,
@@ -195,5 +196,29 @@ impl InitData {
         log::info!("one of the server tasks returned, exiting: {result:?}");
 
         result
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use clap::{Args, Command, FromArgMatches};
+    use std::thread::available_parallelism;
+
+    fn concurrency(args: &[&str]) -> anyhow::Result<NonZeroUsize> {
+        let matches = Run::augment_args(Command::new("cmd"))
+            .try_get_matches_from(["cmd"].iter().chain(args))?;
+        Ok(Run::from_arg_matches(&matches)?.concurrency)
+    }
+
+    #[test]
+    fn concurrency_per_cpu() -> anyhow::Result<()> {
+        assert_eq!(concurrency(&[])?, NonZeroUsize::MIN);
+        assert_eq!(
+            concurrency(&["--concurrency", "0"])?,
+            available_parallelism()?
+        );
+        assert!(concurrency(&["--concurrency", "x"]).is_err());
+        Ok(())
     }
 }

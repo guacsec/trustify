@@ -9,7 +9,8 @@ trustd importer --concurrency=4 --working-dir=".trustify/importer"
 ```
 
 The default value for `concurrency` is 1. This is the maximum number
-of importer jobs run simultaneously by the service.
+of importer jobs run simultaneously by the service. A value of 0 runs
+one job per CPU available to the process.
 
 The `importer` should be started with the same database and storage
 options as the associated `api` service. Run the following to see what
