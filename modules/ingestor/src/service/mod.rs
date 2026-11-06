@@ -552,13 +552,15 @@ fn attach_validation(result: &mut IngestResult, reports: Vec<ValidationReport>) 
 
 /// Capture warnings from the import process
 #[derive(Default)]
-pub(crate) struct Warnings(Arc<Mutex<Vec<String>>>);
+pub struct Warnings(Arc<Mutex<Vec<String>>>);
 
 impl Warnings {
+    /// Create an empty set of warnings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add a warning.
     pub fn add(&self, msg: String) {
         self.0.lock().push(msg);
     }
