@@ -147,6 +147,8 @@ DELETE FROM assertion_context;
 #[case::cve_defaults("scenarios/S7_cpeonly_node_hummingbird/cve/CVE-2026-12151.json")]
 #[case::osv_upstream("osv/DSA-5790-1.json")]
 #[case::osv_ranges("osv/GHSA-qq9f-q439-2574.json")]
+#[case::osv_yaml_pysec("osv/PYSEC-2024-55.yaml")]
+#[case::osv_yaml_rsec("osv/RSEC-2023-6.yaml")]
 #[test_log::test(tokio::test)]
 async fn same_as_fresh_ingest(ctx: &TrustifyContext, #[case] document: &str) -> anyhow::Result<()> {
     ctx.ingest_document(document).await?;
