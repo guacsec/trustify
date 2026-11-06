@@ -20,7 +20,7 @@ use sea_orm::{
 use std::collections::{HashMap, HashSet};
 use tracing::{Instrument, info_span};
 use trustify_common::{
-    db::{self, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
+    db::{self, DatabaseExt, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::Pagination,
 };
 use trustify_entity::{correlation_node_class, correlation_verdict, correlation_verdict_freshness};
@@ -320,18 +320,14 @@ pub async fn run_step(db: &db::ReadWrite, config: &WorkerConfig) -> Result<bool,
         return Ok(false);
     }
     let revision: i64 = revision.try_get("", "revision")?;
-    // Lock the parent before the work row, matching cascading deletion's lock order.
-    // An exclusive row claim lets other workers skip this SBOM while permitting FK checks.
-    // SBOMs waiting for an extraction are skipped: their evidence is about to be replaced, which
-    // changes their inputs again.
-    let Some(parent) = tx.query_one_raw(sql(
-        "SELECT sbom.sbom_id FROM sbom JOIN correlation_verdict_state s USING(sbom_id) JOIN correlation_extraction_state e USING(sbom_id) WHERE retry_at <= now() AND (s.completed_revision <> $1 OR completed_input_revision <> input_revision) AND e.completed_revision = (SELECT revision FROM correlation_extraction_revision) ORDER BY retry_at,s.sbom_id LIMIT 1 FOR NO KEY UPDATE OF sbom SKIP LOCKED",
-        vec![revision.into()],
-    )).await? else { return Ok(false); };
-    let id: Uuid = parent.try_get("", "sbom_id")?;
-    let Some(row) = tx.query_one_raw(sql("SELECT sbom_id,input_revision FROM correlation_verdict_state WHERE sbom_id=$1 AND retry_at <= now() AND (completed_revision <> $2 OR completed_input_revision <> input_revision) FOR UPDATE SKIP LOCKED", vec![id.into(),revision.into()])).await? else { return Ok(false); };
-    let id: Uuid = row.try_get("", "sbom_id")?;
-    let input_revision: i64 = row.try_get("", "input_revision")?;
+    let Some(id) = claim(revision, &tx).await? else {
+        return Ok(false);
+    };
+    // A snapshot opened after the claim: the computation doesn't hold back changes of its inputs,
+    // these make the SBOM pending again.
+    let reads = db.begin_read().await?;
+    config.apply(&reads).await?;
+    let input_revision = input_revision(id, &reads).await?;
     let progress = Progress::start(db, id).await;
     let work = tx.begin().await?;
     let result = rebuild(
@@ -340,9 +336,11 @@ pub async fn run_step(db: &db::ReadWrite, config: &WorkerConfig) -> Result<bool,
         input_revision,
         BATCH_SIZE,
         Some(&progress),
+        &reads,
         &work,
     )
     .await;
+    reads.rollback().await?;
     match result {
         Ok(()) => {
             work.commit().await?;
@@ -357,6 +355,42 @@ pub async fn run_step(db: &db::ReadWrite, config: &WorkerConfig) -> Result<bool,
     progress.finish().await;
     committed?;
     Ok(true)
+}
+
+/// Claim one pending SBOM for this transaction, keeping other workers off it.
+///
+/// Only the SBOM stays locked, matching cascading deletion's lock order and permitting FK checks.
+/// The state row stays free, as evidence writers update it. SBOMs waiting for an extraction, or
+/// with an evidence writer in flight, are skipped: their inputs are about to change again.
+async fn claim(revision: i64, tx: &DatabaseTransaction) -> Result<Option<Uuid>, Error> {
+    // rolled back, to release the state row
+    let candidate = tx.begin().await?;
+    let row = candidate.query_one_raw(sql(
+        "SELECT sbom.sbom_id FROM sbom JOIN correlation_verdict_state s USING(sbom_id) JOIN correlation_extraction_state e USING(sbom_id) WHERE retry_at <= now() AND (s.completed_revision <> $1 OR completed_input_revision <> input_revision) AND e.completed_revision = (SELECT revision FROM correlation_extraction_revision) ORDER BY retry_at,s.sbom_id LIMIT 1 FOR NO KEY UPDATE OF sbom SKIP LOCKED FOR UPDATE OF s SKIP LOCKED",
+        vec![revision.into()],
+    )).await?;
+    candidate.rollback().await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let id: Uuid = row.try_get("", "sbom_id")?;
+
+    // another worker may have computed it in the meantime
+    Ok(tx.query_one_raw(sql(
+        "SELECT sbom.sbom_id FROM sbom JOIN correlation_verdict_state s USING(sbom_id) WHERE sbom.sbom_id = $1 AND (s.completed_revision <> $2 OR completed_input_revision <> input_revision) FOR NO KEY UPDATE OF sbom SKIP LOCKED",
+        vec![id.into(), revision.into()],
+    )).await?.map(|_| id))
+}
+
+async fn input_revision(id: Uuid, tx: &DatabaseTransaction) -> Result<i64, Error> {
+    let row = tx
+        .query_one_raw(sql(
+            "SELECT input_revision FROM correlation_verdict_state WHERE sbom_id=$1",
+            vec![id.into()],
+        ))
+        .await?
+        .ok_or_else(|| DbErr::Custom("missing verdict state".into()))?;
+    Ok(row.try_get("", "input_revision")?)
 }
 
 /// Insert verdicts with one array parameter per column, instead of one parameter per value.
@@ -412,11 +446,12 @@ async fn rebuild(
     input_revision: i64,
     batch_size: usize,
     progress: Option<&Progress<'_>>,
-    tx: &DatabaseTransaction,
+    reads: &DatabaseTransaction,
+    writes: &DatabaseTransaction,
 ) -> Result<(), Error> {
     correlation_verdict::Entity::delete_many()
         .filter(correlation_verdict::Column::SbomId.eq(id))
-        .exec(tx)
+        .exec(writes)
         .await?;
     let service = CorrelationService::default();
     let request = ResolutionRequest {
@@ -424,11 +459,11 @@ async fn rebuild(
         ..Default::default()
     };
     // the suppliers of the SBOM's packages are the same for every batch
-    let mut snapshot = ProviderSnapshot::load_sboms(tx, &[id]).await?;
+    let mut snapshot = ProviderSnapshot::load_sboms(reads, &[id]).await?;
     // all groups at once: paging them would group and sort all the evidence for every page
     let groups = pagination::groups(id, &request)
         .into_model::<EvidenceGroup>()
-        .all(tx)
+        .all(reads)
         .instrument(info_span!("loading verdict groups"))
         .await?;
     let total = groups.len();
@@ -436,31 +471,32 @@ async fn rebuild(
         progress.update(total, 0).await;
     }
     for (batch, groups) in groups.chunks(batch_size.max(1)).enumerate() {
-        let evidence = pagination::evidence_for_groups(id, groups, tx).await?;
+        let evidence = pagination::evidence_for_groups(id, groups, reads).await?;
         let verdicts = service
-            .verdicts(id, &request, &evidence, &mut snapshot, tx)
+            .verdicts(id, &request, &evidence, &mut snapshot, reads)
             .await?;
-        insert_verdicts(id, verdicts, tx).await?;
+        insert_verdicts(id, verdicts, writes).await?;
         if let Some(progress) = progress {
             progress
                 .update(total, total.min((batch + 1) * batch_size.max(1)))
                 .await;
         }
     }
-    let updated = tx.execute_raw(sql(
-        "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND input_revision=$3 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE revision=$2 AND resolver_version=$5)",
+    let updated = writes.execute_raw(sql(
+        "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE revision=$2 AND resolver_version=$5)",
         vec![id.into(), revision.into(), input_revision.into(), Uuid::now_v7().into(), RESOLVER_VERSION.into()],
     )).await?;
     if updated.rows_affected() != 1 {
         return Err(Error::Conflict(
-            "verdict inputs changed during computation".into(),
+            "the verdict revision changed during computation".into(),
         ));
     }
-    tx.execute_raw(sql(
-        "UPDATE correlation_verdict_publication SET revision=revision+1",
-        vec![],
-    ))
-    .await?;
+    writes
+        .execute_raw(sql(
+            "UPDATE correlation_verdict_publication SET revision=revision+1",
+            vec![],
+        ))
+        .await?;
     Ok(())
 }
 
@@ -488,6 +524,7 @@ pub(crate) async fn publish_in_batches_for_test(
         row.try_get("", "input_revision")?,
         batch_size,
         None,
+        tx,
         tx,
     )
     .await
