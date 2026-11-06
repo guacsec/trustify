@@ -9968,6 +9968,7 @@ dependencies = [
  "humantime",
  "indicatif",
  "osv",
+ "rstest",
  "sea-orm",
  "sea-orm-cli",
  "sea-orm-migration",

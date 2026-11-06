@@ -3,6 +3,7 @@ use bytes::Bytes;
 use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use sea_orm::{FromQueryResult, QuerySelect, prelude::*};
 use trustify_entity::advisory;
+use trustify_module_ingestor::service::advisory::cve::record::CveRecord;
 use trustify_module_storage::service::StorageBackend;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, FromQueryResult)]
@@ -13,7 +14,7 @@ pub struct Id {
 
 #[allow(clippy::large_enum_variant)]
 pub enum Advisory {
-    Cve(cve::Cve),
+    Cve(CveRecord),
     Csaf(Csaf),
     Osv(osv::schema::Vulnerability),
     Other(Bytes),
@@ -23,6 +24,10 @@ impl From<Bytes> for Advisory {
     fn from(value: Bytes) -> Self {
         serde_json::from_slice(&value)
             .map(Advisory::Cve)
+            // a record with applicability statements we can't parse
+            .or_else(|_| {
+                serde_json::from_slice::<cve::Cve>(&value).map(|cve| Advisory::Cve(cve.into()))
+            })
             .or_else(|_| serde_json::from_slice(&value).map(Advisory::Csaf))
             .or_else(|_| serde_json::from_slice(&value).map(Advisory::Osv))
             .unwrap_or_else(|_err| Advisory::Other(value))

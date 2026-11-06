@@ -112,7 +112,7 @@ impl MigrationTraitWithData for Migration {
                 let mut creator = ScoreCreator::new(id.advisory);
                 match advisory {
                     Advisory::Cve(advisory) => {
-                        creator.extend(cve::extract_scores(&advisory));
+                        creator.extend(cve::extract_scores(&advisory.cve));
                     }
                     Advisory::Csaf(advisory) => {
                         csaf::extract_scores(&advisory, &mut creator);
