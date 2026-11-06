@@ -2,7 +2,8 @@ use crate::data::{
     MigrationTraitWithData, SchemaDataManager,
     advisory::{Advisory, Id},
 };
-use sea_orm::{DatabaseTransaction, sea_query::extension::postgres::*};
+use futures_util::FutureExt;
+use sea_orm::sea_query::extension::postgres::*;
 use sea_orm_migration::prelude::*;
 use strum::VariantNames;
 use trustify_common::db::create_enum_if_not_exists;
@@ -108,26 +109,29 @@ impl MigrationTraitWithData for Migration {
             .await?;
 
         manager
-            .process(self, async |advisory, id: Id, tx: &DatabaseTransaction| {
-                let mut creator = ScoreCreator::new(id.advisory);
-                match advisory {
-                    Advisory::Cve(advisory) => {
-                        creator.extend(cve::extract_scores(&advisory.cve));
+            .process(self, |advisory: Advisory, id: Id, tx| {
+                async move {
+                    let mut creator = ScoreCreator::new(id.advisory);
+                    match advisory {
+                        Advisory::Cve(advisory) => {
+                            creator.extend(cve::extract_scores(&advisory.cve));
+                        }
+                        Advisory::Csaf(advisory) => {
+                            csaf::extract_scores(&advisory, &mut creator);
+                        }
+                        Advisory::Osv(advisory) => {
+                            osv::extract_scores(&advisory, &mut creator);
+                        }
+                        _ => {
+                            // we ignore others
+                        }
                     }
-                    Advisory::Csaf(advisory) => {
-                        csaf::extract_scores(&advisory, &mut creator);
-                    }
-                    Advisory::Osv(advisory) => {
-                        osv::extract_scores(&advisory, &mut creator);
-                    }
-                    _ => {
-                        // we ignore others
-                    }
+
+                    creator.create(tx).await?;
+
+                    Ok(())
                 }
-
-                creator.create(tx).await?;
-
-                Ok(())
+                .boxed()
             })
             .await?;
 

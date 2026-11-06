@@ -12,15 +12,18 @@ use trustify_module_storage::service::{StorageBackend, StorageKey};
 use uuid::Uuid;
 
 /// A document eligible for re-processing.
-#[allow(async_fn_in_trait)]
-pub trait Document: Sized + Send + Sync {
-    type Id: Partitionable + Send;
+pub trait Document: Sized + Send + Sync + 'static {
+    type Id: Partitionable + Send + Sync + 'static;
 
-    async fn all<C>(tx: &C) -> Result<Vec<Self::Id>, DbErr>
+    fn all<C>(tx: &C) -> impl Future<Output = Result<Vec<Self::Id>, DbErr>> + Send
     where
         C: ConnectionTrait;
 
-    async fn source<S, C>(id: &Self::Id, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
+    fn source<S, C>(
+        id: &Self::Id,
+        storage: &S,
+        tx: &C,
+    ) -> impl Future<Output = Result<Self, anyhow::Error>> + Send
     where
         S: StorageBackend + Send + Sync,
         C: ConnectionTrait;
@@ -32,7 +35,7 @@ pub(crate) async fn load<D>(
     tx: &impl ConnectionTrait,
 ) -> anyhow::Result<D>
 where
-    D: From<Bytes>,
+    D: From<Bytes> + Send,
 {
     let source = source_document::Entity::find_by_id(id).one(tx).await?;
 

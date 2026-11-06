@@ -1,6 +1,6 @@
 use crate::{
     async_trait,
-    data::{Document, DocumentProcessor, Handler, Options},
+    data::{Document, Handler, Options, process_parallel, process_sequential},
 };
 use sea_orm::{DatabaseConnection, DbErr};
 use sea_orm_migration::{MigrationName, MigrationTrait, SchemaManager};
@@ -63,14 +63,9 @@ impl<'c> SchemaDataManager<'c> {
         }
 
         match self.db {
-            Some(db) => {
-                self.manager
-                    .process(db, self.storage, self.options, f)
-                    .await
-            }
+            Some(db) => process_parallel(db.clone(), self.storage.clone(), self.options, f).await,
             None => {
-                self.manager
-                    .process(self.manager.get_connection(), self.storage, self.options, f)
+                process_sequential(self.manager.get_connection(), self.storage, self.options, f)
                     .await
             }
         }
