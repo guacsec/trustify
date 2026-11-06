@@ -3,7 +3,8 @@
 ## Code Style
 
 - Formatting and lint policy are enforced by `cargo xtask precommit` — see [Pre-commit Checks](#pre-commit-checks)
-- `unwrap()`, `expect()`, `panic!()`, `todo!()`, and `unimplemented!()` are denied in production code; tests are exempt (`.clippy.toml`)
+- `unwrap()`, `expect()`, and `panic!()` are denied in production code but allowed in tests — see `.clippy.toml`.
+- `todo!()` and `unimplemented!()` are denied everywhere, including tests — see `xtask/src/precommit.rs`.
 
 ### Import Nesting
 
@@ -55,9 +56,8 @@ let model: Model = ...;
 Names that benefit from qualification include `Model`, `Entity`, `Column`, `ActiveModel`,
 `Relation`, `from_value`, `info`, and similar names that appear in many modules.
 
-**Enforcement:** The `clippy::absolute_paths` lint (configured in `.clippy.toml` with
-`absolute-paths-max-segments = 3`) catches paths with 4+ segments automatically. Shorter
-paths are caught during code review.
+**Enforcement:** Clippy catches long qualified paths using the threshold configured in
+`.clippy.toml`. Shorter paths are caught during code review.
 
 ## Naming Conventions
 
@@ -155,10 +155,8 @@ Run the full gate before every commit:
 cargo xtask precommit
 ```
 
-It regenerates JSON schemas and `openapi.yaml`, runs clippy with `-D warnings`
-(including unwrap/expect/panic/todo/unimplemented and `-W clippy::absolute_paths`),
-applies `cargo fmt`, and runs `cargo check`. Commit any files it modifies
-(schemas, `openapi.yaml`).
+It regenerates JSON schemas and `openapi.yaml`, runs clippy, applies formatting, and
+checks compilation. Commit any files it modifies (schemas, `openapi.yaml`).
 
 Source of truth: `xtask/src/precommit.rs` — do not run the individual steps separately.
 
@@ -247,6 +245,18 @@ struct PurlKey {
 }
 ```
 
+### Pairwise iteration with `.zip()`
+
+Use `.zip()` instead of `enumerate()` plus index access when iterating two collections
+in lockstep. Indexing panics if the second collection is shorter; `.zip()` stops at the
+shorter collection. Validate lengths first if every item must have a partner.
+
+```rust
+for (item, status) in items.iter().zip(statuses.iter()) {
+    process(item, status);
+}
+```
+
 ## SeaORM Query Patterns
 
 ### Filtering by column values
@@ -324,6 +334,8 @@ the error level to `INFO`.
   non-`pub` helpers.
 
 ```rust
+use tracing::{info_span, Instrument};
+
 let vulns = all_statuses
     .load_one(vulnerability::Entity, connection)
     .instrument(info_span!("loading vulnerabilities"))
@@ -533,13 +545,15 @@ migration comment. For migration-side index conventions, see
 
 **Convention**: Handle by context.
 
-1. **Instrumentation wrapper exists** — no extra logging or handling required.
+1. **Instrumentation records the error** — avoid duplicate logging when `err(...)`
+   records the returned error. A bare `#[instrument]` or `.instrument(...)` span does
+   not record errors automatically; configure error recording or log explicitly.
 2. **Return to the caller** — map it; do not also log the same failure redundantly.
 3. **Propagate** — if the error stops processing required data, propagate it (`?`,
    `return Err(...)`).
 4. **Expected failure** — if failure is normal for this path, ignoring it is fine.
 5. **Log before dropping** — if you must drop it, log compactly:
-   `.inspect_err(|e| tracing::debug!("…: {e}"))`.
+   `.inspect_err(|e| tracing::warn!("…: {e}"))`.
 
 ### Stringly-Typed APIs
 
