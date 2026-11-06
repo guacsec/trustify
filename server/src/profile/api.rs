@@ -1190,7 +1190,9 @@ mod test {
         let app = caller(ctx, read_only).await;
         let mut req = TestRequest::default().method(method.clone()).uri(uri);
         if method == Method::PATCH {
-            req = req.insert_header(("content-type", "application/merge-patch+json"));
+            req = req
+                .insert_header(("content-type", "application/merge-patch+json"))
+                .set_payload("{}");
         }
         let resp = app.call_service(req.to_request()).await;
         assert_eq!(resp.status(), expected);
