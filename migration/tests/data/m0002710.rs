@@ -120,7 +120,8 @@ DELETE FROM advisory_vulnerability_cpe;
 DELETE FROM advisory_vulnerability_hash;
 DELETE FROM advisory_vulnerability_product_identifier;
 DELETE FROM advisory_vulnerability_upstream;
-DELETE FROM cpe_status;
+-- older versions wrote different rows: these must go, not stay next to the new ones
+UPDATE cpe_status SET id = gen_random_uuid(), status_id = (SELECT id FROM status WHERE slug = 'under_investigation');
 DELETE FROM product_status;
 DELETE FROM remediation;
 UPDATE purl_status SET id = gen_random_uuid(), qualified_purl_id = NULL,
