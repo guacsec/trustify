@@ -24,10 +24,11 @@ async fn since(
     Ok(u32::try_from(names.len() - position)?)
 }
 
-/// Queue installation backfills existing documents and reinstalls verdict work metadata.
+/// Queue installation leaves existing advisories to the extraction of the SBOMs, which sees all of
+/// them, and reinstalls verdict work metadata.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
-async fn extraction_queue_migration_backfills_existing_documents(
+async fn extraction_queue_migration_queues_no_existing_advisories(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
     use sea_orm::ConnectionTrait;
@@ -35,7 +36,7 @@ async fn extraction_queue_migration_backfills_existing_documents(
     use uuid::Uuid;
 
     let sbom = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
-    let advisory = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
+    ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     ctx.db
         .execute_unprepared("DELETE FROM correlation_extraction_queue")
         .await?;
@@ -43,15 +44,15 @@ async fn extraction_queue_migration_backfills_existing_documents(
     let steps = since(&migrator, &ctx.db, "m0002590_correlation_extraction_queue").await?;
     migrator.down(&ctx.db, Some(steps)).await?;
     migrator.up(&ctx.db, Some(steps)).await?;
-    // Later, m0002620 leaves SBOMs to refresh jobs and keeps only advisories queued.
-    let rows = ctx.db.query_all_raw(sql("SELECT entity_id, entity_type, attempts, queued_at IS NOT NULL AS queued FROM correlation_extraction_queue ORDER BY entity_type", vec![])).await?;
-    assert_eq!(rows.len(), 1);
-    for (row, (id, kind)) in rows.iter().zip([(advisory, "advisory")]) {
-        assert_eq!(row.try_get::<Uuid>("", "entity_id")?, id);
-        assert_eq!(row.try_get::<String>("", "entity_type")?, kind);
-        assert_eq!(row.try_get::<i64>("", "attempts")?, 0);
-        assert!(row.try_get::<bool>("", "queued")?);
-    }
+    // Later, m0002620 leaves SBOMs to refresh jobs.
+    let rows = ctx
+        .db
+        .query_all_raw(sql(
+            "SELECT entity_id FROM correlation_extraction_queue",
+            vec![],
+        ))
+        .await?;
+    assert_eq!(rows.len(), 0);
     let state = ctx.db.query_one_raw(sql("SELECT generation IS NULL AND completed_at IS NULL AND completed_revision=0 AND completed_input_revision=0 AS uncomputed FROM correlation_verdict_state WHERE sbom_id=$1", vec![sbom.into()])).await?.unwrap();
     assert!(state.try_get::<bool>("", "uncomputed")?);
     Ok(())
