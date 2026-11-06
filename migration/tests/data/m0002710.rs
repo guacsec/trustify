@@ -16,10 +16,6 @@ const ADVISORIES: &str = "(SELECT id, publisher_namespace FROM advisory)";
 /// All rows the migration may write.
 const TABLES: &[&str] = &[
     ADVISORIES,
-    // `csaf_product_ids` isn't deterministic: of the products sharing a row, ingestion keeps a
-    // random one, so even two fresh ingests differ
-    "(SELECT id, package, status_id, advisory_id, context_cpe_id, vulnerability_id, \
-     product_version_range_id FROM product_status)",
     "advisory_vulnerability_cpe",
     "advisory_vulnerability_hash",
     "advisory_vulnerability_product_identifier",
@@ -27,6 +23,7 @@ const TABLES: &[&str] = &[
     "assertion_context",
     "assertion_context_identifier",
     "cpe_status",
+    "product_status",
     "purl_status",
     "remediation",
     "remediation_cpe_assertion",
@@ -169,11 +166,13 @@ async fn same_as_fresh_ingest(ctx: &TrustifyContext, #[case] document: &str) -> 
     Ok(())
 }
 
-/// A database whose advisories were all ingested later doesn't do any work.
+/// A database with only later CVE and OSV records doesn't do any work.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn later_advisories_stay_untouched(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    ctx.ingest_document("scenarios/S7_cpeonly_node_hummingbird/cve/CVE-2026-12151.json")
+        .await?;
+    ctx.ingest_document("osv/DSA-5790-1.json").await?;
     downgrade_statements(ctx).await?;
     ctx.db
         .execute_unprepared(
@@ -186,6 +185,29 @@ async fn later_advisories_stay_untouched(ctx: &TrustifyContext) -> anyhow::Resul
     run(ctx, Options::default()).await?;
 
     assert_eq!((rows(ctx).await?, state(ctx).await?), before);
+    Ok(())
+}
+
+/// A later CSAF advisory gets the CSAF product IDs ingestion used to drop.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn later_csaf_gets_all_product_ids(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+    let fresh = rows(ctx).await?;
+    ctx.db
+        .execute_unprepared(
+            r#"
+UPDATE product_status SET csaf_product_ids = csaf_product_ids[1:1];
+UPDATE seaql_migrations SET applied_at = extract(epoch FROM now() - interval '2 days')::bigint
+    WHERE version = 'm0002580_remediation_assertions';
+"#,
+        )
+        .await?;
+    assert_ne!(rows(ctx).await?, fresh);
+
+    run(ctx, Options::default()).await?;
+
+    assert_eq!(rows(ctx).await?, fresh);
     Ok(())
 }
 
