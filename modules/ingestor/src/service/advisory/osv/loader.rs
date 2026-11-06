@@ -3,7 +3,7 @@ use crate::{
         Graph, Outcome,
         advisory::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
-            advisory_vulnerability::AdvisoryVulnerabilityContext,
+            advisory_vulnerability::ensure_vulnerability_links,
             version::{Version, VersionInfo, VersionSpec},
         },
         cvss::ScoreCreator,
@@ -117,13 +117,68 @@ impl<'g> OsvLoader<'g> {
         }
         vuln_creator.create(tx).await?;
 
+        let mut score_creator = ScoreCreator::new(advisory.advisory.id);
+        extract_scores(&osv, &mut score_creator);
+
+        for id in vulnerability_ids {
+            advisory
+                .link_to_vulnerability(
+                    id,
+                    Some(AdvisoryVulnerabilityInformation {
+                        title: osv.summary.clone(),
+                        summary: osv.summary.clone(),
+                        description: osv.details.clone(),
+                        reserved_date: None,
+                        discovery_date: None,
+                        release_date: None,
+                        cwes: None,
+                    }),
+                    tx,
+                )
+                .await?;
+        }
+
+        score_creator.create(tx).await?;
+
+        Self::ingest_statements(&osv, advisory.advisory.id, &warnings, tx).await?;
+
+        Ok(IngestResult {
+            id: advisory.advisory.id.to_string(),
+            document_id: Some(osv.id),
+            warnings: warnings.into(),
+            duplicate: false,
+            validation: Vec::new(),
+        })
+    }
+
+    /// Write the statements of an advisory which already exists.
+    ///
+    /// For documents ingested by older versions. The statements are derived from the content, so
+    /// writing them again adds nothing.
+    #[instrument(skip_all, fields(osv = osv.id), err(level=tracing::Level::INFO))]
+    pub async fn backfill_statements(
+        osv: &Vulnerability,
+        advisory_id: Uuid,
+        warnings: &Warnings,
+        connection: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        ensure_vulnerability_links(advisory_id, extract_vulnerability_ids(osv), connection).await?;
+        Self::ingest_statements(osv, advisory_id, warnings, connection).await
+    }
+
+    /// Write the statements of a record about its vulnerabilities, which must be linked.
+    async fn ingest_statements(
+        osv: &Vulnerability,
+        advisory_id: Uuid,
+        warnings: &Warnings,
+        tx: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        let vulnerability_ids = extract_vulnerability_ids(osv);
+
         let mut purl_creator = PurlCreator::new();
         let mut purl_status_creator = PurlStatusCreator::new();
         let mut remediations = FixedRemediations::default();
         let mut base_purls = HashSet::new();
-        let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-
-        extract_scores(&osv, &mut score_creator);
 
         // the affected entries with a package, and its PURLs
         let affected = osv
@@ -135,7 +190,7 @@ impl<'g> OsvLoader<'g> {
                     tracing::debug!(osv = osv.id, "OSV 'affected' entry without a package");
                     return None;
                 };
-                Some((affected, package, package_purls(package, &warnings)))
+                Some((affected, package, package_purls(package, warnings)))
             })
             .collect::<Vec<_>>();
 
@@ -152,7 +207,7 @@ impl<'g> OsvLoader<'g> {
         for id in &vulnerability_ids {
             for upstream_id in &upstream {
                 upstream_models.push(advisory_vulnerability_upstream::ActiveModel {
-                    advisory_id: Set(advisory.advisory.id),
+                    advisory_id: Set(advisory_id),
                     vulnerability_id: Set(id.to_string()),
                     upstream_id: Set(upstream_id.clone()),
                 });
@@ -160,22 +215,6 @@ impl<'g> OsvLoader<'g> {
         }
 
         for id in vulnerability_ids {
-            let advisory_vuln = advisory
-                .link_to_vulnerability(
-                    id,
-                    Some(AdvisoryVulnerabilityInformation {
-                        title: osv.summary.clone(),
-                        summary: osv.summary.clone(),
-                        description: osv.details.clone(),
-                        reserved_date: None,
-                        discovery_date: None,
-                        release_date: None,
-                        cwes: None,
-                    }),
-                    tx,
-                )
-                .await?;
-
             for (affected, package, purls) in &affected {
                 for purl in purls {
                     // iterate through the known versions, apply the version, and create them
@@ -183,7 +222,8 @@ impl<'g> OsvLoader<'g> {
                         purl_creator.add(purl.with_version(version));
                         // Process explicit versions for advisory linking
                         purl_status_creator.add(affected_status(
-                            &advisory_vuln,
+                            advisory_id,
+                            id,
                             purl,
                             VersionScheme::Generic,
                             VersionSpec::Exact(version.to_string()),
@@ -196,10 +236,11 @@ impl<'g> OsvLoader<'g> {
 
                         let entries = match version_scheme(&range.range_type, &package.ecosystem) {
                             Some(scheme) => {
-                                build_package_status(&advisory_vuln, purl, range, scheme)
+                                build_package_status(advisory_id, id, purl, range, scheme)
                             }
                             None => build_package_status_versions(
-                                &advisory_vuln,
+                                advisory_id,
+                                id,
                                 purl,
                                 range,
                                 affected.versions.iter().flatten(),
@@ -224,7 +265,6 @@ impl<'g> OsvLoader<'g> {
         }
 
         purl_creator.create(tx).await?;
-        score_creator.create(tx).await?;
 
         // Create base PURLs for range-based status entries
         purl::batch_create_base_purls(base_purls, tx).await?;
@@ -239,13 +279,7 @@ impl<'g> OsvLoader<'g> {
                 .await?;
         }
 
-        Ok(IngestResult {
-            id: advisory.advisory.id.to_string(),
-            document_id: Some(osv.id),
-            warnings: warnings.into(),
-            duplicate: false,
-            validation: Vec::new(),
-        })
+        Ok(())
     }
 }
 
@@ -360,18 +394,16 @@ fn version_scheme(range_type: &RangeType, ecosystem: &Ecosystem) -> Option<Versi
 
 /// An `affected` status of a package.
 fn affected_status(
-    advisory_vuln: &AdvisoryVulnerabilityContext<'_>,
+    advisory_id: Uuid,
+    vulnerability_id: &str,
     purl: &Purl,
     scheme: VersionScheme,
     spec: VersionSpec,
 ) -> PurlStatusEntry {
     PurlStatusEntry {
         source_provider: None,
-        advisory_id: advisory_vuln.advisory.advisory.id,
-        vulnerability_id: advisory_vuln
-            .advisory_vulnerability
-            .vulnerability_id
-            .clone(),
+        advisory_id,
+        vulnerability_id: vulnerability_id.to_string(),
         purl: purl.clone(),
         status: "affected".to_string(),
         version_info: VersionInfo { scheme, spec },
@@ -493,7 +525,8 @@ fn intervals(events: &[Event]) -> Vec<Interval<'_>> {
 /// Build the status entries of a range: one `affected` range per interval, with the version fixing
 /// it, if any.
 fn build_package_status<'a>(
-    advisory_vuln: &AdvisoryVulnerabilityContext<'_>,
+    advisory_id: Uuid,
+    vulnerability_id: &str,
     purl: &Purl,
     range: &'a Range,
     version_scheme: VersionScheme,
@@ -512,7 +545,8 @@ fn build_package_status<'a>(
             };
             (
                 affected_status(
-                    advisory_vuln,
+                    advisory_id,
+                    vulnerability_id,
                     purl,
                     version_scheme,
                     VersionSpec::Range(low, high),
@@ -526,7 +560,8 @@ fn build_package_status<'a>(
 /// Build the status entries of a range of an unknown scheme, from the listed versions: each
 /// version of an interval is `affected`, with the version fixing the interval, if any.
 fn build_package_status_versions<'a>(
-    advisory_vuln: &AdvisoryVulnerabilityContext<'_>,
+    advisory_id: Uuid,
+    vulnerability_id: &str,
     purl: &Purl,
     range: &'a Range,
     versions: impl IntoIterator<Item = &'a String>,
@@ -544,7 +579,8 @@ fn build_package_status_versions<'a>(
         .map(|(version, fixed)| {
             (
                 affected_status(
-                    advisory_vuln,
+                    advisory_id,
+                    vulnerability_id,
                     purl,
                     VersionScheme::Generic,
                     VersionSpec::Exact(version.to_string()),
