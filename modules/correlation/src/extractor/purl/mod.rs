@@ -35,7 +35,7 @@ pub mod ecosystem;
 pub mod rule;
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 use self::{
     ecosystem::{Ecosystem, StreamMatch},
