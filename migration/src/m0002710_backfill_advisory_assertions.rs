@@ -6,6 +6,8 @@
 //! be updated, as the ID of such a row is derived from its content. So the rows are replaced, using
 //! what ingestion writes, which makes the result the same as ingesting the document now.
 //!
+//! The `product_status` rows are replaced too, as they lack CSAF product IDs.
+//!
 //! This includes what `m0002480` used to do: `advisory.publisher_namespace`, and dropping the
 //! `affected` ranges older versions derived from the `fixed` versions of Red Hat advisories.
 //!
@@ -31,14 +33,15 @@ use trustify_module_storage::service::StorageBackend;
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
-/// Advisories ingested before the last migration changing what ingestion stores. Later ones have
-/// everything already, and a new database has none of these.
+/// Advisories ingested before the last migration changing what ingestion stores, and all CSAF
+/// advisories, whose `product_status` rows kept the CSAF product IDs of a random product. Later
+/// CVE and OSV records have everything already, and a new database has none of these.
 const OLDER_ADVISORIES: &str = r#"
 SELECT a.id AS advisory, a.source_document_id AS source
 FROM advisory a
 JOIN source_document d ON d.id = a.source_document_id
 JOIN seaql_migrations m ON m.version = 'm0002580_remediation_assertions'
-WHERE d.ingested < to_timestamp(m.applied_at)
+WHERE d.ingested < to_timestamp(m.applied_at) OR a.publisher_namespace IS NOT NULL
 "#;
 
 /// A document of an advisory in [`OLDER_ADVISORIES`].
@@ -77,6 +80,12 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
     tx.execute_raw(Statement::from_sql_and_values(
         DbBackend::Postgres,
         "DELETE FROM purl_status WHERE advisory_id = $1",
+        [id.advisory.into()],
+    ))
+    .await?;
+    tx.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        "DELETE FROM product_status WHERE advisory_id = $1",
         [id.advisory.into()],
     ))
     .await?;

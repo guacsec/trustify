@@ -355,6 +355,7 @@ mod test {
     use test_log::test;
     use trustify_entity::{
         advisory_vulnerability_score::{ScoreType, Severity},
+        product_status,
         version_scheme::VersionScheme,
     };
     use trustify_test_context::{TrustifyContext, document, document_bytes};
@@ -433,6 +434,48 @@ mod test {
         )
         .await?;
 
+        Ok(())
+    }
+
+    /// A status resulting from different products originates from the CSAF product IDs of all of
+    /// them, not of a random one.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn product_status_keeps_all_csaf_product_ids(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use sea_orm::EntityTrait;
+
+        ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
+
+        let mut ids = product_status::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|status| (status.vulnerability_id, status.csaf_product_ids))
+            .collect::<Vec<_>>();
+        ids.sort();
+
+        let products = [
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-1:9.0.87-1.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-admin-webapps-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-docs-webapp-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-el-3.0-api-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-jsp-2.3-api-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-lib-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-servlet-4.0-api-1:9.0.87-1.el8_10.1.noarch",
+            "AppStream-8.10.0.Z.MAIN.EUS:tomcat-webapps-1:9.0.87-1.el8_10.1.noarch",
+        ]
+        .map(String::from)
+        .to_vec();
+        assert_eq!(
+            ids,
+            vec![
+                ("CVE-2024-23672".to_string(), Some(products.clone())),
+                ("CVE-2024-24549".to_string(), Some(products)),
+            ]
+        );
         Ok(())
     }
 
