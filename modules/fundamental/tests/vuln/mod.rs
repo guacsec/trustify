@@ -3,14 +3,18 @@
 #![allow(deprecated)]
 
 use itertools::Itertools;
-use serde_json::json;
+use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+use sea_query::Expr;
+use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::id::Id;
+use trustify_entity::{correlation_option, purl_status};
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
 use trustify_module_ingestor::service::Format;
-use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
+use trustify_test_context::{Dataset, TrustifyContext, document, subset::ContainsSubset};
+use uuid::Uuid;
 
 /// Reverse of the SBOM-page CPE match: a vulnerability's details must backlink
 /// the SBOMs that match it via a package CPE (not just via PURL / product_status).
@@ -94,6 +98,177 @@ async fn vuln_backlink_cpe_context_mismatch(ctx: &TrustifyContext) -> Result<(),
     .await?;
 
     assert!(sboms.is_empty(), "unexpected related SBOMs: {sboms:?}");
+    Ok(())
+}
+
+/// Materializing version matches must retain per-SBOM CPE filtering and PURL deduplication.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_backlink_materialized_matches_preserve_contexts(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    ctx.ingest_document("csaf/issues/cpe_context_backlink/advisory-match.json")
+        .await?;
+    let (template, _) =
+        document::<Value>("cyclonedx/issues/cpe_context_backlink/sbom.json").await?;
+
+    // All variants are synthetic modifications of the same public test fixture.
+    for (name, cpe, version) in [
+        (
+            "generalized-context",
+            Some("cpe:/a:acme:widgetos:9.2"),
+            "1.0",
+        ),
+        ("exact-context", Some("cpe:/a:acme:widgetos:9"), "1.0"),
+        ("wrong-context", Some("cpe:/a:acme:widgetos:8"), "1.0"),
+        ("no-context", None, "1.0"),
+        ("wrong-version", Some("cpe:/a:acme:widgetos:9.2"), "2.0"),
+    ] {
+        let mut sbom = template.clone();
+        sbom["metadata"]["component"]["name"] = json!(name);
+        if let Some(cpe) = cpe {
+            sbom["metadata"]["component"]["cpe"] = json!(cpe);
+        } else {
+            sbom["metadata"]["component"]
+                .as_object_mut()
+                .expect("component is an object")
+                .remove("cpe");
+        }
+        sbom["components"][0]["version"] = json!(version);
+        sbom["components"][0]["purl"] = json!(format!("pkg:rpm/acme/libwidget@{version}"));
+        let mut duplicate = sbom["components"][0].clone();
+        duplicate["bom-ref"] = json!("libwidget-duplicate");
+        sbom["components"]
+            .as_array_mut()
+            .expect("components is an array")
+            .push(duplicate);
+        sbom["dependencies"][0]["dependsOn"] = json!(["libwidget", "libwidget-duplicate"]);
+        ctx.ingest_json(sbom).await?;
+    }
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+    let details = service
+        .fetch_vulnerability("CVE-2024-99999", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+    let sboms = details
+        .advisories
+        .iter()
+        .flat_map(|advisory| &advisory.sboms)
+        .collect_vec();
+    assert_eq!(
+        sboms
+            .iter()
+            .map(|sbom| sbom.head.name.as_str())
+            .sorted()
+            .collect_vec(),
+        ["exact-context", "generalized-context", "no-context"]
+    );
+    for sbom in sboms {
+        assert_eq!(sbom.purl_statuses.len(), 1);
+        assert_eq!(sbom.purl_statuses["affected"].len(), 1);
+    }
+
+    // A status without a CPE context also applies to the otherwise mismatched SBOM.
+    purl_status::Entity::update_many()
+        .col_expr(purl_status::Column::ContextCpeId, Expr::value(None::<Uuid>))
+        .exec(&ctx.db)
+        .await?;
+    let details = service
+        .fetch_vulnerability("CVE-2024-99999", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+    assert_eq!(
+        details
+            .advisories
+            .iter()
+            .flat_map(|advisory| &advisory.sboms)
+            .map(|sbom| sbom.head.name.as_str())
+            .sorted()
+            .collect_vec(),
+        [
+            "exact-context",
+            "generalized-context",
+            "no-context",
+            "wrong-context"
+        ]
+    );
+
+    Ok(())
+}
+
+/// Stated fixed and derived affected statuses must use their corresponding effective ranges.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_backlink_materialized_matches_preserve_derived_ranges(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let (mut advisory, _) =
+        document::<Value>("csaf/issues/cpe_context_backlink/advisory-match.json").await?;
+    advisory["vulnerabilities"][0]["product_status"] =
+        json!({"fixed": ["widgetos-9:libwidget-1.0"]});
+    ctx.ingest_json(advisory).await?;
+    let (template, _) =
+        document::<Value>("cyclonedx/issues/cpe_context_backlink/sbom.json").await?;
+    for (name, version) in [
+        ("below-fix", "0.9"),
+        ("at-fix", "1.0"),
+        ("above-fix", "2.0"),
+    ] {
+        let mut sbom = template.clone();
+        sbom["metadata"]["component"]["name"] = json!(name);
+        sbom["components"][0]["version"] = json!(version);
+        sbom["components"][0]["purl"] = json!(format!("pkg:rpm/acme/libwidget@{version}"));
+        ctx.ingest_json(sbom).await?;
+    }
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+    let details = service
+        .fetch_vulnerability("CVE-2024-99999", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+    let sboms = details
+        .advisories
+        .iter()
+        .flat_map(|advisory| &advisory.sboms)
+        .collect_vec();
+    assert_eq!(sboms.len(), 1);
+    assert_eq!(sboms[0].head.name, "at-fix");
+    assert_eq!(sboms[0].purl_statuses["fixed"].len(), 1);
+
+    correlation_option::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        key: Set(correlation_option::CorrelationOptionKey::FixedIsFirstFixed),
+        publisher_namespace: Set("https://test.example.com".to_string()),
+        value: Set(json!(true)),
+        reason: Set(None),
+    }
+    .insert(&ctx.db)
+    .await?;
+
+    let details = service
+        .fetch_vulnerability("CVE-2024-99999", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+    let sboms = details
+        .advisories
+        .iter()
+        .flat_map(|advisory| &advisory.sboms)
+        .collect_vec();
+    assert_eq!(sboms.len(), 2);
+    let affected = sboms
+        .iter()
+        .find(|sbom| sbom.head.name == "below-fix")
+        .expect("derived affected backlink");
+    assert_eq!(affected.purl_statuses.len(), 1);
+    assert_eq!(affected.purl_statuses["affected"].len(), 1);
+    let fixed = sboms
+        .iter()
+        .find(|sbom| sbom.head.name == "at-fix")
+        .expect("stated fixed backlink");
+    assert_eq!(fixed.purl_statuses.len(), 1);
+    assert_eq!(fixed.purl_statuses["fixed"].len(), 1);
+
     Ok(())
 }
 
