@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793978109856,
+  "lastUpdate": 1794051021991,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24580,6 +24580,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/04e4634d3d5a202043acf3963c2c5c9f8e2c215f"
         },
         "date": 1793978107656,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": true,
+          "id": "1b3b086341e26de5b685f3280a8a8976a35349fc",
+          "message": "ci: add save-if to benchmark workflow rust-cache\n\nSame fix as ci.yaml — prevent PR-branch cache saves from evicting\nmain-branch caches within the 10 GiB GitHub Actions cache limit.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-07T10:05:06Z",
+          "tree_id": "d4b68252d7428a438e16d3efd03c74ae75e79500",
+          "url": "https://github.com/guacsec/trustify/commit/1b3b086341e26de5b685f3280a8a8976a35349fc"
+        },
+        "date": 1794051019427,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
