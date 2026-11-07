@@ -1,7 +1,5 @@
-use std::{
-    collections::{HashMap, HashSet},
-    iter::once,
-};
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::{
     Error,
@@ -24,9 +22,9 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
 use sea_query::{
-    Asterisk, ColumnType, Expr, ExprTrait, Func,
+    Alias, Asterisk, ColumnType, Expr, ExprTrait, Func, IntoIden, IntoValueTuple,
     JoinType::{self, InnerJoin},
-    Order, SimpleExpr, UnionType,
+    Order, SimpleExpr, TableRef, UnionType, ValueTuple,
 };
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
@@ -41,12 +39,16 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    advisory, base_purl, license, purl_status,
+    advisory, base_purl, license, organization, purl_status,
     qualified_purl::{self, CanonicalPurl},
     remediation, remediation_purl_status, sbom, sbom_license_expanded, sbom_node,
-    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
+    sbom_node_purl_ref, sbom_package, sbom_package_license, source_document, status, version_range,
+    versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
+use trustify_module_storage::service::dispatch::DispatchBackend;
+
+pub(crate) mod report;
 
 /// Composite key identifying a base PURL by type, namespace, and name (without version).
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -61,25 +63,56 @@ struct StatusInfo {
     vuln_id: String,
     status_slug: String,
     remediations: Vec<remediation::Model>,
-    /// The most recent date from the advisory that reported this status, used to pick the
-    /// latest assessment when the same vulnerability appears in multiple advisories.
-    advisory_date: Option<time::OffsetDateTime>,
+    source_id: Uuid,
+    status_id: Uuid,
+    advisory_pk: Uuid,
+    context_cpe_id: Option<Uuid>,
+    range: Arc<version_range::Model>,
+    provider: report::ProviderIdentity,
+    csaf: bool,
     /// The advisory identifier that reported this status, used for report provenance.
     advisory_id: Option<String>,
 }
 
-/// Versioned PURLs grouped by base ID and the IDs synthesized from advisory data.
-type AdvisoryVersionedPurls = (HashMap<Uuid, Vec<versioned_purl::Model>>, HashSet<Uuid>);
+/// A status row paired with the exact winner version it matched.
+#[derive(FromQueryResult)]
+struct WinnerPurlStatus {
+    #[sea_orm(nested)]
+    status: purl_status::Model,
+    winner_versioned_purl_id: Uuid,
+}
 
 /// A PURL-to-SBOM association row fetched for the recommendation report endpoint.
-#[derive(FromQueryResult)]
 struct SbomPurlRow {
     sbom_id: Uuid,
+    node_id: Arc<str>,
+    node_name: Arc<str>,
+    package_group: Option<Arc<str>>,
+    package_version: Option<Arc<str>>,
+    node_purls: Arc<Vec<Purl>>,
     base_purl_id: Uuid,
     version: String,
     purl_type: String,
     purl_namespace: Option<String>,
     purl_name: String,
+}
+
+/// One aggregate per node prevents large attributes being repeated for each PURL association.
+#[derive(FromQueryResult)]
+struct SbomPurlNodeRow {
+    sbom_id: Uuid,
+    node_id: String,
+    node_name: String,
+    package_group: Option<String>,
+    package_version: Option<String>,
+    purls: serde_json::Value,
+}
+
+/// Source sizes are checked before materializing names or identifier arrays from the database.
+#[derive(FromQueryResult)]
+struct ReportInputSource {
+    sbom_id: Uuid,
+    size: i64,
 }
 
 /// SBOM root-node name row used to populate the report's sboms list.
@@ -94,16 +127,26 @@ struct VersionGroup {
     purl_type: String,
     namespace: Option<String>,
     name: String,
-    sbom_ids: Vec<Uuid>,
 }
 
 /// A winning vendor recommendation for an upstream package, assembled during report generation.
 struct ReportWinner {
     upstream_purl: String,
+    target_purl: Purl,
     recommended_purl: String,
     base_purl_id: Uuid,
     winner_vp_id: Uuid,
     winner_version: String,
+    upstream_version: String,
+}
+
+/// Report rows retain the selected verdict, its advisory and equivalent-context membership.
+#[derive(PartialEq, Eq, Hash)]
+struct ReportPackageKey {
+    purl: String,
+    recommended_purl: String,
+    status: String,
+    advisory_id: Option<String>,
     found_in: Vec<Uuid>,
 }
 
@@ -155,7 +198,7 @@ impl InputPurl {
         let input_version_str = purl.version.as_ref()?;
         let input_version = lenient_semver::parse(input_version_str)
             .inspect_err(|_| {
-                log::debug!(
+                tracing::debug!(
                     "input purl {} version {:?} failed to parse",
                     purl,
                     input_version_str
@@ -598,7 +641,7 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let (versioned_by_base, advisory_synthesized_vp_ids) =
+        let versioned_by_base =
             Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         let base_purl_map: HashMap<_, _> = base_purls
@@ -642,36 +685,18 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        // Fetch vulnerability statuses per winner, keyed by versioned PURL ID.
-        // Using one call per winner rather than a single batch call avoids cross-version
-        // contamination: when the same base PURL appears with two different upstream versions
-        // (two different winner versioned PURLs), a batch call groups both versions' statuses
-        // under the same base_purl_id bucket. The best_by_vuln picker then selects by advisory
-        // date across both versions, which can assign a status from the wrong version to a
-        // winner. Isolating each winner to its own query ensures version-range matching is
-        // scoped to that winner's specific versioned PURL.
-        let mut statuses_by_vp = HashMap::new();
-        for winner in &winners {
-            let per_winner = Self::fetch_vulnerability_statuses(
-                once(winner.base.id),
-                once(winner.versioned_purl.id),
-                connection,
-            )
-            .await?;
-            if let Some(infos) = per_winner.into_values().next() {
-                statuses_by_vp.insert(winner.versioned_purl.id, infos);
-            } else if advisory_synthesized_vp_ids.contains(&winner.versioned_purl.id) {
-                let infos = Self::fetch_vulnerability_statuses_by_version(
+        // Match every winner against its own literal version, including synthetic winners.
+        let statuses_by_vp = Self::fetch_vulnerability_statuses(
+            winners.iter().map(|winner| {
+                (
                     winner.base.id,
-                    &winner.versioned_purl.version,
-                    connection,
+                    winner.versioned_purl.version.as_str(),
+                    winner.versioned_purl.id,
                 )
-                .await?;
-                if !infos.is_empty() {
-                    statuses_by_vp.insert(winner.versioned_purl.id, infos);
-                }
-            }
-        }
+            }),
+            connection,
+        )
+        .await?;
 
         // Assemble recommendations from per-winner statuses
         for winner in winners {
@@ -682,145 +707,174 @@ impl PurlService {
         Ok(recommendations)
     }
 
-    /// Batch-loads vulnerability statuses for the winning versioned PURLs, grouped by base PURL ID.
-    /// Chunks by base PURL IDs to stay within Postgres bind parameter limits.
+    /// Batch-loads statuses keyed by each winner's versioned PURL ID.
+    ///
+    /// Winners yield `(base_purl_id, version, versioned_purl_id)`. A chunked inline VALUES
+    /// table matches each literal version independently, without requiring a persisted row.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
-    async fn fetch_vulnerability_statuses<C: ConnectionTrait>(
-        winner_base_ids: impl IntoIterator<Item = Uuid>,
-        winner_vp_ids: impl IntoIterator<Item = Uuid>,
+    async fn fetch_vulnerability_statuses<'a, C: ConnectionTrait>(
+        winners: impl IntoIterator<Item = (Uuid, &'a str, Uuid)>,
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
-        let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
-        let winner_vp_ids: Vec<_> = winner_vp_ids.into_iter().collect();
+        // Postgres names the columns of an aliased VALUES list column1, column2, ...
+        let winners_table = Alias::new("recommend_winner");
+        let winner_base_purl_id = Expr::col((winners_table.clone(), Alias::new("column1")));
+        let winner_version = Expr::col((winners_table.clone(), Alias::new("column2")));
+        let winner_versioned_purl_id = Expr::col((winners_table.clone(), Alias::new("column3")));
+        let mut seen = HashSet::new();
+        let winner_rows: Vec<ValueTuple> = winners
+            .into_iter()
+            .filter(|(_, _, id)| seen.insert(*id))
+            .map(IntoValueTuple::into_value_tuple)
+            .collect();
+        let mut statuses_by_vp: HashMap<_, Vec<StatusInfo>> = HashMap::new();
 
-        let base_chunks = chunked_with(1, winner_base_ids.into_iter());
-        for base_chunk in base_chunks {
-            let all_statuses = purl_status::Entity::find()
-                .columns([
-                    // `version_range::Column::Id` is not selected: both tables have an `id`
-                    // column, and the range ID would replace the status ID used to load
-                    // remediations.
-                    version_range::Column::LowVersion,
-                    version_range::Column::LowInclusive,
-                    version_range::Column::HighVersion,
-                    version_range::Column::HighInclusive,
-                ])
-                .left_join(base_purl::Entity)
+        // Each winner binds three values. Select only status columns and the unique
+        // winner alias: selecting version_range.id would overwrite remediation's status ID.
+        for chunk in chunked_with(3, winner_rows) {
+            let mut query = purl_status::Entity::find()
+                .column_as(winner_versioned_purl_id.clone(), "winner_versioned_purl_id")
+                .left_join(version_range::Entity);
+            QueryTrait::query(&mut query)
                 .join(
-                    JoinType::LeftJoin,
-                    base_purl::Relation::VersionedPurls.def(),
+                    InnerJoin,
+                    TableRef::ValuesList(chunk, winners_table.clone().into_iden()),
+                    winner_base_purl_id
+                        .clone()
+                        .equals((purl_status::Entity, purl_status::Column::BasePurlId)),
                 )
-                .left_join(version_range::Entity)
-                .filter(purl_status::Column::BasePurlId.is_in(base_chunk))
-                .filter(versioned_purl::Column::Id.is_in(winner_vp_ids.iter().copied()))
-                .filter(SimpleExpr::FunctionCall(
+                .and_where(SimpleExpr::FunctionCall(
                     Func::cust(VersionMatches)
-                        .arg(Expr::col(versioned_purl::Column::Version))
+                        .arg(winner_version.clone())
                         .arg(Expr::col((version_range::Entity, Asterisk))),
-                ))
+                ));
+            let all_statuses = query
+                .into_model::<WinnerPurlStatus>()
                 .all(connection)
                 .instrument(info_span!("querying purl statuses"))
                 .await?;
 
-            let batch_statuses_by_base =
-                Self::load_status_infos_by_base(all_statuses, connection).await?;
-            for (base_purl_id, infos) in batch_statuses_by_base {
-                statuses_by_base
-                    .entry(base_purl_id)
-                    .or_default()
-                    .extend(infos);
+            for (winner_id, infos) in
+                Self::load_status_infos_by_winner(all_statuses, connection).await?
+            {
+                statuses_by_vp.entry(winner_id).or_default().extend(infos);
             }
         }
 
-        Ok(statuses_by_base)
+        Ok(statuses_by_vp)
     }
 
-    /// Resolves vulnerability statuses for a synthetic winner (no real `versioned_purl` row).
-    ///
-    /// Queries `purl_status` directly by `base_purl_id` and matches the version string as a
-    /// literal against `version_range`, bypassing the `versioned_purl` JOIN that fails for
-    /// advisory-synthesized winners.
+    /// Loads status associations grouped by the exact winner each status matched.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
-    async fn fetch_vulnerability_statuses_by_version<C: ConnectionTrait>(
-        base_purl_id: Uuid,
-        version: &str,
-        connection: &C,
-    ) -> Result<Vec<StatusInfo>, Error> {
-        let all_statuses = purl_status::Entity::find()
-            .columns([
-                // See `fetch_vulnerability_statuses` for why the range ID is not selected.
-                version_range::Column::LowVersion,
-                version_range::Column::LowInclusive,
-                version_range::Column::HighVersion,
-                version_range::Column::HighInclusive,
-            ])
-            .left_join(version_range::Entity)
-            .filter(purl_status::Column::BasePurlId.eq(base_purl_id))
-            .filter(SimpleExpr::FunctionCall(
-                Func::cust(VersionMatches)
-                    .arg(Expr::value(version))
-                    .arg(Expr::col((version_range::Entity, Asterisk))),
-            ))
-            .all(connection)
-            .instrument(info_span!("querying purl statuses for synthetic winner"))
-            .await?;
-
-        let mut statuses_by_base =
-            Self::load_status_infos_by_base(all_statuses, connection).await?;
-        Ok(statuses_by_base.remove(&base_purl_id).unwrap_or_default())
-    }
-
-    /// Loads vulnerability status associations for PURL status rows, grouped by base PURL ID.
-    #[instrument(skip_all, err(level = tracing::Level::INFO))]
-    async fn load_status_infos_by_base<C: ConnectionTrait>(
-        all_statuses: Vec<purl_status::Model>,
+    async fn load_status_infos_by_winner<C: ConnectionTrait>(
+        all_statuses: Vec<WinnerPurlStatus>,
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
-        let vulns = all_statuses
-            .load_one(vulnerability::Entity, connection)
-            .instrument(info_span!("loading vulnerabilities"))
-            .await?;
-        let advisories_loaded = all_statuses
-            .load_one(advisory::Entity, connection)
-            .instrument(info_span!("loading advisories"))
-            .await?;
-        let status_models = all_statuses
-            .load_one(status::Entity, connection)
-            .instrument(info_span!("loading statuses"))
-            .await?;
-        let status_slug_map = status_models
-            .into_iter()
-            .flatten()
-            .map(|s| (s.id, s.slug))
-            .collect::<HashMap<_, _>>();
-        let remediations = Self::load_remediations(&all_statuses, connection).await?;
+        let mut statuses_by_vp: HashMap<_, Vec<StatusInfo>> = HashMap::new();
+        let mut ranges_by_id = HashMap::<Uuid, Arc<version_range::Model>>::new();
+        // Winner chunking bounds the VALUES query, not the number of matching statuses.
+        // Each load_one relation binds one distinct key per status at most; chunk rows
+        // as well so even disjoint high-cardinality winners stay within the bind limit.
+        for batch in chunked_with(1, all_statuses) {
+            let status_models = batch
+                .iter()
+                .map(|row| row.status.clone())
+                .collect::<Vec<_>>();
+            let vulns = status_models
+                .load_one(vulnerability::Entity, connection)
+                .instrument(info_span!("loading vulnerabilities"))
+                .await?;
+            let advisories_loaded = status_models
+                .load_one(advisory::Entity, connection)
+                .instrument(info_span!("loading advisories"))
+                .await?;
+            let loaded_statuses = status_models
+                .load_one(status::Entity, connection)
+                .instrument(info_span!("loading statuses"))
+                .await?;
+            let needed_ranges = status_models
+                .iter()
+                .map(|status| status.version_range_id)
+                .filter(|id| !ranges_by_id.contains_key(id))
+                .collect::<HashSet<_>>();
+            if !needed_ranges.is_empty() {
+                ranges_by_id.extend(
+                    version_range::Entity::find()
+                        .filter(version_range::Column::Id.is_in(needed_ranges))
+                        .all(connection)
+                        .await?
+                        .into_iter()
+                        .map(|range| (range.id, Arc::new(range))),
+                );
+            }
+            let issuer_ids = advisories_loaded
+                .iter()
+                .flatten()
+                .filter_map(|advisory| advisory.issuer_id)
+                .collect::<HashSet<_>>();
+            let issuers = organization::Entity::find()
+                .filter(organization::Column::Id.is_in(issuer_ids))
+                .all(connection)
+                .await?
+                .into_iter()
+                .map(|issuer| (issuer.id, issuer.name))
+                .collect::<HashMap<_, _>>();
+            let status_slug_map = loaded_statuses
+                .into_iter()
+                .flatten()
+                .map(|s| (s.id, s.slug))
+                .collect::<HashMap<_, _>>();
+            let remediations = Self::load_remediations(&status_models, connection).await?;
 
-        let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
-        for (((vuln, advisory), ps), rems) in vulns
-            .into_iter()
-            .zip(advisories_loaded)
-            .zip(all_statuses)
-            .zip(remediations)
-        {
-            if let (Some(v), Some(advisory)) = (vuln, advisory) {
-                let slug = status_slug_map
-                    .get(&ps.status_id)
-                    .cloned()
-                    .unwrap_or_else(|| "unknown".to_string());
-                statuses_by_base
-                    .entry(ps.base_purl_id)
-                    .or_default()
-                    .push(StatusInfo {
-                        vuln_id: v.id,
-                        status_slug: slug,
-                        remediations: rems,
-                        advisory_date: advisory.modified.or(advisory.published),
-                        advisory_id: Some(advisory.identifier),
-                    });
+            for (((vuln, advisory), ps), rems) in vulns
+                .into_iter()
+                .zip(advisories_loaded)
+                .zip(batch)
+                .zip(remediations)
+            {
+                let range = ranges_by_id.get(&ps.status.version_range_id).cloned();
+                if let (Some(v), Some(advisory), Some(range)) = (vuln, advisory, range) {
+                    // Republished advisories retain superseded status rows under the same
+                    // identifier. Only the current revision is eligible for recommendations.
+                    if advisory.deprecated {
+                        continue;
+                    }
+                    let slug = status_slug_map
+                        .get(&ps.status.status_id)
+                        .cloned()
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let provider = report::ProviderIdentity::from_advisory(
+                        &advisory,
+                        advisory
+                            .issuer_id
+                            .and_then(|id| issuers.get(&id))
+                            .map(String::as_str),
+                    );
+                    let csaf = advisory
+                        .labels
+                        .get("type")
+                        .is_some_and(|value| value == "csaf");
+                    statuses_by_vp
+                        .entry(ps.winner_versioned_purl_id)
+                        .or_default()
+                        .push(StatusInfo {
+                            vuln_id: v.id,
+                            status_slug: slug,
+                            remediations: rems,
+                            source_id: ps.status.id,
+                            status_id: ps.status.status_id,
+                            advisory_pk: advisory.id,
+                            context_cpe_id: ps.status.context_cpe_id,
+                            range,
+                            provider,
+                            csaf,
+                            advisory_id: Some(advisory.identifier),
+                        });
+                }
             }
         }
 
-        Ok(statuses_by_base)
+        Ok(statuses_by_vp)
     }
 
     /// Loads the remediations of each status row, in input order.
@@ -833,7 +887,13 @@ impl PurlService {
         connection: &C,
     ) -> Result<Vec<Vec<remediation::Model>>, Error> {
         let mut remediation_ids_by_status = HashMap::<_, Vec<_>>::new();
-        for status_ids in chunked_with(1, statuses.iter().map(|status| status.id)) {
+        // Within this invocation, load each ranged status's associations only once,
+        // even when repeated IDs would otherwise span several bind-parameter chunks.
+        let status_ids = statuses
+            .iter()
+            .map(|status| status.id)
+            .collect::<HashSet<_>>();
+        for status_ids in chunked_with(1, status_ids) {
             let associations = remediation_purl_status::Entity::find()
                 .filter(remediation_purl_status::Column::PurlStatusId.is_in(status_ids))
                 .all(connection)
@@ -893,30 +953,46 @@ impl PurlService {
         }
         .to_string();
 
-        // When the same vulnerability appears in multiple advisories with different statuses,
-        // keep the one from the most recent advisory so that newer assessments (e.g. "fixed")
-        // take precedence over older ones (e.g. "affected").
-        let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-        for info in statuses_by_vp
+        // Preserve conflicting sources and statuses, collapsing only identical assessments
+        // repeated under different product contexts. Sort first for deterministic responses.
+        let mut statuses = statuses_by_vp
             .get(&winner.versioned_purl.id)
             .into_iter()
             .flatten()
-        {
-            best_by_vuln
-                .entry(&info.vuln_id)
-                .and_modify(|existing| {
-                    if info.advisory_date > existing.advisory_date {
-                        *existing = info;
-                    }
-                })
-                .or_insert(info);
-        }
+            .collect::<Vec<_>>();
+        statuses.sort_by(|a, b| {
+            (&a.vuln_id, &a.status_slug, &a.advisory_id).cmp(&(
+                &b.vuln_id,
+                &b.status_slug,
+                &b.advisory_id,
+            ))
+        });
 
         RecommendEntry {
             package: package_str,
-            vulnerabilities: best_by_vuln
-                .into_values()
-                .map(|info| {
+            vulnerabilities: statuses
+                .chunk_by(|a, b| {
+                    a.vuln_id == b.vuln_id
+                        && a.status_slug == b.status_slug
+                        && a.advisory_id == b.advisory_id
+                })
+                .map(|group| {
+                    let info = group[0];
+                    let mut remediations = group
+                        .iter()
+                        .flat_map(|status| RemediationSummary::from_entities(&status.remediations))
+                        .collect::<Vec<_>>();
+                    // Content, not database IDs or source-row order, defines equivalence.
+                    // Include every projected field, including internal remediation data.
+                    remediations.sort_by_cached_key(|remediation| {
+                        (
+                            remediation.category.clone().remediation_category_key(),
+                            remediation.details.clone(),
+                            remediation.url.clone(),
+                            remediation.data.to_string(),
+                        )
+                    });
+                    remediations.dedup();
                     let vex_status = match info.status_slug.as_str() {
                         "affected" => VexStatus::Affected,
                         "fixed" => VexStatus::Fixed,
@@ -929,7 +1005,8 @@ impl PurlService {
                         id: info.vuln_id.clone(),
                         status: Some(vex_status),
                         justification: None,
-                        remediations: RemediationSummary::from_entities(&info.remediations),
+                        remediations,
+                        advisory_id: info.advisory_id.clone(),
                     }
                 })
                 .collect(),
@@ -973,7 +1050,7 @@ impl PurlService {
     async fn fetch_versioned_purls_by_base<C: ConnectionTrait>(
         base_purls: &[base_purl::Model],
         connection: &C,
-    ) -> Result<AdvisoryVersionedPurls, Error> {
+    ) -> Result<HashMap<Uuid, Vec<versioned_purl::Model>>, Error> {
         let base_purl_ids: Vec<_> = base_purls.iter().map(|bp| bp.id).collect();
 
         let mut by_base: HashMap<_, Vec<_>> = HashMap::new();
@@ -991,34 +1068,32 @@ impl PurlService {
         // Supplement with exact-version advisory entries (status `not_affected` or `fixed`).
         // In advisory-only deployments without vendor SBOMs, these purl_status rows are the
         // only source of vendor-rebuilt version strings. Using a deterministic UUID (v5 of
-        // base_purl_id + version) lets the rest of the pipeline treat them uniformly. The
-        // synthesized IDs are returned separately because persisted rows use the same UUID scheme.
-        let advisory_synthesized_vp_ids = Self::extend_with_advisory_versions(
+        // base_purl_id + version) lets the rest of the pipeline treat them uniformly.
+        // Status lookup matches literal versions, so it needs no separate synthetic-ID tracking.
+        Self::extend_with_advisory_versions(
             base_purls.iter().map(|bp| bp.id),
             &mut by_base,
             connection,
         )
         .await?;
 
-        Ok((by_base, advisory_synthesized_vp_ids))
+        Ok(by_base)
     }
 
     /// Fetches exact-version `not_affected` and `fixed` purl_status entries and adds any
     /// version strings not already present in `by_base` as synthetic versioned_purl models.
-    /// Returns the IDs of those synthesized rows.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn extend_with_advisory_versions<C: ConnectionTrait>(
         base_purl_ids: impl IntoIterator<Item = Uuid>,
         by_base: &mut HashMap<Uuid, Vec<versioned_purl::Model>>,
         connection: &C,
-    ) -> Result<HashSet<Uuid>, Error> {
+    ) -> Result<(), Error> {
         #[derive(FromQueryResult)]
         struct AdvisoryVersion {
             base_purl_id: Uuid,
             version: String,
         }
 
-        let mut synthesized_ids = HashSet::new();
         let id_chunks = chunked_with(1, base_purl_ids.into_iter());
         for chunk in id_chunks {
             let rows: Vec<AdvisoryVersion> = purl_status::Entity::find()
@@ -1027,6 +1102,8 @@ impl PurlService {
                 .column_as(version_range::Column::HighVersion, "version")
                 .join(InnerJoin, purl_status::Relation::Status.def())
                 .join(InnerJoin, purl_status::Relation::VersionRange.def())
+                .join(InnerJoin, purl_status::Relation::Advisory.def())
+                .filter(advisory::Column::Deprecated.eq(false))
                 .filter(status::Column::Slug.is_in(["not_affected", "fixed"]))
                 .filter(purl_status::Column::BasePurlId.is_in(chunk))
                 .filter(version_range::Column::HighVersion.is_not_null())
@@ -1044,7 +1121,6 @@ impl PurlService {
                     continue;
                 }
                 let id = Uuid::new_v5(&row.base_purl_id, row.version.as_bytes());
-                synthesized_ids.insert(id);
                 entry.push(versioned_purl::Model {
                     id,
                     base_purl_id: row.base_purl_id,
@@ -1053,7 +1129,7 @@ impl PurlService {
             }
         }
 
-        Ok(synthesized_ids)
+        Ok(())
     }
 
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
@@ -1073,7 +1149,7 @@ impl PurlService {
                 let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
                 let upstream = lenient_semver::parse(upstream_str)
                     .inspect_err(|_| {
-                        log::debug!(
+                        tracing::debug!(
                             "extracted upstream version {:?} from {:?} failed to parse",
                             upstream_str,
                             vp.version
@@ -1114,6 +1190,7 @@ impl PurlService {
     pub async fn report_for_sboms<C: ConnectionTrait>(
         &self,
         sbom_ids: &[Uuid],
+        storage: &DispatchBackend,
         connection: &C,
     ) -> Result<RecommendReportResponse, Error> {
         if sbom_ids.is_empty() {
@@ -1142,27 +1219,19 @@ impl PurlService {
             });
         }
 
-        // Group rows by (base_purl_id, version) → VersionGroup with SBOM IDs.
+        // Share candidate selection by base/version, but retain nodes until verdict resolution.
         let mut version_groups: HashMap<(Uuid, String), VersionGroup> = HashMap::new();
         let mut unique_base_ids: HashSet<Uuid> = HashSet::new();
 
         for row in &rows {
-            let group = version_groups
+            version_groups
                 .entry((row.base_purl_id, row.version.clone()))
                 .or_insert_with(|| VersionGroup {
                     purl_type: row.purl_type.clone(),
                     namespace: row.purl_namespace.clone(),
                     name: row.purl_name.clone(),
-                    sbom_ids: Vec::new(),
                 });
-            group.sbom_ids.push(row.sbom_id);
             unique_base_ids.insert(row.base_purl_id);
-        }
-
-        // Deduplicate sbom_ids per group.
-        for group in version_groups.values_mut() {
-            group.sbom_ids.sort();
-            group.sbom_ids.dedup();
         }
 
         // Fetch all versioned PURLs for the relevant base PURLs to find vendor patches.
@@ -1171,7 +1240,7 @@ impl PurlService {
             .filter(base_purl::Column::Id.is_in(base_purl_ids_vec))
             .all(connection)
             .await?;
-        let (versioned_by_base, advisory_synthesized_vp_ids) =
+        let versioned_by_base =
             Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         // Pattern-match each (base, version) to find the highest vendor patch.
@@ -1198,31 +1267,32 @@ impl PurlService {
                 continue;
             };
 
-            let upstream_purl = Purl {
+            let upstream = Purl {
                 ty: group.purl_type.clone(),
                 namespace: group.namespace.clone(),
                 name: group.name.clone(),
                 version: Some(version.clone()),
                 qualifiers: Default::default(),
-            }
-            .to_string();
+            };
+            let upstream_purl = upstream.to_string();
 
-            let recommended_purl = Purl {
+            let target_purl = Purl {
                 ty: group.purl_type.clone(),
                 namespace: group.namespace.clone(),
                 name: group.name.clone(),
                 version: Some(winner_vp.version.clone()),
                 qualifiers: Default::default(),
-            }
-            .to_string();
+            };
+            let recommended_purl = target_purl.to_string();
 
             winners.push(ReportWinner {
                 upstream_purl,
+                target_purl,
                 recommended_purl,
                 base_purl_id: *base_id,
                 winner_vp_id: winner_vp.id,
                 winner_version: winner_vp.version.clone(),
-                found_in: group.sbom_ids.clone(),
+                upstream_version: version.clone(),
             });
         }
 
@@ -1242,34 +1312,55 @@ impl PurlService {
             });
         }
 
-        // Fetch vulnerability statuses per winner, keyed by winner_vp_id.
-        // Using one call per winner rather than a single batch call avoids cross-version
-        // contamination: when the same base PURL appears with two different upstream versions
-        // (two different winner_vp_ids), a batch call groups both versions' statuses under
-        // the same base_purl_id bucket. The best_by_vuln picker then selects by advisory date
-        // across both versions, which can assign a status from the wrong version to a winner.
-        // Isolating each winner to its own query ensures version-range matching is scoped to
-        // that winner's specific versioned PURL.
-        let mut statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
-        for winner in &winners {
-            let per_winner = Self::fetch_vulnerability_statuses(
-                std::iter::once(winner.base_purl_id),
-                std::iter::once(winner.winner_vp_id),
-                connection,
-            )
-            .await?;
-            if let Some(infos) = per_winner.into_values().next() {
-                statuses_by_vp.insert(winner.winner_vp_id, infos);
-            } else if advisory_synthesized_vp_ids.contains(&winner.winner_vp_id) {
-                let infos = Self::fetch_vulnerability_statuses_by_version(
+        let statuses_by_vp = Self::fetch_vulnerability_statuses(
+            winners.iter().map(|winner| {
+                (
                     winner.base_purl_id,
-                    &winner.winner_version,
-                    connection,
+                    winner.winner_version.as_str(),
+                    winner.winner_vp_id,
                 )
+            }),
+            connection,
+        )
+        .await?;
+
+        let winner_by_input = winners
+            .iter()
+            .enumerate()
+            .map(|(index, winner)| {
+                (
+                    (winner.base_purl_id, winner.upstream_version.as_str()),
+                    index,
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        // Recovery cannot affect a known-empty result when no assessment is addressing.
+        let participating = rows
+            .into_iter()
+            .filter(|row| {
+                winner_by_input
+                    .get(&(row.base_purl_id, row.version.as_str()))
+                    .is_some_and(|index| {
+                        statuses_by_vp
+                            .get(&winners[*index].winner_vp_id)
+                            .into_iter()
+                            .flatten()
+                            .any(|info| {
+                                matches!(info.status_slug.as_str(), "fixed" | "not_affected")
+                            })
+                    })
+            })
+            .collect::<Vec<_>>();
+        let context =
+            report::ReportContext::load(&participating, &statuses_by_vp, storage, connection)
                 .await?;
-                if !infos.is_empty() {
-                    statuses_by_vp.insert(winner.winner_vp_id, infos);
-                }
+        let mut contextual_winners = HashMap::<_, (BTreeSet<Uuid>, (Uuid, String))>::new();
+        for row in &participating {
+            if let Some(index) = winner_by_input.get(&(row.base_purl_id, row.version.as_str())) {
+                let group = contextual_winners
+                    .entry((*index, context.key(row.sbom_id, &row.node_id)))
+                    .or_insert_with(|| (BTreeSet::new(), (row.sbom_id, row.node_id.to_string())));
+                group.0.insert(row.sbom_id);
             }
         }
 
@@ -1277,64 +1368,73 @@ impl PurlService {
         let mut sbom_addressable: HashMap<Uuid, HashSet<String>> = HashMap::new();
         let mut sbom_vulns: HashMap<Uuid, HashSet<String>> = HashMap::new();
 
-        let mut packages: Vec<RecommendReportPackage> = Vec::with_capacity(winners.len());
-
-        for winner in &winners {
-            // Pick the best StatusInfo per vulnerability (most recent advisory wins).
-            let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-            for info in statuses_by_vp
+        let mut package_rows = HashMap::<ReportPackageKey, BTreeSet<String>>::new();
+        for ((index, _), (found_in, (sbom_id, node_id))) in contextual_winners {
+            let winner = &winners[index];
+            let statuses = statuses_by_vp
                 .get(&winner.winner_vp_id)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let selected = context.resolve(sbom_id, &node_id, &winner.target_purl, statuses)?;
+            let mut resolved_groups = HashMap::<(String, Option<String>), BTreeSet<String>>::new();
+            // Negative selected outcomes have already defeated conflicting positive evidence.
+            for info in selected
                 .into_iter()
-                .flatten()
-            {
-                best_by_vuln
-                    .entry(&info.vuln_id)
-                    .and_modify(|existing| {
-                        if info.advisory_date > existing.advisory_date {
-                            *existing = info;
-                        }
-                    })
-                    .or_insert(info);
-            }
-
-            // Only include vulnerabilities the recommended PURL actually addresses
-            // (fixed or not_affected). CVEs where the recommended version is still
-            // affected or under investigation are not remediated and must be excluded.
-            let vulnerabilities: Vec<String> = best_by_vuln
-                .iter()
-                .filter(|(_, info)| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
-                .map(|(id, _)| id.to_string())
-                .collect();
-
-            if vulnerabilities.is_empty() {
-                continue;
-            }
-
-            // Advisory ID from the most recent advisory among addressed vulnerabilities.
-            let advisory_id = best_by_vuln
-                .values()
                 .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
-                .max_by(|a, b| a.advisory_date.cmp(&b.advisory_date))
-                .and_then(|info| info.advisory_id.clone());
-
-            for sbom_id in &winner.found_in {
-                sbom_addressable
-                    .entry(*sbom_id)
+            {
+                resolved_groups
+                    .entry((info.status_slug.clone(), info.advisory_id.clone()))
                     .or_default()
-                    .insert(winner.upstream_purl.clone());
-                for vuln in &vulnerabilities {
-                    sbom_vulns.entry(*sbom_id).or_default().insert(vuln.clone());
-                }
+                    .insert(info.vuln_id.clone());
             }
-
-            packages.push(RecommendReportPackage {
-                purl: winner.upstream_purl.clone(),
-                recommended_purl: winner.recommended_purl.clone(),
-                advisory_id,
-                vulnerabilities,
-                found_in: winner.found_in.clone(),
-            });
+            for ((status, advisory_id), vulnerabilities) in resolved_groups {
+                for id in &found_in {
+                    sbom_addressable
+                        .entry(*id)
+                        .or_default()
+                        .insert(winner.upstream_purl.clone());
+                    sbom_vulns
+                        .entry(*id)
+                        .or_default()
+                        .extend(vulnerabilities.iter().cloned());
+                }
+                let key = ReportPackageKey {
+                    purl: winner.upstream_purl.clone(),
+                    recommended_purl: winner.recommended_purl.clone(),
+                    status,
+                    advisory_id,
+                    found_in: found_in.iter().copied().collect(),
+                };
+                package_rows.entry(key).or_default().extend(vulnerabilities);
+            }
         }
+        let mut package_rows = package_rows.into_iter().collect::<Vec<_>>();
+        package_rows.sort_by(|(a, _), (b, _)| {
+            (
+                &a.purl,
+                &a.advisory_id,
+                &a.recommended_purl,
+                &a.found_in,
+                &a.status,
+            )
+                .cmp(&(
+                    &b.purl,
+                    &b.advisory_id,
+                    &b.recommended_purl,
+                    &b.found_in,
+                    &b.status,
+                ))
+        });
+        let packages = package_rows
+            .into_iter()
+            .map(|(key, vulnerabilities)| RecommendReportPackage {
+                purl: key.purl,
+                recommended_purl: key.recommended_purl,
+                advisory_id: key.advisory_id,
+                vulnerabilities: vulnerabilities.into_iter().collect(),
+                found_in: key.found_in,
+            })
+            .collect::<Vec<_>>();
 
         let sboms: Vec<RecommendReportSbom> = sbom_ids
             .iter()
@@ -1348,7 +1448,11 @@ impl PurlService {
 
         let sboms_with_recommendations =
             sboms.iter().filter(|s| s.addressable_packages > 0).count();
-        let addressable_packages = packages.len();
+        let addressable_packages = packages
+            .iter()
+            .map(|package| package.purl.as_str())
+            .collect::<HashSet<_>>()
+            .len();
 
         Ok(RecommendReportResponse {
             impact_summary: RecommendReportImpactSummary {
@@ -1383,31 +1487,119 @@ impl PurlService {
         sbom_ids: &[Uuid],
         connection: &C,
     ) -> Result<Vec<SbomPurlRow>, Error> {
-        Ok(sbom_node_purl_ref::Entity::find()
+        let sources = sbom_node_purl_ref::Entity::find()
             .select_only()
             .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
-            .column_as(versioned_purl::Column::BasePurlId, "base_purl_id")
-            .column_as(versioned_purl::Column::Version, "version")
-            .column_as(base_purl::Column::Type, "purl_type")
-            .column_as(base_purl::Column::Namespace, "purl_namespace")
-            .column_as(base_purl::Column::Name, "purl_name")
+            .column_as(source_document::Column::Size, "size")
+            .join(InnerJoin, sbom_node_purl_ref::Relation::Sbom.def())
+            .join(InnerJoin, sbom::Relation::SourceDocument.def())
+            .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
+            .distinct()
+            .into_model::<ReportInputSource>()
+            .all(connection)
+            .await?;
+        let mut input_bytes = 0usize;
+        for source in sources {
+            if source.size < 0 || source.size as u64 > report::MAX_SOURCE_BYTES as u64 {
+                return Err(report::ReportError::Limit {
+                    sbom_id: source.sbom_id,
+                    reason: "report input source byte limit",
+                }
+                .into());
+            }
+            input_bytes = input_bytes.saturating_add(source.size as usize);
+            if input_bytes > report::MAX_REQUEST_BYTES {
+                return Err(report::ReportError::Limit {
+                    sbom_id: source.sbom_id,
+                    reason: "report input request byte limit",
+                }
+                .into());
+            }
+        }
+        let nodes = sbom_node_purl_ref::Entity::find()
+            .select_only()
+            .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
+            .column_as(sbom_node_purl_ref::Column::NodeId, "node_id")
+            .column_as(sbom_node::Column::Name, "node_name")
+            .column_as(sbom_package::Column::Group, "package_group")
+            .column_as(sbom_package::Column::Version, "package_version")
+            .column_as(
+                SimpleExpr::FunctionCall(Func::cust(Alias::new("jsonb_agg")).arg(Expr::col((
+                    qualified_purl::Entity,
+                    qualified_purl::Column::Purl,
+                )))),
+                "purls",
+            )
             .join(
                 JoinType::InnerJoin,
                 sbom_node_purl_ref::Relation::Purl.def(),
             )
-            .join(
-                JoinType::InnerJoin,
-                qualified_purl::Relation::VersionedPurl.def(),
-            )
-            .join(
-                JoinType::InnerJoin,
-                versioned_purl::Relation::BasePurl.def(),
-            )
+            .join(JoinType::InnerJoin, sbom_node::Relation::Purl.def().rev())
+            .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
             .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
-            .distinct()
-            .into_model::<SbomPurlRow>()
+            .group_by(sbom_node_purl_ref::Column::SbomId)
+            .group_by(sbom_node_purl_ref::Column::NodeId)
+            .group_by(sbom_node::Column::SbomId)
+            .group_by(sbom_node::Column::NodeId)
+            .group_by(sbom_package::Column::SbomId)
+            .group_by(sbom_package::Column::NodeId)
+            .into_model::<SbomPurlNodeRow>()
             .all(connection)
-            .await?)
+            .await?;
+        let mut rows = Vec::new();
+        let mut projected = 0usize;
+        for node in nodes {
+            projected = projected
+                .saturating_add(node.node_id.len())
+                .saturating_add(node.node_name.len())
+                .saturating_add(node.package_group.as_ref().map_or(0, String::len))
+                .saturating_add(node.package_version.as_ref().map_or(0, String::len));
+            let purls: Vec<CanonicalPurl> =
+                serde_json::from_value(node.purls).map_err(|err| Error::Data(err.to_string()))?;
+            for purl in &purls {
+                let bytes = purl.ty.len()
+                    + purl.namespace.as_ref().map_or(0, String::len)
+                    + purl.name.len()
+                    + purl.version.as_ref().map_or(0, String::len)
+                    + purl
+                        .qualifiers
+                        .iter()
+                        .map(|(key, value)| key.len() + value.len() + 64)
+                        .sum::<usize>();
+                projected = projected
+                    .saturating_add(bytes.saturating_mul(6))
+                    .saturating_add(size_of::<SbomPurlRow>());
+            }
+            if projected > report::MAX_REQUEST_BYTES {
+                return Err(report::ReportError::Limit {
+                    sbom_id: node.sbom_id,
+                    reason: "projected report metadata byte limit",
+                }
+                .into());
+            }
+            let node_id: Arc<str> = node.node_id.into();
+            let node_name: Arc<str> = node.node_name.into();
+            let group: Option<Arc<str>> = node.package_group.map(Arc::from);
+            let version: Option<Arc<str>> = node.package_version.map(Arc::from);
+            let node_purls = Arc::new(purls.iter().cloned().map(Purl::from).collect::<Vec<_>>());
+            for purl in purls {
+                let parsed = Purl::from(purl.clone());
+                rows.push(SbomPurlRow {
+                    sbom_id: node.sbom_id,
+                    node_id: node_id.clone(),
+                    node_name: node_name.clone(),
+                    package_group: group.clone(),
+                    package_version: version.clone(),
+                    node_purls: node_purls.clone(),
+                    base_purl_id: parsed.package_uuid(),
+                    version: parsed.version.clone().unwrap_or_default(),
+                    purl_type: parsed.ty,
+                    purl_namespace: parsed.namespace,
+                    purl_name: parsed.name,
+                });
+            }
+        }
+        Ok(rows)
     }
 }
 

@@ -17,10 +17,12 @@ use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
     capability::{Recommendations, RequireCapability},
     db::{self, pagination_cache::PaginationCache, query::Query},
+    error::ErrorInformation,
     id::IdError,
     model::{Paginated, PaginatedResults},
     purl::Purl,
 };
+use trustify_module_ingestor::service::IngestorService;
 
 mod base;
 
@@ -171,8 +173,10 @@ mod v3 {
         request_body = RecommendReportRequest,
         responses(
             (status = 200, description = "Aggregated recommendation report for the requested SBOMs", body = RecommendReportResponse),
-            (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit"),
+            (status = 409, description = "Required source supplier attribution is ambiguous", body = ErrorInformation),
+            (status = 413, description = "Package count or source-recovery resource limit exceeded", body = ErrorInformation),
             (status = 422, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
+            (status = 503, description = "Required report evidence cannot be recovered", body = ErrorInformation),
         )
     )]
     #[post("/v3/purl/recommend/report")]
@@ -181,6 +185,7 @@ mod v3 {
         _gate: RequireCapability<Recommendations>,
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,
+        ingestor: web::Data<IngestorService>,
         request: web::Json<RecommendReportRequest>,
         _: Require<ReadAdvisory>,
         _: Require<ReadSbom>,
@@ -201,7 +206,7 @@ mod v3 {
             })));
         }
         let report = purl_service
-            .report_for_sboms(&request.sbom_ids, &tx)
+            .report_for_sboms(&request.sbom_ids, ingestor.storage(), &tx)
             .await?;
         Ok(HttpResponse::Ok().json(report))
     }
