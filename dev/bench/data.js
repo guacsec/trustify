@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794136545837,
+  "lastUpdate": 1794158602991,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24638,6 +24638,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/dbf5b9a91f32a929e8c98fae771ad8c3771f0d6c"
         },
         "date": 1794136543397,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "436ad7859db134dc1c030cb50baab19b7f44ea3d",
+          "message": "perf: disable correlation tests for now",
+          "timestamp": "2026-11-08T18:07:52+01:00",
+          "tree_id": "8f12108a214be02c4359e07d42971e900b309463",
+          "url": "https://github.com/guacsec/trustify/commit/436ad7859db134dc1c030cb50baab19b7f44ea3d"
+        },
+        "date": 1794158600260,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
