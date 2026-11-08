@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794051021991,
+  "lastUpdate": 1794136545837,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24609,6 +24609,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/1b3b086341e26de5b685f3280a8a8976a35349fc"
         },
         "date": 1794051019427,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "dbf5b9a91f32a929e8c98fae771ad8c3771f0d6c",
+          "message": "fix(perf): prevent taskless Locust users after tag filtering",
+          "timestamp": "2026-11-08T11:59:16+01:00",
+          "tree_id": "df518c120c7e9204716d1a138daff06b4bd5b78c",
+          "url": "https://github.com/guacsec/trustify/commit/dbf5b9a91f32a929e8c98fae771ad8c3771f0d6c"
+        },
+        "date": 1794136543397,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
