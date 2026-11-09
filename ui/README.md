@@ -138,5 +138,4 @@ reports, ports, and cleanup.
 * `src/importer.rs`: importers, their runs and configuration
 * `src/advisory_list.rs`, `src/advisory/`: the advisory explorer, format specific parts in
   sub-modules (`csaf/`, `cve/`, `osv/`)
-* `assets/`: styles, and the [Monaco](https://microsoft.github.io/monaco-editor/) workers used by
-  the source view (see `assets/monaco/README.md`)
+* `assets/`: styles. Monaco and its workers are bundled by `monaco-yew`/`monaco-wasm`.

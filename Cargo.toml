@@ -36,6 +36,7 @@ license = "Apache-2.0"
 rust-version = "1.96.0"
 
 [workspace.dependencies]
+monaco-yew = "=0.1.3"
 actix-cors = "0.7"
 actix-http = "3.9"
 actix-tls = "3"

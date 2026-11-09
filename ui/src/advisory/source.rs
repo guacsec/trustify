@@ -1,8 +1,7 @@
 //! The source document of an advisory, as text.
 
-use crate::monaco::ensure_environment;
-use ::monaco::{sys::editor::IStandaloneEditorConstructionOptions, yew::CodeEditor};
 use gloo_file::{Blob, ObjectUrl};
+use monaco_yew::{EditorOptions, MonacoEditor};
 use patternfly_yew::prelude::*;
 use std::rc::Rc;
 use yew::prelude::*;
@@ -12,18 +11,6 @@ pub struct SourceTabProps {
     pub document: Rc<String>,
     /// The file name to offer when downloading the document.
     pub file_name: AttrValue,
-}
-
-/// Read-only editor options for the text.
-fn editor_options(text: &str, language: &str) -> IStandaloneEditorConstructionOptions {
-    let options = IStandaloneEditorConstructionOptions::default();
-    options.set_value(Some(text));
-    options.set_language(Some(language));
-    options.set_theme(Some("vs"));
-    options.set_read_only(Some(true));
-    options.set_automatic_layout(Some(true));
-    options.set_scroll_beyond_last_line(Some(false));
-    options
 }
 
 #[function_component(SourceTab)]
@@ -43,22 +30,23 @@ pub fn source_tab(props: &SourceTabProps) -> Html {
         ObjectUrl::from(Blob::new(doc.as_str()))
     });
 
-    // Changing the options re-creates the editor, so they only change with the text.
-    let options = use_memo(
-        (props.document.clone(), pretty.clone(), *formatted),
-        |(doc, pretty, formatted)| match (&**pretty, formatted) {
-            (Some(pretty), true) => editor_options(pretty, "json"),
-            (Some(_), false) => editor_options(doc, "json"),
-            (None, _) => editor_options(doc, "plaintext"),
-        },
-    );
+    let text = match (&*pretty, *formatted) {
+        (Some(pretty), true) => pretty.clone(),
+        _ => props.document.to_string(),
+    };
+    let text = AttrValue::from(text);
+    let language = if pretty.is_some() {
+        "json"
+    } else {
+        "plaintext"
+    };
+    let mut options = EditorOptions::default();
+    options.read_only = true;
 
     let onformat = {
         let formatted = formatted.clone();
         Callback::from(move |checked| formatted.set(checked))
     };
-
-    ensure_environment();
 
     html! {
         <>
@@ -76,7 +64,7 @@ pub fn source_tab(props: &SourceTabProps) -> Html {
                     </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
-            <CodeEditor classes="trustify-source-editor" options={(*options).clone()} />
+            <MonacoEditor key={text.as_str()} class="trustify-source-editor" style="height: 70vh;" initial_value={text.clone()} {language} {options} />
         </>
     }
 }

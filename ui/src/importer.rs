@@ -8,12 +8,9 @@ use crate::{
     confirm::ConfirmDialog,
     correlation::timestamp,
     model::{Importer, ImporterReport, ImporterState, PaginatedResults, RunReport},
-    monaco::ensure_environment,
     stored::use_stored_pagination,
 };
-use ::monaco::{
-    api::TextModel, sys::editor::IStandaloneEditorConstructionOptions, yew::CodeEditor,
-};
+use monaco_yew::{EditorHandle, MonacoEditor};
 use patternfly_yew::prelude::*;
 use serde_json::Value;
 use std::{collections::HashSet, future::Future, pin::Pin};
@@ -338,56 +335,25 @@ pub fn importer_list_page() -> Html {
     }
 }
 
-/// Editor options for an editable JSON text.
-fn editor_options() -> IStandaloneEditorConstructionOptions {
-    let options = IStandaloneEditorConstructionOptions::default();
-    options.set_language(Some("json"));
-    options.set_theme(Some("vs"));
-    options.set_automatic_layout(Some(true));
-    options.set_scroll_beyond_last_line(Some(false));
-    options
-}
-
-/// A JSON editor model, disposed with the component.
-#[hook]
-fn use_json_model(text: &str) -> Option<TextModel> {
-    let model = use_memo((), {
-        let text = text.to_string();
-        move |()| {
-            TextModel::create(&text, Some("json"), None)
-                .inspect_err(|err| log::error!("Failed to create the editor model: {err:?}"))
-                .ok()
-        }
-    });
-    use_effect_with(model.clone(), |model| {
-        let model = model.clone();
-        move || {
-            if let Some(model) = &*model {
-                model.as_ref().dispose();
-            }
-        }
-    });
-    (*model).clone()
-}
-
 #[derive(Clone, PartialEq, Properties)]
 struct JsonEditorProps {
-    model: Option<TextModel>,
+    text: AttrValue,
+    on_ready: Callback<EditorHandle>,
 }
 
 #[function_component(JsonEditor)]
 fn json_editor(props: &JsonEditorProps) -> Html {
-    ensure_environment();
-    // Changing the options re-creates the editor, so they are created once.
-    let options = use_memo((), |()| editor_options());
     html! {
-        <CodeEditor classes="trustify-config-editor" options={(*options).clone()} model={props.model.clone()} />
+        <MonacoEditor class="trustify-config-editor" style="height: 50vh;" language="json" initial_value={props.text.clone()} on_ready={props.on_ready.clone()} />
     }
 }
 
 /// Parse the text of an editor as JSON.
-fn parse_config(model: Option<&TextModel>) -> Result<Value, String> {
-    let text = model.map(TextModel::get_value).unwrap_or_default();
+fn parse_config(model: Option<&EditorHandle>) -> Result<Value, String> {
+    let model = model.ok_or_else(|| "Editor is not ready".to_string())?;
+    let text = model
+        .value()
+        .map_err(|e| format!("Unable to read configuration: {e}"))?;
     serde_json::from_str(&text).map_err(|e| format!("Invalid JSON: {e}"))
 }
 
@@ -406,7 +372,11 @@ fn create_importer(props: &CreateImporterProps) -> Html {
     let name = use_state(String::new);
     let error = use_state(|| None::<String>);
     let saving = use_state(|| false);
-    let model = use_json_model(TEMPLATE);
+    let model = use_mut_ref(|| None::<EditorHandle>);
+    let on_ready = {
+        let model = model.clone();
+        Callback::from(move |handle| *model.borrow_mut() = Some(handle))
+    };
 
     let save = {
         let (name, error, saving, model) =
@@ -417,7 +387,7 @@ fn create_importer(props: &CreateImporterProps) -> Html {
             if *saving || name.is_empty() {
                 return;
             }
-            let config = match parse_config(model.as_ref()) {
+            let config = match parse_config(model.borrow().as_ref()) {
                 Ok(config) => config,
                 Err(e) => return error.set(Some(e)),
             };
@@ -461,7 +431,7 @@ fn create_importer(props: &CreateImporterProps) -> Html {
                     <TextInput id="create-importer-name" value={(*name).clone()} onchange={{ let name = name.clone(); Callback::from(move |v: String| name.set(v)) }} />
                 </FormGroup>
                 <FormGroup label="Configuration (JSON)" required=true>
-                    <JsonEditor {model} />
+                    <JsonEditor text={TEMPLATE} {on_ready} />
                 </FormGroup>
             </Form>
         </Modal>
@@ -988,7 +958,11 @@ struct ConfigurationEditorProps {
 
 #[function_component(ConfigurationEditor)]
 fn configuration_editor(props: &ConfigurationEditorProps) -> Html {
-    let model = use_json_model(&props.text);
+    let model = use_mut_ref(|| None::<EditorHandle>);
+    let on_ready = {
+        let model = model.clone();
+        Callback::from(move |handle| *model.borrow_mut() = Some(handle))
+    };
     let saving = use_state(|| false);
     let latest_token = use_latest_access_token();
     let token = latest_token.as_ref().and_then(|t| t.access_token());
@@ -1002,7 +976,7 @@ fn configuration_editor(props: &ConfigurationEditorProps) -> Html {
             model.clone(),
         );
         Callback::from(move |_: MouseEvent| {
-            let config = match parse_config(model.as_ref()) {
+            let config = match parse_config(model.borrow().as_ref()) {
                 Ok(config) => config,
                 Err(e) => return error.set(Some(e)),
             };
@@ -1037,7 +1011,17 @@ fn configuration_editor(props: &ConfigurationEditorProps) -> Html {
                     </ToolbarItem>
                 </ToolbarContent>
             </Toolbar>
-            <JsonEditor {model} />
+            <JsonEditor text={props.text.clone()} {on_ready} />
         </>
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::parse_config;
+
+    #[test]
+    fn configuration_requires_ready_editor() {
+        assert_eq!(parse_config(None).unwrap_err(), "Editor is not ready");
     }
 }
