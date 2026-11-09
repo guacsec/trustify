@@ -37,9 +37,9 @@ The current setup has the following problems:
    together.
 
 2. **Skills mismatch.** The current UI stack (TypeScript/React) overlaps little with the team's
-   existing Rust/backend skills. The project has no dedicated UI team, and help from additional UI
-   developers has not materialised, so UI maintenance falls to backend engineers working outside
-   their main area of expertise.
+   existing Rust/backend skills. The project has only one full-stack engineer leading the UI, and
+   help from additional UI developers has not materialised, so UI maintenance also falls to backend
+   engineers working outside their main area of expertise.
 
 3. **npm maintenance burden.** The React UI brings a large transitive npm dependency tree. Keeping it
    free of known vulnerabilities is a recurring, mostly mechanical effort.
