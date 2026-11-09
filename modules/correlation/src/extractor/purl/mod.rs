@@ -320,7 +320,7 @@ impl MatchRow {
     fn into_rows(
         self,
         stated: &StatedRows,
-        sbom_qualifiers: &qualified_purl::Qualifiers,
+        sbom_qualifiers: Arc<qualified_purl::Qualifiers>,
     ) -> Vec<PurlStatusRow> {
         let matched = Arc::new(self);
         let rows = matched
@@ -346,7 +346,8 @@ impl MatchRow {
 struct PurlStatusRow {
     stated: Arc<Stated>,
     matched: Arc<MatchRow>,
-    sbom_qualifiers: qualified_purl::Qualifiers,
+    /// Shared by the rows of a target, instead of a copy each.
+    sbom_qualifiers: Arc<qualified_purl::Qualifiers>,
 }
 
 impl PurlStatusRow {
@@ -898,14 +899,12 @@ async fn match_batch(
     span.record("statuses", ids.len());
 
     // the stated rows of each versioned PURL, without the qualifiers of a component
+    let unqualified = Arc::new(qualified_purl::Qualifiers::default());
     let mut versions = HashMap::<Uuid, Vec<_>>::new();
     for row in rows {
         let source = source_of(sources, row.matched.source)?;
         let entry = versions.entry(row.versioned_purl_id).or_default();
-        for status in row
-            .matched
-            .into_rows(&stated, &qualified_purl::Qualifiers::default())
-        {
+        for status in row.matched.into_rows(&stated, unqualified.clone()) {
             entry.push((source, status));
         }
     }
@@ -916,25 +915,21 @@ async fn match_batch(
     let mut grouped = 0;
     let mut matches = 0;
     for (keys, components) in targets {
-        let rows = keys
-            .iter()
-            .flat_map(|(version, qualifiers)| {
-                versions
-                    .get(version)
-                    .into_iter()
-                    .flatten()
-                    .map(move |(source, status)| {
-                        let mut status = status.clone();
-                        status.sbom_qualifiers = qualified_purl::Qualifiers(qualifiers.clone());
-                        ((), *source, status)
-                    })
-            })
-            .collect::<Vec<_>>();
-        if rows.is_empty() {
-            continue;
-        }
-        grouped += rows.len();
-        let assertions = group(rows)
+        let rows = keys.iter().flat_map(|(version, qualifiers)| {
+            let qualifiers = Arc::new(qualified_purl::Qualifiers(qualifiers.clone()));
+            versions
+                .get(version)
+                .into_iter()
+                .flatten()
+                .map(move |(source, status)| {
+                    let status = PurlStatusRow {
+                        sbom_qualifiers: qualifiers.clone(),
+                        ..status.clone()
+                    };
+                    ((), *source, status)
+                })
+        });
+        let assertions = group(rows.inspect(|_| grouped += 1))
             .map(|((), assertion)| assertion)
             .collect::<Vec<_>>();
         if assertions.is_empty() {
@@ -1475,7 +1470,7 @@ async fn load_advisory_purl_matches(
             let source = source_of(sources, row.matched.source)?;
             rows.extend(
                 row.matched
-                    .into_rows(&stated, &row.sbom_qualifiers)
+                    .into_rows(&stated, Arc::new(row.sbom_qualifiers))
                     .into_iter()
                     .map(|status| (target.clone(), source, status)),
             );

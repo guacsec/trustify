@@ -1979,7 +1979,7 @@ async fn advisory_rows<'a>(
         let source = source_of(sources, row.matched.source)?;
         Ok(row
             .matched
-            .into_rows(&stated, &row.sbom_qualifiers)
+            .into_rows(&stated, Arc::new(row.sbom_qualifiers))
             .into_iter()
             .map(|status| (node.clone(), source, status))
             .collect::<Vec<_>>())
