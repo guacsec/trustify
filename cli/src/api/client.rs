@@ -17,8 +17,8 @@ pub enum ApiError {
     #[error("HTTP {0}: {1}")]
     HttpError(u16, String),
 
-    #[error("HTTP 404: Resource not found {0}")]
-    NotFound(String),
+    #[error("HTTP 404: Resource not found")]
+    NotFound,
 
     #[error("HTTP 401: Please check your authentication credentials")]
     Unauthorized,
@@ -231,7 +231,7 @@ impl ApiClient {
         if status.is_success() {
             Ok(response.text().await?)
         } else if status == StatusCode::NOT_FOUND {
-            Err(ApiError::NotFound("Resource not found".to_string()))
+            Err(ApiError::NotFound)
         } else if status == StatusCode::UNAUTHORIZED {
             Err(ApiError::TokenExpired)
         } else if status == StatusCode::FORBIDDEN {
