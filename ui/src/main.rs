@@ -9,7 +9,6 @@ mod importer;
 mod ingest;
 mod ingest_drop;
 mod model;
-mod monaco;
 mod number;
 mod options;
 mod provider_alias;

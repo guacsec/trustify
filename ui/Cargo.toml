@@ -11,7 +11,7 @@ default = ["web"]
 web = [
     "dep:cpe", "dep:packageurl", "dep:browser-panic-hook", "dep:csaf-rs", "dep:cve", "dep:cvss", "dep:gloo-file",
     "dep:gloo-net", "dep:gloo-timers", "dep:gloo-utils", "dep:js-sys", "dep:log",
-    "dep:monaco", "dep:osv", "dep:patternfly-yew", "dep:serde", "dep:serde_json",
+    "dep:monaco-yew", "dep:osv", "dep:patternfly-yew", "dep:serde", "dep:serde_json",
     "dep:serde-saphyr", "dep:thiserror", "dep:time", "dep:trustify-api",
     "dep:trustify-client", "dep:url", "dep:uuid", "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures", "dep:wasm-logger", "dep:web-sys", "dep:yew",
@@ -39,7 +39,7 @@ gloo-timers = { version = "0.4", optional = true }
 gloo-utils = { version = "0.3", optional = true }
 js-sys = { version = "0.3", optional = true }
 log = { version = "0.4", optional = true }
-monaco = { version = "0.7", default-features = false, features = ["yew-components"], optional = true }
+monaco-yew = { workspace = true, optional = true }
 osv = { workspace = true, features = ["schema"], optional = true }
 patternfly-yew = { version = "0.8", features = ["tree"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
