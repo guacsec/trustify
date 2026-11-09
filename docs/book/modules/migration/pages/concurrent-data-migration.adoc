@@ -84,6 +84,10 @@ The migration runners need read access to the original documents.
 | `false`
 |===
 
+`m0002010_add_advisory_scores` only creates the table of advisory scores.
+`m0002710_backfill_advisory_assertions` writes the scores, together with the statements, of all advisories ingested before the statement migrations.
+Skipping it without running it separately leaves those advisories without them.
+
 === Documents which can't be processed
 
 Data migrations parse stored documents the same way ingestion does.

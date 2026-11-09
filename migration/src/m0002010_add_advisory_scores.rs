@@ -1,20 +1,14 @@
-use crate::data::{
-    MigrationTraitWithData, SchemaDataManager,
-    advisory::{Advisory, Id},
-};
-use anyhow::bail;
-use futures_util::FutureExt;
+//! The table of advisory scores.
+//!
+//! This used to write the scores of all advisories, skipping OSV records stored as YAML.
+//! `m0002710_backfill_advisory_assertions` writes them for all advisories ingested before it, so
+//! doing it here as well would only process all documents twice.
+
+use crate::data::{MigrationTraitWithData, SchemaDataManager};
 use sea_orm::sea_query::extension::postgres::*;
 use sea_orm_migration::prelude::*;
 use strum::VariantNames;
 use trustify_common::db::create_enum_if_not_exists;
-use trustify_module_ingestor::{
-    graph::cvss::ScoreCreator,
-    service::{
-        DetectedDocument,
-        advisory::{csaf, cve, nvd, osv},
-    },
-};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -110,34 +104,6 @@ impl MigrationTraitWithData for Migration {
                     .col(AdvisoryVulnerabilityScore::AdvisoryId)
                     .to_owned(),
             )
-            .await?;
-
-        manager
-            .process(self, |advisory: Advisory, id: Id, tx| {
-                async move {
-                    let mut creator = ScoreCreator::new(id.advisory);
-                    match advisory.0 {
-                        DetectedDocument::Cve(advisory) => {
-                            creator.extend(cve::extract_scores(&advisory.cve));
-                        }
-                        DetectedDocument::Csaf(advisory) => {
-                            csaf::extract_scores(&advisory, &mut creator);
-                        }
-                        DetectedDocument::Nvd(advisory) => {
-                            creator.extend(nvd::extract_scores(&advisory.id, &advisory.metrics));
-                        }
-                        DetectedDocument::Osv(advisory) => {
-                            osv::extract_scores(&advisory, &mut creator);
-                        }
-                        _ => bail!("advisory {} is not an advisory", id.advisory),
-                    }
-
-                    creator.create(tx).await?;
-
-                    Ok(())
-                }
-                .boxed()
-            })
             .await?;
 
         Ok(())
