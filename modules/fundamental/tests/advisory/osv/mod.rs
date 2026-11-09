@@ -6,9 +6,12 @@ mod ingest;
 mod parallel;
 mod reingest;
 
+use anyhow::bail;
 use osv::schema::{Event, Vulnerability};
-use trustify_module_ingestor::model::IngestResult;
-use trustify_module_ingestor::service::advisory::osv::{from_yaml, to_yaml};
+use trustify_module_ingestor::{
+    model::IngestResult,
+    service::{DetectedDocument, DocumentDetector, Format, advisory::osv::to_yaml},
+};
 use trustify_test_context::{TrustifyContext, document_bytes};
 
 /// Ingest a document twice, mutating it using the provided closure.
@@ -22,7 +25,12 @@ where
     M2: FnOnce(Vulnerability) -> Vulnerability,
 {
     let data = document_bytes("osv/RSEC-2023-6.yaml").await?;
-    let osv = from_yaml(&data)?;
+    let DetectedDocument::Osv(osv) =
+        DocumentDetector::detect_as(&data, Format::OSV)?.into_document()
+    else {
+        bail!("not an OSV document");
+    };
+    let osv = *osv;
 
     let osv = m1(osv);
 

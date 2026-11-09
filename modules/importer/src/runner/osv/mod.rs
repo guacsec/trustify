@@ -9,6 +9,7 @@ use crate::{
         report::{Phase, ReportBuilder, ScannerError},
     },
 };
+use anyhow::bail;
 use chrono::Datelike;
 use handler::OsvHandler;
 use parking_lot::Mutex;
@@ -18,10 +19,9 @@ use tokio::runtime::Handle;
 use tracing::instrument;
 use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
-use trustify_module_ingestor::service::Cache;
 use trustify_module_ingestor::{
     graph::Graph,
-    service::{Format, IngestorService, advisory::osv::parse},
+    service::{Cache, DetectedDocument, DocumentDetector, Format, IngestorService},
 };
 
 struct Context<C: RunContext + 'static> {
@@ -41,7 +41,11 @@ impl<C: RunContext> Context<C> {
 
         // apply year based filter, we need to parse
         if !self.years.is_empty() || self.start_year.is_some() {
-            let osv = parse(&data)?;
+            let DetectedDocument::Osv(osv) =
+                DocumentDetector::detect_as(&data, Format::OSV)?.into_document()
+            else {
+                bail!("{}: not an OSV document", path.display());
+            };
 
             let year = osv
                 .published

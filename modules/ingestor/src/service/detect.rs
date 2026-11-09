@@ -13,8 +13,9 @@ use crate::{
         kev::{KevLoader, schema::KevCatalog},
         sbom::{
             clearly_defined::ClearlyDefinedLoader,
-            clearly_defined_curation::ClearlyDefinedCurationLoader, cyclonedx::CyclonedxLoader,
-            spdx::SpdxLoader,
+            clearly_defined_curation::ClearlyDefinedCurationLoader,
+            cyclonedx::CyclonedxLoader,
+            spdx::{SpdxDocument, SpdxLoader},
         },
         weakness::CweCatalogLoader,
     },
@@ -52,8 +53,8 @@ pub enum DetectedDocument {
     /// A bare NVD CVE API `cve` object.
     Nvd(Box<NvdCve>),
     Osv(Box<Vulnerability>),
-    /// SPDX keeps the raw Value because the loader applies license fixups before ingestion.
-    Spdx(serde_json::Value),
+    /// SPDX, with invalid license expressions replaced.
+    Spdx(Box<SpdxDocument>),
     CycloneDx(Box<CycloneDx>),
     ClearlyDefined(serde_json::Value),
     ClearlyDefinedCuration(Box<Curation>),
@@ -173,8 +174,8 @@ impl DocumentDetector {
             DetectedDocument::Osv(osv) => {
                 Box::pin(OsvLoader::new(graph).load(labels, *osv, digests, issuer, tx)).await
             }
-            DetectedDocument::Spdx(value) => {
-                Box::pin(SpdxLoader::new(graph).load(labels, value, digests, tx)).await
+            DetectedDocument::Spdx(document) => {
+                Box::pin(SpdxLoader::new(graph).load(labels, *document, digests, tx)).await
             }
             DetectedDocument::CycloneDx(cdx) => {
                 Box::pin(CyclonedxLoader::new(graph).ingest(labels, cdx, digests, tx)).await
@@ -327,9 +328,9 @@ fn parse_format(source: impl JsonSource, format: Format) -> Result<DetectedDocum
         Format::OSV => Ok(DetectedDocument::Osv(Box::new(
             source.parse_json().map_err(map_err)?,
         ))),
-        Format::SPDX => Ok(DetectedDocument::Spdx(
-            source.parse_json().map_err(map_err)?,
-        )),
+        Format::SPDX => Ok(DetectedDocument::Spdx(Box::new(
+            SpdxDocument::parse(source.parse_json().map_err(map_err)?).map_err(map_err)?,
+        ))),
         Format::CycloneDX => Ok(DetectedDocument::CycloneDx(
             source.parse_json().map_err(map_err)?,
         )),
@@ -537,6 +538,39 @@ mod test {
         let detector = DocumentDetector::detect(&bytes)?;
         assert_eq!(detector.format(), Format::SPDX);
         assert_eq!(detector.wire_format(), WireFormat::Json);
+        Ok(())
+    }
+
+    /// An invalid license expression is replaced, as when ingesting, and reported.
+    #[test(tokio::test)]
+    async fn detect_spdx_with_invalid_license() -> Result<(), anyhow::Error> {
+        let bytes = document_bytes("spdx/invalid-license.json").await?;
+        assert!(serde_json::from_slice::<spdx_rs::models::SPDX>(&bytes).is_err());
+
+        let DetectedDocument::Spdx(document) = DocumentDetector::detect(&bytes)?.into_document()
+        else {
+            panic!("must be SPDX");
+        };
+        let license = document
+            .sbom
+            .package_information
+            .iter()
+            .find(|package| package.package_name == "A")
+            .and_then(|package| package.declared_license.as_ref())
+            .map(ToString::to_string);
+        assert_eq!(
+            (license, document.warnings),
+            (
+                Some("NOASSERTION".to_string()),
+                vec![
+                    "Replacing faulty SPDX license expression with NOASSERTION: Parsing for \
+                     expression `Parsing for expression `EPL-2.0 OR \
+                     GNU-GENERAL-PUBLIC-LICENSE,-VERSION-2 WITH THE-GNU-CLASSPATH-EXCEPTION` \
+                     failed.` failed."
+                        .to_string()
+                ]
+            )
+        );
         Ok(())
     }
 

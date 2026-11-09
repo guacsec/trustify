@@ -4,28 +4,14 @@ mod prefix;
 pub mod loader;
 pub mod translate;
 
-use crate::{graph::cvss::ScoreCreator, service::Error};
+use crate::graph::cvss::ScoreCreator;
 use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use osv::schema::{SeverityType, Vulnerability};
 use std::str::FromStr;
 
-/// Load a [`Vulnerability`] from YAML.
-pub fn from_yaml(data: &[u8]) -> Result<Vulnerability, serde_saphyr::Error> {
-    serde_saphyr::from_slice(data)
-}
-
 /// Serialize a [`Vulnerability`] as YAML.
 pub fn to_yaml(vuln: &Vulnerability) -> Result<String, serde_saphyr::SerializeError> {
     serde_saphyr::to_string(vuln)
-}
-
-/// Parse an OSV document into a [`Vulnerability`].
-pub fn parse(buffer: &[u8]) -> Result<Vulnerability, Error> {
-    let osv: Vulnerability = serde_json::from_slice(buffer)
-        .map_err(Error::from)
-        .or_else(|_| from_yaml(buffer).map_err(Error::from))?;
-
-    Ok(osv)
 }
 
 /// Extract the IDs of the vulnerabilities of a record: its CVE aliases, or the record's own ID if

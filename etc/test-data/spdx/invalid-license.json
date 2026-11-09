@@ -1,0 +1,227 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "creationInfo": {
+    "created": "1970-01-01T13:30:00Z",
+    "creators": [
+      "Trustify"
+    ],
+    "comment": "This is a simple example for an spdx SBOM.",
+    "licenseListVersion": "3.8"
+  },
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "uri:just-an-example-invalid-license",
+  "name": "simple-invalid-license",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-A",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/A@0.0.0?arch=src",
+          "referenceType": "purl"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:/a:redhat:simple:1::el9",
+          "referenceType": "cpe22Type"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "EPL-2.0 OR GNU-GENERAL-PUBLIC-LICENSE,-VERSION-2 WITH THE-GNU-CLASSPATH-EXCEPTION",
+      "name": "A",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-B",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/B@0.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "B",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-AA",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/AA@0.0.0?arch=src",
+          "referenceType": "purl"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:/a:redhat:simple:1::el9",
+          "referenceType": "cpe22Type"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "AA",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-BB",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/BB@0.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "BB",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-CC",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/CC@0.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "CC",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-DD",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/DD@0.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "DD",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-EE",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:rpm/redhat/EE@0.0.0?arch=src",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "EE",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    },
+    {
+      "SPDXID": "SPDXRef-FF",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "foo",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:/a:redhat:a-FF:1:*:*:*:*:*",
+          "referenceType": "cpe22Type"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseComments": "Licensing information is automatically generated and may be incomplete or incorrect.",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "name": "FF",
+      "originator": "NOASSERTION",
+      "packageFileName": "NOASSERTION",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "1"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-B",
+      "relatedSpdxElement": "SPDXRef-A",
+      "relationshipType": "CONTAINED_BY"
+    },
+    {
+      "spdxElementId": "SPDXRef-BB",
+      "relatedSpdxElement": "SPDXRef-AA",
+      "relationshipType": "CONTAINED_BY"
+    },
+    {
+      "spdxElementId": "SPDXRef-CC",
+      "relatedSpdxElement": "SPDXRef-BB",
+      "relationshipType": "CONTAINED_BY"
+    },
+    {
+      "spdxElementId": "SPDXRef-DD",
+      "relatedSpdxElement": "SPDXRef-BB",
+      "relationshipType": "CONTAINED_BY"
+    },
+    {
+      "spdxElementId": "SPDXRef-FF",
+      "relatedSpdxElement": "SPDXRef-DD",
+      "relationshipType": "CONTAINED_BY"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-A",
+      "relationshipType": "DESCRIBES"
+    }
+  ],
+  "spdxVersion": "SPDX-2.2"
+}

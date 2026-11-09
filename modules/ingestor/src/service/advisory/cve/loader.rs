@@ -56,8 +56,15 @@ impl<'g> CveLoader<'g> {
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
-        let CveRecord { cve, applicability } = record.into();
+        let CveRecord {
+            cve,
+            applicability,
+            warnings: record_warnings,
+        } = record.into();
         let warnings = Warnings::new();
+        for warning in record_warnings {
+            warnings.add(warning);
+        }
         let id = cve.id();
         let labels = labels.into().add("type", "cve");
 
