@@ -17,7 +17,7 @@ pub mod version;
 pub mod worker;
 pub mod writer;
 
-pub use registry::Extractors;
+pub use registry::{ExtractionProgress, Extractors};
 pub use trustify_entity::correlation_evidence::SourceAssertionRef;
 
 use crate::{

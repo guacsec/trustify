@@ -4,5 +4,8 @@
 CREATE TABLE IF NOT EXISTS correlation_refresh_current (
     job_id uuid PRIMARY KEY REFERENCES correlation_refresh_job(id) ON DELETE CASCADE,
     sbom_id uuid NOT NULL REFERENCES sbom(sbom_id) ON DELETE CASCADE,
-    started_at timestamptz NOT NULL
+    started_at timestamptz NOT NULL,
+    -- the chunks of the document extracted, and all of them; zero until known
+    done bigint NOT NULL DEFAULT 0,
+    total bigint NOT NULL DEFAULT 0
 );

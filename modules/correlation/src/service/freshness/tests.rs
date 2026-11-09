@@ -1,11 +1,17 @@
 use super::*;
-use crate::extractor::{Extractor, NodeIdentifier};
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-use std::{sync::Arc, time::Duration as StdDuration};
+use crate::extractor::{ComponentMatch, Extractor, NodeIdentifier, NodeRef};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::Duration as StdDuration,
+};
 use test_context::test_context;
 use test_log::test;
 use tokio::{sync::Barrier, time::timeout};
-use trustify_entity::{correlation_evidence, sbom};
+use trustify_entity::{correlation_evidence, correlation_node_class, sbom};
 use trustify_test_context::TrustifyContext;
 
 async fn ingest(ctx: &TrustifyContext) -> anyhow::Result<Uuid> {
@@ -47,7 +53,7 @@ async fn completion_counts_include_zero_matches_and_deletions(
         (1, 0, 1, 1)
     );
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
+    refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
     let done = counts(ctx).await?;
     assert_eq!(
@@ -81,7 +87,7 @@ async fn completion_counts_include_zero_matches_and_deletions(
 async fn option_invalidation_and_description_changes(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let id = ingest(ctx).await?;
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
+    refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
     let original = counts(ctx).await?.revision;
     ctx.db
@@ -198,7 +204,7 @@ async fn documents_ingested_during_a_job_are_processed_by_it(
 ) -> anyhow::Result<()> {
     let first = ingest(ctx).await?;
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), first, &tx).await?;
+    refresh_sbom(&Extractors::default(), first, &(), &tx).await?;
     tx.commit().await?;
     option_change(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
@@ -307,6 +313,90 @@ async fn the_current_document_is_visible_while_extracting(
     Ok(())
 }
 
+/// Has a chunk for each of three representative nodes, with chunks of one node, and pauses while
+/// matching the second.
+struct PausedChunks {
+    barrier: Arc<Barrier>,
+    calls: AtomicUsize,
+}
+
+#[async_trait::async_trait]
+impl Extractor for PausedChunks {
+    fn id(&self) -> &'static str {
+        "paused_chunks"
+    }
+    async fn sbom_identifiers(
+        &self,
+        sbom_id: Uuid,
+        _: Option<&[&str]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
+        Ok(correlation_node_class::Entity::find()
+            .select_only()
+            .column(correlation_node_class::Column::RepresentativeNodeId)
+            .distinct()
+            .filter(correlation_node_class::Column::SbomId.eq(sbom_id))
+            .order_by_asc(correlation_node_class::Column::RepresentativeNodeId)
+            .limit(3)
+            .into_tuple::<String>()
+            .all(tx)
+            .await?
+            .into_iter()
+            .map(|node_id| NodeIdentifier {
+                identifier: IdentifierRef {
+                    kind: IdentifierKind::Purl,
+                    value: format!("pkg:generic/{node_id}"),
+                },
+                node: NodeRef { sbom_id, node_id },
+            })
+            .collect())
+    }
+    async fn match_identifiers(
+        &self,
+        _: &[Vec<IdentifierRef>],
+        _: &DatabaseTransaction,
+    ) -> Result<Vec<ComponentMatch>, Error> {
+        if self.calls.fetch_add(1, Ordering::SeqCst) == 1 {
+            self.barrier.wait().await;
+            self.barrier.wait().await;
+        }
+        Ok(vec![])
+    }
+}
+
+/// While a document of several chunks is extracted, the job reports the chunks done.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn the_current_document_reports_its_chunks(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let id = ingest(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+
+    let barrier = Arc::new(Barrier::new(2));
+    let extractors = Extractors::new(vec![Box::new(PausedChunks {
+        barrier: barrier.clone(),
+        calls: AtomicUsize::new(0),
+    })])
+    .with_chunk(1);
+    let worker = {
+        let db = db.clone();
+        tokio::spawn(async move { run_step(&db, &extractors, &WorkerConfig::default()).await })
+    };
+    timeout(StdDuration::from_secs(10), barrier.wait()).await?;
+    let running = counts(ctx).await?.active_job.unwrap();
+    assert_eq!(
+        running
+            .current
+            .into_iter()
+            .map(|current| (current.sbom_id, current.progress))
+            .collect::<Vec<_>>(),
+        vec![(id, Some(WorkProgress { done: 1, total: 3 }))]
+    );
+    barrier.wait().await;
+    assert!(worker.await??);
+    Ok(())
+}
+
 /// A document left behind by a stopped worker isn't shown as being extracted.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -392,7 +482,7 @@ async fn concurrent_workers_extract_different_documents(
 ) -> anyhow::Result<()> {
     let first = ingest(ctx).await?;
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), first, &tx).await?;
+    refresh_sbom(&Extractors::default(), first, &(), &tx).await?;
     tx.commit().await?;
     option_change(ctx).await?;
     // never extracted, so it sorts before the stale one
@@ -824,13 +914,13 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
     ctx.ingest_document("scenarios/S5_positive_baseline_openssl_el8/vex/CVE-2023-0215.json.xz")
         .await?;
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
+    refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
     let original = correlation_evidence::Entity::find().all(&ctx.db).await?;
     assert!(!original.is_empty());
     ctx.db.execute_unprepared("UPDATE correlation_evidence SET confidence = 0.01, confidence_factors = '[]', matched_value = jsonb_set(matched_value, '{ranges}', '[]') ").await?;
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
+    refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
     let restored = correlation_evidence::Entity::find().all(&ctx.db).await?;
     assert_eq!(restored.len(), original.len());
@@ -851,7 +941,7 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
         FreshnessStatus::Stale
     );
     let tx = ctx.db.begin().await?;
-    refresh_sbom(&Extractors::default(), id, &tx).await?;
+    refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
     // A response already being read cannot attach new freshness to its old evidence.
     assert_eq!(

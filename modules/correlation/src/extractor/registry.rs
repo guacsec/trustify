@@ -26,6 +26,19 @@ use std::{
 use tracing::{Span, field, instrument};
 use uuid::Uuid;
 
+/// Receives the progress of extracting an SBOM.
+#[async_trait::async_trait]
+pub trait ExtractionProgress: Send + Sync {
+    /// `done` of all `total` chunks of the SBOM are extracted, across all extractors.
+    async fn chunks_done(&self, done: usize, total: usize);
+}
+
+/// Ignores the progress.
+#[async_trait::async_trait]
+impl ExtractionProgress for () {
+    async fn chunks_done(&self, _done: usize, _total: usize) {}
+}
+
 /// The set of active extractors.
 pub struct Extractors {
     extractors: Vec<Box<dyn Extractor>>,
@@ -75,26 +88,43 @@ impl Extractors {
     /// Match the identifiers of an SBOM against advisories and store evidence.
     ///
     /// Returns the number of evidence entries produced.
-    #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
     pub async fn extract_for_sbom(
         &self,
         sbom_id: Uuid,
+        tx: &DatabaseTransaction,
+    ) -> Result<usize, Error> {
+        self.extract_for_sbom_reporting(sbom_id, &(), tx).await
+    }
+
+    /// Like [`Self::extract_for_sbom`], reporting the chunks extracted to `progress`.
+    #[instrument(skip(self, progress, tx), err(level = tracing::Level::INFO))]
+    pub async fn extract_for_sbom_reporting(
+        &self,
+        sbom_id: Uuid,
+        progress: &dyn ExtractionProgress,
         tx: &DatabaseTransaction,
     ) -> Result<usize, Error> {
         lock_revision(tx).await?;
         lock_sboms(tx, vec![sbom_id]).await?;
         // the other members of a class have the same evidence as its representative
         let representatives = classify(sbom_id, tx).await?;
-        let mut total = 0;
-        let mut scoper = Scoper::default();
+
+        // the chunks of all extractors up front, to know how many there are
+        let mut work = Vec::with_capacity(self.extractors.len());
         for extractor in &self.extractors {
             let mut node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
             node_identifiers.retain(|id| representatives.contains(&id.node.node_id));
-            if node_identifiers.is_empty() {
-                continue;
+            if !node_identifiers.is_empty() {
+                work.push((extractor, node_chunks(node_identifiers, self.chunk)));
             }
+        }
+        let all_chunks = work.iter().map(|(_, chunks)| chunks.len()).sum();
+        progress.chunks_done(0, all_chunks).await;
 
-            let chunks = node_chunks(node_identifiers, self.chunk);
+        let mut total = 0;
+        let mut done = 0;
+        let mut scoper = Scoper::default();
+        for (extractor, chunks) in work {
             let total_chunks = chunks.len();
             let mut count = 0;
             for (index, chunk) in chunks.into_iter().enumerate() {
@@ -107,6 +137,11 @@ impl Extractors {
                     tx,
                 )
                 .await?;
+                done += 1;
+                if all_chunks > 1 {
+                    tracing::info!(extractor = extractor.id(), %sbom_id, chunk = done, chunks = all_chunks, "extracted chunk of SBOM");
+                }
+                progress.chunks_done(done, all_chunks).await;
             }
 
             tracing::info!(extractor = extractor.id(), %sbom_id, evidence_count = count, "extraction for SBOM complete");
