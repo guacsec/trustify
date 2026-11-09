@@ -12,6 +12,24 @@ async fn status(ctx: &TrustifyContext) -> anyhow::Result<ExtractionLag> {
     Ok(lag(&ctx.db.begin().await?).await?)
 }
 
+/// An NVD record, ingested without a format hint, is queued like any other advisory.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn nvd_advisory_is_queued(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("nvd/CVE-2024-6387.json").await?;
+    let lag = status(ctx).await?;
+    assert_eq!(
+        lag,
+        ExtractionLag {
+            pending_advisories: 1,
+            oldest_pending_at: lag.oldest_pending_at,
+            ..ExtractionLag::default()
+        }
+    );
+    assert!(lag.oldest_pending_at.is_some());
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn two_thousand_advisories_remain_pending_until_extraction_commits(
