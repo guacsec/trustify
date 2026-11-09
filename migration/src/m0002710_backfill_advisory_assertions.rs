@@ -7,7 +7,8 @@
 //! what ingestion writes, which makes the result the same as ingesting the document now.
 //!
 //! The `product_status` rows are replaced too, as they lack CSAF product IDs, and so are the
-//! `cpe_status` rows, as older versions wrote different ones.
+//! `cpe_status` rows, as older versions wrote different ones. So are the scores: `m0002010` skipped
+//! the OSV records stored as YAML, and now leaves writing them to this migration.
 //!
 //! This includes what `m0002480` used to do: `advisory.publisher_namespace`, and dropping the
 //! `affected` ranges older versions derived from the `fixed` versions of Red Hat advisories.
@@ -24,10 +25,15 @@ use futures_util::FutureExt;
 use sea_orm::{ConnectionTrait, DatabaseTransaction, DbBackend, FromQueryResult, Statement};
 use sea_orm_migration::prelude::*;
 use trustify_module_ingestor::{
-    graph::Graph,
+    graph::{Graph, cvss::ScoreCreator},
     service::{
         DetectedDocument, Warnings,
-        advisory::{csaf::loader::CsafLoader, cve::loader::CveLoader, osv::loader::OsvLoader},
+        advisory::{
+            csaf::{self, loader::CsafLoader},
+            cve::{self, loader::CveLoader},
+            nvd::{self, loader::NvdLoader},
+            osv::{self, loader::OsvLoader},
+        },
     },
 };
 use trustify_module_storage::service::StorageBackend;
@@ -75,7 +81,10 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
     let document = advisory.0;
     if !matches!(
         document,
-        DetectedDocument::Csaf(_) | DetectedDocument::Cve(_) | DetectedDocument::Osv(_)
+        DetectedDocument::Csaf(_)
+            | DetectedDocument::Cve(_)
+            | DetectedDocument::Nvd(_)
+            | DetectedDocument::Osv(_)
     ) {
         bail!(
             "unable to backfill the statements of advisory {}, keeping them would leave them wrong",
@@ -103,8 +112,15 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
         [id.advisory.into()],
     ))
     .await?;
+    tx.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        "DELETE FROM advisory_vulnerability_score WHERE advisory_id = $1",
+        [id.advisory.into()],
+    ))
+    .await?;
 
     let warnings = Warnings::new();
+    let mut scores = ScoreCreator::new(id.advisory);
     match document {
         DetectedDocument::Csaf(csaf) => {
             tx.execute_raw(Statement::from_sql_and_values(
@@ -118,15 +134,24 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
             .await?;
             CsafLoader::backfill_statements(&Graph::new(), &csaf, id.advisory, &warnings, tx)
                 .await?;
+            csaf::extract_scores(&csaf, &mut scores);
         }
         DetectedDocument::Cve(record) => {
             CveLoader::backfill_statements(&record, id.advisory, &warnings, tx).await?;
+            scores.extend(cve::extract_scores(&record.cve));
+        }
+        DetectedDocument::Nvd(record) => {
+            NvdLoader::backfill_statements(&record, id.advisory, &warnings, tx).await?;
+            scores.extend(nvd::extract_scores(&record.id, &record.metrics));
         }
         DetectedDocument::Osv(osv) => {
             OsvLoader::backfill_statements(&osv, id.advisory, &warnings, tx).await?;
+            osv::extract_scores(&osv, &mut scores);
         }
         _ => {}
     }
+    // after the statements, which link the advisory to its vulnerabilities
+    scores.create(tx).await?;
 
     for warning in Vec::<String>::from(warnings) {
         tracing::info!(advisory = %id.advisory, "Skipped while backfilling: {warning}");

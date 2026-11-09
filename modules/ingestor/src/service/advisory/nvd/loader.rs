@@ -3,6 +3,7 @@ use crate::{
         Graph, Outcome,
         advisory::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
+            advisory_vulnerability::ensure_vulnerability_links,
             version::{Version, VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
@@ -28,6 +29,7 @@ use trustify_common::{
     hashing::Digests,
 };
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
+use uuid::Uuid;
 
 /// The publisher recorded for NVD-sourced advisories.
 const NVD_ISSUER: &str = "NVD";
@@ -120,7 +122,7 @@ impl<'g> NvdLoader<'g> {
         );
         vuln_creator.create(tx).await?;
 
-        let advisory_vuln = advisory
+        advisory
             .link_to_vulnerability(
                 &id,
                 Some(AdvisoryVulnerabilityInformation {
@@ -139,6 +141,47 @@ impl<'g> NvdLoader<'g> {
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
         score_creator.extend(scores);
         score_creator.create(tx).await?;
+
+        Self::ingest_statements(&cve, advisory.advisory.id, &warnings, tx).await?;
+
+        // Manage vulnerability descriptions.
+        let entries = build_descriptions(&cve.descriptions);
+        Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
+        Graph::add_vulnerability_descriptions(&id, advisory.advisory.id, entries, tx).await?;
+
+        Ok(IngestResult {
+            id: advisory.advisory.id.to_string(),
+            document_id: Some(id),
+            warnings: warnings.into(),
+            duplicate: false,
+            validation: Vec::new(),
+        })
+    }
+
+    /// Write the statements of an advisory which already exists.
+    ///
+    /// For documents ingested by older versions. The statements are derived from the content, so
+    /// writing them again adds nothing.
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
+    pub async fn backfill_statements(
+        cve: &NvdCve,
+        advisory_id: Uuid,
+        warnings: &Warnings,
+        tx: &(impl ConnectionTrait + TransactionTrait),
+    ) -> Result<(), Error> {
+        ensure_vulnerability_links(advisory_id, [cve.id.as_str()], tx).await?;
+        Self::ingest_statements(cve, advisory_id, warnings, tx).await
+    }
+
+    /// Write the statements of a record about its vulnerability: the CPE applicability, as
+    /// `cpe_status` rows.
+    async fn ingest_statements(
+        cve: &NvdCve,
+        advisory_id: Uuid,
+        warnings: &Warnings,
+        tx: &(impl ConnectionTrait + TransactionTrait),
+    ) -> Result<(), Error> {
+        let id = &cve.id;
 
         // CPE applicability -> cpe_status.
         let mut cpe_status_creator = CpeStatusCreator::new();
@@ -182,11 +225,8 @@ impl<'g> NvdLoader<'g> {
 
             cpes.insert(identity_cpe.clone());
             cpe_status_creator.add(CpeStatusEntry {
-                advisory_id: advisory_vuln.advisory.advisory.id,
-                vulnerability_id: advisory_vuln
-                    .advisory_vulnerability
-                    .vulnerability_id
-                    .clone(),
+                advisory_id,
+                vulnerability_id: id.to_string(),
                 cpe: identity_cpe,
                 status: "affected".to_string(),
                 version_info: VersionInfo {
@@ -206,18 +246,7 @@ impl<'g> NvdLoader<'g> {
         cpe_creator.create(tx).await?;
         cpe_status_creator.create(tx).await?;
 
-        // Manage vulnerability descriptions.
-        let entries = build_descriptions(&cve.descriptions);
-        Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
-        Graph::add_vulnerability_descriptions(&id, advisory.advisory.id, entries, tx).await?;
-
-        Ok(IngestResult {
-            id: advisory.advisory.id.to_string(),
-            document_id: Some(id),
-            warnings: warnings.into(),
-            duplicate: false,
-            validation: Vec::new(),
-        })
+        Ok(())
     }
 }
 

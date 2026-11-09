@@ -3,10 +3,11 @@ use migration::{
     Migrator, MigratorTraitSelf,
     data::{Database, Direction, Options, Runner},
 };
+use sea_orm::{ConnectionTrait, DbBackend, Statement};
 use test_context::test_context;
 use test_log::test;
 use tracing::log;
-use trustify_test_context::{TrustifyMigrationContext, commit, dump};
+use trustify_test_context::{TrustifyContext, TrustifyMigrationContext, commit, dump};
 
 commit!(Commit("6d3ea814b4b44fe16ea8f21724dda5abb0fc7932"));
 
@@ -98,5 +99,38 @@ async fn performance(ctx: &TrustifyMigrationContext<Ds4>) -> Result<(), anyhow::
 
     // done
 
+    Ok(())
+}
+
+/// The scores are left to `m0002710_backfill_advisory_assertions`, which processes the same
+/// advisories.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn writes_no_scores(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.ingest_document("osv/RSEC-2023-6.yaml").await?;
+    ctx.db
+        .execute_unprepared("DELETE FROM advisory_vulnerability_score")
+        .await?;
+
+    Runner {
+        direction: Direction::Up,
+        storage: ctx.storage.clone().into(),
+        migrations: vec!["m0002010_add_advisory_scores".into()],
+        database: Database::Provided(ctx.db.clone().into_connection()),
+        options: Default::default(),
+    }
+    .run::<Migrator>()
+    .await?;
+
+    let count: i64 = ctx
+        .db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT count(*) AS n FROM advisory_vulnerability_score",
+        ))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no result"))?
+        .try_get("", "n")?;
+    assert_eq!(count, 0);
     Ok(())
 }

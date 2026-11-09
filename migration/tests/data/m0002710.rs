@@ -13,12 +13,16 @@ const MIGRATION: &str = "m0002710_backfill_advisory_assertions";
 
 const ADVISORIES: &str = "(SELECT id, publisher_namespace FROM advisory)";
 
+/// Scores without their ID, which is random.
+const SCORES: &str = "(SELECT advisory_id, vulnerability_id, type, vector, score, severity FROM advisory_vulnerability_score)";
+
 /// All rows the migration may write.
 const TABLES: &[&str] = &[
     ADVISORIES,
     "advisory_vulnerability_cpe",
     "advisory_vulnerability_hash",
     "advisory_vulnerability_product_identifier",
+    SCORES,
     "advisory_vulnerability_upstream",
     "assertion_context",
     "assertion_context_identifier",
@@ -119,6 +123,8 @@ UPDATE advisory SET publisher_namespace = NULL;
 DELETE FROM advisory_vulnerability_cpe;
 DELETE FROM advisory_vulnerability_hash;
 DELETE FROM advisory_vulnerability_product_identifier;
+-- m0002010 skipped OSV records stored as YAML
+DELETE FROM advisory_vulnerability_score;
 DELETE FROM advisory_vulnerability_upstream;
 -- older versions wrote different rows: these must go, not stay next to the new ones
 UPDATE cpe_status SET id = gen_random_uuid(), status_id = (SELECT id FROM status WHERE slug = 'under_investigation');
@@ -143,6 +149,7 @@ DELETE FROM assertion_context;
 #[case::csaf_product_identifiers("scenarios/S19_sku_correlation/vex/hbsa-2025-0002.json")]
 #[case::cve_applicability("scenarios/S26_cve_cpe_applicability_kernel/cve/CVE-2024-26581.json")]
 #[case::cve_defaults("scenarios/S7_cpeonly_node_hummingbird/cve/CVE-2026-12151.json")]
+#[case::nvd("nvd/CVE-2024-6387.json")]
 #[case::osv_upstream("osv/DSA-5790-1.json")]
 #[case::osv_ranges("osv/GHSA-qq9f-q439-2574.json")]
 #[case::osv_yaml_pysec("osv/PYSEC-2024-55.yaml")]
