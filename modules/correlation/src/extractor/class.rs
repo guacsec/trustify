@@ -16,7 +16,7 @@ use super::{
     NodeRef,
     context::{MAX_DEPTH, PARENT_RELATIONSHIPS},
 };
-use crate::error::Error;
+use crate::{compute::on_worker, error::Error};
 use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter,
 };
@@ -214,6 +214,34 @@ pub async fn classify(sbom_id: Uuid, tx: &impl ConnectionTrait) -> Result<HashSe
     let span = Span::current();
     span.record("nodes", nodes.len());
 
+    let (representatives, rows, classes) =
+        on_worker(move || Ok(compute_classes(sbom_id, &graph, nodes))).await?;
+    span.record("classes", classes);
+
+    correlation_node_class::Entity::delete_many()
+        .filter(correlation_node_class::Column::SbomId.eq(sbom_id))
+        .exec(tx)
+        .await?;
+    for batch in rows.chunked() {
+        correlation_node_class::Entity::insert_many(batch)
+            .exec(tx)
+            .instrument(info_span!("inserting node classes"))
+            .await?;
+    }
+    Ok(representatives)
+}
+
+/// The classes of the nodes of an SBOM: the representatives, the rows to store, and the number of
+/// classes. CPU-heavy for a large SBOM, see [`on_worker`].
+fn compute_classes(
+    sbom_id: Uuid,
+    graph: &Graph,
+    nodes: Vec<usize>,
+) -> (
+    HashSet<String>,
+    Vec<correlation_node_class::ActiveModel>,
+    usize,
+) {
     let names = graph
         .index
         .iter()
@@ -231,12 +259,7 @@ pub async fn classify(sbom_id: Uuid, tx: &impl ConnectionTrait) -> Result<HashSe
             .or_default()
             .push(name);
     }
-    span.record("classes", classes.len());
-
-    correlation_node_class::Entity::delete_many()
-        .filter(correlation_node_class::Column::SbomId.eq(sbom_id))
-        .exec(tx)
-        .await?;
+    let count = classes.len();
 
     let mut representatives = HashSet::with_capacity(classes.len());
     let mut rows = Vec::with_capacity(names.len());
@@ -253,13 +276,7 @@ pub async fn classify(sbom_id: Uuid, tx: &impl ConnectionTrait) -> Result<HashSe
         }
         representatives.insert(representative.to_string());
     }
-    for batch in rows.chunked() {
-        correlation_node_class::Entity::insert_many(batch)
-            .exec(tx)
-            .instrument(info_span!("inserting node classes"))
-            .await?;
-    }
-    Ok(representatives)
+    (representatives, rows, count)
 }
 
 #[derive(FromQueryResult)]

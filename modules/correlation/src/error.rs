@@ -1,6 +1,7 @@
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
 use std::num::TryFromIntError;
+use tokio::task::JoinError;
 use trustify_common::{
     db::{DatabaseErrors, DbError, pagination_cache::LimitError},
     error::ErrorInformation,
@@ -26,6 +27,8 @@ pub enum Error {
     Distance(#[from] TryFromIntError),
     #[error("unknown candidate source of a PURL match: {0}")]
     CandidateSource(i32),
+    #[error("a worker task failed: {0}")]
+    Worker(#[from] JoinError),
 }
 
 impl From<DbErr> for Error {

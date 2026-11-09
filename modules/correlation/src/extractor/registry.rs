@@ -10,6 +10,7 @@ use super::{
     writer::EvidenceWriter,
 };
 use crate::{
+    compute::on_worker,
     error::Error,
     model::IdentifierRef,
     service::{
@@ -19,7 +20,7 @@ use crate::{
 };
 use sea_orm::DatabaseTransaction;
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     collections::{BTreeMap, BTreeSet, HashMap},
     mem::take,
     slice,
@@ -117,7 +118,9 @@ impl Extractors {
             let mut node_identifiers = extractor.sbom_identifiers(sbom_id, None, tx).await?;
             node_identifiers.retain(|id| representatives.contains(&id.node.node_id));
             if !node_identifiers.is_empty() {
-                work.push((extractor, node_chunks(node_identifiers, self.chunk)));
+                let chunk = self.chunk;
+                let chunks = on_worker(move || Ok(node_chunks(node_identifiers, chunk))).await?;
+                work.push((extractor, chunks));
             }
         }
         let all_chunks = work.iter().map(|(_, chunks)| chunks.len()).sum();
@@ -182,7 +185,7 @@ impl Extractors {
             let matches = matches
                 .into_iter()
                 .filter(|m| !members.contains(&m.node))
-                .map(|NodeMatch { node, assertion }| (node, Cow::Owned(assertion)))
+                .map(|NodeMatch { node, assertion }| (node, Arc::new(assertion)))
                 .collect::<Vec<_>>();
             if matches.is_empty() {
                 continue;
@@ -450,7 +453,7 @@ struct StreamWriter<'a> {
     tx: &'a DatabaseTransaction,
     /// The matches not written yet, of complete nodes only: a node (index) and the assertions of
     /// its part, shared by the nodes of the part instead of a copy each.
-    pending: Vec<(usize, Arc<[Assertion]>)>,
+    pending: Vec<(usize, Arc<[Arc<Assertion>]>)>,
     /// The number of pending matches.
     held: usize,
     matches: usize,
@@ -488,14 +491,13 @@ impl<'a> StreamWriter<'a> {
         let pending = take(&mut self.pending);
         self.held = 0;
         let nodes = self.nodes;
-        // borrowed: only the matches in scope are copied, into the evidence
+        // shared: only the matches in scope are copied, into the evidence
         let matches = pending
-            .iter()
-            .filter_map(|(node, assertions)| Some((nodes.get(*node)?, assertions)))
+            .into_iter()
+            .filter_map(|(node, assertions)| Some((Arc::new(nodes.get(node)?.clone()), assertions)))
             .flat_map(|(node, assertions)| {
-                assertions
-                    .iter()
-                    .map(move |assertion| (node, Cow::Borrowed(assertion)))
+                (0..assertions.len())
+                    .filter_map(move |index| Some((node.clone(), assertions.get(index)?.clone())))
             })
             .collect::<Vec<_>>();
         let matches = retain_in_range(matches, self.tx).await?;
@@ -511,7 +513,11 @@ impl<'a> StreamWriter<'a> {
 #[async_trait::async_trait]
 impl MatchSink for StreamWriter<'_> {
     async fn accept(&mut self, part: MatchPart) -> Result<(), Error> {
-        let assertions = Arc::<[Assertion]>::from(part.assertions);
+        let assertions = part
+            .assertions
+            .into_iter()
+            .map(Arc::new)
+            .collect::<Arc<[_]>>();
         // a part has all matches of its components: write after any of them, not within one
         for component in part.components {
             if component >= self.nodes.len() {
@@ -531,12 +537,16 @@ impl MatchSink for StreamWriter<'_> {
 /// Scope matches by their contexts, and write the evidence of the remaining ones.
 ///
 /// Returns the number of evidence entries written.
-/// The assertions can be borrowed: only the ones in scope are copied.
-async fn write_scoped<N: Borrow<NodeRef>>(
-    matches: Vec<(N, Cow<'_, Assertion>)>,
+/// The assertions are shared: only the ones in scope are copied. The scoping and merging run on a
+/// worker thread (see [`on_worker`]), the loading and writing here.
+async fn write_scoped<N>(
+    matches: Vec<(N, Arc<Assertion>)>,
     scoper: &mut Scoper,
     tx: &DatabaseTransaction,
-) -> Result<usize, Error> {
+) -> Result<usize, Error>
+where
+    N: Borrow<NodeRef> + Send + 'static,
+{
     scoper
         .prepare(
             matches
@@ -546,26 +556,33 @@ async fn write_scoped<N: Borrow<NodeRef>>(
         )
         .await?;
 
-    let mut writer = EvidenceWriter::new();
-    for (node, assertion) in matches {
-        let node = node.borrow();
-        let scope = scoper.scope(node, &assertion);
-        if matches!(scope, Scope::Dropped) {
-            continue;
-        }
-        let mut assertion = assertion.into_owned();
-        if let Some(factor) = scope.factor() {
-            assertion.apply(factor);
-        }
-        match scope {
-            Scope::Dropped => {}
-            Scope::Unscoped { .. } => writer.add(node, assertion)?,
-            Scope::Matched { links, .. } => writer.add_in_context(node, assertion, links)?,
-            Scope::Unconfirmed { link, .. } => {
-                writer.add_in_context(node, assertion, vec![link])?
+    let moved = take(scoper);
+    let (moved, writer) = on_worker(move || {
+        let scoper = moved;
+        let mut writer = EvidenceWriter::new();
+        for (node, assertion) in matches {
+            let node = node.borrow();
+            let scope = scoper.scope(node, &assertion);
+            if matches!(scope, Scope::Dropped) {
+                continue;
+            }
+            let mut assertion = Arc::unwrap_or_clone(assertion);
+            if let Some(factor) = scope.factor() {
+                assertion.apply(factor);
+            }
+            match scope {
+                Scope::Dropped => {}
+                Scope::Unscoped { .. } => writer.add(node, assertion)?,
+                Scope::Matched { links, .. } => writer.add_in_context(node, assertion, links)?,
+                Scope::Unconfirmed { link, .. } => {
+                    writer.add_in_context(node, assertion, vec![link])?
+                }
             }
         }
-    }
+        Ok((scoper, writer))
+    })
+    .await?;
+    *scoper = moved;
     writer.write(tx).await
 }
 
