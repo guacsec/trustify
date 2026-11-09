@@ -100,7 +100,7 @@ pub async fn lock_revision(tx: &DatabaseTransaction) -> Result<i64, Error> {
     let row = tx
         .query_one_raw(sql(
             "SELECT revision FROM correlation_extraction_revision FOR SHARE",
-            vec![],
+            [],
         ))
         .await?
         .ok_or_else(|| DbErr::Custom("missing extraction revision".into()))?;

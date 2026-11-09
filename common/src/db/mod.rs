@@ -39,7 +39,10 @@ use tracing::instrument;
 use url::Url;
 
 /// Build a PostgreSQL statement with bound parameter values.
-pub fn sql(query: &str, values: Vec<Value>) -> Statement {
+pub fn sql<I>(query: &str, values: I) -> Statement
+where
+    I: IntoIterator<Item = Value>,
+{
     Statement::from_sql_and_values(DbBackend::Postgres, query, values)
 }
 

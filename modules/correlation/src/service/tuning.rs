@@ -93,7 +93,7 @@ mod tests {
 
         let show = async |tx: &DatabaseTransaction| -> anyhow::Result<String> {
             let row = tx
-                .query_one_raw(sql("SHOW work_mem", vec![]))
+                .query_one_raw(sql("SHOW work_mem", []))
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("no work_mem"))?;
             Ok(row.try_get("", "work_mem")?)
