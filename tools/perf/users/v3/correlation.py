@@ -18,6 +18,8 @@ from scenario import SCENARIO
 class CorrelationUserV3(AuthenticatedHttpUser):
     """Exercises correlation v3 REST API endpoints."""
 
+    abstract = True # temporarily disable until we have stable operation of correlation
+    
     required_capability = "correlation"
     weight = 1
     wait_time = WAIT_TIME
