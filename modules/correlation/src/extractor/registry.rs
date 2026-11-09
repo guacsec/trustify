@@ -19,9 +19,11 @@ use crate::{
 };
 use sea_orm::DatabaseTransaction;
 use std::{
+    borrow::{Borrow, Cow},
     collections::{BTreeMap, BTreeSet, HashMap},
     mem::take,
     slice,
+    sync::Arc,
 };
 use tracing::{Span, field, instrument};
 use uuid::Uuid;
@@ -180,7 +182,7 @@ impl Extractors {
             let matches = matches
                 .into_iter()
                 .filter(|m| !members.contains(&m.node))
-                .map(|NodeMatch { node, assertion }| (node, assertion))
+                .map(|NodeMatch { node, assertion }| (node, Cow::Owned(assertion)))
                 .collect::<Vec<_>>();
             if matches.is_empty() {
                 continue;
@@ -428,17 +430,7 @@ async fn extract_chunk(
             }
         }
     }
-    let mut writer = StreamWriter {
-        nodes: &nodes,
-        scoper,
-        match_batch,
-        tx,
-        pending: Vec::new(),
-        matches: 0,
-        in_range: 0,
-        evidence: 0,
-        writes: 0,
-    };
+    let mut writer = StreamWriter::new(&nodes, scoper, match_batch, tx);
     extractor.match_parts(&components, &mut writer, tx).await?;
     writer.flush().await?;
 
@@ -456,21 +448,57 @@ struct StreamWriter<'a> {
     scoper: &'a mut Scoper,
     match_batch: usize,
     tx: &'a DatabaseTransaction,
-    /// The matches not written yet, of complete nodes only.
-    pending: Vec<(NodeRef, Assertion)>,
+    /// The matches not written yet, of complete nodes only: a node (index) and the assertions of
+    /// its part, shared by the nodes of the part instead of a copy each.
+    pending: Vec<(usize, Arc<[Assertion]>)>,
+    /// The number of pending matches.
+    held: usize,
     matches: usize,
     in_range: usize,
     evidence: usize,
     writes: usize,
 }
 
-impl StreamWriter<'_> {
+impl<'a> StreamWriter<'a> {
+    fn new(
+        nodes: &'a [NodeRef],
+        scoper: &'a mut Scoper,
+        match_batch: usize,
+        tx: &'a DatabaseTransaction,
+    ) -> Self {
+        Self {
+            nodes,
+            scoper,
+            match_batch,
+            tx,
+            pending: Vec::new(),
+            held: 0,
+            matches: 0,
+            in_range: 0,
+            evidence: 0,
+            writes: 0,
+        }
+    }
+
     /// Write the evidence of the pending matches, and forget what was loaded for their nodes.
     async fn flush(&mut self) -> Result<(), Error> {
         if self.pending.is_empty() {
             return Ok(());
         }
-        let matches = retain_in_range(take(&mut self.pending), self.tx).await?;
+        let pending = take(&mut self.pending);
+        self.held = 0;
+        let nodes = self.nodes;
+        // borrowed: only the matches in scope are copied, into the evidence
+        let matches = pending
+            .iter()
+            .filter_map(|(node, assertions)| Some((nodes.get(*node)?, assertions)))
+            .flat_map(|(node, assertions)| {
+                assertions
+                    .iter()
+                    .map(move |assertion| (node, Cow::Borrowed(assertion)))
+            })
+            .collect::<Vec<_>>();
+        let matches = retain_in_range(matches, self.tx).await?;
         self.in_range += matches.len();
         self.evidence += write_scoped(matches, self.scoper, self.tx).await?;
         self.writes += 1;
@@ -483,18 +511,16 @@ impl StreamWriter<'_> {
 #[async_trait::async_trait]
 impl MatchSink for StreamWriter<'_> {
     async fn accept(&mut self, part: MatchPart) -> Result<(), Error> {
+        let assertions = Arc::<[Assertion]>::from(part.assertions);
         // a part has all matches of its components: write after any of them, not within one
         for component in part.components {
-            let Some(node) = self.nodes.get(component) else {
+            if component >= self.nodes.len() {
                 continue;
-            };
-            self.pending.extend(
-                part.assertions
-                    .iter()
-                    .map(|assertion| (node.clone(), assertion.clone())),
-            );
-            self.matches += part.assertions.len();
-            if self.pending.len() >= self.match_batch {
+            }
+            self.pending.push((component, assertions.clone()));
+            self.held += assertions.len();
+            self.matches += assertions.len();
+            if self.held >= self.match_batch {
                 self.flush().await?;
             }
         }
@@ -505,30 +531,38 @@ impl MatchSink for StreamWriter<'_> {
 /// Scope matches by their contexts, and write the evidence of the remaining ones.
 ///
 /// Returns the number of evidence entries written.
-async fn write_scoped(
-    matches: Vec<(NodeRef, Assertion)>,
+/// The assertions can be borrowed: only the ones in scope are copied.
+async fn write_scoped<N: Borrow<NodeRef>>(
+    matches: Vec<(N, Cow<'_, Assertion>)>,
     scoper: &mut Scoper,
     tx: &DatabaseTransaction,
 ) -> Result<usize, Error> {
     scoper
         .prepare(
-            matches.iter().map(|(node, assertion)| (node, assertion)),
+            matches
+                .iter()
+                .map(|(node, assertion)| (node.borrow(), assertion.as_ref())),
             tx,
         )
         .await?;
 
     let mut writer = EvidenceWriter::new();
-    for (node, mut assertion) in matches {
-        let scope = scoper.scope(&node, &assertion);
+    for (node, assertion) in matches {
+        let node = node.borrow();
+        let scope = scoper.scope(node, &assertion);
+        if matches!(scope, Scope::Dropped) {
+            continue;
+        }
+        let mut assertion = assertion.into_owned();
         if let Some(factor) = scope.factor() {
             assertion.apply(factor);
         }
         match scope {
             Scope::Dropped => {}
-            Scope::Unscoped { .. } => writer.add(&node, assertion)?,
-            Scope::Matched { links, .. } => writer.add_in_context(&node, assertion, links)?,
+            Scope::Unscoped { .. } => writer.add(node, assertion)?,
+            Scope::Matched { links, .. } => writer.add_in_context(node, assertion, links)?,
             Scope::Unconfirmed { link, .. } => {
-                writer.add_in_context(&node, assertion, vec![link])?
+                writer.add_in_context(node, assertion, vec![link])?
             }
         }
     }
@@ -663,17 +697,7 @@ mod test {
         for match_batch in [usize::MAX, 1] {
             let tx = ctx.db.begin().await?;
             let mut scoper = Scoper::default();
-            let mut writer = StreamWriter {
-                nodes: &nodes,
-                scoper: &mut scoper,
-                match_batch,
-                tx: &tx,
-                pending: Vec::new(),
-                matches: 0,
-                in_range: 0,
-                evidence: 0,
-                writes: 0,
-            };
+            let mut writer = StreamWriter::new(&nodes, &mut scoper, match_batch, &tx);
             writer
                 .accept(MatchPart {
                     components: vec![0],

@@ -7,7 +7,10 @@
 use super::{Assertion, NodeRef};
 use crate::error::Error;
 use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, Statement};
-use std::collections::{BTreeSet, HashSet};
+use std::{
+    borrow::Borrow,
+    collections::{BTreeSet, HashSet},
+};
 use tracing::{Instrument, info_span};
 use uuid::Uuid;
 
@@ -20,14 +23,23 @@ struct InRangeRow {
 
 /// Keep the matches without a version range, and the ones whose node has a version in the range of
 /// its assertion. A node without a version is in no range.
-pub async fn retain_in_range<C: ConnectionTrait>(
-    matches: Vec<(NodeRef, Assertion)>,
+///
+/// The matches can be owned or borrowed, as only their node and version range are read.
+pub async fn retain_in_range<N, A, C>(
+    matches: Vec<(N, A)>,
     connection: &C,
-) -> Result<Vec<(NodeRef, Assertion)>, Error> {
+) -> Result<Vec<(N, A)>, Error>
+where
+    N: Borrow<NodeRef>,
+    A: Borrow<Assertion>,
+    C: ConnectionTrait,
+{
     let candidates = matches
         .iter()
         .filter_map(|(node, assertion)| {
+            let node = node.borrow();
             assertion
+                .borrow()
                 .version_range_id
                 .map(|range| (node.sbom_id, node.node_id.clone(), range))
         })
@@ -67,9 +79,14 @@ WHERE p.version IS NOT NULL AND version_matches(p.version, vr)
 
     Ok(matches
         .into_iter()
-        .filter(|(node, assertion)| match assertion.version_range_id {
-            None => true,
-            Some(range) => in_range.contains(&(node.sbom_id, node.node_id.clone(), range)),
-        })
+        .filter(
+            |(node, assertion)| match assertion.borrow().version_range_id {
+                None => true,
+                Some(range) => {
+                    let node = node.borrow();
+                    in_range.contains(&(node.sbom_id, node.node_id.clone(), range))
+                }
+            },
+        )
         .collect())
 }
