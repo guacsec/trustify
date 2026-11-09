@@ -84,6 +84,11 @@ The migration runners need read access to the original documents.
 | `false`
 |===
 
+=== Documents which can't be processed
+
+Data migrations parse stored documents the same way ingestion does.
+A document which can't be parsed, or can't be processed, fails the migration, with an error naming the source document, instead of leaving its data behind.
+
 == Procedure
 
 === Step 1: Prepare the database copy

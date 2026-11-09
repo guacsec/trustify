@@ -1,6 +1,7 @@
 #![recursion_limit = "512"]
 
 mod m0002010;
+mod m0002280;
 mod m0002710;
 mod parallel;
 
@@ -40,6 +41,7 @@ mod sbom {
         },
     };
     use sea_orm::{ConnectionTrait, DbErr, Statement};
+    use trustify_module_ingestor::service::DetectedDocument;
 
     #[derive(DeriveMigrationName)]
     pub struct Migration;
@@ -71,12 +73,14 @@ mod sbom {
                 .process(self, |sbom: SbomDoc, id: sbom::Id, tx| {
                     async move {
                         // we just pick a random value
-                        let value = match sbom {
-                            SbomDoc::CycloneDx(sbom) => sbom.serial_number,
-                            SbomDoc::Spdx(sbom) => {
-                                Some(sbom.document_creation_information.spdx_document_namespace)
-                            }
-                            SbomDoc::Other(_) => None,
+                        let value = match sbom.0 {
+                            DetectedDocument::CycloneDx(sbom) => sbom.serial_number,
+                            DetectedDocument::Spdx(sbom) => Some(
+                                sbom.sbom
+                                    .document_creation_information
+                                    .spdx_document_namespace,
+                            ),
+                            _ => None,
                         };
 
                         if let Some(value) = value {
@@ -156,11 +160,12 @@ async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
         .collect::<Result<BTreeSet<String>, _>>()?;
 
     assert_eq!(
+        // including those which only parse with invalid license expressions replaced
         [
-            "",
-            "",
-            "",
+            "https://access.redhat.com/security/data/sbom/beta/spdx/quarkus-bom-d6ecbbd9-31bf-46fd-afda-8082120f5260",
+            "https://access.redhat.com/security/data/sbom/beta/spdx/ubi8-container-1e7fb966-cc2a-41e2-8e9d-ab6fb97d67d6",
             "https://access.redhat.com/security/data/sbom/beta/spdx/ubi8-micro-container-0ca57f3b-b0e7-4251-b32b-d2929a52f05c",
+            "https://access.redhat.com/security/data/sbom/beta/spdx/ubi8-minimal-container-5b43ae22-cbf0-4626-8ec5-4ae0765a3d4b",
             "https://access.redhat.com/security/data/sbom/beta/spdx/ubi9-container-f8098ef8-eee0-4ee6-b5d1-b00d992adef5",
             "https://access.redhat.com/security/data/sbom/beta/spdx/ubi9-minimal-container-9b954617-943f-43ab-bd5b-3df62a706ed6"
         ].into_iter().map(|s| s.to_owned()).collect::<BTreeSet<_>>(),

@@ -325,7 +325,7 @@ async fn unknown_format_fails(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let err = run(ctx, Options::default()).await.unwrap_err();
 
     assert!(
-        err.to_string().contains("unable to parse the document"),
+        err.to_string().contains("Unable to parse source document"),
         "{err}"
     );
     Ok(())

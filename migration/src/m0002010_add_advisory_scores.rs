@@ -2,6 +2,7 @@ use crate::data::{
     MigrationTraitWithData, SchemaDataManager,
     advisory::{Advisory, Id},
 };
+use anyhow::bail;
 use futures_util::FutureExt;
 use sea_orm::sea_query::extension::postgres::*;
 use sea_orm_migration::prelude::*;
@@ -9,7 +10,10 @@ use strum::VariantNames;
 use trustify_common::db::create_enum_if_not_exists;
 use trustify_module_ingestor::{
     graph::cvss::ScoreCreator,
-    service::advisory::{csaf, cve, osv},
+    service::{
+        DetectedDocument,
+        advisory::{csaf, cve, nvd, osv},
+    },
 };
 
 #[derive(DeriveMigrationName)]
@@ -112,19 +116,20 @@ impl MigrationTraitWithData for Migration {
             .process(self, |advisory: Advisory, id: Id, tx| {
                 async move {
                     let mut creator = ScoreCreator::new(id.advisory);
-                    match advisory {
-                        Advisory::Cve(advisory) => {
+                    match advisory.0 {
+                        DetectedDocument::Cve(advisory) => {
                             creator.extend(cve::extract_scores(&advisory.cve));
                         }
-                        Advisory::Csaf(advisory) => {
+                        DetectedDocument::Csaf(advisory) => {
                             csaf::extract_scores(&advisory, &mut creator);
                         }
-                        Advisory::Osv(advisory) => {
+                        DetectedDocument::Nvd(advisory) => {
+                            creator.extend(nvd::extract_scores(&advisory.id, &advisory.metrics));
+                        }
+                        DetectedDocument::Osv(advisory) => {
                             osv::extract_scores(&advisory, &mut creator);
                         }
-                        _ => {
-                            // we ignore others
-                        }
+                        _ => bail!("advisory {} is not an advisory", id.advisory),
                     }
 
                     creator.create(tx).await?;

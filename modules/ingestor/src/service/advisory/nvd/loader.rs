@@ -258,7 +258,7 @@ pub(crate) fn version_spec(cpe_match: &CpeMatch, cpe: &Cpe) -> Option<VersionSpe
 
 /// Parses all CVSS vectors present in an NVD `metrics` object into [`ScoreInformation`],
 /// dispatching per version bucket to the appropriate `cvss-rs` parser.
-fn extract_scores(vulnerability_id: &str, metrics: &Metrics) -> Vec<ScoreInformation> {
+pub fn extract_scores(vulnerability_id: &str, metrics: &Metrics) -> Vec<ScoreInformation> {
     let mut scores = Vec::new();
 
     for m in &metrics.cvss_metric_v40 {

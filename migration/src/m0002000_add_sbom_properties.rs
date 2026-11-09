@@ -1,10 +1,12 @@
 use crate::data::{
     MigrationTraitWithData, SchemaDataManager, sbom::Id as SbomId, sbom::Sbom as SbomDoc,
 };
+use anyhow::bail;
 use futures_util::FutureExt;
 use sea_orm::{ActiveModelBehavior, ActiveModelTrait, Set};
 use sea_orm_migration::prelude::*;
 use trustify_common::advisory::cyclonedx::extract_properties_json;
+use trustify_module_ingestor::service::DetectedDocument;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -73,16 +75,19 @@ impl MigrationTraitWithData for Migration {
                 async move {
                     let mut model = legacy::ActiveModel::new();
                     model.sbom_id = Set(id.sbom);
-                    match sbom {
-                        SbomDoc::CycloneDx(sbom) => {
+                    match sbom.0 {
+                        DetectedDocument::CycloneDx(sbom) => {
                             model.properties = Set(extract_properties_json(&sbom));
                         }
-                        SbomDoc::Spdx(_sbom) => {
+                        DetectedDocument::Spdx(_sbom) => {
                             model.properties = Set(serde_json::Value::Object(Default::default()));
                         }
-                        SbomDoc::Other(_) => {
-                            // we ignore others
+                        DetectedDocument::ClearlyDefined(_)
+                        | DetectedDocument::ClearlyDefinedCuration(_) => {
+                            // they have no properties, which the column's default already says
+                            return Ok(());
                         }
+                        _ => bail!("SBOM {} is not an SBOM", id.sbom),
                     }
 
                     model.save(tx).await?;

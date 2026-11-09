@@ -1,12 +1,11 @@
 use super::Document;
-use bytes::Bytes;
-use cyclonedx_rs::cyclonedx::v_1_7::CycloneDx;
 use sea_orm::{
     FromQueryResult, QueryFilter, QuerySelect,
     prelude::*,
     sea_query::{Expr, extension::postgres::PgExpr},
 };
 use trustify_entity::{labels::Labels, sbom};
+use trustify_module_ingestor::service::{DetectedDocument, Format};
 use trustify_module_storage::service::StorageBackend;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, FromQueryResult)]
@@ -15,21 +14,8 @@ pub struct Id {
     pub source: Uuid,
 }
 
-#[allow(clippy::large_enum_variant)]
-pub enum Sbom {
-    CycloneDx(CycloneDx),
-    Spdx(spdx_rs::models::SPDX),
-    Other(Bytes),
-}
-
-impl From<Bytes> for Sbom {
-    fn from(value: Bytes) -> Self {
-        serde_json::from_slice(&value)
-            .map(Sbom::Spdx)
-            .or_else(|_| serde_json::from_slice(&value).map(Sbom::CycloneDx))
-            .unwrap_or_else(|_err| Sbom::Other(value))
-    }
-}
+/// The document of an SBOM: SPDX, CycloneDX or ClearlyDefined.
+pub struct Sbom(pub DetectedDocument);
 
 impl Document for Sbom {
     type Id = Id;
@@ -49,18 +35,14 @@ impl Document for Sbom {
         S: StorageBackend + Send + Sync,
         C: ConnectionTrait,
     {
-        super::load(id.source, storage, tx).await
+        super::load(id.source, Format::SBOM, storage, tx)
+            .await
+            .map(Self)
     }
 }
 
 /// SPDX-only Document variant that filters `all()` to SBOMs labeled `type=spdx`.
 pub struct SpdxSbom(pub Sbom);
-
-impl From<Bytes> for SpdxSbom {
-    fn from(value: Bytes) -> Self {
-        SpdxSbom(Sbom::from(value))
-    }
-}
 
 impl Document for SpdxSbom {
     type Id = Id;
@@ -81,6 +63,8 @@ impl Document for SpdxSbom {
         S: StorageBackend + Send + Sync,
         C: ConnectionTrait,
     {
-        super::load(id.source, storage, tx).await
+        super::load(id.source, Format::SPDX, storage, tx)
+            .await
+            .map(|document| Self(Sbom(document)))
     }
 }
