@@ -1,4 +1,4 @@
-"""Discover and select workloads for capabilities exposed by Trustify."""
+"""Select runnable workloads by task tags and Trustify capabilities."""
 
 from __future__ import annotations
 
@@ -73,6 +73,51 @@ def discover_capabilities(host: str) -> frozenset[str]:
     return frozenset(raw_capabilities)
 
 
+def _remove_user_classes(environment: Any, excluded: set[type[Any]]) -> None:
+    """Keep the selected workloads and optional class/task pickers consistent."""
+    if not excluded:
+        return
+
+    environment.user_classes[:] = [
+        user_class
+        for user_class in environment.user_classes
+        if user_class not in excluded
+    ]
+
+    for attribute in ("available_user_classes", "available_user_tasks"):
+        registry = getattr(environment, attribute, None)
+        if registry is not None:
+            for user_class in excluded:
+                registry.pop(user_class.__name__, None)
+
+
+def filter_taskless_user_classes(environment: Any) -> None:
+    """Apply Locust's tag filters and remove workloads they leave without tasks."""
+    invalid = sorted(
+        user_class.__name__
+        for user_class in environment.user_classes
+        if not user_class.tasks
+    )
+    if invalid:
+        raise ValueError(
+            "User classes have no tasks before tag filtering: " + ", ".join(invalid)
+        )
+
+    # Locust 2.37.5 normally filters at test start, after our init hook. Apply its
+    # recursive, idempotent filter here so workload selection sees the final tasks.
+    environment._filter_tasks_by_tags()
+    empty = {
+        user_class for user_class in environment.user_classes if not user_class.tasks
+    }
+    _remove_user_classes(environment, empty)
+
+    for user_class in sorted(empty, key=lambda item: item.__name__):
+        log.info(
+            "Skipping %s: no tasks remain after tag filtering",
+            user_class.__name__,
+        )
+
+
 def filter_user_classes(environment: Any, capabilities: frozenset[str]) -> None:
     """Remove user classes whose required capability is not advertised."""
     unavailable: set[type[Any]] = set()
@@ -81,23 +126,7 @@ def filter_user_classes(environment: Any, capabilities: frozenset[str]) -> None:
         if required and required not in capabilities:
             unavailable.add(user_class)
 
-    if not unavailable:
-        return
-
-    environment.user_classes[:] = [
-        user_class
-        for user_class in environment.user_classes
-        if user_class not in unavailable
-    ]
-
-    if environment.available_user_classes is not None:
-        unavailable_names = {
-            user_class.__name__ for user_class in unavailable
-        }
-        for name in unavailable_names:
-            environment.available_user_classes.pop(name, None)
-            if environment.available_user_tasks is not None:
-                environment.available_user_tasks.pop(name, None)
+    _remove_user_classes(environment, unavailable)
 
     for user_class in sorted(unavailable, key=lambda item: item.__name__):
         required = getattr(user_class, "required_capability")
