@@ -61,7 +61,7 @@ async fn extraction_queue_migration_queues_no_existing_advisories(
         .db
         .query_all_raw(sql(
             "SELECT entity_id FROM correlation_extraction_queue",
-            vec![],
+            [],
         ))
         .await?;
     assert_eq!(rows.len(), 0);
@@ -145,7 +145,7 @@ async fn freshness_migration_preserves_documents_and_resets_to_unknown(
     assert_eq!(advisory::Entity::find().all(&ctx.db).await?, advisories);
     let state = ctx.db.query_one_raw(sql("SELECT completed_revision=0 AND completed_at IS NULL AS unknown FROM correlation_extraction_state WHERE sbom_id=$1", vec![id.into()])).await?.unwrap();
     assert!(state.try_get::<bool>("", "unknown")?);
-    let count = ctx.db.query_one_raw(sql("SELECT sum(documents)::bigint AS unknown FROM correlation_extraction_count WHERE revision=0", vec![])).await?.unwrap();
+    let count = ctx.db.query_one_raw(sql("SELECT sum(documents)::bigint AS unknown FROM correlation_extraction_count WHERE revision=0", [])).await?.unwrap();
     assert_eq!(count.try_get::<i64>("", "unknown")?, 1);
     Ok(())
 }

@@ -58,7 +58,7 @@ type Evidence = (
 
 /// All PURL evidence of an SBOM (stated and derived by rules), sorted.
 async fn load_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
-    let rules = rule::rules(&ctx.db).await?;
+    let rules = rules(&ctx.db).await?;
     let mut evidence = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
         .filter(

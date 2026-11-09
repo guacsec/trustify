@@ -275,7 +275,7 @@ impl SbomService {
             let row = connection
                 .query_one_raw(sql(
                     "SELECT revision FROM correlation_verdict_publication",
-                    vec![],
+                    [],
                 ))
                 .await?
                 .ok_or_else(|| DbErr::Custom("missing verdict publication".into()))?;
