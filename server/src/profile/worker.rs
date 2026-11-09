@@ -9,7 +9,7 @@ use trustify_common::{
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
 use trustify_module_correlation::{
     extractor::worker::run_extraction_workers,
-    service::tuning::{WorkerConfig, parse_work_mem},
+    service::tuning::{DEFAULT_MATCH_BATCH, WorkerConfig, parse_work_mem},
 };
 use trustify_module_notification::config::NotificationConfig;
 
@@ -27,6 +27,27 @@ pub struct CorrelationWorkerArgs {
     /// Workers of all instances process different advisories, SBOMs and verdicts in parallel.
     #[arg(long, env = "TRUSTD_CORRELATION_WORKERS", default_value = "1", value_parser = parse_concurrency)]
     pub correlation_workers: NonZeroUsize,
+
+    /// The number of matches of an SBOM held in memory before their evidence is written.
+    ///
+    /// Bounds the memory of extracting an SBOM. The matches of a node are written together, so a
+    /// node with more matches exceeds it.
+    #[arg(
+        long,
+        env = "TRUSTD_CORRELATION_MATCH_BATCH",
+        default_value_t = DEFAULT_MATCH_BATCH,
+        value_parser = parse_match_batch
+    )]
+    pub correlation_match_batch: usize,
+}
+
+/// Parse the matches held before writing, at least one.
+fn parse_match_batch(value: &str) -> Result<usize, String> {
+    match value.parse::<usize>() {
+        Ok(0) => Err("must be at least 1".to_string()),
+        Ok(value) => Ok(value),
+        Err(err) => Err(err.to_string()),
+    }
 }
 
 impl From<CorrelationWorkerArgs> for WorkerConfig {
@@ -34,6 +55,7 @@ impl From<CorrelationWorkerArgs> for WorkerConfig {
         Self {
             workers: args.correlation_workers,
             work_mem: args.correlation_work_mem,
+            match_batch: args.correlation_match_batch,
         }
     }
 }
@@ -233,6 +255,7 @@ mod test {
             WorkerConfig {
                 workers: NonZeroUsize::new(3).ok_or_else(|| anyhow::anyhow!("zero"))?,
                 work_mem: None,
+                match_batch: DEFAULT_MATCH_BATCH,
             }
         );
         assert_eq!(init.tasks().len(), 1);

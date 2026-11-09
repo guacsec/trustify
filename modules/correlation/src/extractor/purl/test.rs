@@ -417,7 +417,8 @@ async fn node_purls_are_judged_together(ctx: &TrustifyContext) -> anyhow::Result
     Ok(())
 }
 
-/// Extracting an SBOM node by node yields the same evidence as all at once.
+/// Extracting an SBOM node by node, or writing its evidence after each node, yields the same
+/// evidence as all at once.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn chunks_extract_like_one_chunk(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -427,20 +428,40 @@ async fn chunks_extract_like_one_chunk(ctx: &TrustifyContext) -> anyhow::Result<
 
     assert!(extract_for_sbom(ctx, sbom_id).await? > 0);
     let at_once = load_evidence(ctx, sbom_id).await?;
+    let contexts = evidence_contexts(ctx).await?;
+    assert!(!contexts.is_empty());
 
-    correlation_evidence::Entity::delete_many()
-        .exec(&ctx.db)
-        .await?;
-
-    let tx = ctx.db.begin().await?;
-    extractors()
-        .with_chunk(1)
-        .extract_for_sbom(sbom_id, &tx)
-        .await?;
-    tx.commit().await?;
-    assert_eq!(load_evidence(ctx, sbom_id).await?, at_once);
+    for (name, extractors) in [
+        ("one identifier per chunk", extractors().with_chunk(1)),
+        ("one match per write", extractors().with_match_batch(1)),
+    ] {
+        correlation_evidence::Entity::delete_many()
+            .exec(&ctx.db)
+            .await?;
+        let tx = ctx.db.begin().await?;
+        extractors.extract_for_sbom(sbom_id, &tx).await?;
+        tx.commit().await?;
+        assert_eq!(load_evidence(ctx, sbom_id).await?, at_once, "{name}");
+        assert_eq!(evidence_contexts(ctx).await?, contexts, "{name}");
+    }
 
     Ok(())
+}
+
+/// An evidence context, as text.
+#[derive(Debug, PartialEq, FromQueryResult)]
+struct ContextRow {
+    row: String,
+}
+
+/// All evidence contexts, sorted.
+async fn evidence_contexts(ctx: &TrustifyContext) -> anyhow::Result<Vec<ContextRow>> {
+    Ok(ContextRow::find_by_statement(sql(
+        "SELECT c::text AS row FROM correlation_evidence_context c ORDER BY 1",
+        vec![],
+    ))
+    .all(&ctx.db)
+    .await?)
 }
 
 /// Red Hat's `fixed`, read as `first_fixed`: affected before.
@@ -1753,18 +1774,80 @@ async fn batches_match_like_a_single_batch(ctx: &TrustifyContext) -> anyhow::Res
         matches.sort_by_cached_key(|m| format!("{m:?}"));
         matches
     };
-    let single = sorted(match_batched(&identifiers, usize::MAX, &tx).await?);
+    let batched = async |components: &[Vec<IdentifierRef>], batch_size| {
+        let mut matches = CollectMatches::default();
+        match_batched(components, batch_size, &mut matches, &tx)
+            .await
+            .map(|()| matches.0)
+    };
+    let single = sorted(batched(&identifiers, usize::MAX).await?);
     assert!(single.iter().any(|m| m.component == identifiers.len() - 1));
     for batch_size in [1, 2] {
         assert_eq!(
-            sorted(match_batched(&identifiers, batch_size, &tx).await?),
+            sorted(batched(&identifiers, batch_size).await?),
             single,
             "batch size {batch_size}"
         );
     }
+    assert_eq!(batched(&[], 1).await?, Vec::<ComponentMatch>::new());
+    Ok(())
+}
+
+/// Collects the parts as they are handed over.
+#[derive(Default)]
+struct Parts(Vec<MatchPart>);
+
+#[async_trait::async_trait]
+impl MatchSink for Parts {
+    async fn accept(&mut self, part: MatchPart) -> Result<(), Error> {
+        self.0.push(part);
+        Ok(())
+    }
+}
+
+/// Each part has all matches of its components, so a component is in a single part, and together
+/// the parts are the matches of `match_identifiers`.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn parts_hold_all_matches_of_their_components(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let sbom_id = Uuid::parse_str(&ctx.ingest_document(S5_SBOM).await?.id)?;
+    ctx.ingest_documents([S5_VEX, S9_VEX]).await?;
+    let tx = ctx.db.begin().await?;
+    let mut components = PurlExtractor
+        .sbom_identifiers(sbom_id, None, &tx)
+        .await?
+        .into_iter()
+        .map(|node| vec![node.identifier])
+        .collect::<Vec<_>>();
+    // two components with the same PURL share a part
+    components.push(components[0].clone());
+
+    let mut parts = Parts::default();
+    PurlExtractor
+        .match_parts(&components, &mut parts, &tx)
+        .await?;
+
+    // only openssl matches, in one part for both of its components
     assert_eq!(
-        match_batched(&[], 1, &tx).await?,
-        Vec::<ComponentMatch>::new()
+        parts
+            .0
+            .iter()
+            .map(|part| part.components.clone())
+            .collect::<Vec<_>>(),
+        vec![vec![0, components.len() - 1]]
+    );
+
+    let mut expanded = CollectMatches::default();
+    for part in parts.0 {
+        expanded.accept(part).await?;
+    }
+    let sorted = |mut matches: Vec<ComponentMatch>| {
+        matches.sort_by_cached_key(|m| format!("{m:?}"));
+        matches
+    };
+    assert_eq!(
+        sorted(expanded.0),
+        sorted(PurlExtractor.match_identifiers(&components, &tx).await?)
     );
     Ok(())
 }

@@ -35,7 +35,7 @@ pub async fn run_extraction_worker(
     db: db::ReadWrite,
     config: WorkerConfig,
 ) -> anyhow::Result<()> {
-    let extractors = Extractors::default();
+    let extractors = Extractors::default().with_match_batch(config.match_batch);
     let mut rx = broadcaster.subscribe();
     // Drain work left by an earlier process immediately on startup.
     let mut pending = true;

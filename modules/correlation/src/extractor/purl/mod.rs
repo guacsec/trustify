@@ -41,7 +41,10 @@ use self::{
     ecosystem::{Ecosystem, StreamMatch},
     rule::{RangeRule, rules},
 };
-use super::{Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef};
+use super::{
+    Assertion, CollectMatches, ComponentMatch, Extractor, MatchPart, MatchSink, NodeIdentifier,
+    NodeMatch, NodeRef,
+};
 use crate::{
     error::Error,
     model::{
@@ -687,7 +690,19 @@ impl Extractor for PurlExtractor {
         components: &[Vec<IdentifierRef>],
         tx: &DatabaseTransaction,
     ) -> Result<Vec<ComponentMatch>, Error> {
-        match_batched(components, BATCH, tx).await
+        let mut matches = CollectMatches::default();
+        match_batched(components, BATCH, &mut matches, tx).await?;
+        Ok(matches.0)
+    }
+
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn match_parts(
+        &self,
+        components: &[Vec<IdentifierRef>],
+        sink: &mut (dyn MatchSink + Send),
+        tx: &DatabaseTransaction,
+    ) -> Result<(), Error> {
+        match_batched(components, BATCH, sink, tx).await
     }
 
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
@@ -731,8 +746,9 @@ type Targets = BTreeMap<BTreeSet<Key>, Vec<usize>>;
 async fn match_batched(
     components: &[Vec<IdentifierRef>],
     batch_size: usize,
+    sink: &mut (dyn MatchSink + Send),
     tx: &DatabaseTransaction,
-) -> Result<Vec<ComponentMatch>, Error> {
+) -> Result<(), Error> {
     let mut targets = Targets::new();
     let mut batches = Batches::default();
     for (component, identifiers) in components.iter().enumerate() {
@@ -761,7 +777,7 @@ async fn match_batched(
     }
 
     if targets.is_empty() {
-        return Ok(Vec::new());
+        return Ok(());
     }
 
     // the targets of each set of versions which must share a batch
@@ -782,7 +798,6 @@ async fn match_batched(
 
     let rules = rules(tx).await?;
     let sources = sources(&rules).collect::<Vec<_>>();
-    let mut result = Vec::new();
     let mut versions = Vec::new();
     let mut batch = Vec::new();
     let mut sets = sets.into_values().peekable();
@@ -792,9 +807,9 @@ async fn match_batched(
         if versions.len() < batch_size && sets.peek().is_some() {
             continue;
         }
-        result.extend(match_batch(take(&mut versions), take(&mut batch), &sources, tx).await?);
+        match_batch(take(&mut versions), take(&mut batch), &sources, sink, tx).await?;
     }
-    Ok(result)
+    Ok(())
 }
 
 /// The versions which must share a batch, as a disjoint set forest over versions and packages.
@@ -845,7 +860,8 @@ impl Batches {
     }
 }
 
-/// Match one batch of versioned PURLs, and group the rows per set of keys.
+/// Match one batch of versioned PURLs, and group the rows per set of keys, handing the matches of
+/// each set to `sink` as one part.
 #[instrument(
     skip_all,
     fields(
@@ -862,8 +878,9 @@ async fn match_batch(
     versions: Vec<Uuid>,
     targets: Vec<(&BTreeSet<Key>, &[usize])>,
     sources: &[(Source<'_>, Candidates)],
+    sink: &mut (dyn MatchSink + Send),
     tx: &DatabaseTransaction,
-) -> Result<Vec<ComponentMatch>, Error> {
+) -> Result<(), Error> {
     let rows = load_purl_status_matches(versions, sources, tx).await?;
     let ids = rows
         .iter()
@@ -897,7 +914,7 @@ async fn match_batch(
     // per distinct set of keys, and one set at a time, as copying all rows for all components at
     // once doesn't fit into memory (e.g. 15M rows for the kernel of a RHEL SBOM).
     let mut grouped = 0;
-    let mut result = Vec::new();
+    let mut matches = 0;
     for (keys, components) in targets {
         let rows = keys
             .iter()
@@ -920,17 +937,20 @@ async fn match_batch(
         let assertions = group(rows)
             .map(|((), assertion)| assertion)
             .collect::<Vec<_>>();
-        for component in components {
-            result.extend(assertions.iter().map(|assertion| ComponentMatch {
-                component: *component,
-                assertion: assertion.clone(),
-            }));
+        if assertions.is_empty() {
+            continue;
         }
+        matches += assertions.len() * components.len();
+        // the components share the assertions, instead of a copy each
+        sink.accept(MatchPart {
+            components: components.to_vec(),
+            assertions,
+        })
+        .await?;
     }
     span.record("grouped", grouped);
-
-    span.record("matches", result.len());
-    Ok(result)
+    span.record("matches", matches);
+    Ok(())
 }
 
 // ponytail: ad-hoc PURLs not in DB won't match; add fallback with literal version_matches when needed
