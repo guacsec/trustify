@@ -113,8 +113,9 @@ not a claim that `pf-v6-button` itself exposes a `form` property. PFE's JavaScri
 register the custom element. The prototype and coverage assessment below will validate the actual
 PFE integration and component coverage.
 
-This ADR concerns the choice of the component layer for a production Rust UI. It does not change
-existing UIs or decide when the React UI is replaced.
+This ADR concerns the choice of the component layer for a production Rust UI and the intended,
+gated transition from the React UI. It does not itself change existing UIs, put the React UI into
+maintenance-only mode, or authorize a default switch or retirement.
 
 ## Decision
 
@@ -188,6 +189,58 @@ The decision stands if:
 - The build fits into the Trustify build and the downstream build without a JavaScript build.
 - Load time and asset size are acceptable.
 
+### Transition strategy
+
+The intended path is a staged replacement of the React UI, conditional on successful validation.
+Stages are gated by evidence and recorded approval, not calendar dates. Accepting this ADR validates
+the component-layer choice; it does not by itself authorize the later transition gates. Owners,
+release milestones, and implementation tasks are tracked separately.
+
+1. **Validate the stack.** Agree the initial workflows, assess component coverage, build the
+   representative prototype, and select the Rust UI framework. The React UI remains supported and
+   the default throughout validation.
+   **Gate:** the maintainers approve the validation evidence and exit criteria above, and the ADR
+   moves to ACCEPTED. If validation fails, retain the current production UI and reconsider the stack.
+
+2. **Establish the foundation.** Build the application shell, routing, authentication, API client,
+   design conventions, and test/build integration in this repository. Define boundaries between
+   shared core services, supported workflows, and opt-in UX experiments without committing to a
+   plugin platform. The React UI remains the default.
+   **Gate:** a usable, tested foundation has named maintainers, and the preview scope and its
+   enablement and support policy are approved by the maintainers and product/UX owners, with
+   downstream owners involved where their builds or support are affected.
+
+3. **Deliver an opt-in preview.** Implement prioritized workflows alongside the React UI, document
+   limitations, and gather user feedback. Preview access must not change the default UI or prevent
+   users from returning to it. Propose maintenance-only status for the React UI at an explicitly
+   agreed preview milestone, not automatically on merging or accepting this ADR. That policy must
+   name maintainers, identify affected release branches and downstream commitments, and preserve
+   security, critical bug, and necessary API-compatibility fixes; new UX work would normally target
+   the new UI.
+   **Gate:** before crossover, the maintainers, product/UX owners, and affected downstream owners
+   approve the replacement scope and readiness evidence described below. Until then, the React UI
+   remains the supported default, whether or not maintenance-only status has been approved.
+
+4. **Switch the default.** Make the new UI the supported default only after the crossover gate is
+   approved. Publish deployment and user transition guidance and test the rollback path. Agree
+   whether the React UI must remain available for a transition period, its duration, and its support
+   obligations before switching; upstream and downstream need not switch in the same release.
+   **Gate:** the agreed transition obligations are met and affected owners explicitly approve
+   retirement in a follow-up decision.
+
+5. **Retire the React UI.** Remove obsolete embedding, dependencies, and build/release work only for
+   the approved scope. Communicate the end of support and preserve any obligations for older
+   supported branches or downstream releases. Default switching and retirement are separate changes.
+
+The initial validation scope is not automatically the replacement scope. Before crossover, review
+required production workflows with product/UX and downstream owners: each must be supported,
+deliberately replaced, or explicitly approved for removal or deferral, with user impact documented.
+Extend the coverage matrix for the replacement scope and review any additional fallback cost.
+Readiness evidence must cover those workflows, authentication and authorization, accessibility and
+localisation, build and deployment compatibility, performance, and a tested rollback path. A working
+prototype alone is not sufficient. If a later gate is not met, pause the transition rather than
+switching or retiring the supported UI.
+
 ## Alternatives
 
 ### Keep React and PatternFly React
@@ -245,21 +298,21 @@ The decision stands if:
   layer is designed.
 - **Shared types.** A Rust UI in the same repository can reuse the API types, which reduces drift
   between the API and the UI.
-- **Production UI transition.** The new UI may be developed around prioritized workflows rather
-  than by migrating React pages one for one. Replacing or retiring the React UI is a separate
-  decision, made when the new UI is ready and its supported scope is agreed.
 
 ## Consequences
 
 - `patternfly-yew` is not selected as the component layer for the proposed production UI. New
   production Rust UI work targets PFE, subject to validation.
-- The React UI continues to ship at `/`, including in release branches, in the meantime.
+- The React UI continues to ship at `/`, including in release branches, until an approved default
+  switch for the affected releases. Preview work does not change this default.
 - A coverage matrix for the agreed initial UI scope and a representative prototype are produced
   before the decision becomes final. The decision is not accepted on the strength of the prototype
   alone. This validation does not require migrating the existing React UI.
 - The project avoids owning a PatternFly component library for Rust.
 - The project accepts a dependency on PFE's PF6 roadmap and coverage.
-- The long-term effect on the React UI (keep, freeze or retire) is left to a later ADR.
+- The intended React UI replacement follows the transition strategy above. Maintenance-only status,
+  default switching, and retirement each require explicit follow-up approval; none is triggered by
+  merging or accepting this ADR.
 - If the validation fails, the project stays on its current split, or reconsiders the alternatives
   above.
 
