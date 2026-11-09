@@ -71,11 +71,22 @@ LIMIT 1
 "#;
 
 /// The documents a job is extracting, published outside the workers' own transactions.
+///
+/// Only while a worker holds the document's claim (see [`claim`]): a stopped worker leaves its row
+/// behind, until another worker claims the document again.
 const CURRENT_SQL: &str = r#"
 SELECT c.sbom_id, n.name, c.started_at FROM correlation_refresh_current c
 JOIN sbom s USING (sbom_id)
 LEFT JOIN sbom_node n ON n.sbom_id = s.sbom_id AND n.node_id = s.node_id
 WHERE c.job_id = $1
+  AND EXISTS (
+    SELECT 1 FROM pg_locks l
+    WHERE l.locktype = 'advisory' AND l.granted AND l.database = (
+        SELECT oid FROM pg_database WHERE datname = current_database()
+      )
+      -- the two keys of pg_try_advisory_xact_lock(2681, hashtext(..))
+      AND l.classid = 2681 AND l.objid = hashtext(c.sbom_id::text)::oid AND l.objsubid = 2
+  )
 ORDER BY c.started_at, c.sbom_id
 "#;
 

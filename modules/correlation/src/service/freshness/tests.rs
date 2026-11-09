@@ -307,6 +307,27 @@ async fn the_current_document_is_visible_while_extracting(
     Ok(())
 }
 
+/// A document left behind by a stopped worker isn't shown as being extracted.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn document_of_a_stopped_worker_is_not_current(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let id = ingest(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &Extractors::default(), &WorkerConfig::default()).await?);
+    let queued = counts(ctx).await?.active_job.unwrap();
+    // as published by a worker which stopped while extracting it
+    ctx.db
+        .execute_raw(sql(
+            "INSERT INTO correlation_refresh_current(job_id, sbom_id, started_at) VALUES ($1, $2, now())",
+            vec![queued.id.into(), id.into()],
+        ))
+        .await?;
+
+    let job = counts(ctx).await?.active_job.unwrap();
+    assert_eq!((job.id, job.current), (queued.id, vec![]));
+    Ok(())
+}
+
 /// Workers extract documents of the same job in parallel, and the job shows all of them.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
