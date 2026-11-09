@@ -380,9 +380,6 @@ async fn sbom_severity_counts_cpe_matching(ctx: &TrustifyContext) -> Result<(), 
 /// `semver` scheme, match a component version that is neither range boundary --
 /// something the sparse cvelistv5 CPE data (stored under the exact-only `generic`
 /// scheme) cannot do.
-///
-/// NVD documents are ingested with an explicit `Format::NVD`: a bare NVD `cve`
-/// object is indistinguishable from OSV by content sniffing.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 #[instrument]

@@ -338,7 +338,7 @@ impl IngestorService {
         attach_validation(&mut result, reports);
 
         let change_entity = match fmt {
-            Format::CSAF | Format::CVE | Format::OSV => Some(ChangeEntity::Advisory),
+            Format::CSAF | Format::CVE | Format::NVD | Format::OSV => Some(ChangeEntity::Advisory),
             Format::SPDX | Format::CycloneDX => Some(ChangeEntity::Sbom),
             _ => None,
         };

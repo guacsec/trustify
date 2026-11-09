@@ -49,9 +49,7 @@ pub enum WireFormat {
 pub enum DetectedDocument {
     Csaf(Box<Csaf>),
     Cve(Box<CveRecord>),
-    /// A bare NVD CVE API `cve` object. NVD is never content-detected (it is
-    /// indistinguishable from OSV by sniffing), so it is only produced when
-    /// `Format::NVD` is passed explicitly as the hint.
+    /// A bare NVD CVE API `cve` object.
     Nvd(Box<NvdCve>),
     Osv(Box<Vulnerability>),
     /// SPDX keeps the raw Value because the loader applies license fixups before ingestion.
@@ -287,6 +285,17 @@ fn detect_format(value: &serde_json::Value, hint: Format) -> Result<Format, Erro
         return Ok(Format::ClearlyDefined);
     }
 
+    // The NVD CVE API requires `published` and `lastModified` for a CVE item, while OSV requires
+    // `modified`, which NVD doesn't have. Checked before OSV, which only keys on `id`.
+    if Format::NVD.matches_hint(hint)
+        && value.get("id").is_some()
+        && value.get("published").is_some()
+        && value.get("lastModified").is_some()
+        && value.get("modified").is_none()
+    {
+        return Ok(Format::NVD);
+    }
+
     // OSV checked last because `id` is a very generic key
     if Format::OSV.matches_hint(hint) && value.get("id").is_some() {
         return Ok(Format::OSV);
@@ -450,6 +459,40 @@ mod test {
         let detector = DocumentDetector::detect(&bytes)?;
         assert_eq!(detector.format(), Format::OSV);
         assert_eq!(detector.wire_format(), WireFormat::Yaml);
+        Ok(())
+    }
+
+    /// An NVD record is detected without a hint, and as an advisory.
+    #[test(tokio::test)]
+    async fn detect_nvd() -> Result<(), anyhow::Error> {
+        let bytes = document_bytes("nvd/CVE-2024-6387.json").await?;
+        for hint in [Format::Unknown, Format::Advisory] {
+            let detector = DocumentDetector::detect_as(&bytes, hint)?;
+            assert_eq!(
+                (detector.format(), detector.wire_format()),
+                (Format::NVD, WireFormat::Json)
+            );
+        }
+        Ok(())
+    }
+
+    /// OSV records, which have an `id` and possibly `published` too, stay OSV.
+    #[test(tokio::test)]
+    async fn osv_is_not_nvd() -> Result<(), anyhow::Error> {
+        for name in [
+            "osv/RUSTSEC-2021-0079.json",
+            "osv/RSEC-2023-6.yaml",
+            "osv/PYSEC-2024-55.yaml",
+            "osv/DSA-5790-1.json",
+            "osv/GHSA-qq9f-q439-2574.json",
+        ] {
+            let bytes = document_bytes(name).await?;
+            assert_eq!(
+                DocumentDetector::detect(&bytes)?.format(),
+                Format::OSV,
+                "{name}"
+            );
+        }
         Ok(())
     }
 
