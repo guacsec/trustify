@@ -18,11 +18,12 @@ use crate::{
     service::{
         Error, Warnings,
         advisory::osv::{
-            extract_scores, extract_vulnerability_ids, prefix::get_well_known_prefixes, translate,
+            ecosystem::native_ecosystem, extract_scores, extract_vulnerability_ids,
+            prefix::get_well_known_prefixes, translate,
         },
     },
 };
-use osv::schema::{Ecosystem, Event, Range, RangeType, ReferenceType, Vulnerability};
+use osv::schema::{Ecosystem, Event, Package, Range, RangeType, ReferenceType, Vulnerability};
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use tracing::instrument;
@@ -53,17 +54,7 @@ impl<'g> OsvLoader<'g> {
 
         let issuer = issuer.or(detect_organization(&osv));
 
-        let cve_ids: Vec<String> = osv
-            .aliases
-            .iter()
-            .flat_map(|aliases| {
-                aliases
-                    .iter()
-                    .filter(|e| e.starts_with("CVE-"))
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let cve_ids = extract_vulnerability_ids(&osv);
 
         let information = AdvisoryInformation {
             id: osv.id.clone(),
@@ -99,7 +90,7 @@ impl<'g> OsvLoader<'g> {
         // Batch create all vulnerabilities
         let mut vuln_creator = VulnerabilityCreator::new();
         for cve_id in &cve_ids {
-            vuln_creator.add(cve_id, ());
+            vuln_creator.add(*cve_id, ());
         }
         vuln_creator.create(tx).await?;
 
@@ -110,7 +101,22 @@ impl<'g> OsvLoader<'g> {
 
         extract_scores(&osv, &mut score_creator);
 
-        for cve_id in extract_vulnerability_ids(&osv) {
+        // The affected entries with a package, and their PURLs. Resolved once, not per CVE, so
+        // that PURL warnings are reported once, even without any CVE.
+        let affected = osv
+            .affected
+            .iter()
+            .flatten()
+            .filter_map(|affected| {
+                let Some(package) = &affected.package else {
+                    tracing::debug!(osv = osv.id, "OSV 'affected' entry without a package");
+                    return None;
+                };
+                Some((affected, package, package_purls(package, &warnings)))
+            })
+            .collect::<Vec<_>>();
+
+        for cve_id in cve_ids {
             self.graph.ingest_vulnerability(cve_id, (), tx).await?;
 
             let advisory_vuln = advisory
@@ -129,25 +135,7 @@ impl<'g> OsvLoader<'g> {
                 )
                 .await?;
 
-            for affected in osv.affected.iter().flatten() {
-                // we only process it when we have a package
-
-                let Some(package) = &affected.package else {
-                    tracing::debug!(
-                        osv = osv.id,
-                        "OSV document did not contain an 'affected' section",
-                    );
-                    continue;
-                };
-
-                // extract PURLs
-
-                let mut purls = vec![];
-                purls.extend(translate::to_purl(package).map(Purl::from));
-                if let Some(purl) = &package.purl {
-                    purls.extend(Purl::from_str(purl).ok());
-                }
-
+            for (affected, package, purls) in &affected {
                 for purl in purls {
                     // iterate through the known versions, apply the version, and create them
                     for version in affected.versions.iter().flatten() {
@@ -173,161 +161,20 @@ impl<'g> OsvLoader<'g> {
                         // Collect base PURL for range-based status entries
                         base_purls.insert(purl.clone());
 
-                        match (&range.range_type, &package.ecosystem) {
-                            (RangeType::Semver, _) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Semver,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Git, _) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Git,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::Maven(_)) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Maven,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::PyPI | Ecosystem::Python) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Python,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::Go) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Golang,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::Npm) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Npm,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::Packagist) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Packagist,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::NuGet) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::NuGet,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::RubyGems) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Gem,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::Hex) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Hex,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::SwiftURL) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Swift,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::Pub) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Pub,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (RangeType::Ecosystem, Ecosystem::CratesIO) => {
-                                process_status_entries(
-                                    build_package_status(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        VersionScheme::Cargo,
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
-                            (_, _) => {
-                                process_status_entries(
-                                    build_package_status_versions(
-                                        &advisory_vuln,
-                                        &purl,
-                                        range,
-                                        affected.versions.iter().flatten(),
-                                    ),
-                                    &mut purl_status_creator,
-                                );
-                            }
+                        match version_scheme(&range.range_type, &package.ecosystem) {
+                            Some(scheme) => process_status_entries(
+                                build_package_status(&advisory_vuln, purl, range, scheme),
+                                &mut purl_status_creator,
+                            ),
+                            None => process_status_entries(
+                                build_package_status_versions(
+                                    &advisory_vuln,
+                                    purl,
+                                    range,
+                                    affected.versions.iter().flatten(),
+                                ),
+                                &mut purl_status_creator,
+                            ),
                         }
                     }
                 }
@@ -349,6 +196,118 @@ impl<'g> OsvLoader<'g> {
             duplicate: false,
             validation: Vec::new(),
         })
+    }
+}
+
+/// Resolve package PURLs, reconciling repository information only for Lightwell.
+///
+/// Ordinary ecosystems retain their existing inferred and stated candidates without cross-field
+/// validation, version stripping or warnings. Lightwell uses one reconciled PURL, warning and
+/// skipping conflicting identities or repositories, and ignores a stated version with a warning.
+/// This is a local policy, not an OSV-mandated rejection rule. Stored qualifiers do not
+/// guarantee scoped matching.
+fn package_purls(package: &Package, warnings: &Warnings) -> Vec<Purl> {
+    let inferred = translate::to_purl(package).map(Purl::from);
+
+    if !matches!(&package.ecosystem, Ecosystem::RedHatLightwell(_)) {
+        let stated = package
+            .purl
+            .as_ref()
+            .and_then(|stated| Purl::from_str(stated).ok());
+        return inferred.into_iter().chain(stated).collect();
+    }
+
+    let stated = package.purl.as_ref().and_then(|stated| {
+        let mut purl = Purl::from_str(stated)
+            .inspect_err(|err| {
+                warnings.add(format!("Invalid OSV package PURL '{stated}': {err}"));
+            })
+            .ok()?;
+        if purl.version.take().is_some() {
+            warnings.add(format!(
+                "The PURL of an OSV package must not have a version, ignoring it: {stated}"
+            ));
+        }
+        Some(purl)
+    });
+
+    let purl = match (inferred, stated) {
+        (Some(inferred), Some(mut stated)) => {
+            // NuGet IDs are case-insensitive; the PURL parser preserves their spelling.
+            let same_name = if matches!(native_ecosystem(&package.ecosystem), Ecosystem::NuGet) {
+                inferred.name.eq_ignore_ascii_case(&stated.name)
+            } else {
+                inferred.name == stated.name
+            };
+            if inferred.ty != stated.ty || inferred.namespace != stated.namespace || !same_name {
+                warnings.add(format!(
+                    "Conflicting inferred and stated PURLs for OSV package '{}': {inferred}, \
+                     {stated}; affected entry ignored",
+                    package.name
+                ));
+                return vec![];
+            }
+            match (
+                inferred.qualifiers.get("repository_url"),
+                stated.qualifiers.get("repository_url"),
+            ) {
+                (Some(inferred_repo), Some(stated_repo)) if inferred_repo != stated_repo => {
+                    warnings.add(format!(
+                        "Conflicting repositories for OSV package '{}': {inferred}, \
+                         {stated}; affected entry ignored",
+                        package.name
+                    ));
+                    return vec![];
+                }
+                (Some(repository), None) => {
+                    stated
+                        .qualifiers
+                        .insert("repository_url".into(), repository.clone());
+                }
+                _ => {}
+            }
+            // Align the case-sensitive stored identity with the ecosystem/name spelling.
+            if matches!(native_ecosystem(&package.ecosystem), Ecosystem::NuGet) {
+                stated.name = inferred.name;
+            }
+            Some(stated)
+        }
+        (inferred, stated) => stated.or(inferred),
+    };
+    match purl {
+        Some(purl) => vec![purl],
+        None => {
+            warnings.add(format!(
+                "No usable PURL for OSV package '{}' ({:?}); affected entry ignored",
+                package.name, package.ecosystem
+            ));
+            vec![]
+        }
+    }
+}
+
+/// The version scheme to evaluate a range with, `None` if unknown.
+///
+/// A range of an unknown scheme is evaluated on the enumerated `versions` instead.
+fn version_scheme(range_type: &RangeType, ecosystem: &Ecosystem) -> Option<VersionScheme> {
+    match range_type {
+        RangeType::Semver => Some(VersionScheme::Semver),
+        RangeType::Git => Some(VersionScheme::Git),
+        RangeType::Ecosystem => Some(match native_ecosystem(ecosystem) {
+            Ecosystem::Maven(_) => VersionScheme::Maven,
+            Ecosystem::PyPI | Ecosystem::Python => VersionScheme::Python,
+            Ecosystem::Go => VersionScheme::Golang,
+            Ecosystem::Npm => VersionScheme::Npm,
+            Ecosystem::Packagist => VersionScheme::Packagist,
+            Ecosystem::NuGet => VersionScheme::NuGet,
+            Ecosystem::RubyGems => VersionScheme::Gem,
+            Ecosystem::Hex => VersionScheme::Hex,
+            Ecosystem::SwiftURL => VersionScheme::Swift,
+            Ecosystem::Pub => VersionScheme::Pub,
+            Ecosystem::CratesIO => VersionScheme::Cargo,
+            _ => return None,
+        }),
+        _ => None,
     }
 }
 
@@ -620,6 +579,290 @@ mod test {
         purl_status, version_range,
     };
     use trustify_test_context::{TrustifyContext, document};
+
+    #[rstest]
+    #[case(RangeType::Ecosystem, "Maven", Some(VersionScheme::Maven))]
+    #[case(RangeType::Ecosystem, "PyPI", Some(VersionScheme::Python))]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:Maven",
+        Some(VersionScheme::Maven)
+    )]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:PyPI",
+        Some(VersionScheme::Python)
+    )]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:Maven:https://maven.google.com",
+        Some(VersionScheme::Maven)
+    )]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:npm",
+        Some(VersionScheme::Npm)
+    )]
+    #[case(RangeType::Ecosystem, "Red Hat:rhel_aus:8.4::appstream", None)]
+    #[case(RangeType::Ecosystem, "Red Hat Lightwell:Debian:12", None)]
+    #[case(
+        RangeType::Ecosystem,
+        "Red Hat Lightwell:Python",
+        Some(VersionScheme::Python)
+    )]
+    #[case(
+        RangeType::Semver,
+        "Red Hat Lightwell:Maven",
+        Some(VersionScheme::Semver)
+    )]
+    #[case(RangeType::Git, "Red Hat Lightwell:PyPI", Some(VersionScheme::Git))]
+    #[case(
+        RangeType::Semver,
+        "Red Hat Lightwell:Debian:12",
+        Some(VersionScheme::Semver)
+    )]
+    #[case(
+        RangeType::Git,
+        "Red Hat Lightwell:Debian:12",
+        Some(VersionScheme::Git)
+    )]
+    #[test_log::test]
+    fn lightwell_version_scheme(
+        #[case] range_type: RangeType,
+        #[case] ecosystem: &str,
+        #[case] expected: Option<VersionScheme>,
+    ) -> anyhow::Result<()> {
+        let ecosystem = serde_json::from_value(ecosystem.into())?;
+        assert_eq!(version_scheme(&range_type, &ecosystem), expected);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("npm", "demo-weighting", Some("pkg:generic/demo-weighting"), vec!["pkg:npm/demo-weighting", "pkg:generic/demo-weighting"])]
+    #[case(
+        "Maven", "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
+        vec!["pkg:maven/groupid/artifactid", "pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"]
+    )]
+    #[case(
+        "Maven:https://vendor.example/repo", "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo", "pkg:maven/groupid/artifactid"]
+    )]
+    #[case(
+        "Maven:https://vendor.example/repo", "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo", "pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"]
+    )]
+    #[case("Maven", "groupid:artifactid", Some("pkg:maven/other/artifactid"), vec!["pkg:maven/groupid/artifactid", "pkg:maven/other/artifactid"])]
+    #[case("Maven", "groupid:artifactid", Some("pkg:maven/groupid/artifactid"), vec!["pkg:maven/groupid/artifactid", "pkg:maven/groupid/artifactid"])]
+    #[case("NuGet", "PowerShell", Some("pkg:nuget/powershell"), vec!["pkg:nuget/PowerShell", "pkg:nuget/powershell"])]
+    #[case("NuGet", "PowerShell", Some("pkg:nuget/OtherPackage"), vec!["pkg:nuget/PowerShell", "pkg:nuget/OtherPackage"])]
+    #[case("Maven", "groupid:artifactid", Some("invalid"), vec!["pkg:maven/groupid/artifactid"])]
+    #[case("Debian:12", "openssl", Some("invalid"), vec![])]
+    #[case("Debian:12", "openssl", None, vec![])]
+    #[case("Python", "pypdf2", None, vec![])]
+    #[test_log::test]
+    fn ordinary_package_purls_remain_unchanged(
+        #[case] ecosystem: &str,
+        #[case] name: &str,
+        #[case] stated: Option<&str>,
+        #[case] expected: Vec<&str>,
+    ) -> anyhow::Result<()> {
+        let package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem, "name": name, "purl": stated,
+        }))?;
+        let warnings = Warnings::new();
+        assert_eq!(
+            package_purls(&package, &warnings)
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert!(Vec::<String>::from(warnings).is_empty());
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("Red Hat Lightwell:Maven", None, vec!["pkg:maven/groupid/artifactid"])]
+    #[case("Red Hat Lightwell:Maven", Some("invalid"), vec!["pkg:maven/groupid/artifactid"])]
+    #[case(
+        "Red Hat Lightwell:Maven",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fvendor.example%2Frepo"]
+    )]
+    #[case(
+        "Red Hat Lightwell:Maven:https://packages.redhat.com/lightwell",
+        Some("pkg:maven/groupid/artifactid"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"]
+    )]
+    #[case(
+        "Red Hat Lightwell:Maven:https://packages.redhat.com/lightwell",
+        Some("pkg:maven/groupid/artifactid?arch=source"),
+        vec!["pkg:maven/groupid/artifactid?arch=source&repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"]
+    )]
+    #[case(
+        "Red Hat Lightwell:Maven:https://packages.redhat.com/lightwell",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"),
+        vec!["pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fpackages.redhat.com%2Flightwell"]
+    )]
+    #[case("Red Hat Lightwell:Maven", Some("pkg:maven/groupid/artifactid"), vec!["pkg:maven/groupid/artifactid"])]
+    #[test_log::test]
+    fn lightwell_package_purls(
+        #[case] ecosystem: &str,
+        #[case] stated: Option<&str>,
+        #[case] expected: Vec<&str>,
+    ) -> anyhow::Result<()> {
+        let package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem,
+            "name": "groupid:artifactid",
+            "purl": stated,
+        }))?;
+        let warnings = Warnings::new();
+        let purls = package_purls(&package, &warnings);
+        assert_eq!(
+            purls.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            expected
+        );
+        let warnings = Vec::<String>::from(warnings);
+        if stated == Some("invalid") {
+            assert_eq!(warnings.len(), 1);
+            assert!(warnings[0].starts_with("Invalid OSV package PURL"));
+        } else {
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+        Ok(())
+    }
+
+    #[rstest]
+    #[case(
+        "Red Hat Lightwell:Maven:https://vendor.example/repo",
+        "groupid:artifactid",
+        Some("pkg:maven/groupid/artifactid?repository_url=https:%2F%2Fother.example%2Frepo"),
+        "Conflicting repositories"
+    )]
+    #[case(
+        "Red Hat Lightwell:Maven",
+        "groupid:artifactid",
+        Some("pkg:npm/artifactid"),
+        "Conflicting inferred and stated PURLs"
+    )]
+    #[case("Red Hat Lightwell:Debian:12", "openssl", None, "No usable PURL")]
+    #[test_log::test]
+    fn unresolved_package_purls_warn(
+        #[case] ecosystem: &str,
+        #[case] name: &str,
+        #[case] stated: Option<&str>,
+        #[case] warning: &str,
+    ) -> anyhow::Result<()> {
+        let package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem, "name": name, "purl": stated,
+        }))?;
+        let warnings = Warnings::new();
+        assert!(package_purls(&package, &warnings).is_empty());
+        let warnings = Vec::<String>::from(warnings);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].starts_with(warning), "{:?}", warnings);
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("Red Hat Lightwell:Python")]
+    #[test_log::test]
+    fn python_without_purl_is_inferred(#[case] ecosystem: &str) -> anyhow::Result<()> {
+        let package: Package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem, "name": "pypdf2",
+        }))?;
+        let warnings = Warnings::new();
+        assert_eq!(
+            version_scheme(&RangeType::Ecosystem, &package.ecosystem),
+            Some(VersionScheme::Python)
+        );
+        let purls = package_purls(&package, &warnings);
+        assert_eq!(
+            purls.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            ["pkg:pypi/pypdf2"]
+        );
+        assert!(Vec::<String>::from(warnings).is_empty());
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("PowerShell", "pkg:nuget/powershell", "pkg:nuget/PowerShell")]
+    #[case("powershell", "pkg:nuget/PowerShell", "pkg:nuget/powershell")]
+    #[case(
+        "PowerShell",
+        "pkg:nuget/powershell?arch=x86_64&repository_url=https:%2F%2Fvendor.example%2Fnuget",
+        "pkg:nuget/PowerShell?arch=x86_64&repository_url=https:%2F%2Fvendor.example%2Fnuget"
+    )]
+    #[test_log::test]
+    fn lightwell_nuget_uses_inferred_name(
+        #[case] name: &str,
+        #[case] stated: &str,
+        #[case] expected: &str,
+    ) -> anyhow::Result<()> {
+        for (stated, expected) in [(stated, Some(expected)), ("pkg:nuget/OtherPackage", None)] {
+            let package = serde_json::from_value(serde_json::json!({
+                "ecosystem": "Red Hat Lightwell:NuGet", "name": name, "purl": stated,
+            }))?;
+            let warnings = Warnings::new();
+            let purls = package_purls(&package, &warnings);
+            let warnings = Vec::<String>::from(warnings);
+            if let Some(expected) = expected {
+                assert_eq!(
+                    purls.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                    [expected]
+                );
+                assert!(warnings.is_empty(), "{warnings:?}");
+            } else {
+                assert!(purls.is_empty());
+                assert_eq!(warnings.len(), 1);
+                assert!(warnings[0].starts_with("Conflicting inferred and stated PURLs"));
+            }
+        }
+        Ok(())
+    }
+
+    #[rstest]
+    #[case("Debian:12", Some("pkg:deb/debian/example"), "pkg:deb/debian/example")]
+    #[case(
+        "Red Hat Lightwell:Debian:12",
+        Some("pkg:deb/debian/example"),
+        "pkg:deb/debian/example"
+    )]
+    #[case("CRAN", None, "pkg:cran/example")]
+    #[case("Red Hat Lightwell:CRAN", None, "pkg:cran/example")]
+    #[test_log::test]
+    fn purl_and_range_capabilities_are_independent(
+        #[case] ecosystem: &str,
+        #[case] stated: Option<&str>,
+        #[case] expected: &str,
+    ) -> anyhow::Result<()> {
+        let package: Package = serde_json::from_value(serde_json::json!({
+            "ecosystem": ecosystem, "name": "example", "purl": stated,
+        }))?;
+        let warnings = Warnings::new();
+        let purls = package_purls(&package, &warnings);
+        assert_eq!(
+            purls.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            [expected]
+        );
+        assert!(Vec::<String>::from(warnings).is_empty());
+        assert_eq!(
+            version_scheme(&RangeType::Ecosystem, &package.ecosystem),
+            None
+        );
+        assert_eq!(
+            version_scheme(&RangeType::Semver, &package.ecosystem),
+            Some(VersionScheme::Semver)
+        );
+        assert_eq!(
+            version_scheme(&RangeType::Git, &package.ecosystem),
+            Some(VersionScheme::Git)
+        );
+        Ok(())
+    }
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
