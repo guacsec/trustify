@@ -16,22 +16,25 @@ use tokio::{
     task::spawn_blocking,
     time::{Instant, timeout_at},
 };
+use tracing::instrument;
 use trustify_common::{
     cpe::Cpe,
     hashing::{Contexts, Digests},
     purl::Purl,
 };
 use trustify_entity::{source_document, version_scheme::VersionScheme};
-use trustify_module_ingestor::service::{DetectedDocument, DocumentDetector, Format};
 use trustify_module_ingestor::{
     graph::advisory::{
         purl_status::PurlStatus as GraphPurlStatus,
         vers::parse_vers,
         version::{Version, VersionInfo, VersionSpec},
     },
-    service::advisory::csaf::{
-        util::{self, ResolveProductIdCache},
-        value::{self, OnInvalidData},
+    service::{
+        DetectedDocument, DocumentDetector, Format,
+        advisory::csaf::{
+            util::{self, ResolveProductIdCache},
+            value::{self, OnInvalidData},
+        },
     },
 };
 use trustify_module_storage::service::{StorageBackend, StorageKey, StorageResult};
@@ -278,6 +281,7 @@ where
 }
 
 /// Both SBOM and advisory recovery share byte/digest/deadline/concurrency enforcement.
+#[instrument(skip_all, err(level = tracing::Level::INFO))]
 async fn load_parsed<S: StorageBackend, T: Send + 'static, F>(
     sbom_id: Uuid,
     metadata: &source_document::Model,

@@ -128,7 +128,7 @@ impl ResponseError for Error {
                     }
                     _ => (StatusCode::SERVICE_UNAVAILABLE, "ReportEvidenceUnavailable"),
                 };
-                log::warn!("{err:?}");
+                tracing::warn!("{err:?}");
                 HttpResponse::build(status).json(ErrorInformation::new(code, err))
             }
             Self::Purl(err) => {
@@ -181,7 +181,7 @@ impl ResponseError for Error {
             // They are logged and a generic error response is returned to avoid leaking
             // internal state to end users.
             err => {
-                log::warn!("{err}");
+                tracing::warn!("{err}");
                 HttpResponse::InternalServerError().json(ErrorInformation::new("Internal", ""))
             }
         }

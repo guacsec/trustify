@@ -12,11 +12,17 @@ use std::{
     collections::{BTreeSet, HashMap, HashSet},
     io,
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use test_context::test_context;
 use tokio::io::AsyncRead;
+use tracing::{Instrument, Subscriber, instrument::WithSubscriber, span};
+use tracing_subscriber::{
+    Layer,
+    layer::{Context, SubscriberExt},
+    registry::LookupSpan,
+};
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::{
     advisory, cpe, sbom, source_document, version_range, version_scheme::VersionScheme,
@@ -62,6 +68,103 @@ async fn recover(ctx: &TrustifyContext, document: Value) -> anyhow::Result<(Uuid
         source_before
     );
     Ok((id, result))
+}
+
+/// Captures real recovery spans without replacing the database or object-storage operations.
+#[derive(Clone, Default)]
+struct RecoverySpans(Arc<Mutex<Vec<RecoverySpan>>>);
+
+struct RecoverySpan {
+    target: &'static str,
+    name: &'static str,
+    parent: Option<&'static str>,
+    fields: Vec<&'static str>,
+}
+
+impl<S> Layer<S> for RecoverySpans
+where
+    S: Subscriber + for<'lookup> LookupSpan<'lookup>,
+{
+    fn on_new_span(&self, attrs: &span::Attributes<'_>, id: &span::Id, context: Context<'_, S>) {
+        let metadata = attrs.metadata();
+        if metadata
+            .target()
+            .starts_with("trustify_module_fundamental::purl::service::report")
+        {
+            let current = context.span(id).unwrap();
+            self.0.lock().unwrap().push(RecoverySpan {
+                target: metadata.target(),
+                name: metadata.name(),
+                parent: current.parent().map(|parent| parent.metadata().name()),
+                fields: metadata.fields().iter().map(|field| field.name()).collect(),
+            });
+        }
+    }
+}
+
+/// Recovery I/O remains attributable to its request without recording source or storage arguments.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn recovery_io_is_traced_without_arguments(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given a real stored SBOM and a subscriber scoped to one recovery request.
+    let id = Uuid::parse_str(&ctx.ingest_json(cdx(library())).await?.id)?;
+    let rows = PurlService::fetch_sbom_purl_rows(&[id], &ctx.db).await?;
+    let spans = RecoverySpans::default();
+    let subscriber = tracing_subscriber::registry().with(spans.clone());
+
+    // When the same recovery interface used by report generation reads its inputs.
+    let result = async {
+        ReportContext::load(&rows, &HashMap::new(), &ctx.storage.clone().into(), &ctx.db)
+            .instrument(tracing::info_span!("report_request"))
+            .await
+    }
+    .with_subscriber(subscriber)
+    .await?;
+
+    // Then the provider and nested I/O spans are preserved, without document payloads or arguments.
+    assert_eq!(
+        result.key(id, "lib").provider.as_deref(),
+        Some("https://www.redhat.com")
+    );
+    let spans = spans.0.lock().unwrap();
+    for (target, name, parent) in [
+        (
+            "trustify_module_fundamental::purl::service::report",
+            "load",
+            "report_request",
+        ),
+        (
+            "trustify_module_fundamental::purl::service::report",
+            "load_sources",
+            "load",
+        ),
+        (
+            "trustify_module_fundamental::purl::service::report::source",
+            "load_parsed",
+            "load_sources",
+        ),
+        (
+            "trustify_module_fundamental::purl::service::report::context",
+            "load",
+            "load",
+        ),
+    ] {
+        let matching = spans
+            .iter()
+            .filter(|span| span.target == target && span.name == name)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicate I/O span {target}::{name}"
+        );
+        assert_eq!(matching[0].parent, Some(parent));
+        assert!(
+            matching[0].fields.is_empty(),
+            "I/O arguments must not be captured"
+        );
+    }
+    Ok(())
 }
 
 /// A stable ref or a unique anonymous identity both recover an existing component's provider.
