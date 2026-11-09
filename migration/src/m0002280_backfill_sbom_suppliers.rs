@@ -2,12 +2,13 @@
 /// column using the corrected `describing_packages()` logic.
 use crate::data::{
     MigrationTraitWithData, SchemaDataManager,
-    sbom::{Id, Sbom, SpdxSbom},
+    sbom::{Id, SpdxSbom},
 };
+use anyhow::bail;
 use futures_util::FutureExt;
 use sea_orm::{ActiveModelBehavior, ActiveModelTrait, Set};
 use sea_orm_migration::prelude::*;
-use trustify_module_ingestor::graph::sbom::spdx::suppliers;
+use trustify_module_ingestor::{graph::sbom::spdx::suppliers, service::DetectedDocument};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -35,11 +36,11 @@ impl MigrationTraitWithData for Migration {
         manager
             .process(self, |sbom: SpdxSbom, id: Id, tx| {
                 async move {
-                    let Sbom::Spdx(spdx) = sbom.0 else {
-                        return Ok(());
+                    let DetectedDocument::Spdx(spdx) = sbom.0.0 else {
+                        bail!("SBOM {} labeled as SPDX isn't SPDX", id.sbom);
                     };
 
-                    let new_suppliers = suppliers(&spdx);
+                    let new_suppliers = suppliers(&spdx.sbom);
 
                     let mut model = legacy::ActiveModel::new();
                     model.sbom_id = Set(id.sbom);

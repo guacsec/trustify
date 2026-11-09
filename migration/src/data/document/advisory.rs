@@ -1,9 +1,7 @@
 use super::Document;
-use bytes::Bytes;
-use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use sea_orm::{FromQueryResult, QuerySelect, prelude::*};
 use trustify_entity::advisory;
-use trustify_module_ingestor::service::advisory::cve::record::CveRecord;
+use trustify_module_ingestor::service::{DetectedDocument, Format};
 use trustify_module_storage::service::StorageBackend;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, FromQueryResult)]
@@ -12,34 +10,8 @@ pub struct Id {
     pub source: Uuid,
 }
 
-#[allow(clippy::large_enum_variant)]
-pub enum Advisory {
-    Cve(CveRecord),
-    Csaf(Csaf),
-    Osv(osv::schema::Vulnerability),
-    Other(Bytes),
-}
-
-impl From<Bytes> for Advisory {
-    fn from(value: Bytes) -> Self {
-        serde_json::from_slice(&value)
-            .map(Advisory::Cve)
-            // a record with applicability statements we can't parse
-            .or_else(|_| {
-                serde_json::from_slice::<cve::Cve>(&value).map(|cve| Advisory::Cve(cve.into()))
-            })
-            .or_else(|_| serde_json::from_slice(&value).map(Advisory::Csaf))
-            .or_else(|_| serde_json::from_slice(&value).map(Advisory::Osv))
-            // OSV is the only advisory format which can be ingested as YAML too
-            .or_else(|_| {
-                serde_saphyr::from_slice::<serde_json::Value>(&value)
-                    .map_err(|err| err.to_string())
-                    .and_then(|value| serde_json::from_value(value).map_err(|err| err.to_string()))
-                    .map(Advisory::Osv)
-            })
-            .unwrap_or_else(|_err| Advisory::Other(value))
-    }
-}
+/// The document of an advisory: CSAF, CVE, NVD or OSV.
+pub struct Advisory(pub DetectedDocument);
 
 impl Document for Advisory {
     type Id = Id;
@@ -59,6 +31,8 @@ impl Document for Advisory {
         S: StorageBackend + Send + Sync,
         C: ConnectionTrait,
     {
-        super::load(id.source, storage, tx).await
+        super::load(id.source, Format::Advisory, storage, tx)
+            .await
+            .map(Self)
     }
 }

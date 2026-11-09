@@ -3,11 +3,12 @@ pub mod sbom;
 
 use crate::data::Partitionable;
 use anyhow::{anyhow, bail};
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use futures_util::TryStreamExt;
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait};
 use trustify_common::id::Id;
 use trustify_entity::source_document;
+use trustify_module_ingestor::service::{DetectedDocument, DocumentDetector, Format};
 use trustify_module_storage::service::{StorageBackend, StorageKey};
 use uuid::Uuid;
 
@@ -29,14 +30,13 @@ pub trait Document: Sized + Send + Sync + 'static {
         C: ConnectionTrait;
 }
 
-pub(crate) async fn load<D>(
+/// Load and parse the source document `id`, like ingestion does, as one of the formats of `hint`.
+pub(crate) async fn load(
     id: Uuid,
+    hint: Format,
     storage: &(impl StorageBackend + Send + Sync),
     tx: &impl ConnectionTrait,
-) -> anyhow::Result<D>
-where
-    D: From<Bytes> + Send,
-{
+) -> anyhow::Result<DetectedDocument> {
     let source = source_document::Entity::find_by_id(id).one(tx).await?;
 
     let Some(source) = source else {
@@ -52,10 +52,13 @@ where
         .map_err(|err| anyhow!("Failed to retrieve document: {err}"))?
         .ok_or_else(|| anyhow!("Missing source document for: {id}"))?;
 
-    stream
+    let bytes = stream
         .try_collect::<BytesMut>()
         .await
-        .map_err(|err| anyhow!("Failed to collect bytes: {err}"))
-        .map(|bytes| bytes.freeze())
-        .map(|bytes| bytes.into())
+        .map_err(|err| anyhow!("Failed to collect bytes: {err}"))?;
+
+    // ingestion accepted it, so failing to parse it is a problem of this version
+    DocumentDetector::detect_as(&bytes, hint)
+        .map(DocumentDetector::into_document)
+        .map_err(|err| anyhow!("Unable to parse source document {id}: {err}"))
 }

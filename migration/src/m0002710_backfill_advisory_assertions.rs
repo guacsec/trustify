@@ -26,7 +26,7 @@ use sea_orm_migration::prelude::*;
 use trustify_module_ingestor::{
     graph::Graph,
     service::{
-        Warnings,
+        DetectedDocument, Warnings,
         advisory::{csaf::loader::CsafLoader, cve::loader::CveLoader, osv::loader::OsvLoader},
     },
 };
@@ -72,10 +72,13 @@ impl Document for OlderAdvisory {
 
 /// Replace the statements of an advisory.
 async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyhow::Result<()> {
-    if matches!(advisory, Advisory::Other(_)) {
-        // ingestion accepted it, so this isn't the document's fault
+    let document = advisory.0;
+    if !matches!(
+        document,
+        DetectedDocument::Csaf(_) | DetectedDocument::Cve(_) | DetectedDocument::Osv(_)
+    ) {
         bail!(
-            "unable to parse the document of advisory {}, keeping its statements would leave it wrong",
+            "unable to backfill the statements of advisory {}, keeping them would leave them wrong",
             id.advisory
         );
     }
@@ -102,8 +105,8 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
     .await?;
 
     let warnings = Warnings::new();
-    match advisory {
-        Advisory::Csaf(csaf) => {
+    match document {
+        DetectedDocument::Csaf(csaf) => {
             tx.execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 "UPDATE advisory SET publisher_namespace = $1 WHERE id = $2",
@@ -116,13 +119,13 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
             CsafLoader::backfill_statements(&Graph::new(), &csaf, id.advisory, &warnings, tx)
                 .await?;
         }
-        Advisory::Cve(record) => {
+        DetectedDocument::Cve(record) => {
             CveLoader::backfill_statements(&record, id.advisory, &warnings, tx).await?;
         }
-        Advisory::Osv(osv) => {
+        DetectedDocument::Osv(osv) => {
             OsvLoader::backfill_statements(&osv, id.advisory, &warnings, tx).await?;
         }
-        Advisory::Other(_) => {}
+        _ => {}
     }
 
     for warning in Vec::<String>::from(warnings) {
