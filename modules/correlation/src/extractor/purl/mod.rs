@@ -46,6 +46,7 @@ use super::{
     NodeMatch, NodeRef,
 };
 use crate::{
+    compute::on_worker,
     error::Error,
     model::{
         AssertionOrigin, ConfidenceFactor, ConfidenceReason, EnabledBy, IdentifierKind,
@@ -65,7 +66,7 @@ use std::{
     cmp::Ordering,
     collections::{BTreeMap, BTreeSet, HashMap},
     iter,
-    mem::take,
+    mem::{replace, take},
     sync::Arc,
 };
 use tracing::{Instrument, Span, field, info_span, instrument};
@@ -692,7 +693,7 @@ impl Extractor for PurlExtractor {
         tx: &DatabaseTransaction,
     ) -> Result<Vec<ComponentMatch>, Error> {
         let mut matches = CollectMatches::default();
-        match_batched(components, BATCH, &mut matches, tx).await?;
+        match_batched(components, BATCH, FETCH, &mut matches, tx).await?;
         Ok(matches.0)
     }
 
@@ -703,7 +704,7 @@ impl Extractor for PurlExtractor {
         sink: &mut (dyn MatchSink + Send),
         tx: &DatabaseTransaction,
     ) -> Result<(), Error> {
-        match_batched(components, BATCH, sink, tx).await
+        match_batched(components, BATCH, FETCH, sink, tx).await
     }
 
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
@@ -747,6 +748,7 @@ type Targets = BTreeMap<BTreeSet<Key>, Vec<usize>>;
 async fn match_batched(
     components: &[Vec<IdentifierRef>],
     batch_size: usize,
+    fetch: usize,
     sink: &mut (dyn MatchSink + Send),
     tx: &DatabaseTransaction,
 ) -> Result<(), Error> {
@@ -797,7 +799,7 @@ async fn match_batched(
         }
     }
 
-    let rules = rules(tx).await?;
+    let rules = Arc::new(rules(tx).await?);
     let sources = sources(&rules).collect::<Vec<_>>();
     let mut versions = Vec::new();
     let mut batch = Vec::new();
@@ -808,7 +810,16 @@ async fn match_batched(
         if versions.len() < batch_size && sets.peek().is_some() {
             continue;
         }
-        match_batch(take(&mut versions), take(&mut batch), &sources, sink, tx).await?;
+        match_batch(
+            take(&mut versions),
+            take(&mut batch),
+            &rules,
+            &sources,
+            fetch,
+            sink,
+            tx,
+        )
+        .await?;
     }
     Ok(())
 }
@@ -861,8 +872,18 @@ impl Batches {
     }
 }
 
+/// Match rows read at once from the cursor of a batch, see [`match_batch`].
+const FETCH: usize = 1000;
+
+/// The cursor over the match rows of a batch, see [`match_batch`].
+const CURSOR: &str = "purl_status_matches";
+
 /// Match one batch of versioned PURLs, and group the rows per set of keys, handing the matches of
 /// each set to `sink` as one part.
+///
+/// The rows are read through a cursor, ordered by version, so that only the rows of the versions
+/// a set of keys still needs are held, not the rows of the whole batch: the versions of a kernel
+/// have millions. Unlike a stream, a cursor lets the sink write in between.
 #[instrument(
     skip_all,
     fields(
@@ -878,105 +899,227 @@ impl Batches {
 async fn match_batch(
     versions: Vec<Uuid>,
     targets: Vec<(&BTreeSet<Key>, &[usize])>,
+    rules: &Arc<Vec<Box<dyn RangeRule>>>,
     sources: &[(Source<'_>, Candidates)],
+    fetch: usize,
     sink: &mut (dyn MatchSink + Send),
     tx: &DatabaseTransaction,
 ) -> Result<(), Error> {
-    let rows = load_purl_status_matches(versions, sources, tx).await?;
-    let ids = rows
-        .iter()
-        .flat_map(|row| row.matched.status_ids.iter().copied())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-    let stated = load_stated(
-        Expr::col((purl_status::Entity, purl_status::Column::Id)).eq(ids_param(&ids)),
-        tx,
-    )
+    let Some(query) = purl_status_matches(&Scope::Versions(versions), sources) else {
+        return Ok(());
+    };
+    let (query, values) = query.build(PostgresQueryBuilder);
+    // SAFETY: `query` is built by sea-query, with all values bound as parameters. A cursor can't
+    // be declared with a parameterized name or query.
+    tx.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        format!("DECLARE {CURSOR} NO SCROLL CURSOR FOR {query}"),
+        values,
+    ))
     .await?;
-    let span = Span::current();
-    span.record("rows", rows.len());
-    span.record("statuses", ids.len());
+    let result = match_cursor(targets, rules, fetch, sink, tx).await;
+    let closed = tx.execute_unprepared(&format!("CLOSE {CURSOR}")).await;
+    // a failed statement aborts the transaction, failing the close too
+    result?;
+    closed?;
+    Ok(())
+}
 
-    // the stated rows of each versioned PURL, without the qualifiers of a component
-    let unqualified = Arc::new(qualified_purl::Qualifiers::default());
-    let mut versions = HashMap::<Uuid, Vec<_>>::new();
-    for row in rows {
-        let source = source_of(sources, row.matched.source)?;
-        let entry = versions.entry(row.versioned_purl_id).or_default();
-        for status in row.matched.into_rows(&stated, unqualified.clone()) {
-            entry.push((source, status));
+/// Read the rows of [`CURSOR`], `fetch` at a time, and hand over the matches of each set of keys
+/// once all of its versions are read.
+///
+/// The fetching and loading run here, the grouping on a worker thread (see [`on_worker`]).
+async fn match_cursor(
+    targets: Vec<(&BTreeSet<Key>, &[usize])>,
+    rules: &Arc<Vec<Box<dyn RangeRule>>>,
+    fetch: usize,
+    sink: &mut (dyn MatchSink + Send),
+    tx: &DatabaseTransaction,
+) -> Result<(), Error> {
+    // the sets waiting for their versions, by their last version
+    let mut waiting = BTreeMap::<Uuid, Vec<(&BTreeSet<Key>, &[usize])>>::new();
+    let mut held = Held::default();
+    for target in targets {
+        let Some((last, _)) = target.0.last() else {
+            continue;
+        };
+        for (version, _) in target.0 {
+            *held.users.entry(*version).or_default() += 1;
         }
+        waiting.entry(*last).or_default().push(target);
     }
 
-    // `group` only relates the rows of one component, and only depends on its keys: group once
-    // per distinct set of keys, and one set at a time, as copying all rows for all components at
-    // once doesn't fit into memory (e.g. 15M rows for the kernel of a RHEL SBOM).
-    let mut grouped = 0;
-    let mut matches = 0;
-    for (keys, components) in targets {
-        let rows = keys.iter().flat_map(|(version, qualifiers)| {
-            let qualifiers = Arc::new(qualified_purl::Qualifiers(qualifiers.clone()));
-            versions
-                .get(version)
-                .into_iter()
-                .flatten()
-                .map(move |(source, status)| {
-                    let status = PurlStatusRow {
-                        sbom_qualifiers: qualifiers.clone(),
-                        ..status.clone()
-                    };
-                    ((), *source, status)
-                })
-        });
-        let assertions = group(rows.inspect(|_| grouped += 1))
-            .map(|((), assertion)| assertion)
+    let span = Span::current();
+    let (mut rows, mut statuses, mut grouped, mut matches) = (0, 0, 0, 0);
+    // the rows of a version which may continue on the next page
+    let mut open = Vec::<PurlStatusMatch>::new();
+    loop {
+        let page = PurlStatusMatch::find_by_statement(Statement::from_string(
+            DbBackend::Postgres,
+            format!("FETCH {fetch} FROM {CURSOR}"),
+        ))
+        .all(tx)
+        .instrument(info_span!("fetching purl status matches"))
+        .await?;
+        let end = page.len() < fetch;
+        rows += page.len();
+        open.extend(page);
+
+        // the versions before the last one read are complete, and all of them at the end
+        let complete = match open.last() {
+            Some(last) if !end => {
+                let last = last.versioned_purl_id;
+                open.partition_point(|row| row.versioned_purl_id < last)
+            }
+            _ => open.len(),
+        };
+        let complete = open.drain(..complete).collect::<Vec<_>>();
+        let ids = complete
+            .iter()
+            .flat_map(|row| row.matched.status_ids.iter().copied())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect::<Vec<_>>();
-        if assertions.is_empty() {
-            continue;
-        }
-        matches += assertions.len() * components.len();
-        // the components share the assertions, instead of a copy each
-        sink.accept(MatchPart {
-            components: components.to_vec(),
-            assertions,
+        statuses += ids.len();
+        let stated = match ids.is_empty() {
+            true => StatedRows::default(),
+            false => {
+                load_stated(
+                    Expr::col((purl_status::Entity, purl_status::Column::Id)).eq(ids_param(&ids)),
+                    tx,
+                )
+                .await?
+            }
+        };
+
+        // the sets whose versions are all complete
+        let ready = match open.first() {
+            Some(first) => {
+                let rest = waiting.split_off(&first.versioned_purl_id);
+                replace(&mut waiting, rest)
+            }
+            None => take(&mut waiting),
+        };
+        let ready = ready
+            .into_values()
+            .flatten()
+            .map(|(keys, components)| (keys.clone(), components.to_vec()))
+            .collect::<Vec<_>>();
+
+        let rules = rules.clone();
+        let (next, parts, page_grouped) = on_worker(move || {
+            let mut held = held;
+            let sources = sources(&rules).collect::<Vec<_>>();
+            held.expand(complete, &stated, &sources)?;
+            let mut grouped = 0;
+            let parts = ready
+                .into_iter()
+                .filter_map(|(keys, components)| {
+                    let assertions = held.group(&keys, &sources, &mut grouped);
+                    held.release(&keys);
+                    (!assertions.is_empty()).then_some(MatchPart {
+                        components,
+                        assertions,
+                    })
+                })
+                .collect::<Vec<_>>();
+            Ok((held, parts, grouped))
         })
         .await?;
+        held = next;
+        grouped += page_grouped;
+
+        for part in parts {
+            matches += part.assertions.len() * part.components.len();
+            // the components share the assertions, instead of a copy each
+            sink.accept(part).await?;
+        }
+
+        if end {
+            break;
+        }
     }
+    span.record("rows", rows);
+    span.record("statuses", statuses);
     span.record("grouped", grouped);
     span.record("matches", matches);
     Ok(())
 }
 
-// ponytail: ad-hoc PURLs not in DB won't match; add fallback with literal version_matches when needed
+/// What [`match_cursor`] keeps between pages, moved to its worker and back.
+#[derive(Default)]
+struct Held {
+    /// The stated rows of each complete versioned PURL, without the qualifiers of a component, with
+    /// the index of their source.
+    versions: HashMap<Uuid, Vec<(usize, PurlStatusRow)>>,
+    /// The sets of keys still waiting for each version.
+    users: HashMap<Uuid, usize>,
+}
 
-/// Load the candidates of all sources matching any of the given versioned_purl IDs, in a single
-/// statement.
-///
-/// 1. `candidate`: one scan over the stated rows of the versions' packages, evaluating every
-///    source (lateral union). The rows are grouped by stated range and candidate, as many rows
-///    (e.g. one per advisory of a kernel) state the same range.
-/// 2. `matched`: `version_matches()` once per group and SBOM version.
-/// 3. The rows of the matching groups, by primary key.
-async fn load_purl_status_matches(
-    versioned_purl_ids: Vec<Uuid>,
-    sources: &[(Source<'_>, Candidates)],
-    connection: &impl ConnectionTrait,
-) -> Result<Vec<PurlStatusMatch>, Error> {
-    let Some(query) = purl_status_matches(&Scope::Versions(versioned_purl_ids), sources) else {
-        return Ok(Vec::new());
-    };
-    let (sql, values) = query.build(PostgresQueryBuilder);
-    Ok(
-        PurlStatusMatch::find_by_statement(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            sql,
-            values,
-        ))
-        .all(connection)
-        .instrument(info_span!("loading purl status matches"))
-        .await?,
-    )
+impl Held {
+    /// Add the stated rows of complete match rows to the rows of their versions.
+    fn expand(
+        &mut self,
+        rows: Vec<PurlStatusMatch>,
+        stated: &StatedRows,
+        sources: &[(Source<'_>, Candidates)],
+    ) -> Result<(), Error> {
+        let unqualified = Arc::new(qualified_purl::Qualifiers::default());
+        for row in rows {
+            let source = usize::try_from(row.matched.source)
+                .ok()
+                .filter(|source| *source < sources.len())
+                .ok_or(Error::CandidateSource(row.matched.source))?;
+            let entry = self.versions.entry(row.versioned_purl_id).or_default();
+            for status in row.matched.into_rows(stated, unqualified.clone()) {
+                entry.push((source, status));
+            }
+        }
+        Ok(())
+    }
+
+    /// Group the rows of one set of keys into its assertions.
+    ///
+    /// `group` only relates the rows of one component, and only depends on its keys: group once
+    /// per distinct set of keys, and one set at a time, as copying all rows for all components at
+    /// once doesn't fit into memory (e.g. 15M rows for the kernel of a RHEL SBOM).
+    fn group(
+        &self,
+        keys: &BTreeSet<Key>,
+        sources: &[(Source<'_>, Candidates)],
+        grouped: &mut usize,
+    ) -> Vec<Assertion> {
+        let rows =
+            keys.iter().flat_map(|(version, qualifiers)| {
+                let qualifiers = Arc::new(qualified_purl::Qualifiers(qualifiers.clone()));
+                self.versions.get(version).into_iter().flatten().filter_map(
+                    move |(source, status)| {
+                        let (source, _) = sources.get(*source)?;
+                        let status = PurlStatusRow {
+                            sbom_qualifiers: qualifiers.clone(),
+                            ..status.clone()
+                        };
+                        Some(((), *source, status))
+                    },
+                )
+            });
+        group(rows.inspect(|_| *grouped += 1))
+            .map(|((), assertion)| assertion)
+            .collect()
+    }
+
+    /// A set of keys is done: drop the rows of its versions which no other set needs.
+    fn release(&mut self, keys: &BTreeSet<Key>) {
+        for (version, _) in keys {
+            if let Some(count) = self.users.get_mut(version) {
+                *count -= 1;
+                if *count == 0 {
+                    self.users.remove(version);
+                    self.versions.remove(version);
+                }
+            }
+        }
+    }
 }
 
 /// What a PURL match statement matches the stated rows against.
@@ -987,7 +1130,7 @@ enum Scope {
     Advisory(Uuid),
 }
 
-/// The statement of [`load_purl_status_matches`] and [`load_advisory_purl_matches`], `None`
+/// The statement of [`match_batch`] and [`load_advisory_purl_matches`], `None`
 /// without sources.
 ///
 /// 1. `candidate`: one scan over the stated rows in scope, evaluating every source (lateral
@@ -1216,7 +1359,12 @@ impl Scope {
     fn targets(&self, rows: &mut SelectStatement, matched: &Alias) {
         match self {
             Self::Versions(_) => {
-                rows.column((matched.clone(), Alias::new("versioned_purl_id")));
+                // ordered, as the rows are read per version, see `match_batch`
+                rows.column((matched.clone(), Alias::new("versioned_purl_id")))
+                    .order_by(
+                        (matched.clone(), Alias::new("versioned_purl_id")),
+                        Order::Asc,
+                    );
             }
             Self::Advisory(_) => {
                 let sbom_purl = Alias::new("sbom_purl");

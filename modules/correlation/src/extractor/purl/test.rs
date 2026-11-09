@@ -1774,22 +1774,27 @@ async fn batches_match_like_a_single_batch(ctx: &TrustifyContext) -> anyhow::Res
         matches.sort_by_cached_key(|m| format!("{m:?}"));
         matches
     };
-    let batched = async |components: &[Vec<IdentifierRef>], batch_size| {
+    let batched = async |components: &[Vec<IdentifierRef>], batch_size, fetch| {
         let mut matches = CollectMatches::default();
-        match_batched(components, batch_size, &mut matches, &tx)
+        match_batched(components, batch_size, fetch, &mut matches, &tx)
             .await
             .map(|()| matches.0)
     };
-    let single = sorted(batched(&identifiers, usize::MAX).await?);
+    let single = sorted(batched(&identifiers, usize::MAX, 1_000_000).await?);
     assert!(single.iter().any(|m| m.component == identifiers.len() - 1));
-    for batch_size in [1, 2] {
+    for (batch_size, fetch) in [
+        (1, 1_000_000),
+        (2, 1_000_000),
+        (usize::MAX, 1),
+        (usize::MAX, 2),
+    ] {
         assert_eq!(
-            sorted(batched(&identifiers, batch_size).await?),
+            sorted(batched(&identifiers, batch_size, fetch).await?),
             single,
-            "batch size {batch_size}"
+            "batch size {batch_size}, fetch {fetch}"
         );
     }
-    assert_eq!(batched(&[], 1).await?, Vec::<ComponentMatch>::new());
+    assert_eq!(batched(&[], 1, 1).await?, Vec::<ComponentMatch>::new());
     Ok(())
 }
 
