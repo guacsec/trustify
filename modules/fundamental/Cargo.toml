@@ -95,6 +95,7 @@ trustify-db = { workspace = true }
 trustify-infrastructure = { workspace = true }
 trustify-migration = { workspace = true }
 trustify-test-context = { workspace = true }
+trustify-module-correlation = { workspace = true }
 urlencoding = { workspace = true }
 walkdir = { workspace = true }
 zip = { workspace = true }

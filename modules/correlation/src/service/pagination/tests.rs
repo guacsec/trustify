@@ -5,6 +5,67 @@ use test_context::test_context;
 use trustify_common::model::Paginated;
 use trustify_test_context::TrustifyContext;
 
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn deprecated_only_evidence_is_unmatched(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let (id, advisory_id) = fixture(ctx).await?;
+    let tx = ctx.db.begin().await?;
+    advisory::Entity::update_many()
+        .col_expr(advisory::Column::Deprecated, Expr::value(true))
+        .filter(advisory::Column::Id.eq(advisory_id))
+        .exec(&tx)
+        .await?;
+    let request = ResolutionRequest::default();
+    assert!(groups(id, &request).all(&tx).await?.is_empty());
+    assert!(
+        evidence_for_groups(
+            id,
+            &[EvidenceGroup {
+                node_id: "node-00".into(),
+                vulnerability_id: "CVE-1".into(),
+            }],
+            &tx
+        )
+        .await?
+        .is_empty()
+    );
+    let service = CorrelationService::default();
+    let preview = service.correlate_sbom(id, true, &tx).await?;
+    assert!(preview.verdicts.is_empty());
+    assert_eq!(preview.unmatched_components.unwrap().len(), 36);
+    let page = service
+        .unmatched_page(
+            id,
+            None,
+            Paginated {
+                total: true,
+                limit: 100,
+                ..Default::default()
+            },
+            &PaginationCache::for_test(),
+            &tx,
+        )
+        .await?;
+    assert_eq!(page.total, Some(36));
+    assert_eq!(page.items.len(), 36);
+    publish_for_test(id, &tx).await?;
+    let page = service
+        .verdict_page(
+            id,
+            &request,
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &PaginationCache::for_test(),
+            &tx,
+        )
+        .await?;
+    assert_eq!(page.total, Some(0));
+    assert!(page.items.is_empty());
+    Ok(())
+}
+
 async fn fixture(ctx: &TrustifyContext) -> anyhow::Result<(Uuid, Uuid)> {
     // Reverse insertion order, mixed case and non-ASCII IDs exercise the explicit C ordering.
     let ids = (0..30)

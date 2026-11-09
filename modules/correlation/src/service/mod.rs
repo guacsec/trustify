@@ -13,11 +13,12 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, QueryFilter,
-    Value,
+    QuerySelect, Value,
     sea_query::{Expr, ExprTrait, PgFunc, SimpleExpr},
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
+use trustify_common::db::chunk::chunked_with;
 use trustify_entity::{
     advisory, advisory_vulnerability_score, advisory_vulnerability_upstream, assertion_context,
     correlation_evidence, correlation_evidence::AssertionStatus, correlation_evidence_context,
@@ -441,6 +442,25 @@ impl CorrelationService {
         if let Some(vulnerability) = &request.vulnerability_id {
             matches.retain(|a| &a.vulnerability_id == vulnerability);
         }
+
+        let ids = matches
+            .iter()
+            .map(|a| a.advisory_id)
+            .collect::<HashSet<_>>();
+        let mut eligible = HashSet::new();
+        for ids in chunked_with(1, ids) {
+            eligible.extend(
+                advisory::Entity::find()
+                    .select_only()
+                    .column(advisory::Column::Id)
+                    .filter(advisory::Column::Id.is_in(ids))
+                    .filter(advisory::Column::Deprecated.eq(false))
+                    .into_tuple::<Uuid>()
+                    .all(connection)
+                    .await?,
+            );
+        }
+        matches.retain(|a| eligible.contains(&a.advisory_id));
 
         let advisory_ids = matches
             .iter()

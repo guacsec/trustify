@@ -27,7 +27,7 @@ use trustify_entity::{correlation_node_class, correlation_verdict, correlation_v
 use uuid::Uuid;
 
 /// Bump in a migration together with changes to the default resolver's semantics.
-const RESOLVER_VERSION: i32 = 1;
+const RESOLVER_VERSION: i32 = 2;
 const BATCH_SIZE: usize = 1000;
 
 /// Read completion and upstream freshness in a single database snapshot.
