@@ -4,6 +4,7 @@ use crate::{
     model::FreshnessStatus,
     service::{extraction, freshness},
 };
+use std::collections::BTreeSet;
 use test_context::test_context;
 use trustify_common::model::Paginated;
 use trustify_test_context::TrustifyContext;
@@ -591,5 +592,114 @@ async fn published_page_scale(ctx: &TrustifyContext) -> anyhow::Result<()> {
         println!("{size} verdicts: page read {elapsed:?}; query plan {plan}");
         tx.commit().await?;
     }
+    Ok(())
+}
+
+/// The input revision of an SBOM, and the versions of its evidence rows.
+async fn evidence_versions(
+    id: Uuid,
+    db: &impl ConnectionTrait,
+) -> anyhow::Result<(i64, Vec<String>)> {
+    let rows = db
+        .query_all_raw(sql(
+            "SELECT xmin::text AS version FROM correlation_evidence WHERE sbom_id=$1 ORDER BY id",
+            vec![id.into()],
+        ))
+        .await?
+        .into_iter()
+        .map(|row| row.try_get("", "version"))
+        .collect::<Result<Vec<String>, _>>()?;
+    let row = db
+        .query_one_raw(sql(
+            "SELECT input_revision FROM correlation_verdict_state WHERE sbom_id=$1",
+            vec![id.into()],
+        ))
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("missing verdict state"))?;
+    Ok((row.try_get("", "input_revision")?, rows))
+}
+
+/// Queue all advisories for extraction again, and extract them.
+async fn extract_advisories_again(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    ctx.db
+        .execute_unprepared(
+            "INSERT INTO change_log (id, entity_type, entity_id, operation) \
+             SELECT gen_random_uuid(), 'advisory', id, 'added' FROM advisory",
+        )
+        .await?;
+    drain_extraction(ctx).await
+}
+
+/// Finding the same evidence again changes nothing, so the verdicts aren't rebuilt for it.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn unchanged_evidence_is_no_change(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let before = evidence_versions(id, &ctx.db).await?;
+    assert!(!before.1.is_empty());
+
+    extract_advisories_again(ctx).await?;
+
+    assert_eq!(evidence_versions(id, &ctx.db).await?, before);
+    Ok(())
+}
+
+/// The sources of the evidence of an SBOM, as sets.
+async fn evidence_sources(
+    id: Uuid,
+    db: &impl ConnectionTrait,
+) -> anyhow::Result<Vec<BTreeSet<String>>> {
+    db.query_all_raw(sql(
+        "SELECT source_assertions FROM correlation_evidence WHERE sbom_id=$1 ORDER BY id",
+        vec![id.into()],
+    ))
+    .await?
+    .into_iter()
+    .map(|row| {
+        let sources: serde_json::Value = row.try_get("", "source_assertions")?;
+        Ok(sources
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(ToString::to_string)
+            .collect())
+    })
+    .collect()
+}
+
+/// Evidence found by another statement gets that source, which is a change.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn new_source_is_a_change(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let stale = r#"{"stale":true}"#;
+    let expected = evidence_sources(id, &ctx.db)
+        .await?
+        .into_iter()
+        .map(|mut sources| {
+            sources.insert(stale.to_string());
+            sources
+        })
+        .collect::<Vec<_>>();
+    // as if it was only found by another statement so far
+    ctx.db
+        .execute_raw(sql(
+            "UPDATE correlation_evidence SET source_assertions = jsonb_build_array($2::jsonb) WHERE sbom_id=$1",
+            vec![id.into(), stale.into()],
+        ))
+        .await?;
+    let (revision, versions) = evidence_versions(id, &ctx.db).await?;
+
+    extract_advisories_again(ctx).await?;
+
+    let (new_revision, new_versions) = evidence_versions(id, &ctx.db).await?;
+    assert_eq!(evidence_sources(id, &ctx.db).await?, expected);
+    assert!(new_revision > revision);
+    assert!(
+        new_versions
+            .iter()
+            .zip(&versions)
+            .all(|(new, old)| new != old)
+    );
     Ok(())
 }

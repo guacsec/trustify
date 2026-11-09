@@ -29,6 +29,19 @@ const MERGE_SOURCE_ASSERTIONS: &str = r#"(
     ) AS distinct_sources
 )"#;
 
+// Only update a row when the new statements add a source to it. Updating it anyway fires the
+// update trigger, which marks the SBOM as changed, rebuilding its verdicts for nothing. Compared
+// as a set, as the stored order is the merge's, not the one of a fresh insert.
+const NEW_SOURCE_ASSERTIONS: &str = r#"EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(EXCLUDED.source_assertions) AS new_sources(source)
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(correlation_evidence.source_assertions) AS sources(source)
+        WHERE sources.source = new_sources.source
+    )
+)"#;
+
 /// A piece of evidence, with the contexts it was matched in.
 struct Pending {
     node: NodeRef,
@@ -120,7 +133,8 @@ impl EvidenceWriter {
         id
     }
 
-    /// Insert all collected evidence and its contexts, ignoring already existing rows.
+    /// Insert all collected evidence and its contexts, adding new sources to already existing
+    /// evidence, and leaving it untouched otherwise.
     ///
     /// Returns the number of evidence entries produced.
     pub async fn write(self, connection: &impl ConnectionTrait) -> Result<usize, Error> {
@@ -175,9 +189,11 @@ impl EvidenceWriter {
                             correlation_evidence::Column::SourceAssertions,
                             Expr::cust(MERGE_SOURCE_ASSERTIONS),
                         )
+                        .action_and_where(Expr::cust(NEW_SOURCE_ASSERTIONS))
                         .to_owned(),
                 )
-                .exec(connection)
+                // with all rows unchanged, nothing is inserted or updated
+                .exec_without_returning(connection)
                 .instrument(info_span!("inserting evidence"))
                 .await?;
         }
