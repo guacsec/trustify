@@ -19,6 +19,21 @@ pub(super) struct EvidenceGroup {
     pub(super) vulnerability_id: String,
 }
 
+/// Stored statements remain facts; only current advisories participate in resolution.
+fn eligible_evidence(sbom_id: Uuid) -> Select<correlation_evidence::Entity> {
+    correlation_evidence::Entity::find()
+        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+        .filter(
+            correlation_evidence::Column::AdvisoryId.in_subquery(
+                advisory::Entity::find()
+                    .select_only()
+                    .column(advisory::Column::Id)
+                    .filter(advisory::Column::Deprecated.eq(false))
+                    .into_query(),
+            ),
+        )
+}
+
 /// Select evidence for an SBOM, applying optional node and vulnerability filters.
 ///
 /// The evidence of a node is the one of its class' representative.
@@ -26,8 +41,7 @@ pub(super) fn evidence_query(
     sbom_id: Uuid,
     request: &ResolutionRequest,
 ) -> Select<correlation_evidence::Entity> {
-    let mut query = correlation_evidence::Entity::find()
-        .filter(correlation_evidence::Column::SbomId.eq(sbom_id));
+    let mut query = eligible_evidence(sbom_id);
     if let Some(node) = &request.node_id {
         query = query.filter(
             Expr::col(correlation_evidence::Column::NodeId)
@@ -69,8 +83,7 @@ pub(super) async fn evidence_for_groups(
         .iter()
         .map(|group| (group.node_id.clone(), group.vulnerability_id.clone()))
         .unzip();
-    Ok(correlation_evidence::Entity::find()
-        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+    Ok(eligible_evidence(sbom_id)
         .filter(Expr::cust_with_values(
             "(node_id, vulnerability_id) IN (SELECT * FROM unnest($1::text[], $2::text[]))",
             [Value::from(nodes), Value::from(vulnerabilities)],
@@ -92,10 +105,9 @@ impl CorrelationService {
         cache: &PaginationCache,
         connection: &DatabaseTransaction,
     ) -> Result<PaginatedResults<ComponentRef>, Error> {
-        let evidence = correlation_evidence::Entity::find()
+        let evidence = eligible_evidence(sbom_id)
             .select_only()
             .column(correlation_evidence::Column::NodeId)
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
             .filter(
                 // the evidence of the node's class
                 Expr::col((

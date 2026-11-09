@@ -266,7 +266,7 @@ async fn upstream_work_and_global_revisions_invalidate_without_eager_queue_expan
     assert_ne!(state(&[id], &tx).await?[&id].generation, before.generation);
     // A worker compiled with an older resolver never acknowledges a newer version.
     tx.execute_unprepared(
-        "UPDATE correlation_verdict_revision SET resolver_version=2,revision=revision+1",
+        "UPDATE correlation_verdict_revision SET resolver_version=resolver_version+1,revision=revision+1",
     )
     .await?;
     tx.commit().await?;
