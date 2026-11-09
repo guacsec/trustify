@@ -10,6 +10,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
 };
 use tokio::time::{Instant, timeout_at};
+use tracing::instrument;
 use trustify_common::{db::chunk::chunked_with, purl::Purl};
 use trustify_entity::{
     advisory, cpe, package_relates_to_package, relationship::Relationship, sbom, sbom_node_cpe_ref,
@@ -229,6 +230,7 @@ type EvidenceRank = (u8, bool, Reverse<i32>, u8, Uuid);
 
 impl ReportContext {
     /// Recover only SBOMs participating in a report winner, within a single recovery budget.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
     pub(super) async fn load<C: ConnectionTrait>(
         rows: &[SbomPurlRow],
         statuses: &HashMap<Uuid, Vec<StatusInfo>>,
@@ -364,6 +366,7 @@ impl ReportContext {
         })?
     }
 
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn load_sources<C: ConnectionTrait, S: StorageBackend>(
         rows: &[SbomPurlRow],
         storage: &S,

@@ -4,6 +4,7 @@ use super::ReportError;
 use crate::purl::service::SbomPurlRow;
 use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, Statement};
 use std::collections::{BTreeSet, HashMap};
+use tracing::instrument;
 use trustify_common::purl::Purl;
 use trustify_entity::{cpe, version_range};
 use uuid::Uuid;
@@ -37,6 +38,7 @@ struct NodeCpeRow {
 }
 
 /// Load canonical local/ancestor/describing/ancestor-SBOM scopes without introducing evidence tables.
+#[instrument(skip_all, err(level = tracing::Level::INFO))]
 pub(super) async fn load<C: ConnectionTrait>(
     rows: &[SbomPurlRow],
     connection: &C,
