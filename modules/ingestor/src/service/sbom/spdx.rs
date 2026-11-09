@@ -8,9 +8,30 @@ use crate::{
 };
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::Value;
+use spdx_rs::models::SPDX;
 use tracing::instrument;
 use trustify_common::{hashing::Digests, sbom::spdx::parse_spdx};
 use trustify_entity::labels::Labels;
+
+/// A parsed SPDX document, and what had to be fixed to parse it.
+#[derive(Clone, Debug)]
+pub struct SpdxDocument {
+    pub sbom: SPDX,
+    /// The license expressions which were replaced, as they aren't valid.
+    pub warnings: Vec<String>,
+}
+
+impl SpdxDocument {
+    /// Parse a SPDX document, replacing invalid license expressions.
+    pub fn parse(json: Value) -> Result<Self, serde_json::Error> {
+        let warnings = Warnings::new();
+        let (sbom, _) = parse_spdx(&warnings, json)?;
+        Ok(Self {
+            sbom,
+            warnings: warnings.into(),
+        })
+    }
+}
 
 pub struct SpdxLoader<'g> {
     graph: &'g Graph,
@@ -25,15 +46,20 @@ impl<'g> SpdxLoader<'g> {
     pub async fn load(
         &self,
         labels: Labels,
-        json: Value,
+        document: SpdxDocument,
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
+        let SpdxDocument {
+            sbom: spdx,
+            warnings: parse_warnings,
+        } = document;
         let warnings = Warnings::default();
+        for warning in parse_warnings {
+            warnings.add(warning);
+        }
 
-        let (spdx, _) = parse_spdx(&warnings, json)?;
-
-        log::info!(
+        tracing::info!(
             "Storing: {}",
             spdx.document_creation_information.document_name
         );

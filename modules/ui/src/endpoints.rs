@@ -119,11 +119,11 @@ async fn extract_sbom_purls(
         let mut warnings = vec![];
 
         match detector.into_document() {
-            DetectedDocument::Spdx(value) => {
-                let sbom: spdx_rs::models::SPDX = serde_json::from_value(value)?;
+            DetectedDocument::Spdx(document) => {
+                warnings.extend(document.warnings);
                 Ok((
                     detected_format,
-                    extract_spdx_purls(sbom, &mut warnings),
+                    extract_spdx_purls(document.sbom, &mut warnings),
                     warnings,
                 ))
             }

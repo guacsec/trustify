@@ -190,6 +190,23 @@ async fn extract_spdx_spdx() -> anyhow::Result<()> {
     assert_extract("spdx", "spdx/simple.json", simple_spdx_json(), "spdx").await
 }
 
+/// extract a SPDX file with an invalid license expression, which is replaced and reported
+#[test(tokio::test)]
+async fn extract_spdx_invalid_license() -> anyhow::Result<()> {
+    assert_extract_with(
+        None,
+        "spdx/invalid-license.json",
+        simple_spdx_json(),
+        json!([
+            "Replacing faulty SPDX license expression with NOASSERTION: Parsing for expression \
+             `Parsing for expression `EPL-2.0 OR GNU-GENERAL-PUBLIC-LICENSE,-VERSION-2 WITH \
+             THE-GNU-CLASSPATH-EXCEPTION` failed.` failed."
+        ]),
+        "spdx",
+    )
+    .await
+}
+
 /// extract a CycloneDX file as default format
 #[test(tokio::test)]
 async fn extract_cdx_default() -> anyhow::Result<()> {
