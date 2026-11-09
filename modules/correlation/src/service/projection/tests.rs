@@ -221,7 +221,7 @@ async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
     }
     tx.commit().await?;
     let tx = ctx.db.begin().await?;
-    freshness::refresh_sbom(&Extractors::default(), id, &tx).await?;
+    freshness::refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
     while run_step(&db, &WorkerConfig::default()).await? {}
     let tx = ctx.db.begin().await?;

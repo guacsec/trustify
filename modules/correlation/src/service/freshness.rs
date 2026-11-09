@@ -2,7 +2,12 @@
 //!
 //! Never-extracted SBOMs and SBOMs outdated by a settings change are handled alike:
 //! whenever any document is behind the current revision, the worker schedules a job.
-use crate::{error::Error, extractor::Extractors, model::*, service::tuning::WorkerConfig};
+use crate::{
+    error::Error,
+    extractor::{ExtractionProgress, Extractors},
+    model::*,
+    service::tuning::WorkerConfig,
+};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, FromQueryResult,
     JoinType, QueryFilter, QueryOrder, QuerySelect, RelationTrait, TransactionTrait,
@@ -75,7 +80,7 @@ LIMIT 1
 /// Only while a worker holds the document's claim (see [`claim`]): a stopped worker leaves its row
 /// behind, until another worker claims the document again.
 const CURRENT_SQL: &str = r#"
-SELECT c.sbom_id, n.name, c.started_at FROM correlation_refresh_current c
+SELECT c.sbom_id, n.name, c.started_at, c.done, c.total FROM correlation_refresh_current c
 JOIN sbom s USING (sbom_id)
 LEFT JOIN sbom_node n ON n.sbom_id = s.sbom_id AND n.node_id = s.node_id
 WHERE c.job_id = $1
@@ -171,6 +176,7 @@ pub async fn for_sboms(
 pub async fn refresh_sbom(
     extractors: &Extractors,
     id: Uuid,
+    progress: &dyn ExtractionProgress,
     tx: &DatabaseTransaction,
 ) -> Result<(), Error> {
     let revision = lock_revision(tx).await?;
@@ -180,7 +186,9 @@ pub async fn refresh_sbom(
         vec![id.into()],
     ))
     .await?;
-    extractors.extract_for_sbom(id, tx).await?;
+    extractors
+        .extract_for_sbom_reporting(id, progress, tx)
+        .await?;
     tx.execute_raw(sql("UPDATE correlation_extraction_state SET completed_revision = $2, completed_at = clock_timestamp() WHERE sbom_id = $1", vec![id.into(), revision.into()])).await?;
     Ok(())
 }
@@ -257,14 +265,35 @@ impl JobRow {
         pending: u64,
         now: OffsetDateTime,
     ) -> Result<RefreshJob, Error> {
-        let current = CurrentRow::find_by_statement(sql(CURRENT_SQL, vec![self.id.into()]))
+        let current = RefreshCurrentRow::find_by_statement(sql(CURRENT_SQL, vec![self.id.into()]))
             .all(tx)
             .await?
             .into_iter()
-            .map(CurrentSbom::from)
-            .collect();
+            .map(|row| {
+                let progress = match row.total {
+                    0 => None,
+                    total => Some(WorkProgress {
+                        done: u64::try_from(row.done)?,
+                        total: u64::try_from(total)?,
+                    }),
+                };
+                Ok(CurrentSbom {
+                    progress,
+                    ..row.sbom.into()
+                })
+            })
+            .collect::<Result<_, Error>>()?;
         self.model(pending, now, current)
     }
+}
+
+/// A document a refresh job is extracting, with the chunks extracted so far.
+#[derive(FromQueryResult)]
+struct RefreshCurrentRow {
+    #[sea_orm(nested)]
+    sbom: CurrentRow,
+    done: i64,
+    total: i64,
 }
 
 #[derive(FromQueryResult)]
@@ -570,14 +599,18 @@ pub async fn run_step(
     };
     // Make the document visible while it is extracted; this transaction commits after.
     db.execute_raw(sql(
-        "INSERT INTO correlation_refresh_current(job_id, sbom_id, started_at) VALUES ($1, $2, clock_timestamp()) \
-         ON CONFLICT (job_id, sbom_id) DO UPDATE SET started_at = EXCLUDED.started_at",
+        "INSERT INTO correlation_refresh_current(job_id, sbom_id, started_at) VALUES ($1, $2, clock_timestamp()) ON CONFLICT (job_id, sbom_id) DO UPDATE SET started_at = EXCLUDED.started_at, done = 0, total = 0",
         vec![job.id.into(), id.into()],
     ))
     .await?;
     // A savepoint preserves the claim while rolling back a failed extraction.
     let work = tx.begin().await?;
-    let error = match refresh_sbom(extractors, id, &work).await {
+    let progress = RefreshProgress {
+        db,
+        job_id: job.id,
+        sbom_id: id,
+    };
+    let error = match refresh_sbom(extractors, id, &progress, &work).await {
         Ok(()) => {
             work.commit().await?;
             None
@@ -603,6 +636,40 @@ pub async fn run_step(
     tx.execute_raw(sql("UPDATE correlation_refresh_job SET status = 'running', processed = processed + $2, failed = failed + $3 WHERE id = $1", vec![job.id.into(), i64::from(error.is_none()).into(), i64::from(error.is_some()).into()])).await?;
     tx.commit().await?;
     Ok(true)
+}
+
+/// Publishes the chunks of a job's document extracted so far, outside of the worker's transaction.
+/// Failing to do so doesn't fail the extraction.
+struct RefreshProgress<'a> {
+    db: &'a db::ReadWrite,
+    job_id: Uuid,
+    sbom_id: Uuid,
+}
+
+#[async_trait::async_trait]
+impl ExtractionProgress for RefreshProgress<'_> {
+    async fn chunks_done(&self, done: usize, total: usize) {
+        // a single chunk tells nothing, and the row is removed once all chunks are done
+        if total <= 1 || done >= total {
+            return;
+        }
+        let count = |n: usize| i64::try_from(n).unwrap_or(i64::MAX);
+        let _ = self
+            .db
+            .execute_raw(sql(
+                "UPDATE correlation_refresh_current SET done = $3, total = $4 WHERE job_id = $1 AND sbom_id = $2",
+                vec![
+                    self.job_id.into(),
+                    self.sbom_id.into(),
+                    count(done).into(),
+                    count(total).into(),
+                ],
+            ))
+            .await
+            .inspect_err(|err| {
+                tracing::warn!(sbom_id = %self.sbom_id, "failed to publish the extraction progress: {err}");
+            });
+    }
 }
 
 /// The outcome of claiming a document of a job.
