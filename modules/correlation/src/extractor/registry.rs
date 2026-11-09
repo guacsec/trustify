@@ -1,5 +1,5 @@
 use super::{
-    Assertion, ComponentMatch, Extractor, NodeIdentifier, NodeMatch, NodeRef,
+    Assertion, Extractor, MatchPart, MatchSink, NodeIdentifier, NodeMatch, NodeRef,
     class::{classify, members},
     context::{self, NodeCpe, Scope, Scoper},
     cpe::CpeExtractor,
@@ -12,7 +12,10 @@ use super::{
 use crate::{
     error::Error,
     model::IdentifierRef,
-    service::freshness::{lock_revision, lock_sboms},
+    service::{
+        freshness::{lock_revision, lock_sboms},
+        tuning::DEFAULT_MATCH_BATCH,
+    },
 };
 use sea_orm::DatabaseTransaction;
 use std::{
@@ -28,6 +31,8 @@ pub struct Extractors {
     extractors: Vec<Box<dyn Extractor>>,
     /// The number of identifiers an SBOM is matched with at once.
     chunk: usize,
+    /// The number of matches of an SBOM held before their evidence is written.
+    match_batch: usize,
 }
 
 impl Default for Extractors {
@@ -48,6 +53,7 @@ impl Extractors {
         Self {
             extractors,
             chunk: CHUNK,
+            match_batch: DEFAULT_MATCH_BATCH,
         }
     }
 
@@ -55,6 +61,15 @@ impl Extractors {
     #[cfg(test)]
     pub fn with_chunk(self, chunk: usize) -> Self {
         Self { chunk, ..self }
+    }
+
+    /// Write the evidence of an SBOM once about `match_batch` matches are held, see
+    /// [`WorkerConfig::match_batch`](crate::service::tuning::WorkerConfig::match_batch).
+    pub fn with_match_batch(self, match_batch: usize) -> Self {
+        Self {
+            match_batch,
+            ..self
+        }
     }
 
     /// Match the identifiers of an SBOM against advisories and store evidence.
@@ -88,6 +103,7 @@ impl Extractors {
                     chunk,
                     (index, total_chunks),
                     &mut scoper,
+                    self.match_batch,
                     tx,
                 )
                 .await?;
@@ -340,6 +356,7 @@ fn node_chunks(identifiers: Vec<NodeIdentifier>, size: usize) -> Vec<Vec<NodeIde
 
 /// Match one chunk of an SBOM's identifiers, and write the evidence in range and scope.
 ///
+/// The matches are written whenever about `match_batch` are held, after all matches of a node.
 /// Returns the number of evidence entries written.
 #[instrument(
     skip_all,
@@ -351,6 +368,7 @@ fn node_chunks(identifiers: Vec<NodeIdentifier>, size: usize) -> Vec<Vec<NodeIde
         matches = field::Empty,
         in_range = field::Empty,
         evidence = field::Empty,
+        writes = field::Empty,
     ),
     err(level = tracing::Level::INFO)
 )]
@@ -359,6 +377,7 @@ async fn extract_chunk(
     chunk: Vec<NodeIdentifier>,
     position: (usize, usize),
     scoper: &mut Scoper,
+    match_batch: usize,
     tx: &DatabaseTransaction,
 ) -> Result<usize, Error> {
     let span = Span::current();
@@ -374,25 +393,78 @@ async fn extract_chunk(
             }
         }
     }
-    let matches = extractor
-        .match_identifiers(&components, tx)
-        .await?
-        .into_iter()
-        .filter_map(
-            |ComponentMatch {
-                 component,
-                 assertion,
-             }| { nodes.get(component).map(|node| (node.clone(), assertion)) },
-        )
-        .collect::<Vec<_>>();
-    span.record("matches", matches.len());
+    let mut writer = StreamWriter {
+        nodes: &nodes,
+        scoper,
+        match_batch,
+        tx,
+        pending: Vec::new(),
+        matches: 0,
+        in_range: 0,
+        evidence: 0,
+        writes: 0,
+    };
+    extractor.match_parts(&components, &mut writer, tx).await?;
+    writer.flush().await?;
 
-    let matches = retain_in_range(matches, tx).await?;
-    span.record("in_range", matches.len());
+    span.record("matches", writer.matches);
+    span.record("in_range", writer.in_range);
+    span.record("evidence", writer.evidence);
+    span.record("writes", writer.writes);
+    Ok(writer.evidence)
+}
 
-    let count = write_scoped(matches, scoper, tx).await?;
-    span.record("evidence", count);
-    Ok(count)
+/// Writes the evidence of matches handed over in parts, whenever about `match_batch` are held,
+/// and only after all matches of a node.
+struct StreamWriter<'a> {
+    nodes: &'a [NodeRef],
+    scoper: &'a mut Scoper,
+    match_batch: usize,
+    tx: &'a DatabaseTransaction,
+    /// The matches not written yet, of complete nodes only.
+    pending: Vec<(NodeRef, Assertion)>,
+    matches: usize,
+    in_range: usize,
+    evidence: usize,
+    writes: usize,
+}
+
+impl StreamWriter<'_> {
+    /// Write the evidence of the pending matches, and forget what was loaded for their nodes.
+    async fn flush(&mut self) -> Result<(), Error> {
+        if self.pending.is_empty() {
+            return Ok(());
+        }
+        let matches = retain_in_range(take(&mut self.pending), self.tx).await?;
+        self.in_range += matches.len();
+        self.evidence += write_scoped(matches, self.scoper, self.tx).await?;
+        self.writes += 1;
+        // the matches of a node are complete, so what's loaded for it isn't needed again
+        self.scoper.forget_nodes();
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl MatchSink for StreamWriter<'_> {
+    async fn accept(&mut self, part: MatchPart) -> Result<(), Error> {
+        // a part has all matches of its components: write after any of them, not within one
+        for component in part.components {
+            let Some(node) = self.nodes.get(component) else {
+                continue;
+            };
+            self.pending.extend(
+                part.assertions
+                    .iter()
+                    .map(|assertion| (node.clone(), assertion.clone())),
+            );
+            self.matches += part.assertions.len();
+            if self.pending.len() >= self.match_batch {
+                self.flush().await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Scope matches by their contexts, and write the evidence of the remaining ones.
@@ -431,7 +503,11 @@ async fn write_scoped(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::model::IdentifierKind;
+    use crate::model::{IdentifierKind, MatchedRange, MatchedValue};
+    use sea_orm::{FromQueryResult, TransactionTrait};
+    use test_context::test_context;
+    use trustify_common::db::sql;
+    use trustify_test_context::TrustifyContext;
 
     fn identifier(node: &str, value: &str) -> NodeIdentifier {
         NodeIdentifier {
@@ -473,5 +549,133 @@ mod test {
                 ],
             ]
         );
+    }
+
+    /// A row of evidence, as written.
+    #[derive(Debug, PartialEq, FromQueryResult)]
+    struct EvidenceRow {
+        node_id: String,
+        confidence: f64,
+        matched_value: Option<serde_json::Value>,
+    }
+
+    /// The evidence of an SBOM, as written.
+    async fn evidence(sbom_id: Uuid, tx: &DatabaseTransaction) -> anyhow::Result<Vec<EvidenceRow>> {
+        Ok(EvidenceRow::find_by_statement(sql(
+            "SELECT node_id, confidence, matched_value FROM correlation_evidence WHERE sbom_id = $1 ORDER BY id",
+            vec![sbom_id.into()],
+        ))
+        .all(tx)
+        .await?)
+    }
+
+    /// The matches of a node are written together, also when they exceed the batch: two matches
+    /// of the same evidence are merged (all of their ranges) before writing, which writing them
+    /// one by one would lose.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn writes_the_matches_of_a_node_together(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let sbom_id = Uuid::parse_str(
+            &ctx.ingest_document(
+                "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_below-fix.cdx.json",
+            )
+            .await?
+            .id,
+        )?;
+        ctx.ingest_document("scenarios/S5_positive_baseline_openssl_el8/vex/CVE-2023-0215.json.xz")
+            .await?;
+
+        let tx = ctx.db.begin().await?;
+        // the identifiers of each node, judged together like `extract_chunk` does
+        let mut by_node = BTreeMap::<NodeRef, Vec<IdentifierRef>>::new();
+        for id in PurlExtractor.sbom_identifiers(sbom_id, None, &tx).await? {
+            by_node.entry(id.node).or_default().push(id.identifier);
+        }
+        let (all_nodes, components): (Vec<_>, Vec<_>) = by_node.into_iter().unzip();
+        let matches = PurlExtractor.match_identifiers(&components, &tx).await?;
+        // a match in the scope of its node, so its evidence is written
+        let mut scoper = Scoper::default();
+        scoper
+            .prepare(
+                matches
+                    .iter()
+                    .map(|m| (&all_nodes[m.component], &m.assertion)),
+                &tx,
+            )
+            .await?;
+        let matched = matches
+            .into_iter()
+            .find(|m| {
+                !matches!(
+                    scoper.scope(&all_nodes[m.component], &m.assertion),
+                    Scope::Dropped
+                )
+            })
+            .ok_or_else(|| anyhow::anyhow!("no match in scope"))?;
+        let nodes = vec![all_nodes[matched.component].clone()];
+        // the same evidence, found once more with another range
+        let found = matched.assertion.clone();
+        let mut again = matched.assertion;
+        let other = MatchedRange {
+            scheme: "rpm".into(),
+            low: None,
+            high: None,
+        };
+        again.matched_value.ranges = vec![other.clone()];
+        tx.rollback().await?;
+
+        let mut written = Vec::new();
+        for match_batch in [usize::MAX, 1] {
+            let tx = ctx.db.begin().await?;
+            let mut scoper = Scoper::default();
+            let mut writer = StreamWriter {
+                nodes: &nodes,
+                scoper: &mut scoper,
+                match_batch,
+                tx: &tx,
+                pending: Vec::new(),
+                matches: 0,
+                in_range: 0,
+                evidence: 0,
+                writes: 0,
+            };
+            writer
+                .accept(MatchPart {
+                    components: vec![0],
+                    assertions: vec![found.clone(), again.clone()],
+                })
+                .await?;
+            writer.flush().await?;
+            let counts = (
+                writer.matches,
+                writer.in_range,
+                writer.evidence,
+                writer.writes,
+            );
+            written.push((counts, evidence(sbom_id, &tx).await?));
+            tx.rollback().await?;
+        }
+
+        let [(_, at_once), (counts, batched)] = written.as_slice() else {
+            anyhow::bail!("two runs");
+        };
+        assert_eq!((*counts, batched), ((2, 2, 1, 1), at_once));
+        let mut ranges = found.matched_value.ranges;
+        ranges.push(other);
+        ranges.sort();
+        assert_eq!(
+            at_once
+                .iter()
+                .map(|e| {
+                    e.matched_value
+                        .clone()
+                        .map(serde_json::from_value::<MatchedValue>)
+                        .transpose()
+                        .map(|value| value.map(|value| value.ranges))
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            vec![Some(ranges)]
+        );
+        Ok(())
     }
 }

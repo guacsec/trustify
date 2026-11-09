@@ -25,6 +25,7 @@ use crate::{
     model::{ConfidenceFactor, IdentifierRef, MatchedValue, combine},
 };
 use sea_orm::DatabaseTransaction;
+use std::collections::BTreeMap;
 use trustify_entity::correlation_evidence::AssertionStatus;
 use uuid::Uuid;
 
@@ -77,6 +78,40 @@ impl Assertion {
     pub fn apply(&mut self, factor: ConfidenceFactor) {
         self.factors.push(factor);
         self.confidence = combine(&self.factors);
+    }
+}
+
+/// Assertions matching each of some components passed to [`Extractor::match_parts`]: all matches
+/// of these components.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MatchPart {
+    /// Indexes into the components passed in.
+    pub components: Vec<usize>,
+    pub assertions: Vec<Assertion>,
+}
+
+/// Receives the matches of [`Extractor::match_parts`].
+#[async_trait::async_trait]
+pub trait MatchSink {
+    /// Accept the matches of some components.
+    async fn accept(&mut self, part: MatchPart) -> Result<(), Error>;
+}
+
+/// Collects all parts into one list, one match per component and assertion.
+#[derive(Default)]
+pub struct CollectMatches(pub Vec<ComponentMatch>);
+
+#[async_trait::async_trait]
+impl MatchSink for CollectMatches {
+    async fn accept(&mut self, part: MatchPart) -> Result<(), Error> {
+        for component in part.components {
+            self.0
+                .extend(part.assertions.iter().map(|assertion| ComponentMatch {
+                    component,
+                    assertion: assertion.clone(),
+                }));
+        }
+        Ok(())
     }
 }
 
@@ -140,6 +175,35 @@ pub trait Extractor: Send + Sync {
         _tx: &DatabaseTransaction,
     ) -> Result<Vec<ComponentMatch>, Error> {
         Ok(Vec::new())
+    }
+
+    /// Like [`Self::match_identifiers`], handing the matches to `sink` in parts, each with all
+    /// matches of its components.
+    ///
+    /// Lets a caller write the evidence of some components before the others are matched. The
+    /// default hands over the matches of each component on their own.
+    async fn match_parts(
+        &self,
+        components: &[Vec<IdentifierRef>],
+        sink: &mut (dyn MatchSink + Send),
+        tx: &DatabaseTransaction,
+    ) -> Result<(), Error> {
+        let mut parts = BTreeMap::<usize, Vec<Assertion>>::new();
+        for ComponentMatch {
+            component,
+            assertion,
+        } in self.match_identifiers(components, tx).await?
+        {
+            parts.entry(component).or_default().push(assertion);
+        }
+        for (component, assertions) in parts {
+            sink.accept(MatchPart {
+                components: vec![component],
+                assertions,
+            })
+            .await?;
+        }
+        Ok(())
     }
 
     /// Find SBOM nodes matching the assertions of an advisory.

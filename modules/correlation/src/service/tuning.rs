@@ -10,6 +10,8 @@ use trustify_common::db::sql;
 const MIN_WORK_MEM: ByteSize = ByteSize::kib(64);
 /// The largest `work_mem` PostgreSQL accepts (`INT_MAX` kB).
 const MAX_WORK_MEM: ByteSize = ByteSize::kib(i32::MAX as u64);
+/// The default of [`WorkerConfig::match_batch`].
+pub const DEFAULT_MATCH_BATCH: usize = 100_000;
 
 /// Settings of the correlation worker.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -22,6 +24,11 @@ pub struct WorkerConfig {
     /// Matching packages with many statements (e.g. the kernel of a RHEL SBOM) aggregates
     /// millions of rows, which spill to disk with PostgreSQL's default of 4 MB.
     pub work_mem: Option<ByteSize>,
+    /// The number of matches of an SBOM held in memory before their evidence is written.
+    ///
+    /// The matches of a node are written together, so a node with more matches (e.g. the kernel of
+    /// a RHEL SBOM) exceeds it.
+    pub match_batch: usize,
 }
 
 impl Default for WorkerConfig {
@@ -29,6 +36,7 @@ impl Default for WorkerConfig {
         Self {
             workers: NonZeroUsize::MIN,
             work_mem: None,
+            match_batch: DEFAULT_MATCH_BATCH,
         }
     }
 }

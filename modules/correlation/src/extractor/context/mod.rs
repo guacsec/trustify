@@ -875,6 +875,12 @@ impl Scoper {
         Ok(())
     }
 
+    /// Forget what was loaded for the nodes, keeping the contexts, which other nodes share.
+    pub fn forget_nodes(&mut self) {
+        self.node_cpes.clear();
+        self.node_identifiers.clear();
+    }
+
     /// Scope a match, see [`scope`]. The matches must have been [prepared](Self::prepare).
     pub fn scope(&self, node: &NodeRef, assertion: &Assertion) -> Scope {
         let context = assertion
