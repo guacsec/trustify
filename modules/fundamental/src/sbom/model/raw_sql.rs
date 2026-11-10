@@ -183,8 +183,8 @@ pub fn batch_severity_counts_sql() -> &'static str {
 
     -- CPE-based matching via cpe_status (package-level CPE identity, as
     -- opposed to cpe_matches_name/_ns above which key off product_status by
-    -- package name). Vendor+product identity ('a' part only) plus
-    -- version_matches() against the affected version range -- no
+    -- package name). Part+vendor+product identity for applications and the
+    -- Linux kernel OS, plus version_matches() against the affected range -- no
     -- sbom_describing_cpe context filter, matching cpe_advisory_info_sql().
     cpe_version_matches AS (
         SELECT DISTINCT
@@ -192,12 +192,12 @@ pub fn batch_severity_counts_sql() -> &'static str {
             cs.advisory_id,
             cs.vulnerability_id
         FROM sbom_cpe_pkgs p
-        JOIN cpe sc ON sc.vendor = p.vendor AND sc.product = p.product AND sc.part = 'a'
+        JOIN cpe sc ON sc.part = p.part AND sc.vendor = p.vendor AND sc.product = p.product
         JOIN cpe_status cs ON cs.cpe_id = sc.id
         JOIN version_range vr ON cs.version_range_id = vr.id
         JOIN status ON cs.status_id = status.id
         JOIN advisory ON cs.advisory_id = advisory.id
-        WHERE p.part = 'a'
+        WHERE (sc.part = 'a' OR (sc.part = 'o' AND sc.vendor = 'linux' AND sc.product = 'linux_kernel'))
           AND status.slug = 'affected'
           AND advisory.deprecated = false
           AND version_matches(p.version, vr.*)
@@ -253,8 +253,9 @@ pub fn batch_severity_counts_sql() -> &'static str {
 /// [`product_advisory_info_sql`] so callers can merge the two result sets
 /// through the same row-assembly code (`IdSet`).
 ///
-/// Matching is vendor+product identity (`part = 'a'`) plus `version_matches()`
-/// against the version range recorded on `cpe_status` -- deliberately *not*
+/// Matching requires equal part+vendor+product for applications or the Linux
+/// kernel OS (`o:linux:linux_kernel`), plus `version_matches()` against the
+/// version range recorded on `cpe_status` -- deliberately *not*
 /// filtered by the `sbom_describing_cpe` context filter
 /// ([`CONTEXT_CPE_FILTER_SQL`]): that concept encodes Red Hat product-stream
 /// membership and is meaningless for component-level CPEs harvested from
@@ -283,8 +284,8 @@ pub fn cpe_advisory_info_sql() -> String {
             WHERE scr.sbom_id = $1
         ),
 
-        -- CPE-status matches: identity by vendor+product (application CPEs
-        -- only), affected version range checked via version_matches().
+        -- CPE-status matches: equal part+vendor+product for applications or
+        -- the Linux kernel OS, with the affected range checked via version_matches().
         cpe_status_matches AS (
             SELECT DISTINCT
                 cs.advisory_id,
@@ -297,10 +298,10 @@ pub fn cpe_advisory_info_sql() -> String {
             FROM cpe_status cs
             JOIN cpe sc ON cs.cpe_id = sc.id
             JOIN sbom_cpe_pkgs p
-                ON p.vendor = sc.vendor
+                ON p.part = sc.part
+               AND p.vendor = sc.vendor
                AND p.product = sc.product
-               AND sc.part = 'a'
-               AND p.part = 'a'
+               AND (sc.part = 'a' OR (sc.part = 'o' AND sc.vendor = 'linux' AND sc.product = 'linux_kernel'))
             JOIN version_range vr ON cs.version_range_id = vr.id
             WHERE version_matches(p.version, vr.*)
         )

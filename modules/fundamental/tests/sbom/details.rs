@@ -1,3 +1,5 @@
+use anyhow::Context;
+use serde_json::Value;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
@@ -13,7 +15,8 @@ use trustify_module_fundamental::sbom::{
 };
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
 use trustify_module_ingestor::service::Format;
-use trustify_test_context::TrustifyContext;
+use trustify_test_context::{TrustifyContext, document_bytes};
+use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
@@ -830,6 +833,294 @@ async fn sbom_details_purlless_cpe_node_consistency(
         backlinked.contains(&sbom_uuid),
         "SBOM must be backlinked from CVE-2026-12151 via the purl-less CPE \
          node, got {backlinked:?}"
+    );
+
+    Ok(())
+}
+
+/// Kernel version bounds and wildcard fallback agree across all three legacy views.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn legacy_linux_kernel_cpe_versions(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given only CPE-keyed advisory evidence, with critical and high scores.
+    ctx.ingest_document("cve/CVE-2099-7371.json").await?;
+
+    for (case, cpe_version, package_version, affected) in [
+        ("inside", "6.6.4", "6.6.4-1.synthetic", true),
+        ("inclusive_lower", "6.6.0", "6.6.0-1.synthetic", true),
+        ("below_lower", "6.5.9", "6.5.9-1.synthetic", false),
+        ("exclusive_upper", "6.6.10", "6.6.10-1.synthetic", false),
+        ("above_upper", "6.6.11", "6.6.11-1.synthetic", false),
+        (
+            "concrete_overrides_unaffected_package",
+            "6.6.4",
+            "9.0.0-1.synthetic",
+            true,
+        ),
+        (
+            "concrete_overrides_affected_package",
+            "6.6.10",
+            "6.6.4-1.synthetic",
+            false,
+        ),
+        ("wildcard_affected", "*", "6.6.4-1.synthetic", true),
+        ("wildcard_unaffected", "*", "6.6.11-1.synthetic", false),
+    ] {
+        // When both a PURL-bearing and a CPE-only kernel component are ingested.
+        let sbom_id = ingest_legacy_cpe_sbom(
+            ctx,
+            case,
+            "o:linux:linux_kernel",
+            cpe_version,
+            package_version,
+        )
+        .await?;
+
+        // Then details, distinct/highest-severity counts and backlinks must agree.
+        assert_legacy_cpe_views(ctx, case, sbom_id, "CVE-2099-7371", affected).await?;
+    }
+
+    Ok(())
+}
+
+/// Kernel findings remain visible in all three views when no component has a PURL.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn legacy_linux_kernel_cpe_purlless(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given an affected kernel advisory and an entirely CPE-only SBOM.
+    ctx.ingest_document("cve/CVE-2099-7371.json").await?;
+    let mut document: Value =
+        serde_json::from_slice(&document_bytes("cyclonedx/linux-kernel-cpe.json").await?)?;
+    for component in document["components"]
+        .as_array_mut()
+        .context("synthetic SBOM components must be an array")?
+    {
+        component
+            .as_object_mut()
+            .context("synthetic SBOM component must be an object")?
+            .remove("purl");
+    }
+
+    // When the SBOM is ingested without any PURL references.
+    let result = ctx.ingest_json(document).await?;
+    let sbom_id = Uuid::parse_str(&result.id)?;
+
+    // Then the CPE-only finding must not disappear from any view.
+    assert_legacy_cpe_views(ctx, "purlless", sbom_id, "CVE-2099-7371", true).await?;
+    Ok(())
+}
+
+/// Part, vendor and product must independently equal the advisory's kernel identity.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn legacy_linux_kernel_cpe_identity(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a Linux kernel OS advisory and versions inside its affected range.
+    ctx.ingest_document("cve/CVE-2099-7371.json").await?;
+
+    for (case, identity) in [
+        ("wrong_part_application", "a:linux:linux_kernel"),
+        ("wrong_part_hardware", "h:linux:linux_kernel"),
+        ("wrong_vendor", "o:synthetic:linux_kernel"),
+        ("wrong_product", "o:linux:synthetic_kernel"),
+    ] {
+        // When exactly one identity field differs on the component.
+        let sbom_id =
+            ingest_legacy_cpe_sbom(ctx, case, identity, "6.6.4", "6.6.4-1.synthetic").await?;
+
+        // Then no legacy view may report an affected match.
+        assert_legacy_cpe_views(ctx, case, sbom_id, "CVE-2099-7371", false).await?;
+    }
+
+    Ok(())
+}
+
+/// Matching non-kernel OS identities stay excluded while applications still match.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn legacy_linux_kernel_cpe_eligibility(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    for (index, (case, identity, affected)) in [
+        ("unrelated_os", "o:synthetic:synthetic_os", false),
+        (
+            "kernel_product_wrong_vendor",
+            "o:synthetic:linux_kernel",
+            false,
+        ),
+        ("linux_vendor_wrong_product", "o:linux:synthetic_os", false),
+        ("application", "a:synthetic:synthetic_app", true),
+        ("application_kernel_identity", "a:linux:linux_kernel", true),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        // Given equal component/advisory identities, differing only in eligibility.
+        let cve_id = format!("CVE-2099-{}", 7380 + index);
+        let mut advisory: Value =
+            serde_json::from_slice(&document_bytes("cve/CVE-2099-7371.json").await?)?;
+        advisory["cveMetadata"]["cveId"] = cve_id.clone().into();
+        advisory["containers"]["cna"]["affected"][0]["cpes"][0] =
+            format!("cpe:2.3:{identity}:*:*:*:*:*:*:*:*").into();
+        ctx.ingest_json(advisory).await?;
+
+        // When a component has that same identity and an affected version.
+        let sbom_id =
+            ingest_legacy_cpe_sbom(ctx, case, identity, "6.6.4", "6.6.4-1.synthetic").await?;
+
+        // Then only applications (not these unrelated OS identities) may match.
+        assert_legacy_cpe_views(ctx, case, sbom_id, &cve_id, affected).await?;
+    }
+
+    // Application advisory identity must not match an OS component either.
+    let sbom_id = ingest_legacy_cpe_sbom(
+        ctx,
+        "os_against_application",
+        "o:linux:linux_kernel",
+        "6.6.4",
+        "6.6.4-1.synthetic",
+    )
+    .await?;
+    assert_legacy_cpe_views(
+        ctx,
+        "os_against_application",
+        sbom_id,
+        "CVE-2099-7384",
+        false,
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Build a minimal invented SBOM with two duplicate CPE matches, one without a PURL.
+async fn ingest_legacy_cpe_sbom(
+    ctx: &TrustifyContext,
+    case: &str,
+    identity: &str,
+    cpe_version: &str,
+    package_version: &str,
+) -> Result<Uuid, anyhow::Error> {
+    let mut document: Value =
+        serde_json::from_slice(&document_bytes("cyclonedx/linux-kernel-cpe.json").await?)?;
+    document["serialNumber"] = format!("urn:uuid:{}", Uuid::new_v4()).into();
+    document["metadata"]["component"]["name"] = case.into();
+    for component in document["components"]
+        .as_array_mut()
+        .context("synthetic SBOM components must be an array")?
+    {
+        component["version"] = package_version.into();
+        component["cpe"] = format!("cpe:2.3:{identity}:{cpe_version}:*:*:*:*:*:*:*").into();
+        if component.get("purl").is_some() {
+            component["purl"] =
+                format!("pkg:rpm/synthetic/kernel@{package_version}?arch=x86_64").into();
+        }
+    }
+    let result = ctx.ingest_json(document).await?;
+    Ok(Uuid::parse_str(&result.id)?)
+}
+
+/// Assert the same finding (or its absence) in details, severity counts and backlinks.
+async fn assert_legacy_cpe_views(
+    ctx: &TrustifyContext,
+    case: &str,
+    sbom_id: Uuid,
+    cve_id: &str,
+    affected: bool,
+) -> Result<(), anyhow::Error> {
+    use std::collections::{BTreeSet, HashMap};
+
+    let service = SbomService::new(PaginationCache::for_test());
+    let details = service
+        .fetch_sbom_details(Id::Uuid(sbom_id), vec![], &ctx.db)
+        .await?
+        .context("synthetic SBOM must exist")?;
+    let findings: BTreeSet<_> = details
+        .advisories
+        .iter()
+        .flat_map(|advisory| {
+            advisory.status.iter().map(|status| {
+                (
+                    advisory.head.document_id.as_str(),
+                    status.vulnerability.identifier.as_str(),
+                    status.status.as_str(),
+                )
+            })
+        })
+        .collect();
+    let expected = if affected {
+        BTreeSet::from([(cve_id, cve_id, "affected")])
+    } else {
+        BTreeSet::new()
+    };
+    assert_eq!(findings, expected, "{case}: advisory details");
+
+    for status in details
+        .advisories
+        .iter()
+        .flat_map(|advisory| &advisory.status)
+    {
+        let names: BTreeSet<_> = status
+            .packages
+            .iter()
+            .map(|package| package.name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            BTreeSet::from(["kernel", "kernel-cpe-only"]),
+            "{case}: matched components"
+        );
+        let cpe_only = status
+            .packages
+            .iter()
+            .find(|package| package.name == "kernel-cpe-only")
+            .context("CPE-only component must be present")?;
+        assert!(cpe_only.purl.is_empty(), "{case}: CPE-only component");
+        let scores: BTreeSet<_> = status
+            .scores
+            .iter()
+            .map(|score| score.vector.as_str())
+            .collect();
+        assert_eq!(
+            scores,
+            BTreeSet::from([
+                "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            ]),
+            "{case}: multiple severities are present"
+        );
+    }
+
+    let counts = service
+        .batch_advisory_severity_counts(&[sbom_id], &ctx.db)
+        .await?;
+    let expected_counts = if affected {
+        HashMap::from([(AffectedSeverity::Critical, 1)])
+    } else {
+        HashMap::new()
+    };
+    assert_eq!(
+        counts.get(&sbom_id).cloned().unwrap_or_default(),
+        expected_counts,
+        "{case}: duplicate components/scores count once at highest severity"
+    );
+
+    let vulnerability = VulnerabilityService::new(PaginationCache::for_test())
+        .fetch_vulnerability(cve_id, Default::default(), false, &ctx.db)
+        .await?
+        .context("synthetic vulnerability must exist")?;
+    let backlinks: BTreeSet<_> = vulnerability
+        .advisories
+        .iter()
+        .flat_map(|advisory| &advisory.sboms)
+        .filter(|sbom| sbom.head.id == sbom_id)
+        .map(|sbom| sbom.head.id)
+        .collect();
+    let expected_backlinks = if affected {
+        BTreeSet::from([sbom_id])
+    } else {
+        BTreeSet::new()
+    };
+    assert_eq!(
+        backlinks, expected_backlinks,
+        "{case}: vulnerability backlinks"
     );
 
     Ok(())
