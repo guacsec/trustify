@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794237866108,
+  "lastUpdate": 1794308813679,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24701,6 +24701,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "9ce6fdb3db8ae3643e84f0745c64063e2877b73a",
+          "message": "fix(purl): restore indexed recommendation status lookup",
+          "timestamp": "2026-11-10T09:36:52Z",
+          "tree_id": "b77f4f725f5f32b64d610f88f67ff4cc631810c7",
+          "url": "https://github.com/guacsec/trustify/commit/9ce6fdb3db8ae3643e84f0745c64063e2877b73a"
+        },
+        "date": 1794308811702,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 5,
             "unit": "s"
           }
         ]
