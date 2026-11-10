@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794320898775,
+  "lastUpdate": 1794324001752,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24788,6 +24788,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "8385a7b4121b99f4fea71d59d3ec8a26ee3b6d22",
+          "message": "fix(sbom): scope severity counts to distinct package versions",
+          "timestamp": "2026-11-10T14:23:00Z",
+          "tree_id": "b20edf4e273da705924937d203549a9f4e3cd91f",
+          "url": "https://github.com/guacsec/trustify/commit/8385a7b4121b99f4fea71d59d3ec8a26ee3b6d22"
+        },
+        "date": 1794323998066,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
