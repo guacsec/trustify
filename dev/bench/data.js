@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794308813679,
+  "lastUpdate": 1794318246186,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24730,6 +24730,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 5,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "b0c16e5bf18f0a0aa378c75cbff0166fcd67e287",
+          "message": "fix(correlation): support Linux kernel CPEs in legacy matching",
+          "timestamp": "2026-11-10T12:49:03Z",
+          "tree_id": "a38abf95e3e9624b87f83e44333202216aa11441",
+          "url": "https://github.com/guacsec/trustify/commit/b0c16e5bf18f0a0aa378c75cbff0166fcd67e287"
+        },
+        "date": 1794318244034,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
