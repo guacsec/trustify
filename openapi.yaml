@@ -3076,7 +3076,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorInformation'
         '413':
-          description: Package count or source-recovery resource limit exceeded
+          description: Total package count across requested SBOMs exceeds the configured limit
           content:
             application/json:
               schema:
@@ -3084,7 +3084,7 @@ paths:
         '422':
           description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
         '503':
-          description: Required report evidence cannot be recovered
+          description: Required report evidence cannot be recovered or a recovery resource or time limit was exceeded
           content:
             application/json:
               schema:

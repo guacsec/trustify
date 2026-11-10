@@ -123,9 +123,10 @@ impl ResponseError for Error {
                     ReportError::Ambiguous { .. } => {
                         (StatusCode::CONFLICT, "ReportEvidenceAmbiguous")
                     }
-                    ReportError::Limit { .. } => {
-                        (StatusCode::PAYLOAD_TOO_LARGE, "ReportEvidenceLimitExceeded")
-                    }
+                    ReportError::Limit { .. } => (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        "ReportEvidenceLimitExceeded",
+                    ),
                     _ => (StatusCode::SERVICE_UNAVAILABLE, "ReportEvidenceUnavailable"),
                 };
                 tracing::warn!("{err:?}");
@@ -185,5 +186,45 @@ impl ResponseError for Error {
                 HttpResponse::InternalServerError().json(ErrorInformation::new("Internal", ""))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Error, ReportError};
+    use actix_web::{ResponseError, body::to_bytes, http::StatusCode};
+    use rstest::rstest;
+    use serde_json::Value;
+    use uuid::Uuid;
+
+    /// Recovery budgets are server failures, not the client's package-count limit.
+    #[rstest]
+    #[case::source_bytes("source byte limit")]
+    #[case::metadata("projected report metadata byte limit")]
+    #[case::traversal("component traversal depth")]
+    #[case::recovery_deadline("source recovery deadline")]
+    #[case::parsing_deadline("source parsing deadline")]
+    #[test_log::test(actix_web::test)]
+    async fn report_recovery_limits_are_server_errors(
+        #[case] reason: &'static str,
+    ) -> anyhow::Result<()> {
+        // Given a report that cannot safely recover its required retained evidence.
+        let error = Error::from(ReportError::Limit {
+            sbom_id: Uuid::nil(),
+            reason,
+        });
+
+        // When the service failure is converted into the report's HTTP error response.
+        let response = error.error_response();
+
+        // Then the release UI sees a report-generation error, not package-limit advice.
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let bytes = to_bytes(response.into_body()).await.unwrap();
+        let body: Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(body["error"], "ReportEvidenceLimitExceeded");
+        assert!(body["message"].as_str().unwrap().contains(reason));
+        assert!(body.get("packages").is_none());
+        assert!(body.get("impact_summary").is_none());
+        Ok(())
     }
 }

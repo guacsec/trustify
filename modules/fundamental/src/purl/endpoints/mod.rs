@@ -174,9 +174,9 @@ mod v3 {
         responses(
             (status = 200, description = "Aggregated recommendation report for the requested SBOMs", body = RecommendReportResponse),
             (status = 409, description = "Required source supplier attribution is ambiguous", body = ErrorInformation),
-            (status = 413, description = "Package count or source-recovery resource limit exceeded", body = ErrorInformation),
+            (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit", body = ErrorInformation),
             (status = 422, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
-            (status = 503, description = "Required report evidence cannot be recovered", body = ErrorInformation),
+            (status = 503, description = "Required report evidence cannot be recovered or a recovery resource or time limit was exceeded", body = ErrorInformation),
         )
     )]
     #[post("/v3/purl/recommend/report")]
