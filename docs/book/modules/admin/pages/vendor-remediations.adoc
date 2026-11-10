@@ -175,12 +175,13 @@ Recovery is limited to 64 MiB of decompressed bytes per source, 256 MiB per requ
 Input source sizes are checked before projecting database attributes. Large attributes are shared per node rather than copied per PURL, and range metadata is shared across matched CVEs.
 Retained input, extracted source metadata, and expanded evidence metadata are bounded as well. CVEs with no possible addressing assessment do not require origin recovery.
 RPM distribution qualifiers and supported release streams contribute product context even when no explicit component CPE is present.
-The existing package-count limit also applies. Large or slow source recovery is rejected rather than returning incomplete totals.
+The existing package-count limit also applies; only exceeding this limit returns HTTP 413 with error code `package_limit_exceeded`.
+Large or slow source recovery is rejected rather than returning incomplete totals.
 
 If required evidence cannot be used safely, the whole request returns an explicit error, not a partial report:
 
 * HTTP 409, `ReportEvidenceAmbiguous`: a source supplier cannot be assigned unambiguously to an existing component, for example anonymous otherwise-identical components with different suppliers.
-* HTTP 413, `ReportEvidenceLimitExceeded`: source byte, time, or traversal bounds were exceeded.
+* HTTP 503, `ReportEvidenceLimitExceeded`: source byte, metadata, time, or traversal bounds were exceeded. This is a server-side recovery failure, not a package-count limit.
 * HTTP 503, `ReportEvidenceUnavailable`: a required source is missing, unreadable, fails digest verification, or cannot be associated with the stored component.
 
 A genuinely absent supplier is not an error. Source recovery is unnecessary when no active addressing assessment can produce a report row.

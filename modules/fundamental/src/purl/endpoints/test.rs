@@ -2520,10 +2520,12 @@ async fn recommend_report_source_size_limit(ctx: &TrustifyContext) -> anyhow::Re
         )
         .await;
 
-    // Then the independent source-byte limit is explicit.
-    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    // Then recovery fails as a server error, not the client's package-count limit.
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     let body: Value = read_body_json(response).await;
     assert_eq!(body["error"], "ReportEvidenceLimitExceeded");
+    assert!(body.get("packages").is_none());
+    assert!(body.get("impact_summary").is_none());
     Ok(())
 }
 
