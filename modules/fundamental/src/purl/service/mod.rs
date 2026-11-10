@@ -94,6 +94,9 @@ struct EffectivePurlStatus {
     winner_versioned_purl_id: Uuid,
 }
 
+// Three VALUES columns plus one explicit base-PURL filter parameter per winner.
+const RECOMMENDATION_WINNER_BINDS: usize = 4;
+
 /// A PURL-to-SBOM association row fetched for the recommendation report endpoint.
 #[derive(FromQueryResult)]
 struct SbomPurlRow {
@@ -762,49 +765,8 @@ impl PurlService {
         winners: impl IntoIterator<Item = (Uuid, &'a str, Uuid)>,
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
-        // Postgres names the columns of an aliased `VALUES` list `column1`, `column2`, ...
-        let winners_table = Alias::new("recommend_winner");
-        let winner_base_purl_id = Expr::col((winners_table.clone(), Alias::new("column1")));
-        let winner_version = Expr::col((winners_table.clone(), Alias::new("column2")));
-        let winner_versioned_purl_id = Expr::col((winners_table.clone(), Alias::new("column3")));
-
-        let mut seen = HashSet::new();
-        let winner_rows: Vec<ValueTuple> = winners
-            .into_iter()
-            .filter(|(_, _, versioned_purl_id)| seen.insert(*versioned_purl_id))
-            .map(IntoValueTuple::into_value_tuple)
-            .collect();
-
         let mut statuses_by_vp: HashMap<_, Vec<StatusInfo>> = HashMap::new();
-        // Each winner row binds three values.
-        for chunk in chunked_with(3, winner_rows) {
-            // Do not select joined columns that share a `purl_status` column name (such as
-            // `version_range.id`): they would overwrite the status `id` used to load remediations.
-            let mut query = Self::recommendation_statuses()
-                .column_as(
-                    Expr::col((purl_status::Entity, Alias::new("derived"))),
-                    "derived",
-                )
-                .column_as(
-                    Expr::col((purl_status::Entity, Alias::new("stated_id"))),
-                    "stated_id",
-                )
-                .column_as(winner_versioned_purl_id.clone(), "winner_versioned_purl_id")
-                .join(JoinType::LeftJoin, purl_status::effective_version_range());
-            QueryTrait::query(&mut query)
-                .join(
-                    JoinType::InnerJoin,
-                    TableRef::ValuesList(chunk, winners_table.clone().into_iden()),
-                    winner_base_purl_id
-                        .clone()
-                        .equals((purl_status::Entity, purl_status::Column::BasePurlId)),
-                )
-                .and_where(SimpleExpr::FunctionCall(
-                    Func::cust(VersionMatches)
-                        .arg(winner_version.clone())
-                        .arg(Expr::col((version_range::Entity, Asterisk))),
-                ));
-
+        for query in Self::recommendation_status_queries(winners) {
             let all_statuses: Vec<EffectivePurlStatus> = query
                 .into_model()
                 .all(connection)
@@ -822,6 +784,64 @@ impl PurlService {
         }
 
         Ok(statuses_by_vp)
+    }
+
+    /// Deduplicate and chunk winners through the same query construction used for execution.
+    fn recommendation_status_queries<'a>(
+        winners: impl IntoIterator<Item = (Uuid, &'a str, Uuid)>,
+    ) -> impl Iterator<Item = Select<purl_status::Entity>> {
+        let mut seen = HashSet::new();
+        let winners = winners
+            .into_iter()
+            .filter(move |(_, _, versioned_purl_id)| seen.insert(*versioned_purl_id));
+        chunked_with(RECOMMENDATION_WINNER_BINDS, winners)
+            .map(|chunk| Self::recommendation_status_query(&chunk))
+    }
+
+    fn recommendation_status_query(winners: &[(Uuid, &str, Uuid)]) -> Select<purl_status::Entity> {
+        // Postgres names the columns of an aliased `VALUES` list `column1`, `column2`, ...
+        let winners_table = Alias::new("recommend_winner");
+        let winner_base_purl_id = Expr::col((winners_table.clone(), Alias::new("column1")));
+        let winner_version = Expr::col((winners_table.clone(), Alias::new("column2")));
+        let winner_versioned_purl_id = Expr::col((winners_table.clone(), Alias::new("column3")));
+        let winner_rows: Vec<ValueTuple> = winners
+            .iter()
+            .copied()
+            .map(IntoValueTuple::into_value_tuple)
+            .collect();
+
+        // Do not select joined columns that share a `purl_status` column name (such as
+        // `version_range.id`): they would overwrite the status `id` used to load remediations.
+        let mut query = Self::recommendation_statuses()
+            .column_as(
+                Expr::col((purl_status::Entity, Alias::new("derived"))),
+                "derived",
+            )
+            .column_as(
+                Expr::col((purl_status::Entity, Alias::new("stated_id"))),
+                "stated_id",
+            )
+            .column_as(winner_versioned_purl_id, "winner_versioned_purl_id")
+            .join(JoinType::LeftJoin, purl_status::effective_version_range())
+            // The VALUES join alone does not push the package restriction into both UNION
+            // branches. An explicit filter lets PostgreSQL use their base-PURL indexes rather
+            // than scanning all effective/default statuses before joining the winners.
+            .filter(
+                purl_status::Column::BasePurlId
+                    .is_in(winners.iter().map(|(base_purl_id, _, _)| *base_purl_id)),
+            );
+        QueryTrait::query(&mut query)
+            .join(
+                JoinType::InnerJoin,
+                TableRef::ValuesList(winner_rows, winners_table.into_iden()),
+                winner_base_purl_id.equals((purl_status::Entity, purl_status::Column::BasePurlId)),
+            )
+            .and_where(SimpleExpr::FunctionCall(
+                Func::cust(VersionMatches)
+                    .arg(winner_version)
+                    .arg(Expr::col((version_range::Entity, Asterisk))),
+            ));
+        query
     }
 
     /// Loads vulnerability status associations for PURL status rows, grouped by the winning
