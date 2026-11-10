@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test;
+
 /// This constant is a SQL subquery that filters the context_cpe_id
 /// based on the given sbom_id. It reads from the materialized
 /// sbom_describing_cpe table instead of computing the join at query time.
@@ -42,12 +45,10 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 /// details endpoint). Takes `$1 = Uuid[]` and returns
 /// `(sbom_id, severity, count)` rows.
 ///
-/// Uses a shared `sbom_purl_info` CTE (referenced 3x) that PostgreSQL
-/// auto-materializes, acting as a barrier that prevents the planner from
-/// inlining the SBOM's package set and scanning the full `versioned_purl`
-/// table. The advisory filter is deferred to a separate CTE so the
-/// expensive `version_matches()` narrows the set before any advisory
-/// lookups.
+/// Deduplicates package versions before matching, sharing range checks across
+/// nodes, qualifiers and SBOMs in the page. Parameterized LATERAL lookups keep
+/// the status search scoped to those packages instead of scanning the entire
+/// status corpus. Context filtering remains per SBOM after range matching.
 pub fn batch_severity_counts_sql() -> &'static str {
     r#"
     WITH
@@ -56,13 +57,10 @@ pub fn batch_severity_counts_sql() -> &'static str {
         SELECT unnest($1::uuid[]) AS sbom_id
     ),
 
-    -- Shared CTE: SBOM package info including version, base_purl_id,
-    -- and name/namespace. Referenced 3x so PostgreSQL auto-materializes
-    -- it, preventing the planner from inlining and scanning the full
-    -- versioned_purl table. Including base_purl here nudges the planner
-    -- to hash the small side (20k rows) instead of the large one (1.6M).
-    sbom_purl_info AS (
-        SELECT
+    -- Counts depend on package identity/version, not on how many nodes or
+    -- qualified PURLs reference it. Keep only the requested SBOMs' packages.
+    sbom_purl_info AS MATERIALIZED (
+        SELECT DISTINCT
             spr.sbom_id,
             vp.version,
             vp.base_purl_id,
@@ -98,34 +96,48 @@ pub fn batch_severity_counts_sql() -> &'static str {
         SELECT DISTINCT sbom_id FROM sbom_cpes
     ),
 
-    -- PURL-based matching: version_matches called only for SBOM's packages,
-    -- advisory filter deferred to avoid unnecessary lookups.
-    purl_version_matches AS (
-        SELECT DISTINCT
-            sp.sbom_id,
-            pst.advisory_id,
-            pst.vulnerability_id
-        FROM sbom_purl_info sp
-        -- including the statuses implied by correlation options (migration m0002530)
-        JOIN purl_status_effective pst ON pst.base_purl_id = sp.base_purl_id
-        JOIN version_range_effective vr
-            ON pst.version_range_id = vr.id AND pst.derived = vr.derived
-        JOIN status ON pst.status_id = status.id
-        WHERE status.slug = 'affected'
-          AND version_matches(sp.version, vr.*)
-          AND (
-              pst.context_cpe_id IS NULL
-              OR pst.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
-              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
-          )
+    -- Share range matching across SBOMs with the same package version.
+    sbom_purl_versions AS (
+        SELECT DISTINCT base_purl_id, version FROM sbom_purl_info
+    ),
+    purl_version_matches AS MATERIALIZED (
+        SELECT pv.base_purl_id, pv.version, m.*
+        FROM sbom_purl_versions pv
+        CROSS JOIN LATERAL (
+            SELECT DISTINCT
+                pst.advisory_id,
+                pst.vulnerability_id,
+                pst.context_cpe_id
+            -- Preserve stated and publisher-derived statuses and their ranges.
+            FROM purl_status_effective pst
+            JOIN version_range_effective vr
+                ON pst.version_range_id = vr.id AND pst.derived = vr.derived
+            JOIN status ON pst.status_id = status.id
+            WHERE pst.base_purl_id = pv.base_purl_id
+              AND status.slug = 'affected'
+              AND version_matches(pv.version, vr.*)
+            -- An optimization fence, not pagination: without it PostgreSQL can
+            -- flatten the lookup into a hash join scanning all purl_status rows.
+            OFFSET 0
+        ) m
     ),
     purl_matches AS (
-        SELECT pm.sbom_id, pm.advisory_id, pm.vulnerability_id
-        FROM purl_version_matches pm
+        SELECT DISTINCT
+            sp.sbom_id,
+            pm.advisory_id,
+            pm.vulnerability_id
+        FROM sbom_purl_info sp
+        JOIN purl_version_matches pm
+            ON pm.base_purl_id = sp.base_purl_id AND pm.version = sp.version
         WHERE NOT EXISTS (
-            SELECT 1 FROM advisory a
-            WHERE a.id = pm.advisory_id AND a.deprecated
-        )
+              SELECT 1 FROM advisory a
+              WHERE a.id = pm.advisory_id AND a.deprecated
+          )
+          AND (
+              pm.context_cpe_id IS NULL
+              OR pm.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
+              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
+          )
     ),
 
     -- CPE product_status matches by name
