@@ -8,7 +8,7 @@ use sea_orm::{
 };
 use std::collections::BTreeMap;
 use tracing::{Instrument, info_span};
-use trustify_common::db::chunk::EntityChunkedIter;
+use trustify_common::db::{chunk::EntityChunkedIter, sql};
 use trustify_entity::{correlation_evidence, correlation_evidence_context};
 use uuid::Uuid;
 
@@ -41,6 +41,19 @@ const NEW_SOURCE_ASSERTIONS: &str = r#"EXISTS (
         WHERE sources.source = new_sources.source
     )
 )"#;
+
+// Retain the previous seven-column VALUES insert's maximum rows per batch.
+const CONTEXT_BATCH_SIZE: usize = 9_343;
+
+const INSERT_CONTEXTS: &str = r#"
+INSERT INTO correlation_evidence_context
+    (evidence_id, context_id, source, distance, node_identifier, context_identifier, confidence)
+SELECT evidence_id, context_id, source::correlation_context_source, distance,
+       node_identifier, context_identifier, confidence
+FROM unnest($1::uuid[], $2::uuid[], $3::text[], $4::integer[], $5::text[], $6::text[], $7::double precision[])
+    AS contexts(evidence_id, context_id, source, distance, node_identifier, context_identifier, confidence)
+ON CONFLICT (evidence_id, context_id, node_identifier, context_identifier) DO NOTHING
+"#;
 
 /// A piece of evidence, with the contexts it was matched in.
 struct Pending {
@@ -154,14 +167,14 @@ impl EvidenceWriter {
             let confidence_factors =
                 serde_json::to_value(&assertion.factors).map_err(Error::MatchedValue)?;
             for link in contexts {
-                links.push(correlation_evidence_context::ActiveModel {
-                    evidence_id: Set(id),
-                    context_id: Set(link.context_id),
-                    source: Set(link.source),
-                    distance: Set(i32::try_from(link.distance)?),
-                    node_identifier: Set(link.node_identifier),
-                    context_identifier: Set(link.context_identifier),
-                    confidence: Set(link.confidence),
+                links.push(correlation_evidence_context::Model {
+                    evidence_id: id,
+                    context_id: link.context_id,
+                    source: link.source,
+                    distance: i32::try_from(link.distance)?,
+                    node_identifier: link.node_identifier,
+                    context_identifier: link.context_identifier,
+                    confidence: link.confidence,
                 });
             }
             models.push(correlation_evidence::ActiveModel {
@@ -197,15 +210,54 @@ impl EvidenceWriter {
                 .instrument(info_span!("inserting evidence"))
                 .await?;
         }
-        for batch in links.chunked() {
-            correlation_evidence_context::Entity::insert_many(batch)
-                .on_conflict_do_nothing()
-                .exec(connection)
-                .instrument(info_span!("inserting evidence contexts"))
-                .await?;
-        }
+        insert_contexts(links, connection).await?;
 
         Ok(count)
+    }
+}
+
+/// Bind one array per column, with bounded batches and no unused returned keys.
+async fn insert_contexts(
+    links: Vec<correlation_evidence_context::Model>,
+    connection: &impl ConnectionTrait,
+) -> Result<(), Error> {
+    let mut links = links.into_iter();
+    loop {
+        let batch = links.by_ref().take(CONTEXT_BATCH_SIZE).collect::<Vec<_>>();
+        if batch.is_empty() {
+            return Ok(());
+        }
+        let mut evidence_ids = Vec::with_capacity(batch.len());
+        let mut context_ids = Vec::with_capacity(batch.len());
+        let mut sources = Vec::with_capacity(batch.len());
+        let mut distances = Vec::with_capacity(batch.len());
+        let mut node_identifiers = Vec::with_capacity(batch.len());
+        let mut context_identifiers = Vec::with_capacity(batch.len());
+        let mut confidences = Vec::with_capacity(batch.len());
+        for link in batch {
+            evidence_ids.push(link.evidence_id);
+            context_ids.push(link.context_id);
+            sources.push(link.source.to_value());
+            distances.push(link.distance);
+            node_identifiers.push(link.node_identifier);
+            context_identifiers.push(link.context_identifier);
+            confidences.push(link.confidence);
+        }
+        connection
+            .execute_raw(sql(
+                INSERT_CONTEXTS,
+                vec![
+                    evidence_ids.into(),
+                    context_ids.into(),
+                    sources.into(),
+                    distances.into(),
+                    node_identifiers.into(),
+                    context_identifiers.into(),
+                    confidences.into(),
+                ],
+            ))
+            .instrument(info_span!("inserting evidence contexts"))
+            .await?;
     }
 }
 
@@ -213,8 +265,142 @@ impl EvidenceWriter {
 mod test {
     use super::*;
     use crate::model::MatchedValue;
-    use trustify_entity::correlation_evidence::AssertionStatus;
+    use sea_orm::{DatabaseTransaction, IntoActiveModel, Iterable, TransactionTrait};
+    use std::time::{Duration, Instant};
+    use test_context::test_context;
+    use trustify_entity::{
+        correlation_evidence::AssertionStatus, correlation_evidence_context::ContextSource,
+    };
+    use trustify_test_context::TrustifyContext;
 
+    /// Use the real column types and indexes, isolated from evidence and its foreign keys.
+    async fn context_table(ctx: &TrustifyContext) -> anyhow::Result<DatabaseTransaction> {
+        let tx = ctx.db.begin().await?;
+        tx.execute_unprepared(
+            "CREATE TEMP TABLE correlation_evidence_context \
+             (LIKE public.correlation_evidence_context INCLUDING ALL) ON COMMIT DROP",
+        )
+        .await?;
+        Ok(tx)
+    }
+
+    fn context_rows(count: usize) -> Vec<correlation_evidence_context::Model> {
+        let sources = ContextSource::iter().collect::<Vec<_>>();
+        (0..count)
+            .map(|index| correlation_evidence_context::Model {
+                evidence_id: Uuid::from_u128(index as u128 + 1),
+                context_id: Uuid::from_u128(1),
+                source: sources[index % sources.len()],
+                distance: (index % 5) as i32,
+                node_identifier: format!("sku:{index}:'\"\\日本語"),
+                context_identifier: format!("cpe:2.3:a:vendor:product:{index}:*:*:*:*:*:*:*"),
+                confidence: 0.875,
+            })
+            .collect()
+    }
+
+    /// Preserve every column, skip conflicts without updates, and handle more than one batch.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn context_array_inserts(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let tx = context_table(ctx).await?;
+        insert_contexts(Vec::new(), &tx).await?;
+        let mut expected = context_rows(CONTEXT_BATCH_SIZE + 1);
+        // Each part of the composite key must distinguish a new context link.
+        let mut other_context = expected[0].clone();
+        other_context.context_id = Uuid::from_u128(2);
+        let mut other_node = expected[0].clone();
+        other_node.node_identifier.push_str("-other");
+        let mut other_identifier = expected[0].clone();
+        other_identifier.context_identifier.push_str("-other");
+        expected.extend([other_context, other_node, other_identifier]);
+        let mut input = expected.clone();
+        let mut duplicate = expected[0].clone();
+        duplicate.source = ContextSource::Unconfirmed;
+        duplicate.distance = 99;
+        duplicate.confidence = 0.25;
+        input.insert(1, duplicate.clone());
+        input.push(duplicate);
+        insert_contexts(input, &tx).await?;
+        insert_contexts(expected.clone(), &tx).await?;
+        let actual = correlation_evidence_context::Entity::find()
+            .all(&tx)
+            .await?;
+        let by_key = |rows: Vec<correlation_evidence_context::Model>| {
+            rows.into_iter()
+                .map(|row| {
+                    (
+                        (
+                            row.evidence_id,
+                            row.context_id,
+                            row.node_identifier.clone(),
+                            row.context_identifier.clone(),
+                        ),
+                        row,
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+        };
+        assert_eq!(by_key(actual), by_key(expected));
+        tx.rollback().await?;
+        Ok(())
+    }
+
+    /// Compare the old VALUES/RETURNING path, VALUES without RETURNING, and array insertion.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    #[ignore = "manual insert benchmark in an isolated temporary table"]
+    async fn context_insert_benchmark(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        #[derive(Clone, Copy, Debug)]
+        enum InsertMode {
+            ValuesReturning,
+            Values,
+            Arrays,
+        }
+
+        let tx = context_table(ctx).await?;
+        let rows = context_rows(CONTEXT_BATCH_SIZE);
+        for duplicate in [false, true] {
+            for mode in [
+                InsertMode::ValuesReturning,
+                InsertMode::Values,
+                InsertMode::Arrays,
+            ] {
+                let mut elapsed = Duration::ZERO;
+                for _ in 0..5 {
+                    tx.execute_unprepared("TRUNCATE correlation_evidence_context")
+                        .await?;
+                    if duplicate {
+                        insert_contexts(rows.clone(), &tx).await?;
+                    }
+                    let input = rows.clone();
+                    let start = Instant::now();
+                    match mode {
+                        InsertMode::Arrays => insert_contexts(input, &tx).await?,
+                        InsertMode::ValuesReturning | InsertMode::Values => {
+                            let insert = correlation_evidence_context::Entity::insert_many(
+                                input.into_iter().map(IntoActiveModel::into_active_model),
+                            )
+                            .on_conflict_do_nothing();
+                            if matches!(mode, InsertMode::ValuesReturning) {
+                                insert.exec(&tx).await?;
+                            } else {
+                                insert.exec_without_returning(&tx).await?;
+                            }
+                        }
+                    }
+                    elapsed += start.elapsed();
+                }
+                println!(
+                    "{mode:?}, duplicate={duplicate}: {:?} mean for {} rows",
+                    elapsed / 5,
+                    rows.len()
+                );
+            }
+        }
+        tx.rollback().await?;
+        Ok(())
+    }
     /// The evidence ID must stay stable, as existing rows are de-duplicated by it.
     #[test]
     fn evidence_id_is_stable() {
