@@ -17,6 +17,145 @@ use trustify_common::{
 use trustify_entity::correlation_option::{self, CorrelationOptionKey};
 use trustify_test_context::{Dataset, TrustifyContext};
 
+#[test]
+fn recommendation_status_query_filters_winner_packages() {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    // Two versions of one package must remain separate winners despite the package filter.
+    let winners = [
+        (
+            Uuid::from_u128(1),
+            "1.0.0.redhat-00001",
+            Uuid::from_u128(11),
+        ),
+        (
+            Uuid::from_u128(1),
+            "2.0.0.redhat-00001",
+            Uuid::from_u128(12),
+        ),
+        (
+            Uuid::from_u128(2),
+            "1.0.0.redhat-00001",
+            Uuid::from_u128(21),
+        ),
+    ];
+    let mut queries = PurlService::recommendation_status_queries(winners);
+    let statement = queries.next().unwrap().build(DbBackend::Postgres);
+    assert!(queries.next().is_none());
+
+    // A VALUES join without this explicit predicate can scan the entire status corpus.
+    assert!(
+        statement
+            .sql
+            .contains("WHERE \"purl_status\".\"base_purl_id\" IN (")
+    );
+    assert!(statement.sql.contains("UNION ALL"));
+    assert!(statement.sql.contains("JOIN (VALUES"));
+    assert!(
+        statement
+            .sql
+            .contains(r#"version_matches("recommend_winner"."column2", "version_range".*)"#),
+        "{}",
+        statement.sql
+    );
+    assert!(
+        statement
+            .sql
+            .contains(r#"LEFT JOIN "version_range_effective" AS "version_range""#)
+    );
+    assert!(statement.sql.contains(
+        r#""purl_status"."version_range_id" = "version_range"."id" AND "purl_status"."derived" = "version_range"."derived""#
+    ));
+    assert!(
+        statement
+            .sql
+            .contains(r#""recommend_winner"."column1" = "purl_status"."base_purl_id""#)
+    );
+    assert!(
+        statement
+            .sql
+            .contains(r#""recommend_winner"."column3" AS "winner_versioned_purl_id""#)
+    );
+
+    // Pin the actual VALUES triples and package-filter binds, not just their number.
+    let values = statement.values.unwrap().0;
+    assert_eq!(
+        values.len(),
+        winners.len() * super::RECOMMENDATION_WINNER_BINDS + 2
+    );
+    assert_eq!(
+        values,
+        vec![
+            false.into(),
+            true.into(),
+            winners[0].0.into(),
+            winners[0].1.into(),
+            winners[0].2.into(),
+            winners[1].0.into(),
+            winners[1].1.into(),
+            winners[1].2.into(),
+            winners[2].0.into(),
+            winners[2].1.into(),
+            winners[2].2.into(),
+            winners[0].0.into(),
+            winners[1].0.into(),
+            winners[2].0.into(),
+        ]
+    );
+}
+
+#[test]
+fn recommendation_status_query_chunks_fit_postgres_bind_limit() {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    let chunk_size = (u16::MAX - 128) as usize / super::RECOMMENDATION_WINNER_BINDS;
+    for (winner_count, expected_bind_counts) in [
+        (0, vec![]),
+        (1, vec![6]),
+        (chunk_size, vec![chunk_size * 4 + 2]),
+        (chunk_size + 1, vec![chunk_size * 4 + 2, 6]),
+    ] {
+        let winners = (0..winner_count).map(|i| {
+            (
+                Uuid::from_u128(i as u128 + 1),
+                "1.0.0.redhat-00001",
+                Uuid::from_u128(i as u128 + 100_000),
+            )
+        });
+        // Exercise production chunking rather than independently recreating it in the test.
+        let bind_counts = PurlService::recommendation_status_queries(winners)
+            .map(|query| query.build(DbBackend::Postgres).values.unwrap().0.len())
+            .collect::<Vec<_>>();
+        assert!(bind_counts.iter().all(|count| *count <= u16::MAX as usize));
+        assert_eq!(bind_counts, expected_bind_counts);
+    }
+}
+
+#[test]
+fn recommendation_status_queries_deduplicate_winners_across_chunks() {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    let chunk_size = (u16::MAX - 128) as usize / super::RECOMMENDATION_WINNER_BINDS;
+    let winner = |i: usize| {
+        (
+            Uuid::from_u128(i as u128 + 1),
+            "1.0.0.redhat-00001",
+            Uuid::from_u128(i as u128 + 100_000),
+        )
+    };
+    let winners =
+        (0..chunk_size)
+            .map(winner)
+            .chain([winner(0), winner(chunk_size), winner(chunk_size)]);
+    let bind_counts = PurlService::recommendation_status_queries(winners)
+        .map(|query| query.build(DbBackend::Postgres).values.unwrap().0.len())
+        .collect::<Vec<_>>();
+    assert_eq!(bind_counts, [chunk_size * 4 + 2, 6]);
+}
+
 /// Verifies remediation identity/order depends on all response content, not row IDs or order.
 #[test]
 fn recommend_remediation_union_is_content_based_and_order_independent() {
