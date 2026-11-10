@@ -754,6 +754,7 @@ async fn match_batched(
 ) -> Result<(), Error> {
     let mut targets = Targets::new();
     let mut batches = Batches::default();
+    let mut inputs = HashMap::new();
     for (component, identifiers) in components.iter().enumerate() {
         let mut keys = BTreeSet::new();
         for identifier in identifiers {
@@ -767,6 +768,11 @@ async fn match_batched(
                 continue;
             }
             let version = purl.version_uuid();
+            inputs.entry(version).or_insert_with(|| InputVersion {
+                id: version,
+                package: purl.package_uuid(),
+                version: purl.effective_version(),
+            });
             batches.add(version, purl.package_uuid());
             keys.insert((version, Ecosystem::matched_qualifiers(&purl.qualifiers)));
         }
@@ -811,7 +817,10 @@ async fn match_batched(
             continue;
         }
         match_batch(
-            take(&mut versions),
+            take(&mut versions)
+                .into_iter()
+                .filter_map(|id| inputs.remove(&id))
+                .collect(),
             take(&mut batch),
             &rules,
             &sources,
@@ -897,7 +906,7 @@ const CURSOR: &str = "purl_status_matches";
     err(level = tracing::Level::INFO)
 )]
 async fn match_batch(
-    versions: Vec<Uuid>,
+    versions: Vec<InputVersion>,
     targets: Vec<(&BTreeSet<Key>, &[usize])>,
     rules: &Arc<Vec<Box<dyn RangeRule>>>,
     sources: &[(Source<'_>, Candidates)],
@@ -1122,10 +1131,17 @@ impl Held {
     }
 }
 
+/// A requested version, including versions which have no persisted row.
+struct InputVersion {
+    id: Uuid,
+    package: Uuid,
+    version: String,
+}
+
 /// What a PURL match statement matches the stated rows against.
 enum Scope {
     /// The given versioned PURLs (SBOM direction).
-    Versions(Vec<Uuid>),
+    Versions(Vec<InputVersion>),
     /// The versioned PURLs of all SBOM nodes, for the rows of one advisory (advisory direction).
     Advisory(Uuid),
 }
@@ -1280,38 +1296,72 @@ fn purl_status_matches(scope: &Scope, sources: &[(Source<'_>, Candidates)]) -> O
     .from(matched.clone());
     scope.targets(&mut rows, &matched);
 
-    Some(
-        rows.with(
-            WithClause::new()
-                .cte(
-                    CommonTableExpression::new()
-                        .query(candidates)
-                        .table_name(candidate)
-                        .to_owned(),
-                )
-                .cte(
-                    CommonTableExpression::new()
-                        .query(matches)
-                        .table_name(matched)
-                        .to_owned(),
-                )
+    let mut with = WithClause::new();
+    if let Scope::Versions(inputs) = scope {
+        // Shadow the persisted table for this statement. Parallel arrays keep the parameter
+        // count bounded and let ad-hoc queries match versions absent from the database.
+        let versions = Query::select()
+            .expr_as(
+                Expr::cust_with_exprs(
+                    "unnest($1::uuid[])",
+                    [Expr::val(
+                        inputs.iter().map(|input| input.id).collect::<Vec<_>>(),
+                    )],
+                ),
+                versioned_purl::Column::Id,
+            )
+            .expr_as(
+                Expr::cust_with_exprs(
+                    "unnest($1::uuid[])",
+                    [Expr::val(
+                        inputs.iter().map(|input| input.package).collect::<Vec<_>>(),
+                    )],
+                ),
+                versioned_purl::Column::BasePurlId,
+            )
+            .expr_as(
+                Expr::cust_with_exprs(
+                    "unnest($1::text[])",
+                    [Expr::val(
+                        inputs
+                            .iter()
+                            .map(|input| input.version.clone())
+                            .collect::<Vec<_>>(),
+                    )],
+                ),
+                versioned_purl::Column::Version,
+            )
+            .to_owned();
+        with.cte(
+            CommonTableExpression::new()
+                .query(versions)
+                .table_name(versioned_purl::Entity)
                 .to_owned(),
-        ),
+        );
+    }
+    with.cte(
+        CommonTableExpression::new()
+            .query(candidates)
+            .table_name(candidate)
+            .to_owned(),
     )
+    .cte(
+        CommonTableExpression::new()
+            .query(matches)
+            .table_name(matched)
+            .to_owned(),
+    );
+    Some(rows.with(with))
 }
 
 impl Scope {
     /// The stated rows in scope.
     fn stated(&self) -> SimpleExpr {
         match self {
-            Self::Versions(ids) => {
-                Expr::col((purl_status::Entity, purl_status::Column::BasePurlId)).in_subquery(
-                    Query::select()
-                        .column(versioned_purl::Column::BasePurlId)
-                        .from(versioned_purl::Entity)
-                        .and_where(Expr::col(versioned_purl::Column::Id).eq(ids_param(ids)))
-                        .to_owned(),
-                )
+            Self::Versions(inputs) => {
+                Expr::col((purl_status::Entity, purl_status::Column::BasePurlId)).eq(ids_param(
+                    &inputs.iter().map(|input| input.package).collect::<Vec<_>>(),
+                ))
             }
             Self::Advisory(id) => {
                 Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId)).eq(*id)
@@ -1321,9 +1371,8 @@ impl Scope {
 
     /// The versioned PURLs in scope, of the packages of the stated rows.
     fn versions(&self) -> SimpleExpr {
-        let version = Expr::col((versioned_purl::Entity, versioned_purl::Column::Id));
         match self {
-            Self::Versions(ids) => version.eq(ids_param(ids)),
+            Self::Versions(_) => Expr::val(true),
             // only versions of SBOM nodes, before evaluating ranges for them. A PURL without a
             // version has nothing to evaluate, and the other direction doesn't look it up.
             Self::Advisory(_) => {
