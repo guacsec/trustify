@@ -188,12 +188,12 @@ async fn query_identifier_matches_synthetic_purl_version(
     );
 
     let matches = PurlExtractor
-        .match_identifiers(std::slice::from_ref(&identifier), &tx)
+        .match_identifiers(&[vec![identifier.clone()]], &tx)
         .await?;
     let matched = matches
         .iter()
         .find(|matched| {
-            matched.index == 0
+            matched.component == 0
                 && matched.assertion.advisory_id == advisory_id
                 && matched.assertion.vulnerability_id == "CVE-2023-0215"
                 && matched.assertion.status == AssertionStatus::Affected
@@ -248,7 +248,7 @@ async fn query_identifier_excludes_deprecated_purl_evidence(
         );
         assert!(
             !PurlExtractor
-                .match_identifiers(std::slice::from_ref(identifier), &tx)
+                .match_identifiers(&[vec![identifier.clone()]], &tx)
                 .await?
                 .is_empty()
         );
@@ -258,12 +258,12 @@ async fn query_identifier_excludes_deprecated_purl_evidence(
         .filter(advisory::Column::Id.eq(Uuid::parse_str(&advisory.id)?))
         .exec(&tx)
         .await?;
-    assert!(
-        PurlExtractor
-            .match_identifiers(&identifiers, &tx)
-            .await?
-            .is_empty()
-    );
+    // Extraction preserves historical evidence; query resolution excludes deprecated advisories.
+    let service = crate::service::CorrelationService::default();
+    for identifier in identifiers {
+        let result = service.query_identifier(identifier, &tx).await?;
+        assert!(result.verdicts.is_empty());
+    }
     Ok(())
 }
 
@@ -332,13 +332,22 @@ async fn match_identifiers_beyond_bind_parameter_limit(
     }
 
     // When matching the entire collection, as the SBOM extractor does.
-    let matches = PurlExtractor.match_identifiers(&identifiers, &tx).await?;
+    let matches = PurlExtractor
+        .match_identifiers(
+            &identifiers
+                .iter()
+                .cloned()
+                .map(|id| vec![id])
+                .collect::<Vec<_>>(),
+            &tx,
+        )
+        .await?;
 
     // Then exact versions, duplicate indices, and qualified inputs keep their affected evidence.
     assert_eq!(
         matches
             .iter()
-            .map(|matched| matched.index)
+            .map(|matched| matched.component)
             .collect::<BTreeSet<_>>(),
         BTreeSet::from([0, 65_536, 69_999, 70_000, 70_001])
     );

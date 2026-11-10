@@ -79,7 +79,9 @@ impl ReportQueryCache {
             .collect::<Vec<_>>();
         if !missing.is_empty() {
             let names = load_advisory_names(&missing, connection).await?;
-            self.providers.load_advisories(connection, &missing).await?;
+            self.providers
+                .load_advisories(connection, missing.iter().copied())
+                .await?;
             self.advisory_names.extend(names);
             self.loaded_advisories.extend(missing);
         }
