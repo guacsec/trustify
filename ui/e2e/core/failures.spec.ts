@@ -1,5 +1,14 @@
 import { test, expect } from '../support';
 
+test('authentication-disabled instances have no user menu and keep API errors visible', async ({ page, allowedApiErrors }) => {
+  allowedApiErrors.push('/api/v3/sbom');
+  await page.route('**/api/v3/sbom?**', route => route.fulfill({ status: 401, body: 'Unauthorized' }), { times: 1 });
+  await page.goto('/');
+  await expect(page.getByText('Failed to load SBOMs')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'User menu', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Log in', exact: true })).toHaveCount(0);
+});
+
 test('discovery failure is visible without mounting application pages', async ({ page, allowedApiErrors }) => {
   allowedApiErrors.push('/.well-known/trustify');
   await page.route('**/.well-known/trustify', route => route.fulfill({ status: 503, body: 'Unavailable' }));

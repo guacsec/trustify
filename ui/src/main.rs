@@ -1,6 +1,7 @@
 mod advisory;
 mod advisory_list;
 mod api;
+mod auth;
 mod confidence;
 mod confirm;
 mod correlation;
@@ -22,6 +23,7 @@ mod tools;
 
 use advisory::AdvisoryPage;
 use advisory_list::AdvisoryList;
+use auth::{Session, UserMenu};
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
 use ingest::IngestPage;
@@ -40,7 +42,7 @@ use yew_nested_router::{
     Target,
     prelude::{Switch as RouterSwitch, *},
 };
-use yew_oauth2::{components::redirect::router::openid::RouterRedirect, openid, prelude::*};
+use yew_oauth2::{openid, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target)]
 pub enum AppRoute {
@@ -181,9 +183,9 @@ fn app() -> Html {
                             <Failure>
                                 <AuthError />
                             </Failure>
-                            <RouterRedirect<AppRoute> logout={AppRoute::SbomList}>
+                            <Session>
                                 <AppShell />
-                            </RouterRedirect<AppRoute>>
+                            </Session>
                         </openid::OAuth2>
                     </Router<AppRoute>>
                 }
@@ -384,7 +386,7 @@ fn page(props: &PageProps) -> Html {
     };
 
     html! {
-        <Page {brand} {sidebar}>
+        <Page {brand} {sidebar} tools={html! { <UserMenu /> }}>
             { for props.children.iter() }
         </Page>
     }
