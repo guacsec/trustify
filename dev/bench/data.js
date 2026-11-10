@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794318246186,
+  "lastUpdate": 1794320898775,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24759,6 +24759,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "50871b7d8d166fc390ba5c165fd73d1ef9d3415a",
+          "message": "fix: minor bug in CLI with duplicate error message\n\nRelated to TC-5227",
+          "timestamp": "2026-11-10T13:24:05Z",
+          "tree_id": "d6fa838df268f786d88d8b224f08362e99ea7777",
+          "url": "https://github.com/guacsec/trustify/commit/50871b7d8d166fc390ba5c165fd73d1ef9d3415a"
+        },
+        "date": 1794320896597,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
