@@ -1,7 +1,10 @@
-use crate::model::{
-    AdvisoryStatement, CorrelationOption, CorrelationOptionData, Created, IdentifierKind, Importer,
-    ImporterReport, IngestResult, PaginatedResults, QueryResult, SbomSummary, SbomVerdictCounts,
-    StatementKind, VerdictCountsRequest, WellKnownInfo,
+use crate::{
+    auth::authentication_failed,
+    model::{
+        AdvisoryStatement, CorrelationOption, CorrelationOptionData, Created, IdentifierKind,
+        Importer, ImporterReport, IngestResult, PaginatedResults, QueryResult, SbomSummary,
+        SbomVerdictCounts, StatementKind, VerdictCountsRequest, WellKnownInfo,
+    },
 };
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
@@ -31,22 +34,7 @@ impl fmt::Display for ApiError {
 }
 
 async fn fetch_json<T: DeserializeOwned>(url: &str, token: Option<&str>) -> Result<T, ApiError> {
-    let mut req = Request::get(url);
-
-    if let Some(token) = token {
-        req = req.header("Authorization", &format!("Bearer {token}"));
-    }
-
-    let response = req
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-
-    if !response.ok() {
-        let status = response.status();
-        let message = response.text().await.unwrap_or_default();
-        return Err(ApiError::Http { status, message });
-    }
+    let response = send(Request::get(url), None, token).await?;
 
     response
         .json::<T>()
@@ -177,26 +165,7 @@ async fn post_json<B: serde::Serialize, R: DeserializeOwned>(
     body: &B,
     token: Option<&str>,
 ) -> Result<R, ApiError> {
-    let json = serde_json::to_string(body).map_err(|e| ApiError::Network(e.to_string()))?;
-
-    let mut req = Request::post(url).header("Content-Type", "application/json");
-
-    if let Some(token) = token {
-        req = req.header("Authorization", &format!("Bearer {token}"));
-    }
-
-    let response = req
-        .body(json)
-        .map_err(|e| ApiError::Network(e.to_string()))?
-        .send()
-        .await
-        .map_err(|e| ApiError::Network(e.to_string()))?;
-
-    if !response.ok() {
-        let status = response.status();
-        let message = response.text().await.unwrap_or_default();
-        return Err(ApiError::Http { status, message });
-    }
+    let response = send(Request::post(url), Some(json_body(body)?), token).await?;
 
     response
         .json::<R>()
@@ -229,11 +198,7 @@ pub async fn upload_document(bytes: &[u8], token: Option<&str>) -> Result<Ingest
         .await
         .map_err(|e| ApiError::Network(e.to_string()))?;
 
-    if !response.ok() {
-        let status = response.status();
-        let message = response.text().await.unwrap_or_default();
-        return Err(ApiError::Http { status, message });
-    }
+    let response = check_response(response, token).await?;
 
     response
         .json::<IngestResult>()
@@ -318,8 +283,16 @@ async fn send(
     }
     .map_err(|e| ApiError::Network(e.to_string()))?;
 
+    check_response(response, token).await
+}
+
+/// Handle authentication failures consistently for JSON, downloads, uploads and mutations.
+async fn check_response(response: Response, token: Option<&str>) -> Result<Response, ApiError> {
     if !response.ok() {
         let status = response.status();
+        if status == 401 {
+            authentication_failed(token);
+        }
         let message = response.text().await.unwrap_or_default();
         return Err(ApiError::Http { status, message });
     }

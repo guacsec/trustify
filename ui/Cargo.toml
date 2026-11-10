@@ -12,7 +12,7 @@ web = [
     "dep:cpe", "dep:packageurl", "dep:browser-panic-hook", "dep:csaf-rs", "dep:cve", "dep:cvss", "dep:gloo-file",
     "dep:gloo-net", "dep:gloo-timers", "dep:gloo-utils", "dep:js-sys", "dep:log",
     "dep:monaco-yew", "dep:osv", "dep:patternfly-yew", "dep:serde", "dep:serde_json",
-    "dep:serde-saphyr", "dep:thiserror", "dep:time", "dep:trustify-api",
+    "dep:serde-saphyr", "dep:thiserror", "dep:time", "dep:tracing", "dep:trustify-api",
     "dep:trustify-client", "dep:url", "dep:uuid", "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures", "dep:wasm-logger", "dep:web-sys", "dep:yew",
     "dep:yew-nested-router", "dep:yew-oauth2",
@@ -46,6 +46,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 serde-saphyr = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true, features = ["log"] }
 time = { workspace = true, features = ["serde"], optional = true }
 trustify-api = { workspace = true, optional = true }
 trustify-client = { version = "0.1.3", optional = true }
