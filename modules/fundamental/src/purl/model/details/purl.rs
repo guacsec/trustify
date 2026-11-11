@@ -341,6 +341,44 @@ struct FixVersionEntry {
 /// Advisory, vulnerability, package and CPE identity of a fix.
 type FixVersionKey = (Uuid, String, Uuid, Option<Uuid>);
 
+/// Versions applicable to the product context identified by the given identity.
+///
+/// A fix stated without any product context (`context_cpe_id` unset) applies to
+/// every product context, so it is included alongside the context's own fixes.
+fn applicable_fixed_versions(
+    map: &HashMap<FixVersionKey, Vec<String>>,
+    advisory_id: Uuid,
+    vulnerability_id: &str,
+    base_purl_id: Uuid,
+    context_cpe_id: Option<Uuid>,
+) -> Vec<String> {
+    let mut versions = map
+        .get(&(
+            advisory_id,
+            vulnerability_id.to_string(),
+            base_purl_id,
+            context_cpe_id,
+        ))
+        .cloned()
+        .unwrap_or_default();
+
+    // A fix stated without any product context applies to every product context.
+    if context_cpe_id.is_some()
+        && let Some(context_free) = map.get(&(
+            advisory_id,
+            vulnerability_id.to_string(),
+            base_purl_id,
+            None,
+        ))
+    {
+        versions.extend(context_free.iter().cloned());
+    }
+
+    versions.sort();
+    versions.dedup();
+    versions
+}
+
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct PurlAdvisory {
     #[serde(flatten)]
@@ -453,15 +491,13 @@ impl PurlAdvisory {
             });
 
             if let Some(advisory) = advisory {
-                let fv = fix_versions_map
-                    .get(&(
-                        status.advisory_id,
-                        status.vulnerability_id.clone(),
-                        status.base_purl_id,
-                        status.context_cpe_id,
-                    ))
-                    .cloned()
-                    .unwrap_or_default();
+                let fv = applicable_fixed_versions(
+                    &fix_versions_map,
+                    status.advisory_id,
+                    &status.vulnerability_id,
+                    status.base_purl_id,
+                    status.context_cpe_id,
+                );
 
                 let qualified_package_status =
                     PurlStatus::from_entity(&vulnerability, advisory, status, fv, tx).await?;
@@ -491,10 +527,14 @@ impl PurlAdvisory {
             let fv: Vec<String> = {
                 let mut all = Vec::new();
                 for ((adv_id, vuln_id, package_id, cpe_id), versions) in &fix_versions_map {
+                    // Match this status's own CPE, plus fixes stated without any product
+                    // context (they apply everywhere).
+                    let same_product = *cpe_id == Some(product_status.cpe.id);
+                    let context_free = cpe_id.is_none();
                     if *adv_id == product_status.advisory.id
                         && *vuln_id == product_status.vulnerability.id
                         && *package_id == base_purl_id
-                        && *cpe_id == Some(product_status.cpe.id)
+                        && (same_product || context_free)
                     {
                         all.extend(versions.iter().cloned());
                     }
