@@ -123,24 +123,10 @@ fn eta(job: &RefreshJob, checked_at: OffsetDateTime) -> String {
     }
 }
 
-/// The progress of the active refresh job, or of the current documents when idle.
+/// The progress of the active refresh job.
 ///
 /// Documents ingested or invalidated while the job runs are added to its remaining work.
-fn job_progress(job: Option<&RefreshJob>, overview: &FreshnessOverview) -> Html {
-    let Some(job) = job.filter(|job| is_active(job)) else {
-        let value = match overview.total {
-            0 => 1.0,
-            total => overview.current as f64 / total as f64,
-        };
-        return html! {
-            <Progress
-                {value}
-                description="No refresh running"
-                value_text={format!("{} of {} current", Number(overview.current), Number(overview.total))}
-                size={ProgressSize::Small}
-            />
-        };
-    };
+fn job_progress(job: &RefreshJob) -> Html {
     let done = job.processed + job.failed;
     let total = done + job.remaining;
     let value = if total == 0 {
@@ -275,8 +261,8 @@ fn sbom_card(overview: &FreshnessOverview, job: Option<&RefreshJob>) -> Html {
     let failed = active.map_or(0, |job| job.failed);
     let details = html! {
         <>
-            <StackItem>{ job_progress(job, overview) }</StackItem>
             if let Some(job) = active {
+                <StackItem>{ job_progress(job) }</StackItem>
                 <StackItem>{ eta(job, overview.checked_at) }</StackItem>
                 { for job.current.iter().map(|current| current_document("Refreshing", current, overview.checked_at)) }
             } else if overview.needs_refresh > 0 {

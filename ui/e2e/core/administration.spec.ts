@@ -78,7 +78,7 @@ test('settings changes refresh documents automatically and clear outstanding wor
     const state = await response.json();
     return state.needs_refresh + state.verdict_lag.pending;
   }, { timeout: 90_000 }).toBe(0);
-  await expect(page.getByRole('progressbar', { name: 'No refresh running', exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: 'All documents are current', exact: true })).toBeVisible();
+  await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByRole('row').filter({ hasText: 's6-urllib3-affected' })).toHaveCount(0);
 });
