@@ -286,6 +286,170 @@ async fn fixed_versions_product_package_context(ctx: &TrustifyContext) -> anyhow
     Ok(())
 }
 
+/// Verifies a context-free fix applies to a contextual status, without admitting
+/// fixes that are only missing a CPE but belong to another assertion.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn fixed_versions_context_free_with_context(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given the original advisory plus a context-free fix and a CPE-less scoped fix.
+    let advisory = ctx.ingest_document("csaf/CVE-2022-27774.json").await?;
+    let base = Purl::from_str("pkg:rpm/redhat/curl")?;
+    let fixed = status::Entity::find()
+        .filter(status::Column::Slug.eq("fixed"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    let mut template = purl_status::Entity::find()
+        .filter(purl_status::Column::BasePurlId.eq(base.package_uuid()))
+        .filter(purl_status::Column::AdvisoryId.eq(Uuid::parse_str(&advisory.id)?))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    template.status_id = fixed.id;
+    template.context_cpe_id = None;
+    template.assertion_context_id = None;
+    insert_status_version(ctx, &template, "9.9.9").await?;
+    let context_id = Uuid::new_v4();
+    assertion_context::ActiveModel {
+        id: Set(context_id),
+        category: Set(None),
+        name: Set("unrelated product".into()),
+    }
+    .insert(&ctx.db)
+    .await?;
+    template.assertion_context_id = Some(context_id);
+    insert_status_version(ctx, &template, "99.9.9").await?;
+    // When querying the el8 installation.
+    let purl = Purl::from_str("pkg:rpm/redhat/curl@7.61.1-21.el8_6.3?arch=x86_64&epoch=0")?;
+    ingest_context_sbom(
+        ctx,
+        "cpe:/o:redhat:enterprise_linux:8.6::baseos",
+        &purl.to_string(),
+    )
+    .await?;
+    let details = PurlService::new(PaginationCache::for_test())
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .unwrap();
+    let affected = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| s.vulnerability.identifier == "CVE-2022-27774" && s.status == "affected")
+        .collect::<Vec<_>>();
+    // Then the context-free fix is included and the unrelated assertion is not.
+    assert!(!affected.is_empty());
+    for status in affected {
+        assert_eq!(
+            status.fixed_versions,
+            ["7.61.1-22.el8_6.3", "9.9.9"],
+            "context {:?}",
+            status.context
+        );
+    }
+    Ok(())
+}
+
+/// Verifies a contextual product status also receives context-free fixes for its package.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn fixed_versions_context_free_product_status(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given the original advisory plus context-free and CPE-less scoped fixes for curl.
+    let advisory = ctx.ingest_document("csaf/CVE-2022-27774.json").await?;
+    let base = Purl::from_str("pkg:rpm/redhat/curl")?;
+    let fixed = status::Entity::find()
+        .filter(status::Column::Slug.eq("fixed"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    let mut template = purl_status::Entity::find()
+        .filter(purl_status::Column::BasePurlId.eq(base.package_uuid()))
+        .filter(purl_status::Column::AdvisoryId.eq(Uuid::parse_str(&advisory.id)?))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    template.status_id = fixed.id;
+    template.context_cpe_id = None;
+    template.assertion_context_id = None;
+    insert_status_version(ctx, &template, "9.9.9").await?;
+    let context_id = Uuid::new_v4();
+    assertion_context::ActiveModel {
+        id: Set(context_id),
+        category: Set(None),
+        name: Set("unrelated product".into()),
+    }
+    .insert(&ctx.db)
+    .await?;
+    template.assertion_context_id = Some(context_id);
+    insert_status_version(ctx, &template, "99.9.9").await?;
+    // And a legacy product assertion for the el8 stream only.
+    let product = product::Entity::find()
+        .filter(product::Column::CpeKey.eq("enterprise_linux"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    let info = VersionInfo {
+        scheme: VersionScheme::Generic,
+        spec: VersionSpec::Exact("8".into()),
+    };
+    version_range::Entity::insert(info.clone().into_active_model())
+        .on_conflict_do_nothing()
+        .exec_without_returning(&ctx.db)
+        .await?;
+    let range_id = Uuid::new_v4();
+    product_version_range::ActiveModel {
+        id: Set(range_id),
+        product_id: Set(product.id),
+        version_range_id: Set(info.uuid()),
+        cpe_key: Set(Some("enterprise_linux".into())),
+    }
+    .insert(&ctx.db)
+    .await?;
+    let cpe = Cpe::from_str("cpe:/o:redhat:enterprise_linux:8::baseos")?;
+    product_status::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        advisory_id: Set(Uuid::parse_str(&advisory.id)?),
+        vulnerability_id: Set("CVE-2022-27774".into()),
+        status_id: Set(fixed.id),
+        package: Set(Some("curl".into())),
+        product_version_range_id: Set(range_id),
+        context_cpe_id: Set(Some(cpe.uuid())),
+        csaf_product_ids: Set(None),
+    }
+    .insert(&ctx.db)
+    .await?;
+    // These requests must exercise product_status alone.
+    correlation_option::Entity::delete_many()
+        .filter(correlation_option::Column::Key.eq(CorrelationOptionKey::FixedIsFirstFixed))
+        .exec(&ctx.db)
+        .await?;
+    // When querying a curl version the stated PURL ranges do not cover.
+    let purl = Purl::from_str("pkg:rpm/redhat/curl@7.0.0?arch=x86_64")?;
+    ingest_context_sbom(
+        ctx,
+        "cpe:/o:redhat:enterprise_linux:8::baseos",
+        &purl.to_string(),
+    )
+    .await?;
+    let details = PurlService::new(PaginationCache::for_test())
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .unwrap();
+    let fixed_statuses = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| s.vulnerability.identifier == "CVE-2022-27774" && s.status == "fixed")
+        .collect::<Vec<_>>();
+    // Then the context-free fix applies, while another assertion's fix does not.
+    assert_eq!(fixed_statuses.len(), 1);
+    assert_eq!(
+        fixed_statuses[0].fixed_versions,
+        ["7.61.1-22.el8_6.3", "9.9.9"]
+    );
+    Ok(())
+}
+
 /// Verifies context-free fixes remain ordered, unique and digest-free without scope leakage.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
