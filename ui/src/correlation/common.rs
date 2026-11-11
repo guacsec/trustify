@@ -14,6 +14,19 @@ use yew::prelude::*;
 
 /// Render the identifiers of a component, grouped by kind.
 pub(super) fn identifiers(identifiers: &[IdentifierRef]) -> Html {
+    if identifiers.is_empty() {
+        return html!(<i>{ "\u{2014}" }</i>);
+    }
+
+    html! {
+        <DescriptionList compact=true>
+            { identifier_groups(identifiers) }
+        </DescriptionList>
+    }
+}
+
+/// Render the identifiers of a component as description groups, one per kind.
+pub(super) fn identifier_groups(identifiers: &[IdentifierRef]) -> Html {
     let mut sections = BTreeMap::<IdentifierKind, Vec<&str>>::new();
     for identifier in identifiers {
         sections
@@ -22,18 +35,13 @@ pub(super) fn identifiers(identifiers: &[IdentifierRef]) -> Html {
             .push(&identifier.value);
     }
 
-    if sections.is_empty() {
-        return html!(<i>{ "\u{2014}" }</i>);
-    }
-
     html! {
         { for sections.into_iter().map(|(kind, items)| html! {
-            <div>
-                <strong>{ kind.label() }</strong>
-                <ul style="margin:0;padding-left:1em">
-                    { for items.iter().map(|value| html!(<li>{ identifier(kind, value) }</li>)) }
-                </ul>
-            </div>
+            <DescriptionGroup term={kind.label()}>
+                <List r#type={ListType::Plain}>
+                    { for items.iter().map(|value| html_nested!(<ListItem>{ identifier(kind, value) }</ListItem>)) }
+                </List>
+            </DescriptionGroup>
         })}
     }
 }

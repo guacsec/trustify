@@ -1,7 +1,9 @@
 //! Paginated verdicts and their expandable evidence details.
 use super::{
     CorrelationContentProps,
-    common::{confidence_label, identifiers, matched_value, remediation, status_label, timestamp},
+    common::{
+        confidence_label, identifier_groups, matched_value, remediation, status_label, timestamp,
+    },
     pagination::{page_status, use_collection},
 };
 use crate::number::Number;
@@ -101,8 +103,10 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
             VerdictColumn::Component => Cell::new(html! {
                 <div>
                     { &self.0.component.name }
-                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm">
-                        <code style="color: inherit;">{ &self.0.component.node_id }</code>
+                    <div class="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm" title={self.0.component.node_id.clone()}>
+                        <code style="color: inherit;">
+                            <Truncate content={self.0.component.node_id.as_str().truncate_before(12)} style="max-width: 32ch;" />
+                        </code>
                     </div>
                 </div>
             })
@@ -184,11 +188,15 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                                 vulnerability_id={Some(self.0.vulnerability.id.clone())}/>
                         </FlexItem>
                     </Flex>
-                    { identifiers(&self.0.component.identifiers) }
-                    <div>
-                        <strong>{ "Provider" }</strong>
-                        <div>{ provider_view(&self.0.component_provider) }</div>
-                    </div>
+                    <DescriptionList mode={[DescriptionListMode::Horizontal.all()]} compact=true>
+                        <DescriptionGroup term="Node ID">
+                            <code>{ &self.0.component.node_id }</code>
+                        </DescriptionGroup>
+                        { identifier_groups(&self.0.component.identifiers) }
+                        <DescriptionGroup term="Provider">
+                            { provider_view(&self.0.component_provider) }
+                        </DescriptionGroup>
+                    </DescriptionList>
                 </StackItem>
                 <StackItem>
                     <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
