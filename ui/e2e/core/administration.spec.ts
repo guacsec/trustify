@@ -63,7 +63,7 @@ test('provider aliases validate, edit, persist, and delete', async ({ page, owne
   await expect(page.getByRole('button', { name: `Edit aliases for ${provider}`, exact: true })).toHaveCount(0);
 });
 
-test('freshness filtering and durable refresh complete after settings change', async ({ page, request, owned, seed }) => {
+test('settings changes refresh documents automatically and clear outstanding work', async ({ page, request, owned, seed }) => {
   test.setTimeout(120_000);
   // A dedicated publisher avoids changing interpretation of the baseline advisories.
   const created = await request.post(`${apiURL}/api/v3/correlation/option`, { data: {
@@ -79,8 +79,6 @@ test('freshness filtering and durable refresh complete after settings change', a
     return state.needs_refresh + state.verdict_lag.pending;
   }, { timeout: 90_000 }).toBe(0);
   await expect(page.getByRole('progressbar', { name: 'No refresh running', exact: true })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('button', { name: 'Current', exact: true }).click();
-  await expect(page.getByRole('row').filter({ hasText: 's6-urllib3-affected' })).toContainText('Current');
-  await page.getByRole('button', { name: 'Needs refreshing', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'No documents found', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'All documents are current', exact: true })).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: 's6-urllib3-affected' })).toHaveCount(0);
 });
