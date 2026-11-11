@@ -92,6 +92,7 @@ tracing-core =  { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 trustify-db = { workspace = true }
+trustify-infrastructure = { workspace = true }
 trustify-migration = { workspace = true }
 trustify-test-context = { workspace = true }
 urlencoding = { workspace = true }
