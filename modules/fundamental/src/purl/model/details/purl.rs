@@ -346,6 +346,51 @@ struct FixVersionEntry {
 /// Advisory, vulnerability, package, CPE and product-assertion identity of a fix.
 type FixVersionKey = (Uuid, String, Uuid, Option<Uuid>, Option<Uuid>);
 
+/// Versions applicable to the assertion identified by `key`.
+///
+/// A fix stated without any product context (`context_cpe_id` and
+/// `assertion_context_id` both unset) applies to every product context, so it is
+/// included alongside the assertion's own fixes. Fixes that are only missing a
+/// CPE but still belong to a specific assertion are not included: they are scoped
+/// to that assertion and must not leak into unrelated ones.
+fn applicable_fixed_versions(
+    map: &HashMap<FixVersionKey, Vec<String>>,
+    advisory_id: Uuid,
+    vulnerability_id: &str,
+    base_purl_id: Uuid,
+    context_cpe_id: Option<Uuid>,
+    assertion_context_id: Option<Uuid>,
+) -> Vec<String> {
+    let mut versions = map
+        .get(&(
+            advisory_id,
+            vulnerability_id.to_string(),
+            base_purl_id,
+            context_cpe_id,
+            assertion_context_id,
+        ))
+        .cloned()
+        .unwrap_or_default();
+
+    // A fix stated without any product context applies to every product context.
+    // Do not pull in assertion-scoped fixes that merely lack a CPE.
+    if (context_cpe_id.is_some() || assertion_context_id.is_some())
+        && let Some(context_free) = map.get(&(
+            advisory_id,
+            vulnerability_id.to_string(),
+            base_purl_id,
+            None,
+            None,
+        ))
+    {
+        versions.extend(context_free.iter().cloned());
+    }
+
+    versions.sort();
+    versions.dedup();
+    versions
+}
+
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct PurlAdvisory {
     #[serde(flatten)]
@@ -463,16 +508,14 @@ impl PurlAdvisory {
             });
 
             if let Some(advisory) = advisory {
-                let fv = fix_versions_map
-                    .get(&(
-                        status.advisory_id,
-                        status.vulnerability_id.clone(),
-                        status.base_purl_id,
-                        status.context_cpe_id,
-                        status.assertion_context_id,
-                    ))
-                    .cloned()
-                    .unwrap_or_default();
+                let fv = applicable_fixed_versions(
+                    &fix_versions_map,
+                    status.advisory_id,
+                    &status.vulnerability_id,
+                    status.base_purl_id,
+                    status.context_cpe_id,
+                    status.assertion_context_id,
+                );
 
                 let qualified_package_status =
                     PurlStatus::from_entity(&vulnerability, advisory, status, fv, tx).await?;
@@ -505,11 +548,18 @@ impl PurlAdvisory {
             // every package/product mentioned by the advisory.
             let fv: Vec<String> = {
                 let mut all = Vec::new();
-                for ((adv_id, vuln_id, package_id, cpe_id, _), versions) in &fix_versions_map {
+                for ((adv_id, vuln_id, package_id, cpe_id, assertion_id), versions) in
+                    &fix_versions_map
+                {
+                    // Match this status's own CPE, plus fixes stated without any product
+                    // context (they apply everywhere). A fix that lacks a CPE but belongs
+                    // to a specific assertion stays scoped to that assertion.
+                    let same_product = *cpe_id == Some(product_status.cpe.id);
+                    let context_free = cpe_id.is_none() && assertion_id.is_none();
                     if *adv_id == product_status.advisory.id
                         && *vuln_id == product_status.vulnerability.id
                         && *package_id == base_purl_id
-                        && *cpe_id == Some(product_status.cpe.id)
+                        && (same_product || context_free)
                     {
                         all.extend(versions.iter().cloned());
                     }
