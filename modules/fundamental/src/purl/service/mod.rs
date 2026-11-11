@@ -1144,6 +1144,9 @@ impl PurlService {
     /// Fetches exact-status advisory versions and explicit OSV VendorFix versions, adding missing
     /// candidates to `candidates` and associating fixed status metadata with each VendorFix
     /// version.
+    ///
+    /// Synthesize at query time so advisory-only deployments need no vendor SBOM or persisted
+    /// vendor PURL, and ingestion stays independent of recommendation patterns.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn extend_with_advisory_versions<C: ConnectionTrait>(
         base_purl_ids: &[Uuid],
