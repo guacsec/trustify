@@ -4393,6 +4393,14 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/Id'
+      - name: Accept-Encoding
+        in: header
+        description: Accepted encodings. Stored zstd content is streamed unchanged when acceptable.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
       responses:
         '200':
           description: Download a an SBOM

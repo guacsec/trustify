@@ -1,4 +1,6 @@
 mod config;
+#[cfg(test)]
+mod download_test;
 mod label;
 mod query;
 #[cfg(test)]
@@ -24,7 +26,11 @@ use crate::{
     },
     sbom_group::service::SbomGroupService,
 };
-use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
+use actix_web::{
+    HttpMessage, HttpRequest, HttpResponse, Responder, delete, get,
+    http::header::{self, AcceptEncoding, Encoding, Preference, Quality},
+    post, web,
+};
 use config::Config;
 use futures_util::TryStreamExt;
 use sea_orm::TransactionTrait;
@@ -46,7 +52,7 @@ use trustify_module_ingestor::{
     model::IngestResult,
     service::{Cache, Format, IngestorService},
 };
-use trustify_module_storage::service::{StorageBackend, StorageKey};
+use trustify_module_storage::service::{Compression, StorageBackend, StorageKey};
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
 pub struct ModelGetParams {
@@ -781,6 +787,7 @@ pub async fn upload(
     operation_id = "downloadSbom",
     params(
         ("key" = Id, Path, description = "Identifier of the SBOM, either `urn:uuid:<uuid>` or a digest e.g. `sha256:<hex>`"),
+        ("Accept-Encoding" = Option<String>, Header, description = "Accepted encodings. Stored zstd content is streamed unchanged when acceptable."),
     ),
     responses(
         (status = 200, description = "Download a an SBOM", body = inline(BinaryData)),
@@ -789,6 +796,7 @@ pub async fn upload(
 )]
 #[get("/v3/sbom/{key}/download")]
 pub async fn download(
+    request: HttpRequest,
     ingestor: web::Data<IngestorService>,
     db: web::Data<db::ReadOnly>,
     sbom: web::Data<SbomService>,
@@ -802,15 +810,57 @@ pub async fn download(
         return Ok(HttpResponse::NotFound().finish());
     };
 
-    let stream = ingestor
+    let accepted: &[Compression] = if request
+        .get_header::<AcceptEncoding>()
+        .is_some_and(|accept| accepts_stored_zstd(&accept))
+    {
+        &[Compression::Zstd]
+    } else {
+        &[]
+    };
+    let content = ingestor
         .storage()
-        .retrieve(sbom.source_document.try_into()?)
+        .retrieve_encoded(sbom.source_document.try_into()?, accepted)
         .await
-        .map_err(Error::Storage)?
-        .map(|stream| stream.map_err(Error::Storage));
+        .map_err(Error::Storage)?;
 
-    Ok(match stream {
-        Some(s) => HttpResponse::Ok().streaming(s),
+    Ok(match content {
+        Some(content) => {
+            let mut response = HttpResponse::Ok();
+            response.insert_header((header::VARY, "Accept-Encoding"));
+            if content.compression != Compression::None {
+                response.insert_header((
+                    header::CONTENT_ENCODING,
+                    content.compression.content_encoding(),
+                ));
+            }
+            response.streaming(content.stream.map_err(Error::Storage))
+        }
         None => HttpResponse::NotFound().finish(),
+    })
+}
+
+/// Storage offers zstd or identity; other codecs remain the HTTP middleware's
+/// responsibility. An explicit identity preference can opt out of pass-through.
+fn accepts_stored_zstd(accept: &AcceptEncoding) -> bool {
+    let quality = |encoding| {
+        accept
+            .0
+            .iter()
+            .filter(|item| matches!(&item.item, Preference::Specific(value) if value == &encoding))
+            .map(|item| item.quality)
+            .max()
+    };
+    let zstd_quality = quality(Encoding::zstd()).or_else(|| {
+        accept
+            .0
+            .iter()
+            .filter(|item| matches!(item.item, Preference::Any))
+            .map(|item| item.quality)
+            .max()
+    });
+    zstd_quality.is_some_and(|zstd| {
+        zstd > Quality::ZERO
+            && quality(Encoding::identity()).is_none_or(|identity| zstd >= identity)
     })
 }

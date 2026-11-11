@@ -1,3 +1,4 @@
+mod compression;
 pub mod http;
 
 use actix_cors::Cors;
@@ -6,7 +7,7 @@ use actix_web::{
     body::MessageBody,
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     http::header,
-    middleware::{Compress, DefaultHeaders, Logger},
+    middleware::{Compress, DefaultHeaders, Logger, from_fn},
     web,
 };
 use actix_web_extras::middleware::Condition;
@@ -120,7 +121,9 @@ pub fn new_app(
         .wrap(Condition::from_option(options.cors))
         // Next, record metrics for the request (should never fail)
         .wrap(Condition::from_option(options.metrics))
-        // Compress everything
+        // Prefer zstd for dynamic API responses; the outer compressor handles
+        // static assets and clients that prefer or only support another codec.
+        .wrap(from_fn(compression::prefer_zstd))
         .wrap(Compress::default())
         // First log the request, so that we know what happens (can't fail)
         .wrap(Condition::from_option(options.logger))

@@ -267,10 +267,15 @@ uv run python compare.py reports/old_stats.csv reports/new_stats.csv --threshold
 
 ## HTTP compression
 
-By default, all requests send `Accept-Encoding: gzip, deflate, br` to
+By default, all requests send `Accept-Encoding: zstd, gzip, deflate, br` to
 match real browser/client behaviour. Responses are decompressed
 transparently by the HTTP client, so reported response times include
 server-side compression cost and reflect realistic end-to-end latency.
+
+`uv run` installs the required zstd decoder through `urllib3[zstd]`, including
+the backport needed by Python 3.13. Environments that install Locust directly
+(including the scale-test workflow) must also install `urllib3[zstd]==2.8.0`.
+The client fails at startup rather than advertising zstd without a decoder.
 
 To disable compression and measure raw uncompressed transfer cost:
 
@@ -278,8 +283,15 @@ To disable compression and measure raw uncompressed transfer cost:
 TOOLS_PERF_NO_COMPRESSION=1 make test-readonly
 ```
 
-This is useful for isolating query/serialization time from gzip overhead,
-or for comparing compressed vs uncompressed response sizes.
+This sends `Accept-Encoding: identity`, overriding the HTTP client's default
+compression headers. It is useful for isolating query/serialization time from
+compression overhead, or for comparing compressed vs uncompressed response sizes.
+
+Run the compression negotiation and decoding regression tests with:
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
 
 ## Tags: readonly vs mutate
 
@@ -428,7 +440,7 @@ AUTH_DISABLED=true make test
 | `TOOLS_PERF_WAIT_TIME_FROM` | `1` | Min seconds between requests per user |
 | `TOOLS_PERF_WAIT_TIME_TO` | `3` | Max seconds between requests per user |
 | `TOOLS_PERF_SCENARIO_FILE` | (unset) | Path to a JSON5 scenario file with pre-computed IDs |
-| `TOOLS_PERF_NO_COMPRESSION` | (unset) | Set to `1` to disable gzip/deflate/br on requests |
+| `TOOLS_PERF_NO_COMPRESSION` | (unset) | Set to `1` to request identity encoding instead of zstd/gzip/deflate/br |
 | `ISSUER_URL` | (unset) | OIDC issuer URL |
 | `CLIENT_ID` | (unset) | OAuth2 client ID |
 | `CLIENT_SECRET` | (unset) | OAuth2 client secret |
@@ -609,7 +621,7 @@ def validated_get(self) -> None:
 ```
 tools/perf/
 ├── Makefile             # Test targets with auto-named reports
-├── pyproject.toml       # Dependencies (locust, json5)
+├── pyproject.toml       # Dependencies (locust, json5, urllib3[zstd])
 ├── locustfile.py        # Entry point -- API version dispatch
 ├── compare.py           # Compare two _stats.csv runs (markdown/csv)
 ├── auth.py              # OIDC token provider (client_credentials)

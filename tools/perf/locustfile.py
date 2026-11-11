@@ -36,8 +36,8 @@ Environment variables:
     CLIENT_SECRET              OAuth2 client secret (required unless AUTH_DISABLED).
     OIDC_REFRESH_BEFORE        Seconds before expiry to refresh token (default: 30).
     AUTH_DISABLED              Set to "true" or "1" to skip OIDC auth.
-    TOOLS_PERF_NO_COMPRESSION  Set to "1" to disable gzip/deflate/br.
-                               Default: compression enabled (matches real clients).
+    TOOLS_PERF_NO_COMPRESSION  Set to "1" to request identity encoding.
+                               Default: zstd/gzip/deflate/br (matches real clients).
 
 Tags:
 

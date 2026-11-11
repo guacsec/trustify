@@ -1,11 +1,11 @@
 #![cfg(test)]
 
-use crate::service::{StorageBackend, StorageKey};
+use crate::service::{Compression, StorageBackend, StorageKey};
 use bytes::BytesMut;
 use futures::TryStreamExt;
 use rand::RngExt;
 use std::time::Duration;
-use tokio::time::timeout;
+use tokio::{io::AsyncReadExt, time::timeout};
 use trustify_common::id::Id;
 
 pub async fn test_store_read_and_delete<B: StorageBackend>(backend: B) {
@@ -77,4 +77,42 @@ pub async fn test_read_not_found<B: StorageBackend>(backend: B) {
         .expect("retrieve must succeed");
 
     assert!(stream.is_none());
+}
+
+pub async fn test_retrieve_encoded<B: StorageBackend>(backend: B, stored: Compression) {
+    let content = b"Hello World";
+    let result = backend.store(&content[..]).await.unwrap();
+
+    for accepted in [&[][..], &[Compression::Zstd][..], &[Compression::None][..]] {
+        let retrieved = backend
+            .retrieve_encoded(result.key(), accepted)
+            .await
+            .unwrap()
+            .unwrap();
+        let expected = if accepted.contains(&stored) {
+            stored
+        } else {
+            Compression::None
+        };
+        assert_eq!(retrieved.compression, expected);
+
+        let bytes = retrieved.stream.try_collect::<BytesMut>().await.unwrap();
+        let mut decoded = Vec::new();
+        retrieved
+            .compression
+            .reader(bytes.as_ref())
+            .read_to_end(&mut decoded)
+            .await
+            .unwrap();
+        assert_eq!(decoded, content);
+    }
+
+    backend.delete(result.key()).await.unwrap();
+    assert!(
+        backend
+            .retrieve_encoded(result.key(), &[Compression::Zstd])
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
