@@ -205,6 +205,7 @@ fn recommend_remediation_union_is_content_based_and_order_independent() {
             status_slug: "fixed".into(),
             remediations,
             advisory_id: Some("TEST-STREAMS".into()),
+            advisory_date: None,
             advisory_pk: remediation.advisory_id,
             derived: false,
             is_default: false,
