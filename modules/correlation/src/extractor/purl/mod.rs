@@ -1015,33 +1015,40 @@ async fn match_cursor(
             .map(|(keys, components)| (keys.clone(), components.to_vec()))
             .collect::<Vec<_>>();
 
-        let rules = rules.clone();
-        let (next, parts, page_grouped) = on_worker(move || {
+        let page_rules = rules.clone();
+        held = on_worker(move || {
             let mut held = held;
-            let sources = sources(&rules).collect::<Vec<_>>();
+            let sources = sources(&page_rules).collect::<Vec<_>>();
             held.expand(complete, &stated, &sources)?;
-            let mut grouped = 0;
-            let parts = ready
-                .into_iter()
-                .filter_map(|(keys, components)| {
-                    let assertions = held.group(&keys, &sources, &mut grouped);
-                    held.release(&keys);
-                    (!assertions.is_empty()).then_some(MatchPart {
-                        components,
-                        assertions,
-                    })
-                })
-                .collect::<Vec<_>>();
-            Ok((held, parts, grouped))
+            Ok(held)
         })
         .await?;
-        held = next;
-        grouped += page_grouped;
 
-        for part in parts {
-            matches += part.assertions.len() * part.components.len();
+        // one set at a time, handing over its part before grouping the next one, as the
+        // assertions of a set can be many (e.g. a kernel package)
+        for (keys, components) in ready {
+            let set_rules = rules.clone();
+            let (next, assertions, set_grouped) = on_worker(move || {
+                let mut held = held;
+                let sources = sources(&set_rules).collect::<Vec<_>>();
+                let mut grouped = 0;
+                let assertions = held.group(&keys, &sources, &mut grouped);
+                held.release(&keys);
+                Ok((held, assertions, grouped))
+            })
+            .await?;
+            held = next;
+            grouped += set_grouped;
+            if assertions.is_empty() {
+                continue;
+            }
+            matches += assertions.len() * components.len();
             // the components share the assertions, instead of a copy each
-            sink.accept(part).await?;
+            sink.accept(MatchPart {
+                components,
+                assertions,
+            })
+            .await?;
         }
 
         if end {
