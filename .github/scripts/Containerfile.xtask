@@ -14,7 +14,7 @@ RUN cd unpack && \
 
 RUN chmod a+x /unpack/xtask
 
-FROM docker.io/library/ubuntu:24.04
+FROM docker.io/library/ubuntu:26.04
 
 LABEL \
     org.opencontainers.image.description="Trustify - xtask binary" \
@@ -29,7 +29,6 @@ RUN apt-get update && \
         libkrb5-3 \
         libzstd1 \
         liblz4-1 \
-        libxml2 \
         unzip \
         xz-utils \
         squashfs-tools \
