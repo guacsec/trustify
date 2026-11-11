@@ -197,12 +197,10 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
-            // el9eap is "known_affected" in r1 (the surviving advisory after r2 deletion),
-            // so only el7eap and el8eap have "fixed" status in the remaining advisory.
-            fixed_versions: vec![
-                "1.76.0-4.redhat_00001.1.el7eap".to_string(),
-                "1.76.0-4.redhat_00001.1.el8eap".to_string(),
-            ],
+            // el9eap is "known_affected" in r1 (the surviving advisory after r2 deletion).
+            // The remaining el7eap and el8eap fixes belong to other product streams, so
+            // they are not applicable to this el9 status.
+            fixed_versions: vec![],
         }]
     );
 

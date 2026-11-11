@@ -2,11 +2,13 @@
 #![allow(deprecated)]
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
 use regex::Regex;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter, Set};
+use serde_json::{Value, json};
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{
+    cpe::Cpe,
     db::{
         pagination_cache::PaginationCache,
         query::{Query, q},
@@ -14,8 +16,335 @@ use trustify_common::{
     model::{Limit, Paginated},
     purl::Purl,
 };
-use trustify_entity::correlation_option::{self, CorrelationOptionKey};
-use trustify_test_context::{Dataset, TrustifyContext};
+use trustify_entity::{
+    assertion_context,
+    correlation_option::{self, CorrelationOptionKey},
+    product, product_status, product_version_range, purl_status, status, version_range,
+    version_scheme::VersionScheme,
+};
+use trustify_module_ingestor::graph::advisory::version::{VersionInfo, VersionSpec};
+use trustify_test_context::{Dataset, TrustifyContext, document_bytes};
+use uuid::Uuid;
+
+/// Ingests a controlled variant of the original root-CPE reproducer SBOM.
+async fn ingest_context_sbom(ctx: &TrustifyContext, cpe: &str, purl: &str) -> anyhow::Result<Purl> {
+    let mut sbom: Value =
+        serde_json::from_slice(&document_bytes("cyclonedx/rhel_bug.json").await?)?;
+    let purl = Purl::from_str(purl)?;
+    sbom["serialNumber"] = json!(format!("urn:uuid:{}", Uuid::new_v4()));
+    sbom["metadata"]["component"]["name"] = json!(format!("{} in {cpe}", purl.name));
+    sbom["metadata"]["component"]["cpe"] = json!(cpe);
+    sbom["components"][0]["name"] = json!(purl.name);
+    sbom["components"][0]["version"] = json!(purl.version);
+    sbom["components"][0]["purl"] = json!(purl.to_string());
+    ctx.ingest_json(sbom).await?;
+    Ok(purl)
+}
+
+/// Inserts a controlled assertion variant while reusing the ingestor's version-range encoding.
+async fn insert_status_version(
+    ctx: &TrustifyContext,
+    source: &purl_status::Model,
+    version: &str,
+) -> anyhow::Result<()> {
+    let info = VersionInfo {
+        scheme: VersionScheme::Generic,
+        spec: VersionSpec::Exact(version.into()),
+    };
+    version_range::Entity::insert(info.clone().into_active_model())
+        .on_conflict_do_nothing()
+        .exec_without_returning(&ctx.db)
+        .await?;
+    let mut row = source.clone().into_active_model();
+    row.id = Set(Uuid::new_v4());
+    row.qualified_purl_id = Set(None);
+    row.version_range_id = Set(info.uuid());
+    row.insert(&ctx.db).await?;
+    Ok(())
+}
+
+/// Verifies reverse-stream isolation and the existing minor-to-major CPE generalization policy.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn fixed_versions_rhel_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given the original advisory and independently identified installed packages.
+    ctx.ingest_document("csaf/CVE-2022-27774.json").await?;
+    let service = PurlService::new(PaginationCache::for_test());
+    for (cpe, purl, context, expected) in [
+        (
+            "cpe:/o:redhat:enterprise_linux:8.6::baseos",
+            "pkg:rpm/redhat/curl@7.61.1-21.el8_6.3?arch=x86_64&epoch=0",
+            "cpe:/o:redhat:enterprise_linux:8:*:baseos:*",
+            "7.61.1-22.el8_6.3",
+        ),
+        (
+            "cpe:/o:redhat:enterprise_linux:9::baseos",
+            "pkg:rpm/redhat/curl@7.76.1-14.el9?arch=x86_64&epoch=0",
+            "cpe:/o:redhat:enterprise_linux:9:*:baseos:*",
+            "7.76.1-14.el9_0.4",
+        ),
+    ] {
+        let purl = ingest_context_sbom(ctx, cpe, purl).await?;
+        // When querying a package whose SBOM identifies its product stream.
+        let details = service
+            .purl_by_purl(&purl, Default::default(), &ctx.db)
+            .await?
+            .unwrap();
+        let affected = details
+            .advisories
+            .iter()
+            .flat_map(|a| &a.status)
+            .filter(|s| s.vulnerability.identifier == "CVE-2022-27774" && s.status == "affected")
+            .collect::<Vec<_>>();
+        // Then architecture duplicates do not duplicate fixes or admit another stream.
+        assert!(!affected.is_empty());
+        for status in affected {
+            assert_eq!(status.context, Some(StatusContext::Cpe(context.into())));
+            assert_eq!(status.fixed_versions, [expected]);
+        }
+    }
+    Ok(())
+}
+
+/// Verifies each returned status retains its context even when the PURL occurs in both streams.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn fixed_versions_each_status_context(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given one installed PURL present in two differently described SBOMs.
+    ctx.ingest_document("csaf/CVE-2022-27774.json").await?;
+    let purl = "pkg:rpm/redhat/curl@7.61.1-21.el8_6.3?arch=x86_64&epoch=0";
+    for cpe in [
+        "cpe:/o:redhat:enterprise_linux:8::baseos",
+        "cpe:/o:redhat:enterprise_linux:9::baseos",
+    ] {
+        ingest_context_sbom(ctx, cpe, purl).await?;
+    }
+    // When both product contexts are eligible for the qualified-PURL response.
+    let details = PurlService::new(PaginationCache::for_test())
+        .purl_by_purl(&Purl::from_str(purl)?, Default::default(), &ctx.db)
+        .await?
+        .unwrap();
+    let mut contexts = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| s.vulnerability.identifier == "CVE-2022-27774" && s.status == "affected")
+        .map(|s| {
+            let Some(StatusContext::Cpe(cpe)) = &s.context else {
+                panic!("expected product context")
+            };
+            (
+                cpe.as_str(),
+                s.fixed_versions
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    contexts.sort();
+    contexts.dedup();
+    // Then each status has its own stream's fixes, not the union of eligible CPEs.
+    assert_eq!(
+        contexts,
+        [
+            (
+                "cpe:/o:redhat:enterprise_linux:8:*:baseos:*",
+                vec!["7.61.1-22.el8_6.3"]
+            ),
+            (
+                "cpe:/o:redhat:enterprise_linux:9:*:baseos:*",
+                vec!["7.76.1-14.el9_0.4"]
+            ),
+        ]
+    );
+    Ok(())
+}
+
+/// Verifies product-only projections isolate both packages and contexts under a shared CVE.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn fixed_versions_product_package_context(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given the original relationships, with distinguishable libcurl fixes in each stream.
+    let csaf = String::from_utf8(document_bytes("csaf/CVE-2022-27774.json").await?.to_vec())?
+        .replace(
+            "pkg:rpm/redhat/libcurl@7.61.1-22.el8_6.3",
+            "pkg:rpm/redhat/libcurl@8.0.0",
+        )
+        .replace(
+            "pkg:rpm/redhat/libcurl@7.76.1-14.el9_0.4",
+            "pkg:rpm/redhat/libcurl@9.0.0",
+        );
+    let advisory = ctx
+        .ingest_json(serde_json::from_str::<Value>(&csaf)?)
+        .await?;
+    // The attached CSAF has PURL fixes but no legacy product-version branches. Supply
+    // product assertions explicitly so the fallback projection is exercised, not skipped.
+    let fixed = status::Entity::find()
+        .filter(status::Column::Slug.eq("fixed"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    let product = product::Entity::find()
+        .filter(product::Column::CpeKey.eq("enterprise_linux"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    for major in ["8", "9"] {
+        let info = VersionInfo {
+            scheme: VersionScheme::Generic,
+            spec: VersionSpec::Exact(major.into()),
+        };
+        version_range::Entity::insert(info.clone().into_active_model())
+            .on_conflict_do_nothing()
+            .exec_without_returning(&ctx.db)
+            .await?;
+        let range_id = Uuid::new_v4();
+        product_version_range::ActiveModel {
+            id: Set(range_id),
+            product_id: Set(product.id),
+            version_range_id: Set(info.uuid()),
+            cpe_key: Set(Some("enterprise_linux".into())),
+        }
+        .insert(&ctx.db)
+        .await?;
+        let cpe = Cpe::from_str(&format!("cpe:/o:redhat:enterprise_linux:{major}::baseos"))?;
+        for package in ["curl", "libcurl"] {
+            product_status::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                advisory_id: Set(Uuid::parse_str(&advisory.id)?),
+                vulnerability_id: Set("CVE-2022-27774".into()),
+                status_id: Set(fixed.id),
+                package: Set(Some(package.into())),
+                product_version_range_id: Set(range_id),
+                context_cpe_id: Set(Some(cpe.uuid())),
+                csaf_product_ids: Set(None),
+            }
+            .insert(&ctx.db)
+            .await?;
+        }
+    }
+    // Disable implied PURL affected rows: these requests must exercise product_status alone.
+    correlation_option::Entity::delete_many()
+        .filter(correlation_option::Column::Key.eq(CorrelationOptionKey::FixedIsFirstFixed))
+        .exec(&ctx.db)
+        .await?;
+    let service = PurlService::new(PaginationCache::for_test());
+    for (package, fixes) in [
+        ("curl", ["7.61.1-22.el8_6.3", "7.76.1-14.el9_0.4"]),
+        ("libcurl", ["8.0.0", "9.0.0"]),
+    ] {
+        let purl = format!("pkg:rpm/redhat/{package}@7.0.0?arch=x86_64");
+        for cpe in [
+            "cpe:/o:redhat:enterprise_linux:8::baseos",
+            "cpe:/o:redhat:enterprise_linux:9::baseos",
+        ] {
+            ingest_context_sbom(ctx, cpe, &purl).await?;
+        }
+        // When no stated or implied PURL status matches the installed package version.
+        let details = service
+            .purl_by_purl(&Purl::from_str(&purl)?, Default::default(), &ctx.db)
+            .await?
+            .unwrap();
+        let mut projected = details
+            .advisories
+            .iter()
+            .flat_map(|a| &a.status)
+            .filter(|s| s.vulnerability.identifier == "CVE-2022-27774")
+            .map(|s| {
+                assert_eq!(s.status, "fixed");
+                let Some(StatusContext::Cpe(cpe)) = &s.context else {
+                    panic!("expected product context")
+                };
+                (
+                    cpe.as_str(),
+                    s.fixed_versions
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        projected.sort();
+        projected.dedup();
+        // Then neither another base package nor another stream contributes its fixes.
+        assert_eq!(
+            projected,
+            [
+                (
+                    "cpe:/o:redhat:enterprise_linux:8:*:baseos:*",
+                    vec![fixes[0]]
+                ),
+                (
+                    "cpe:/o:redhat:enterprise_linux:9:*:baseos:*",
+                    vec![fixes[1]]
+                ),
+            ],
+            "package {package}"
+        );
+    }
+    Ok(())
+}
+
+/// Verifies context-free fixes remain ordered, unique and digest-free without scope leakage.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn fixed_versions_context_free(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given a context-free advisory with repeated fixes and deliberately unrelated assertions.
+    ctx.ingest_document("osv/RUSTSEC-2021-0079.json").await?;
+    let purl = Purl::from_str("pkg:cargo/hyper@0.14.1")?;
+    ctx.graph.ingest_qualified_package(&purl, &ctx.db).await?;
+    let fixed = status::Entity::find()
+        .filter(status::Column::Slug.eq("fixed"))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    let mut template = purl_status::Entity::find()
+        .filter(purl_status::Column::BasePurlId.eq(purl.package_uuid()))
+        .one(&ctx.db)
+        .await?
+        .unwrap();
+    template.status_id = fixed.id;
+    for version in ["0.14.20", "0.14.10", "0.14.20", "sha256:not-a-version"] {
+        insert_status_version(ctx, &template, version).await?;
+    }
+    let other = Purl::from_str("pkg:cargo/unrelated@1.0.0")?;
+    ctx.graph.ingest_qualified_package(&other, &ctx.db).await?;
+    template.base_purl_id = other.package_uuid();
+    insert_status_version(ctx, &template, "99.0.0").await?;
+    template.base_purl_id = purl.package_uuid();
+    let context_id = Uuid::new_v4();
+    assertion_context::ActiveModel {
+        id: Set(context_id),
+        category: Set(None),
+        name: Set("unrelated product".into()),
+    }
+    .insert(&ctx.db)
+    .await?;
+    template.assertion_context_id = Some(context_id);
+    insert_status_version(ctx, &template, "0.14.99").await?;
+    // When assembling the context-free affected status, including on repeated requests.
+    let service = PurlService::new(PaginationCache::for_test());
+    for _ in 0..2 {
+        let details = service
+            .purl_by_purl(&purl, Default::default(), &ctx.db)
+            .await?
+            .unwrap();
+        let affected = details
+            .advisories
+            .iter()
+            .flat_map(|a| &a.status)
+            .filter(|s| s.vulnerability.identifier == "CVE-2021-32714" && s.status == "affected")
+            .collect::<Vec<_>>();
+        // Then product-specific and other-package fixes cannot enter a context-free assertion.
+        assert!(!affected.is_empty());
+        for status in affected {
+            assert_eq!(status.context, None);
+            assert_eq!(status.fixed_versions, ["0.14.10", "0.14.20"]);
+        }
+    }
+    Ok(())
+}
 
 #[test]
 fn recommendation_status_query_filters_winner_packages() {

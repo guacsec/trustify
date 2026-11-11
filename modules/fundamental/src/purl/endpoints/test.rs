@@ -252,6 +252,51 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     Ok(())
 }
 
+/// Verifies that the original RHEL 8 curl reproducer excludes the advisory's RHEL 9 fix.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn package_fixed_versions_product_context(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given the original TC-6610 SBOM and Red Hat CSAF attachments.
+    ctx.ingest_documents(["cyclonedx/rhel_bug.json", "csaf/CVE-2022-27774.json"])
+        .await?;
+    let purl = Purl::from_str("pkg:rpm/redhat/curl@7.61.1-21.el8_6.3?arch=x86_64&epoch=0")?;
+    let app = caller(ctx).await?;
+
+    // When requesting the installed qualified PURL through the public endpoint.
+    let uri = format!("/api/v3/purl/{}", purl.qualifier_uuid());
+    let response: Value = app
+        .call_and_read_body_json(TestRequest::get().uri(&uri).to_request())
+        .await;
+    let affected = response["advisories"]
+        .as_array()
+        .expect("qualified-PURL response must include advisories")
+        .iter()
+        .flat_map(|advisory| advisory["status"].as_array().into_iter().flatten())
+        .filter(|status| {
+            status["vulnerability"]["identifier"] == "CVE-2022-27774"
+                && status["status"] == "affected"
+        })
+        .collect::<Vec<_>>();
+
+    // Then the vulnerability remains present, with only the applicable RHEL 8 fix.
+    assert!(
+        !affected.is_empty(),
+        "missing affected curl status: {response}"
+    );
+    for status in affected {
+        assert_eq!(
+            status["context"],
+            json!({"cpe": "cpe:/o:redhat:enterprise_linux:8:*:baseos:*"}),
+        );
+        assert_eq!(
+            status["fixed_versions"],
+            json!(["7.61.1-22.el8_6.3"]),
+            "fixed versions must be scoped to this status's product context",
+        );
+    }
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn purl_component_queries(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
