@@ -143,16 +143,16 @@ export async function navigate(page: Page, name: string): Promise<void> {
 }
 
 export async function editJson(container: Page | Locator, value: string): Promise<void> {
-  const editor = container.locator('.monaco-editor textarea').first();
+  // Monaco may use a native EditContext; its hidden textarea is then read-only.
+  const editor = container.getByRole('textbox', { name: 'Code editor', exact: true }).first();
   await editor.focus();
   // Monaco chooses shortcuts from the browser's emulated user agent, while
   // Playwright's ControlOrMeta uses the host OS (different on macOS runners).
   const modifier = await editor.page().evaluate(() => navigator.userAgent.includes('Macintosh') ? 'Meta' : 'Control');
   await editor.press(`${modifier}+a`);
   await editor.press('Backspace');
-  // Monaco's textarea holds only a window of its model. DOM fill() can leave
-  // existing model text behind; insert through its keyboard input instead.
-  await editor.page().keyboard.insertText(value);
+  // Use Monaco's keyboard handling to update its model rather than filling DOM text.
+  await editor.pressSequentially(value);
   await editor.blur();
 }
 
