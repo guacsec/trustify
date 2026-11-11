@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794324001752,
+  "lastUpdate": 1794423131519,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24817,6 +24817,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": false,
+          "id": "1d80075b2a09472fd6f2df21ee7b3df42c89c347",
+          "message": "ci: skip SARIF upload in merge queue to avoid ephemeral ref race\n\nThe CodeQL upload-sarif action fails on merge_group events because the\nqueue branch is deleted before the upload completes (github/codeql-action#1572).\nThe same scan runs and uploads successfully on the subsequent push to main,\nso no coverage is lost.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-11T17:26:10Z",
+          "tree_id": "aaf6b7fe2adcfe8c9ebcb665c02cc53ae054532a",
+          "url": "https://github.com/guacsec/trustify/commit/1d80075b2a09472fd6f2df21ee7b3df42c89c347"
+        },
+        "date": 1794423129299,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
