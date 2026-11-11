@@ -4,7 +4,7 @@ use super::{
 };
 use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use crate::service::Error;
-use csaf::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductNameT};
+use csaf_rs::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductNameT};
 use sbom_walker::report::ReportSink;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::version_scheme::VersionScheme;

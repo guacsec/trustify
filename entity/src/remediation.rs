@@ -1,4 +1,4 @@
-use csaf::schema::csaf2_0::schema::CategoryOfTheRemediation;
+use csaf_rs::schema::csaf2_0::schema::CategoryOfTheRemediation;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

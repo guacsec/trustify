@@ -7,7 +7,7 @@ use trustify_test_context::{TrustifyContext, document};
 use bytes::Bytes;
 use cpe::cpe::Cpe;
 use cpe::uri::OwnedUri;
-use csaf::schema::csaf2_0::schema::{
+use csaf_rs::schema::csaf2_0::schema::{
     CommonSecurityAdvisoryFramework as Csaf, ProductTree, Vulnerability,
 };
 use packageurl::PackageUrl;
@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use std::str::FromStr;
 
-use csaf::schema::csaf2_0::schema::{BranchesT, HelperToIdentifyTheProduct};
+use csaf_rs::schema::csaf2_0::schema::{BranchesT, HelperToIdentifyTheProduct};
 use sea_orm::ConnectionTrait;
 
 pub fn setup_runtime_and_ctx() -> (Runtime, Rc<TrustifyContext>) {

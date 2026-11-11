@@ -12,7 +12,7 @@ use crate::service::{
     },
 };
 use anyhow::anyhow;
-use csaf::{
+use csaf_rs::{
     csaf::{loader::detect_version_with, raw::RawDocument},
     validation::{TestResultStatus, validate_by_preset},
 };
@@ -56,7 +56,7 @@ impl fmt::Debug for Validator {
     }
 }
 
-fn map_test_results(results: &[csaf::validation::TestResult]) -> Vec<Finding> {
+fn map_test_results(results: &[csaf_rs::validation::TestResult]) -> Vec<Finding> {
     let mut findings = Vec::new();
 
     for test_result in results {
@@ -136,14 +136,14 @@ impl super::Validator for Validator {
 
         let result = tokio::task::spawn_blocking(move || match vd.version.as_str() {
             "2.0" => {
-                use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework;
+                use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework;
                 let doc = RawDocument::<CommonSecurityAdvisoryFramework>::new(vd.data);
-                Ok(validate_by_preset(&doc, &vd.version, &profile))
+                Ok(validate_by_preset(&doc, &vd.version, &profile)?)
             }
             "2.1" => {
-                use csaf::schema::csaf2_1::schema::CommonSecurityAdvisoryFramework;
+                use csaf_rs::schema::csaf2_1::schema::CommonSecurityAdvisoryFramework;
                 let doc = RawDocument::<CommonSecurityAdvisoryFramework>::new(vd.data);
-                Ok(validate_by_preset(&doc, &vd.version, &profile))
+                Ok(validate_by_preset(&doc, &vd.version, &profile)?)
             }
             other => Err(anyhow!("unsupported CSAF version: {other}")),
         })
@@ -243,6 +243,23 @@ mod tests {
         let report = v.validate(&input).await.expect("validates");
         assert_eq!(report.outcome, ValidationOutcome::Failed);
         assert!(!report.findings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn unknown_profile_is_backend_error() {
+        let bytes = serde_json::to_vec(&serde_json::json!({
+            "document": { "csaf_version": "2.0" }
+        }))
+        .expect("serialize");
+        let v = validator(Some("unknown-profile"), ValidationMode::Report);
+        let input = ValidatorInput {
+            bytes: &bytes,
+            format: Format::CSAF,
+        };
+        assert!(matches!(
+            v.validate(&input).await,
+            Err(ValidatorError::Backend(_))
+        ));
     }
 
     #[tokio::test]

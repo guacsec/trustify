@@ -1,6 +1,6 @@
 use super::value::{self, OnInvalidData};
 use crate::service::Error;
-use csaf::schema::csaf2_0::schema::{
+use csaf_rs::schema::csaf2_0::schema::{
     Branch, BranchesT, CommonSecurityAdvisoryFramework as Csaf, FullProductNameT,
     HelperToIdentifyTheProduct, ProductTree, Relationship, Remediation,
 };

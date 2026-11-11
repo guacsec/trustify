@@ -24,7 +24,7 @@ use crate::{
         },
     },
 };
-use csaf::schema::csaf2_0::schema::{
+use csaf_rs::schema::csaf2_0::schema::{
     CategoryOfTheBranch, CommonSecurityAdvisoryFramework as Csaf, ProductsT, RelationshipCategory,
     Remediation,
 };

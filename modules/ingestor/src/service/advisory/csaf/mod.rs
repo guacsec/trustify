@@ -7,7 +7,7 @@ mod creator;
 pub use creator::*;
 
 use crate::graph::cvss::ScoreCreator;
-use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
+use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use cvss::v3::CvssV3;
 
 /// Extract scores from a CSAF document

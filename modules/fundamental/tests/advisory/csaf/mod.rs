@@ -5,7 +5,7 @@ mod parallel;
 mod reingest;
 mod timeout;
 
-use csaf::schema::csaf2_0::schema::{
+use csaf_rs::schema::csaf2_0::schema::{
     CommonSecurityAdvisoryFramework as Csaf, ProductIdT, Revision,
 };
 use trustify_module_ingestor::model::IngestResult;

@@ -2,7 +2,7 @@
 #![recursion_limit = "512"]
 
 use bytes::Bytes;
-use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
+use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use serde_json::Value;
 use spdx_rs::models::SPDX;
 use std::str::FromStr;

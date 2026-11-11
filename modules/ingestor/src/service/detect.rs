@@ -19,7 +19,7 @@ use crate::{
         weakness::CweCatalogLoader,
     },
 };
-use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
+use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use cyclonedx_rs::cyclonedx::v_1_7::CycloneDx;
 use osv::schema::Vulnerability;
 use quick_xml::{Reader, events::Event};

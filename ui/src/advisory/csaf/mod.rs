@@ -9,7 +9,7 @@ mod status;
 mod vulnerabilities;
 
 use super::none;
-use ::csaf::schema::csaf2_0::schema::{CommonSecurityAdvisoryFramework as Csaf, Vulnerability};
+use ::csaf_rs::schema::csaf2_0::schema::{CommonSecurityAdvisoryFramework as Csaf, Vulnerability};
 use index::ProductIndex;
 use notes::NotesTab;
 use overview::Overview;
@@ -174,7 +174,7 @@ fn vulnerability_name(n: usize, vuln: &Vulnerability) -> String {
 #[cfg(test)]
 mod test {
     use super::{ParseError, index::ProductOrigin, parse};
-    use ::csaf::schema::csaf2_0::schema::RelationshipCategory;
+    use ::csaf_rs::schema::csaf2_0::schema::RelationshipCategory;
 
     const DOCUMENT: &str = include_str!("../../../../etc/test-data/csaf/CVE-2024-5154.json");
 

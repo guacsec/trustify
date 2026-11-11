@@ -1,6 +1,6 @@
 use super::Document;
 use bytes::Bytes;
-use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
+use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use sea_orm::{FromQueryResult, QuerySelect, prelude::*};
 use trustify_entity::advisory;
 use trustify_module_storage::service::StorageBackend;

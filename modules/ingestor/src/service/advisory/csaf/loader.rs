@@ -18,7 +18,7 @@ use crate::{
         },
     },
 };
-use csaf::schema::csaf2_0::schema::{
+use csaf_rs::schema::csaf2_0::schema::{
     CommonSecurityAdvisoryFramework as Csaf, ProductStatus, Remediation, Vulnerability,
 };
 use sbom_walker::report::ReportSink;

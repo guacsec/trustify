@@ -1,7 +1,7 @@
 //! The product status categories of a CSAF vulnerability.
 
 use super::{Doc, none};
-use ::csaf::schema::csaf2_0::schema::{ProductIdT, ProductStatus, ProductsT};
+use ::csaf_rs::schema::csaf2_0::schema::{ProductIdT, ProductStatus, ProductsT};
 use patternfly_yew::prelude::*;
 use std::collections::HashMap;
 use yew::prelude::*;
