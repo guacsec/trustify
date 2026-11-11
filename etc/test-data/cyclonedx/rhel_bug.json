@@ -1,0 +1,33 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:21210000-0000-4000-8000-2121curl0000",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s21",
+      "type": "operating-system",
+      "name": "rhel_bug",
+      "version": "8.6",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-curl",
+      "type": "library",
+      "name": "curl",
+      "version": "7.61.1-21.el8_6.3",
+      "purl": "pkg:rpm/redhat/curl@7.61.1-21.el8_6.3?arch=x86_64&epoch=0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s21",
+      "dependsOn": [
+        "pkg-curl"
+      ]
+    }
+  ]
+}
