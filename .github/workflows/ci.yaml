@@ -20,7 +20,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  POSTGRESQL_VERSION: "=17.2.0"
+  POSTGRESQL_VERSION: "=17.11.1"
 
 jobs:
 
