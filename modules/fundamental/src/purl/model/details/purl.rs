@@ -162,7 +162,13 @@ impl PurlDetails {
             head: PurlHead::from_entity(&package, &package_version, qualified_package),
             version: VersionedPurlHead::from_entity(&package, &package_version),
             base: BasePurlHead::from_entity(&package),
-            advisories: PurlAdvisory::from_entities(purl_statuses, product_statuses, tx).await?,
+            advisories: PurlAdvisory::from_entities(
+                package.id,
+                purl_statuses,
+                product_statuses,
+                tx,
+            )
+            .await?,
             licenses,
             licenses_ref_mapping: vec![],
         })
@@ -326,13 +332,19 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     Ok(product_statuses)
 }
 
+/// A fixed version together with the package and product assertion it belongs to.
 #[derive(Debug, FromQueryResult)]
 struct FixVersionEntry {
     advisory_id: Uuid,
     vulnerability_id: String,
     base_purl_id: Uuid,
+    context_cpe_id: Option<Uuid>,
+    assertion_context_id: Option<Uuid>,
     high_version: Option<String>,
 }
+
+/// Advisory, vulnerability, package, CPE and product-assertion identity of a fix.
+type FixVersionKey = (Uuid, String, Uuid, Option<Uuid>, Option<Uuid>);
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct PurlAdvisory {
@@ -342,7 +354,9 @@ pub struct PurlAdvisory {
 }
 
 impl PurlAdvisory {
+    /// Assemble advisory statuses and applicable fixes for the requested base package.
     pub async fn from_entities<C: ConnectionTrait>(
+        base_purl_id: Uuid,
         purl_statuses: Vec<purl_status::Model>,
         product_statuses: Vec<ProductStatusCatcher>,
         tx: &C,
@@ -377,9 +391,15 @@ impl PurlAdvisory {
                 .column_as(purl_status::Column::AdvisoryId, "advisory_id")
                 .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
                 .column_as(purl_status::Column::BasePurlId, "base_purl_id")
+                .column_as(purl_status::Column::ContextCpeId, "context_cpe_id")
+                .column_as(
+                    purl_status::Column::AssertionContextId,
+                    "assertion_context_id",
+                )
                 .column_as(version_range::Column::HighVersion, "high_version")
                 .join(JoinType::Join, purl_status::Relation::Status.def())
                 .join(JoinType::Join, purl_status::Relation::VersionRange.def())
+                .filter(purl_status::Column::BasePurlId.eq(base_purl_id))
                 .filter(Expr::col((status::Entity, status::Column::Slug)).eq("fixed"))
                 .filter(
                     Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId))
@@ -394,12 +414,10 @@ impl PurlAdvisory {
                 .all(tx)
                 .await?;
 
-            // Key by (advisory_id, vulnerability_id, base_purl_id) so that fix versions
-            // from one PURL are never mixed into another PURL's response. An advisory that
-            // affects both `foo` and `bar` produces separate purl_status rows for each;
-            // without base_purl_id in the key the map entry for the shared (advisory, vuln)
-            // pair would be overwritten, returning wrong fix versions.
-            let mut map: HashMap<(Uuid, String, Uuid), Vec<String>> = HashMap::new();
+            // CPE applicability (including generalization) has already selected the
+            // returned statuses. Preserve each status's own assertion identity here,
+            // rather than associating fixes with the union of eligible SBOM contexts.
+            let mut map: HashMap<FixVersionKey, Vec<String>> = HashMap::new();
             for entry in fix_version_entries {
                 if let Some(version) = entry.high_version {
                     if version.starts_with("sha256:") {
@@ -410,6 +428,8 @@ impl PurlAdvisory {
                             entry.advisory_id,
                             entry.vulnerability_id,
                             entry.base_purl_id,
+                            entry.context_cpe_id,
+                            entry.assertion_context_id,
                         ))
                         .or_default();
                     if !versions.contains(&version) {
@@ -448,6 +468,8 @@ impl PurlAdvisory {
                         status.advisory_id,
                         status.vulnerability_id.clone(),
                         status.base_purl_id,
+                        status.context_cpe_id,
+                        status.assertion_context_id,
                     ))
                     .cloned()
                     .unwrap_or_default();
@@ -478,21 +500,22 @@ impl PurlAdvisory {
         }
 
         for product_status in product_statuses {
-            // Product statuses are CPE-based and have no base_purl_id; collect all fix
-            // versions for this (advisory, vulnerability) across every base PURL in the map.
+            // Product statuses do not carry a base PURL or an assertion-context ID.
+            // Use the requested package and this returned status's own CPE, not
+            // every package/product mentioned by the advisory.
             let fv: Vec<String> = {
                 let mut all = Vec::new();
-                for ((adv_id, vuln_id, _), versions) in &fix_versions_map {
+                for ((adv_id, vuln_id, package_id, cpe_id, _), versions) in &fix_versions_map {
                     if *adv_id == product_status.advisory.id
                         && *vuln_id == product_status.vulnerability.id
+                        && *package_id == base_purl_id
+                        && *cpe_id == Some(product_status.cpe.id)
                     {
-                        for v in versions {
-                            if !all.contains(v) {
-                                all.push(v.clone());
-                            }
-                        }
+                        all.extend(versions.iter().cloned());
                     }
                 }
+                all.sort();
+                all.dedup();
                 all
             };
 
