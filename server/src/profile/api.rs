@@ -1128,7 +1128,7 @@ mod test {
     // normal mode lets PUT through to handler
     #[case::rw_put(false, Method::PUT, "/api/v3/importer/foo", StatusCode::BAD_REQUEST)]
     // normal mode lets PATCH through to handler
-    #[case::rw_patch(false, Method::PATCH, "/api/v3/importer/foo", StatusCode::NOT_FOUND)]
+    #[case::rw_patch(false, Method::PATCH, "/api/v3/importer/foo", StatusCode::BAD_REQUEST)]
     // normal mode lets DELETE through to handler
     #[case::rw_delete(false, Method::DELETE, "/api/v3/importer/foo", StatusCode::NO_CONTENT)]
     #[test_log::test(actix_web::test)]
@@ -1140,7 +1140,11 @@ mod test {
         #[case] expected: StatusCode,
     ) -> Result<(), anyhow::Error> {
         let app = caller(ctx, read_only).await;
-        let req = TestRequest::default().method(method).uri(uri).to_request();
+        let mut req = TestRequest::default();
+        if method == Method::PATCH {
+            req = req.insert_header(("content-type", "application/merge-patch+json"));
+        }
+        let req = req.method(method).uri(uri).to_request();
         let resp = app.call_service(req).await;
         assert_eq!(resp.status(), expected);
         Ok(())
