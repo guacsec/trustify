@@ -182,8 +182,8 @@ trustify-query-derive = {path = "query/query-derive" }
 trustify-server = { path = "server", default-features = false }
 trustify-test-context = { path = "test-context" }
 trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "publish/release/0.7.z" }
-postgresql_embedded = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
-postgresql_commands = { version = "0.20.0", default-features = false, features = ["tokio"] }
+postgresql_embedded = { version = "0.22.0", default-features = false, features = ["theseus", "tls-rustls-ring"] }
+postgresql_commands = { version = "0.22.0", default-features = false, features = ["tokio"] }
 
 [patch.crates-io]
 #walker-extras = { git = "https://github.com/scm-rs/csaf-walker", branch = "main" }
