@@ -1,7 +1,7 @@
 #![allow(clippy::expect_used)]
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
+use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use cyclonedx_rs::cyclonedx::v_1_7::CycloneDx;
 use std::hint::black_box;
 use trustify_module_ingestor::service::{DocumentDetector, Format};

@@ -8,7 +8,7 @@ use super::{
     vulnerability_name,
 };
 use crate::sort::{missing_last, ordered, text, use_sort};
-use ::csaf::schema::csaf2_0::schema::{ProductGroupsT, ProductsT, Remediation};
+use ::csaf_rs::schema::csaf2_0::schema::{ProductGroupsT, ProductsT, Remediation};
 use patternfly_yew::prelude::*;
 use std::{cmp::Ordering, rc::Rc};
 use yew::prelude::*;

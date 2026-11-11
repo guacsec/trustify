@@ -8,7 +8,7 @@ use crate::{
     sort::{missing_last, ordered, text, use_sort},
     tools::InlineCvss,
 };
-use ::csaf::schema::csaf2_0::schema::{
+use ::csaf_rs::schema::csaf2_0::schema::{
     CategoryOfTheRemediation, ProductGroupsT, ProductsT, Remediation, Score, Vulnerability,
 };
 use patternfly_yew::prelude::*;

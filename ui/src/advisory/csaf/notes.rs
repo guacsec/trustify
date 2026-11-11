@@ -1,7 +1,7 @@
 //! The notes of a CSAF document: those of the document, and those of each vulnerability.
 
 use super::{Doc, vulnerability_name};
-use ::csaf::schema::csaf2_0::schema::{Note, NoteCategory, NotesT};
+use ::csaf_rs::schema::csaf2_0::schema::{Note, NoteCategory, NotesT};
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 

@@ -1,6 +1,6 @@
 //! An index of the products a CSAF document defines.
 
-use ::csaf::schema::csaf2_0::schema::{
+use ::csaf_rs::schema::csaf2_0::schema::{
     Branch, CommonSecurityAdvisoryFramework as Csaf, FullProductNameT, HelperToIdentifyTheProduct,
     RelationshipCategory,
 };

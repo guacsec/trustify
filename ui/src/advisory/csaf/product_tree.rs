@@ -7,7 +7,7 @@ use super::{
     status::{StatusCategory, StatusCounts, status_counts, status_labels},
 };
 use crate::sort::{ordered, text, use_sort};
-use ::csaf::schema::csaf2_0::schema::{Branch, FullProductNameT, Relationship};
+use ::csaf_rs::schema::csaf2_0::schema::{Branch, FullProductNameT, Relationship};
 use patternfly_yew::prelude::*;
 use std::{cmp::Ordering, collections::HashMap, rc::Rc};
 use yew::prelude::*;
