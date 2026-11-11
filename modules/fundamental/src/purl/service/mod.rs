@@ -74,6 +74,29 @@ struct StatusInfo {
     advisory_id: Option<String>,
 }
 
+/// Red Hat CSAF ingestion used to store an `affected` range below every stated `fixed`
+/// version, because the range was inferred at read time. Main marks those rows `derived`
+/// through `purl_status_effective`; this branch has no such view, so a generated row is
+/// identified by shape, as `m0002480_drop_redhat_derived_purl_status` does: no lower bound
+/// and an exclusive upper bound. Red Hat documents never state that range themselves, so
+/// the shape plus the publisher namespace is what makes the row inference rather than a
+/// statement. A stated range of the same shape from another publisher is left alone.
+fn is_generated_affected(status: &StatusInfo) -> bool {
+    if status.status_slug != "affected"
+        || !status.csaf
+        || status.range.low_version.is_some()
+        || status.range.high_version.is_none()
+        || status.range.high_inclusive != Some(false)
+    {
+        return false;
+    }
+    status
+        .advisory_id
+        .as_deref()
+        .and_then(|identifier| identifier.rsplit_once('#'))
+        .is_some_and(|(namespace, _)| namespace.trim_end_matches('/') == "https://www.redhat.com")
+}
+
 /// A status row paired with the exact winner version it matched.
 #[derive(FromQueryResult)]
 struct WinnerPurlStatus {
@@ -960,6 +983,34 @@ impl PurlService {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
+        // Generated `affected` ranges are inference, never a statement. Drop one only where the
+        // same advisory, vulnerability and product context also holds a stated status for this
+        // target, so conflicting sources and inferred-only findings are still reported. Two
+        // passes keep generated rows from suppressing each other when several fixed versions
+        // of one advisory cover the same target.
+        let generated = statuses
+            .iter()
+            .copied()
+            .filter(|status| is_generated_affected(status))
+            .map(|status| status.source_id)
+            .collect::<HashSet<_>>();
+        let mut suppressed = HashSet::new();
+        for status in statuses
+            .iter()
+            .copied()
+            .filter(|status| generated.contains(&status.source_id))
+        {
+            let contradicted = statuses.iter().copied().any(|direct| {
+                !generated.contains(&direct.source_id)
+                    && direct.advisory_pk == status.advisory_pk
+                    && direct.vuln_id == status.vuln_id
+                    && direct.context_cpe_id == status.context_cpe_id
+            });
+            if contradicted {
+                suppressed.insert(status.source_id);
+            }
+        }
+        statuses.retain(|status| !suppressed.contains(&status.source_id));
         statuses.sort_by(|a, b| {
             (&a.vuln_id, &a.status_slug, &a.advisory_id).cmp(&(
                 &b.vuln_id,
