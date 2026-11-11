@@ -181,3 +181,14 @@ jobs:
 
           gh release create ${OPTS} --title "${{ needs.init.outputs.version }}" -F /tmp/changelog.md ${TAG} \
             $(find staging -type f)
+
+      - name: Notify Matrix of published release
+        continue-on-error: true
+        env:
+          USERNAME: "@trustification-bot:matrix.org"
+          PASSWORD: ${{ secrets.MATRIX_BOT_PASSWORD }}
+          ROOM: "#trustification:matrix.org"
+          MESSAGE: "New release published: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ needs.init.outputs.version }}"
+        if: env.PASSWORD
+        run: |
+          podman run --rm docker.io/matrixcommander/matrix-commander:latest --login password --homeserver https://matrix.org --device github --user-login "$USERNAME" --password "$PASSWORD" --room-default "$ROOM" --message "$MESSAGE" --logout me

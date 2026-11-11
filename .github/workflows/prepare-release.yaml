@@ -7,6 +7,7 @@ on:
         description: "Version bump type"
         required: true
         type: choice
+        default: patch
         options:
           - alpha
           - beta
@@ -34,3 +35,21 @@ jobs:
     with:
       bump: ${{ inputs.bump }}
       version-override: ${{ inputs.version-override }}
+
+  notify_channel:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    permissions: {}
+    env:
+      USERNAME: "@trustification-bot:matrix.org"
+      PASSWORD: ${{ secrets.MATRIX_BOT_PASSWORD }}
+      ROOM: "#trustification:matrix.org"
+    steps:
+      - name: Notify Matrix of prepared release
+        if: env.PASSWORD
+        env:
+          PR_URL: ${{ needs.prepare.outputs.pr-url }}
+        run: |
+          test -n "$PR_URL"
+          podman run --rm docker.io/matrixcommander/matrix-commander:latest --login password --homeserver https://matrix.org --device github --user-login "$USERNAME" --password "$PASSWORD" --room-default "$ROOM" --message "Release prepared; PR awaits approval: $PR_URL" --logout me
