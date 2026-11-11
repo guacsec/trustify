@@ -3267,3 +3267,78 @@ async fn lightwell_preserves_redhat_recommendations(
     // needs vendor/repository-aware matching, tracked upstream in TC-7423.
     Ok(())
 }
+
+/// Legacy Red Hat ingestion stores an `affected` range below every stated `fixed` version.
+/// That row is inference, not a statement, so it must not contradict the direct `fixed`
+/// status of the same advisory for the same target.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_stated_fix_not_contradicted_by_generated_affected(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let mut advisory = minimal_csaf_vex(
+        "ORIGIN-FIXES",
+        "Origin Product",
+        &[
+            (
+                "origin-v1",
+                "pkg:maven/com.example/originlib@1.0.0.redhat-00001",
+            ),
+            (
+                "origin-v2",
+                "pkg:maven/com.example/originlib@2.0.0.redhat-00001",
+            ),
+        ],
+        &[("CVE-2099-74501", "fixed", &[0, 1])],
+    );
+    advisory["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
+    advisory["document"]["publisher"]["name"] = json!("Red Hat");
+    ctx.ingest_json(advisory).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    // The older fixed version also matches the generated `affected < 2.0.0.redhat-00001` range.
+    let response = recommend(&app, &["pkg:maven/com.example/originlib@1.0.0"]).await;
+    assert_eq!(
+        response["recommendations"]["pkg:maven/com.example/originlib@1.0.0"][0]["vulnerabilities"],
+        json!([
+            {"id": "CVE-2099-74501", "status": "Fixed", "remediations": [], "advisory_id": "https://www.redhat.com/#ORIGIN-FIXES"}
+        ])
+    );
+    Ok(())
+}
+
+/// A generated `affected` range stays visible when no direct statement covers the target.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_keeps_generated_affected_without_direct_statement(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    for (id, version, cve) in [
+        ("ORIGIN-FIX", "1.0.0.redhat-00001", "CVE-2099-74501"),
+        ("ORIGIN-UPPER", "2.0.0.redhat-00001", "CVE-2099-74502"),
+    ] {
+        let mut advisory = minimal_csaf_vex(
+            id,
+            "Origin Product",
+            &[(
+                "originlib",
+                &format!("pkg:maven/com.example/originlib@{version}"),
+            )],
+            &[(cve, "fixed", &[0])],
+        );
+        advisory["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
+        advisory["document"]["publisher"]["name"] = json!("Red Hat");
+        ctx.ingest_json(advisory).await?;
+    }
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    // CVE-2099-74501 is stated fixed at this target; CVE-2099-74502 is only inferred affected
+    // by ORIGIN-UPPER's generated range, and that inference must survive.
+    let response = recommend(&app, &["pkg:maven/com.example/originlib@1.0.0"]).await;
+    assert_eq!(
+        response["recommendations"]["pkg:maven/com.example/originlib@1.0.0"][0]["vulnerabilities"],
+        json!([
+            {"id": "CVE-2099-74501", "status": "Fixed", "remediations": [], "advisory_id": "https://www.redhat.com/#ORIGIN-FIX"},
+            {"id": "CVE-2099-74502", "status": "Affected", "remediations": [], "advisory_id": "https://www.redhat.com/#ORIGIN-UPPER"}
+        ])
+    );
+    Ok(())
+}
