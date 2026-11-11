@@ -37,16 +37,38 @@ impl StorageBackend for DispatchBackend {
     where
         Self: Sized,
     {
+        Ok(self
+            .retrieve_encoded(key, &[])
+            .await?
+            .map(|content| content.stream))
+    }
+
+    async fn retrieve_encoded(
+        &self,
+        key: StorageKey,
+        accepted: &[Compression],
+    ) -> RetrieveEncodedResult<impl Stream<Item = Result<Bytes, Self::Error>> + use<>, Self::Error>
+    {
         match self {
             Self::Filesystem(backend) => backend
-                .retrieve(key)
+                .retrieve_encoded(key, accepted)
                 .await
-                .map(|stream| stream.map(|stream| stream.map_err(anyhow::Error::from).boxed()))
+                .map(|content| {
+                    content.map(|content| StorageContent {
+                        compression: content.compression,
+                        stream: content.stream.map_err(anyhow::Error::from).boxed(),
+                    })
+                })
                 .map_err(anyhow::Error::from),
             Self::S3(backend) => backend
-                .retrieve(key)
+                .retrieve_encoded(key, accepted)
                 .await
-                .map(|stream| stream.map(|stream| stream.map_err(anyhow::Error::from).boxed()))
+                .map(|content| {
+                    content.map(|content| StorageContent {
+                        compression: content.compression,
+                        stream: content.stream.map_err(anyhow::Error::from).boxed(),
+                    })
+                })
                 .map_err(anyhow::Error::from),
         }
     }

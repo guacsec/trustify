@@ -1,5 +1,6 @@
 use crate::service::{
-    StorageBackend, StorageKey, StorageResult, StoreError, compression::Compression, temp::TempFile,
+    RetrieveEncodedResult, StorageBackend, StorageContent, StorageKey, StorageResult, StoreError,
+    compression::Compression, temp::TempFile,
 };
 use anyhow::Context;
 use bytes::Bytes;
@@ -169,10 +170,31 @@ impl StorageBackend for FileSystemBackend {
         &self,
         key: StorageKey,
     ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + use<>>, Self::Error> {
+        Ok(self
+            .retrieve_encoded(key, &[])
+            .await?
+            .map(|content| content.stream))
+    }
+
+    async fn retrieve_encoded(
+        &self,
+        key: StorageKey,
+        accepted: &[Compression],
+    ) -> RetrieveEncodedResult<impl Stream<Item = Result<Bytes, Self::Error>> + use<>, Self::Error>
+    {
         match self.locate(key).await? {
-            Some((path, compression)) => File::open(&path)
-                .await
-                .map(|f| Some(ReaderStream::new(compression.reader(f)))),
+            Some((path, compression)) => {
+                let file = File::open(&path).await?;
+                let (encoding, decoding) = if accepted.contains(&compression) {
+                    (compression, Compression::None)
+                } else {
+                    (Compression::None, compression)
+                };
+                Ok(Some(StorageContent {
+                    compression: encoding,
+                    stream: ReaderStream::new(decoding.reader(file)),
+                }))
+            }
             None => Ok(None),
         }
     }
@@ -208,7 +230,10 @@ mod test {
     use super::*;
     use crate::service::{
         dispatch::DispatchBackend,
-        test::{test_read_not_found, test_store_read_and_delete, test_store_read_and_delete_rng},
+        test::{
+            test_read_not_found, test_retrieve_encoded, test_store_read_and_delete,
+            test_store_read_and_delete_rng,
+        },
     };
     use bytes::BytesMut;
     use futures::StreamExt;
@@ -320,5 +345,39 @@ mod test {
         let (backend, _dir) = backend(Compression::None).await;
 
         test_read_not_found(backend).await;
+    }
+
+    #[test(tokio::test)]
+    #[rstest]
+    #[case::none(Compression::None)]
+    #[case::zstd(Compression::Zstd)]
+    async fn retrieve_encoded(#[case] compression: Compression) {
+        let (backend, _dir) = backend(compression).await;
+        test_retrieve_encoded(backend, compression).await;
+    }
+
+    #[test(tokio::test)]
+    async fn retrieve_encoded_does_not_decode() {
+        use futures::TryStreamExt;
+        use tokio::fs;
+
+        let (backend, _dir) = FileSystemBackend::for_test_with(Compression::Zstd)
+            .await
+            .unwrap();
+        let stored = backend.store(&b"Hello World"[..]).await.unwrap();
+        let (path, _) = backend.locate(stored.key()).await.unwrap().unwrap();
+        // Raw retrieval must preserve the bytes without even trying to decode
+        // them. Deliberately invalid zstd makes an accidental decoder fail.
+        let raw = b"stored bytes are not decoded";
+        fs::write(path, raw).await.unwrap();
+
+        let content = backend
+            .retrieve_encoded(stored.key(), &[Compression::Zstd])
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(content.compression, Compression::Zstd);
+        let bytes = content.stream.try_collect::<BytesMut>().await.unwrap();
+        assert_eq!(bytes.as_ref(), raw);
     }
 }

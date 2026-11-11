@@ -1,8 +1,8 @@
 use crate::{
     config::S3Config,
     service::{
-        DeleteManyError, StorageBackend, StorageKey, StorageResult, StoreError,
-        compression::Compression, temp::TempFile,
+        DeleteManyError, RetrieveEncodedResult, StorageBackend, StorageContent, StorageKey,
+        StorageResult, StoreError, compression::Compression, temp::TempFile,
     },
 };
 use anyhow::{Context, anyhow, bail};
@@ -230,8 +230,20 @@ impl StorageBackend for S3Backend {
 
     async fn retrieve(
         &self,
-        StorageKey(key): StorageKey,
+        key: StorageKey,
     ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + use<>>, Self::Error> {
+        Ok(self
+            .retrieve_encoded(key, &[])
+            .await?
+            .map(|content| content.stream))
+    }
+
+    async fn retrieve_encoded(
+        &self,
+        StorageKey(key): StorageKey,
+        accepted: &[Compression],
+    ) -> RetrieveEncodedResult<impl Stream<Item = Result<Bytes, Self::Error>> + use<>, Self::Error>
+    {
         let req = self.client.get_object().bucket(&self.bucket).key(&key);
 
         match req.send().await {
@@ -246,10 +258,16 @@ impl StorageBackend for S3Backend {
                     None => Compression::None,
                 };
 
-                Ok(Some(
-                    ReaderStream::new(compression.reader(resp.body.into_async_read()))
+                let (encoding, decoding) = if accepted.contains(&compression) {
+                    (compression, Compression::None)
+                } else {
+                    (Compression::None, compression)
+                };
+                Ok(Some(StorageContent {
+                    compression: encoding,
+                    stream: ReaderStream::new(decoding.reader(resp.body.into_async_read()))
                         .map_err(Error::Io),
-                ))
+                }))
             }
             Err(err) => match err.into_service_error() {
                 GetObjectError::NoSuchKey(_) => Ok(None),
@@ -341,7 +359,10 @@ mod test {
     use super::*;
     use crate::service::{
         dispatch::DispatchBackend,
-        test::{test_read_not_found, test_store_read_and_delete, test_store_read_and_delete_rng},
+        test::{
+            test_read_not_found, test_retrieve_encoded, test_store_read_and_delete,
+            test_store_read_and_delete_rng,
+        },
     };
     use rstest::rstest;
     use std::fmt::Write;
@@ -400,6 +421,15 @@ mod test {
         let backend = backend(compression).await;
 
         test_store_read_and_delete(backend).await
+    }
+
+    #[test(tokio::test)]
+    #[rstest]
+    #[case::none(Compression::None)]
+    #[case::zstd(Compression::Zstd)]
+    async fn retrieve_encoded(#[case] compression: Compression) {
+        let backend = backend(compression).await;
+        test_retrieve_encoded(backend, compression).await;
     }
 
     #[test(tokio::test)]

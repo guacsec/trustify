@@ -10155,6 +10155,7 @@ name = "trustify-infrastructure"
 version = "0.7.0-rc.1"
 dependencies = [
  "actix-cors",
+ "actix-http",
  "actix-tls",
  "actix-web",
  "actix-web-extras",
@@ -10382,6 +10383,7 @@ dependencies = [
  "trustify-common",
  "trustify-db",
  "trustify-entity",
+ "trustify-infrastructure",
  "trustify-migration",
  "trustify-module-analysis",
  "trustify-module-correlation",
