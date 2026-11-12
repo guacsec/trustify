@@ -166,6 +166,8 @@ impl Infrastructure {
                 .configure(|c| configurator(c))
         });
 
+        http = http.tcp_nodelay(true);
+
         if self.config.infrastructure_workers > 0 {
             http = http.workers(self.config.infrastructure_workers);
         }
