@@ -6,8 +6,6 @@ all-features = true
 # reviewed periodically. Remove entries once the underlying crate is updated.
 ignore = [
     # Pre-existing transitive vulnerabilities — tracked for resolution.
-    # proc-macro-error2: unmaintained (transitive via derive macros)
-    { id = "RUSTSEC-2026-0173", reason = "transitive dep; no direct replacement yet" },
     # rsa: Marvin Attack timing side-channel (transitive via sequoia-openpgp)
     { id = "RUSTSEC-2023-0071", reason = "transitive dep via sequoia-openpgp; no fix available" },
     # h2 0.3.x: unbounded empty DATA frames (dev-only via actix-http; no 0.3.x patch)

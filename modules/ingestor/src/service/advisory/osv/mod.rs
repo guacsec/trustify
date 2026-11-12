@@ -8,24 +8,18 @@ use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use osv::schema::{SeverityType, Vulnerability};
 use std::str::FromStr;
 
-/// Load a [`Vulnerability`] from YAML, using the "classic" enum representation.
+/// Load a [`Vulnerability`] from YAML.
+///
+/// Backed by serde_saphyr now
 pub fn from_yaml(data: &[u8]) -> Result<Vulnerability, serde_yml::Error> {
-    #[derive(serde::Deserialize)]
-    struct VulnerabilityWrapped(
-        #[serde(with = "serde_yml::with::singleton_map_recursive")] Vulnerability,
-    );
-
-    serde_yml::from_slice::<VulnerabilityWrapped>(data).map(|osv| osv.0)
+    serde_yml::from_slice(data)
 }
 
-/// Serialize a [`Vulnerability`] as YAML, using the "classic" enum representation.
-pub fn to_yaml(vuln: &Vulnerability) -> Result<String, serde_yml::Error> {
-    #[derive(serde::Serialize)]
-    struct VulnerabilityWrapped<'a>(
-        #[serde(with = "serde_yml::with::singleton_map_recursive")] &'a Vulnerability,
-    );
-
-    serde_yml::to_string(&VulnerabilityWrapped(vuln))
+/// Serialize a [`Vulnerability`] as YAML.
+///
+/// Backed by serde_saphyr now
+pub fn to_yaml(vuln: &Vulnerability) -> Result<String, serde_yml::SerializeError> {
+    serde_yml::to_string(vuln)
 }
 
 /// Parse an OSV document into a [`Vulnerability`].

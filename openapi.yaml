@@ -3253,16 +3253,16 @@ paths:
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Purl'
+          - type: 'null'
       - name: cpe
         in: query
         description: Find by CPE
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Cpe'
+          - type: 'null'
       responses:
         '200':
           description: Matching SBOMs
@@ -3286,16 +3286,16 @@ paths:
         required: true
         schema:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Purl'
+          - type: 'null'
       - name: cpe
         in: path
         description: Find by CPE
         required: true
         schema:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Cpe'
+          - type: 'null'
       requestBody:
         content:
           application/json:
@@ -3877,8 +3877,8 @@ paths:
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Relationship'
+          - type: 'null'
       - name: q
         in: query
         description: |
@@ -4443,11 +4443,11 @@ components:
           description: The identifier of the advisory, as assigned by the issuing organization.
         issuer:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/OrganizationSummary'
             description: |-
               The issuer of the advisory, if known. If no issuer is able to be
               determined, this field will not be included in a response.
+          - type: 'null'
         labels:
           $ref: '#/components/schemas/Labels'
           description: Informational labels attached by the system or users to this advisory.
@@ -4618,9 +4618,9 @@ components:
       properties:
         details:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/AnalysisStatusDetails'
             description: More details
+          - type: 'null'
         graph_count:
           type: integer
           format: int32
@@ -4989,9 +4989,9 @@ components:
             unsupported ecosystem) rather than genuinely failing.
         finding:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ExploitIntelligenceFinding'
             description: Analysis result from Exploit Intelligence, if completed.
+          - type: 'null'
         id:
           type: string
           format: uuid
@@ -5230,9 +5230,9 @@ components:
           description: Number of genuinely failed components (computed at query time, not stored).
         finding:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ExploitIntelligenceFinding'
             description: Analysis result computed from component findings.
+          - type: 'null'
         id:
           type: string
           format: uuid
@@ -5326,9 +5326,9 @@ components:
           description: Number of genuinely failed components (computed at query time, not stored).
         finding:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/ExploitIntelligenceFinding'
             description: Analysis result from Exploit Intelligence.
+          - type: 'null'
         id:
           type: string
           format: uuid
@@ -5385,14 +5385,14 @@ components:
       properties:
         cpe:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Cpe'
             description: Find by CPE
+          - type: 'null'
         purl:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Purl'
             description: Find by PURL
+          - type: 'null'
     ExtractPackage:
       type: object
       description: Information extracted from a package
@@ -5526,9 +5526,9 @@ components:
         properties:
           auth:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/AuthConfig'
               description: Optional authentication configuration for accessing the source.
+            - type: 'null'
           discovery:
             $ref: '#/components/schemas/HttpDiscovery'
             description: File-discovery strategy used to enumerate files in the source.
@@ -5704,9 +5704,9 @@ components:
           description: The name of the importer this report belongs to
         report:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/Report'
             description: Detailed report information
+          - type: 'null'
     IngestResult:
       type: object
       description: The result of the ingestion process
@@ -5839,9 +5839,9 @@ components:
             description: All descendents of this node. [`None`] if not requested on this level.
           relationship:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/Relationship'
               description: The relationship the node has to it's containing node, if any.
+            - type: 'null'
           warnings:
             type: array
             items:
@@ -6093,9 +6093,9 @@ components:
                 description: Number of genuinely failed components (computed at query time, not stored).
               finding:
                 oneOf:
-                - type: 'null'
                 - $ref: '#/components/schemas/ExploitIntelligenceFinding'
                   description: Analysis result from Exploit Intelligence.
+                - type: 'null'
               id:
                 type: string
                 format: uuid
@@ -6233,9 +6233,9 @@ components:
                 description: The name of the importer this report belongs to
               report:
                 oneOf:
-                - type: 'null'
                 - $ref: '#/components/schemas/Report'
                   description: Detailed report information
+                - type: 'null'
         total:
           type:
           - integer
@@ -6328,9 +6328,9 @@ components:
                   description: All descendents of this node. [`None`] if not requested on this level.
                 relationship:
                   oneOf:
-                  - type: 'null'
                   - $ref: '#/components/schemas/Relationship'
                     description: The relationship the node has to it's containing node, if any.
+                  - type: 'null'
                 warnings:
                   type: array
                   items:
@@ -6359,8 +6359,8 @@ components:
               properties:
                 vendor:
                   oneOf:
-                  - type: 'null'
                   - $ref: '#/components/schemas/OrganizationSummary'
+                  - type: 'null'
                 versions:
                   type: array
                   items:
@@ -6809,8 +6809,8 @@ components:
         properties:
           vendor:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/OrganizationSummary'
+            - type: 'null'
           versions:
             type: array
             items:
@@ -6848,8 +6848,8 @@ components:
         properties:
           vendor:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/OrganizationSummary'
+            - type: 'null'
           versions:
             type: array
             items:
@@ -6861,8 +6861,8 @@ components:
         properties:
           sbom:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/ProductSbomHead'
+            - type: 'null'
     ProductVersionHead:
       type: object
       required:
@@ -6878,8 +6878,8 @@ components:
     Progress:
       allOf:
       - oneOf:
-        - type: 'null'
         - $ref: '#/components/schemas/ProgressDetails'
+        - type: 'null'
       - type: object
         properties:
           message:
@@ -6992,8 +6992,8 @@ components:
           $ref: '#/components/schemas/AdvisoryHead'
         context:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/StatusContext'
+          - type: 'null'
         fixed_versions:
           type: array
           items:
@@ -7007,8 +7007,8 @@ components:
           type: string
         version_range:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/VersionRange'
+          - type: 'null'
         vulnerability:
           $ref: '#/components/schemas/VulnerabilityHead'
     PurlSummary:
@@ -7038,9 +7038,9 @@ components:
         properties:
           auth:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/AuthConfig'
               description: Authentication configuration for accessing the Quay registry.
+            - type: 'null'
           concurrency:
             type:
             - integer
@@ -7054,9 +7054,9 @@ components:
             description: The namespace of the registry to "walk"
           sizeLimit:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/BinaryByteSize'
               description: The max size of the ingested SBOM's (None is unlimited)
+            - type: 'null'
           source:
             type: string
             description: The name of the quay registry, e.g. quay.io
@@ -7439,8 +7439,8 @@ components:
               type: string
           sizeLimit:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/BinaryByteSize'
+            - type: 'null'
           source:
             type: string
           v3Signatures:
@@ -7560,8 +7560,8 @@ components:
         properties:
           context:
             oneOf:
-            - type: 'null'
             - $ref: '#/components/schemas/StatusContext'
+            - type: 'null'
           fixed_versions:
             type: array
             items:
@@ -7880,8 +7880,8 @@ components:
           $ref: '#/components/schemas/BasePurlHead'
         context:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/StatusContext'
+          - type: 'null'
         version:
           type: string
     VulnerabilityAdvisorySummary:
@@ -7953,9 +7953,9 @@ components:
       properties:
         base_score:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/BaseScore'
             description: The main, base score.
+          - type: 'null'
         cwes:
           type: array
           items:
@@ -8045,16 +8045,16 @@ components:
           type: string
         justification:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/VexJustification'
+          - type: 'null'
         remediations:
           type: array
           items:
             $ref: '#/components/schemas/RemediationSummary'
         status:
           oneOf:
-          - type: 'null'
           - $ref: '#/components/schemas/VexStatus'
+          - type: 'null'
     VulnerabilitySummary:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
