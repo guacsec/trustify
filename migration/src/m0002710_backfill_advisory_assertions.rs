@@ -9,6 +9,7 @@
 //! The `product_status` rows are replaced too, as they lack CSAF product IDs, and so are the
 //! `cpe_status` rows, as older versions wrote different ones. So are the scores: `m0002010` skipped
 //! the OSV records stored as YAML, and now leaves writing them to this migration.
+//! Cached vulnerability base scores are refreshed from their authoritative advisory's new scores.
 //!
 //! This includes what `m0002480` used to do: `advisory.publisher_namespace`, and dropping the
 //! `affected` ranges older versions derived from the `fixed` versions of Red Hat advisories.
@@ -152,6 +153,13 @@ async fn backfill(advisory: Advisory, id: Id, tx: &DatabaseTransaction) -> anyho
     }
     // after the statements, which link the advisory to its vulnerabilities
     scores.create(tx).await?;
+    // m0002270 ran before these scores were rebuilt, so refresh the cached base scores too.
+    tx.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        include_str!("m0002710_backfill_advisory_assertions/base_scores.sql"),
+        [id.advisory.into()],
+    ))
+    .await?;
 
     for warning in Vec::<String>::from(warnings) {
         tracing::info!(advisory = %id.advisory, "Skipped while backfilling: {warning}");
