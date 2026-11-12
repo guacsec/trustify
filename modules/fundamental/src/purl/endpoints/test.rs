@@ -3313,6 +3313,76 @@ async fn lightwell_preserves_redhat_recommendations(
     Ok(())
 }
 
+/// Verifies that the remediation report lists the CVEs a Lightwell build fixes. Lightwell records
+/// state them only in `upstream`, since Lightwell retired its `x_RHLW-…` records with the CVEs in
+/// `aliases` (LWLP-5093).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+#[ignore = "TC-7547: Lightwell `upstream` CVEs are not used, the report lists the RHLW record ID"]
+async fn lightwell_report_lists_upstream_cves(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given the Lightwell record for `spring-webmvc`, fixed in `5.3.18.rhlw-00010` (a public
+    // advisory from https://github.com/project-lightwell/lightwell-osv)
+    ctx.ingest_document("osv/RHLW-2026-67afc831a93ff9cc.json")
+        .await?;
+    // And an SBOM with the upstream build
+    let input = "pkg:maven/org.springframework/spring-webmvc@5.3.18";
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "lightwell-spring-webmvc",
+            "00000000-0000-0000-0000-000000754701",
+            &[("spring-webmvc", "5.3.18", input)],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)[.-]rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When generating the remediation report
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    tracing::info!("{report:#?}");
+
+    // Then the Lightwell build is recommended for the upstream build
+    let packages = report["packages"].as_array().unwrap();
+    assert!(!packages.is_empty());
+    for package in packages {
+        assert_eq!(package["purl"], input);
+        assert_eq!(
+            package["recommended_purl"],
+            "pkg:maven/org.springframework/spring-webmvc@5.3.18.rhlw-00010"
+        );
+    }
+    // And it fixes the CVEs of the record's `upstream` (the order is not part of the contract)
+    let vulnerabilities = packages
+        .iter()
+        .flat_map(|package| package["vulnerabilities"].as_array().unwrap())
+        .filter_map(Value::as_str)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        vulnerabilities,
+        BTreeSet::from([
+            "CVE-2023-20860",
+            "CVE-2024-38816",
+            "CVE-2024-38819",
+            "CVE-2024-38828",
+            "CVE-2025-41242",
+            "CVE-2026-22735",
+            "CVE-2026-22737",
+            "CVE-2026-22741",
+            "CVE-2026-22745",
+        ])
+    );
+
+    Ok(())
+}
+
 /// Legacy Red Hat ingestion stores an `affected` range below every stated `fixed` version.
 /// That row is inference, not a statement, so it must not contradict the direct `fixed`
 /// status of the same advisory for the same target.
