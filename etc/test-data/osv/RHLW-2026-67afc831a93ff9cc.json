@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.9.0",
+  "id": "RHLW-2026-67afc831a93ff9cc",
+  "published": "2026-10-09T20:39:47Z",
+  "modified": "2026-10-09T20:39:47Z",
+  "severity": [
+    {
+      "type": "CVSS_V3",
+      "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+    }
+  ],
+  "references": [
+    {
+      "url": "https://spring.io/security/cve-2023-20860",
+      "type": "WEB"
+    },
+    {
+      "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2023/20xxx/CVE-2023-20860.json",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-20860",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-7phw-cxx7-q9vq",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://spring.io/security/cve-2024-38816",
+      "type": "WEB"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-38816",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-cx7f-g6mp-7hqm",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://spring.io/security/cve-2024-38819",
+      "type": "WEB"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-38819",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-g5vr-rgqm-vf78",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://spring.io/security/cve-2024-38828",
+      "type": "WEB"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-38828",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-w3c8-7r8f-9jp8",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "http://spring.io/security/cve-2025-41242",
+      "type": "WEB"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-41242",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-r936-gwx5-v52f",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22735",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22737",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22741",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-22745",
+      "type": "ADVISORY"
+    }
+  ],
+  "summary": "Lightwell Security Advisory: spring-webmvc 5.3.18.rhlw-00010",
+  "details": "Red Hat Lightwell has released org.springframework:spring-webmvc 5.3.18.rhlw-00010 with backported fixes for CVE-2023-20860, CVE-2024-38816, CVE-2024-38819, CVE-2024-38828, CVE-2025-41242, CVE-2026-22735, CVE-2026-22737, CVE-2026-22741, and CVE-2026-22745.\n\nCVE-2023-20860: Spring Framework running version 6.0.0 - 6.0.6 or 5.3.0 - 5.3.25 using \"**\" as a pattern in Spring Security configuration with the mvcRequestMatcher creates a mismatch in pattern matching between Spring Security and Spring MVC, and the potential for a security bypass.\n\nCVE-2024-38816: Applications serving static resources through the functional web frameworks WebMvc.fn or WebFlux.fn are vulnerable to path traversal attacks. An attacker can craft malicious HTTP requests and obtain any file on the file system that is also accessible to the process in which the Spring application is running.\n\nSpecifically, an application is vulnerable when both of the following are true:\n\n  *  the web application uses RouterFunctions\u00a0to serve static resources\n  *  resource handling is explicitly configured with a FileSystemResource\u00a0location\n\n\nHowever, malicious requests are blocked and rejected when any of the following is true:\n\n  *  the  Spring Security HTTP Firewall https://docs.spring.io/spring-security/reference/servlet/exploits/firewall.html \u00a0is in use\n  *  the application runs on Tomcat or Jetty\n\nCVE-2024-38819: Applications serving static resources through the functional web frameworks WebMvc.fn or WebFlux.fn are vulnerable to path traversal attacks. An attacker can craft malicious HTTP requests and obtain any file on the file system that is also accessible to the process in which the Spring application is running.\n\nCVE-2024-38828: Spring MVC controller methods with an @RequestBody byte[]\u00a0method parameter are vulnerable to a DoS attack.\n\nCVE-2025-41242: Spring Framework MVC applications can be vulnerable to a \u201cPath Traversal Vulnerability\u201d when deployed on a non-compliant Servlet container.\n\nAn application can be vulnerable when all the following are true:\n\n  *  the application is deployed as a WAR or with an embedded Servlet container\n  *  the Servlet container  does not reject suspicious sequences https://jakarta.ee/specifications/servlet/6.1/jakarta-servlet-spec-6.1.html#uri-path-canonicalization \n  *  the application  serves static resources https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-config/static-resources.html#page-title \u00a0with Spring resource handling\n\n\nWe have verified that applications deployed on Apache Tomcat or Eclipse Jetty are not vulnerable, as long as default security features are not disabled in the configuration. Because we cannot check exploits against all Servlet containers and configuration variants, we strongly recommend upgrading your application.\n\nThis patched artifact is a drop-in replacement for org.springframework:spring-webmvc 5.3.18 from Maven Central.",
+  "upstream": [
+    "CVE-2023-20860",
+    "CVE-2024-38816",
+    "CVE-2024-38819",
+    "CVE-2024-38828",
+    "CVE-2025-41242",
+    "CVE-2026-22735",
+    "CVE-2026-22737",
+    "CVE-2026-22741",
+    "CVE-2026-22745",
+    "GHSA-7phw-cxx7-q9vq",
+    "GHSA-cx7f-g6mp-7hqm",
+    "GHSA-g5vr-rgqm-vf78",
+    "GHSA-w3c8-7r8f-9jp8",
+    "GHSA-r936-gwx5-v52f"
+  ],
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "Red Hat Lightwell:Maven",
+        "name": "org.springframework:spring-webmvc",
+        "purl": "pkg:maven/org.springframework/spring-webmvc"
+      },
+      "versions": [
+        "5.3.18"
+      ],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "5.3.18.rhlw-00010"
+            }
+          ]
+        }
+      ],
+      "database_specific": {
+        "lightwell": {
+          "backport_base_version": "5.3.18",
+          "remediated_version": "5.3.18.rhlw-00010",
+          "repository_url": "https://packages.redhat.com/lightwell/java/remediated/"
+        }
+      }
+    }
+  ],
+  "credits": [
+    {
+      "name": "Red Hat Lightwell",
+      "type": "REMEDIATION_DEVELOPER"
+    }
+  ]
+}
