@@ -413,9 +413,9 @@ dependencies = [
 
 [[package]]
 name = "annotate-snippets"
-version = "0.12.17"
+version = "0.12.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2a5b0a5ab8561c603f16c3b78c24a386b1f70e7fc1b1b1e8c15738828e4a176"
+checksum = "0258346f92c78dbc5b336b9a5b27c64447aa10643bc64e651db2edb145361564"
 dependencies = [
  "anstyle",
  "memchr",
@@ -480,9 +480,9 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "ar_archive_writer"
-version = "0.5.3"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73cd58deff2140a0a8eae87e417bd01db68a33e148aa93d1e8cd837e55e312b6"
+checksum = "523e5e187fff36fcb8d1d19ccf0ca4ca43ec3d158316057f66dc6f72716bc5ec"
 dependencies = [
  "object",
 ]
@@ -2997,9 +2997,9 @@ checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "errno"
-version = "0.3.14"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
+checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
@@ -4251,9 +4251,9 @@ checksum = "3bd1574e617a9a6c1f8f8181bd7e841e1f20e4277607ef28945765188d6284d4"
 
 [[package]]
 name = "jiff"
-version = "0.2.42"
+version = "0.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fefca06093eeaed707a905795e68206da0edca4edef23d2a3997a3ddbee462aa"
+checksum = "26699905cc795a23e3949585cc7ba3ee8ade090872a27e4316304a777297894a"
 dependencies = [
  "jiff-core",
  "jiff-static",
@@ -4267,18 +4267,18 @@ dependencies = [
 
 [[package]]
 name = "jiff-core"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77a24020db0ee88d1c681d677681bd31f9f4ea189a455425223d52ce4f1508aa"
+checksum = "ffe6854081f5ac0a3046a9b223729ccd7a20b1e0e8277e44dc0660eedf67dfe2"
 dependencies = [
  "log",
 ]
 
 [[package]]
 name = "jiff-static"
-version = "0.2.42"
+version = "0.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41d3213549742662eea1a18e6c5af9be5dfbabeb7611ab71356a54928ec398f0"
+checksum = "4b4ff49b2887190c760b86207b55cdcaabbdecaf7a0660d68aa2ed6f652abf0a"
 dependencies = [
  "jiff-core",
  "proc-macro2",
@@ -4362,9 +4362,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.106"
+version = "0.3.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7883d941dae510fb2d978fc3fe018c71c9e2892fd38854de3e8b92c2e5ad9cc5"
+checksum = "8dc09d2154098bbf4ef54eab6b117a3c24cbbffe94046b16ee6d6d4510584d3a"
 dependencies = [
  "cfg-if",
  "futures-util",
@@ -4968,7 +4968,7 @@ dependencies = [
  "libc",
  "log",
  "openssl",
- "openssl-probe 0.2.1",
+ "openssl-probe 0.2.2",
  "openssl-sys",
  "schannel",
  "security-framework",
@@ -5376,9 +5376,9 @@ checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
 name = "openssl-probe"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
+checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 
 [[package]]
 name = "openssl-src"
@@ -5971,12 +5971,6 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
-
-[[package]]
-name = "pin-utils"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13bee6c73da26345c729282832b60b0363cf3dd9f4bfd81d8551b7a1c889a113"
 
 [[package]]
 name = "pkcs1"
@@ -7019,7 +7013,7 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a073f5dc7469f984c52ad2752b63b0807745133b6de880b7b64c1ac4c48aec4"
 dependencies = [
- "openssl-probe 0.2.1",
+ "openssl-probe 0.2.2",
  "rustls-pki-types",
  "schannel",
  "security-framework",
@@ -7537,7 +7531,7 @@ version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8050abb251097357e24aff63ba2c52a6309ecb7d23a5474023df960a02694d8"
 dependencies = [
- "annotate-snippets 0.12.17",
+ "annotate-snippets 0.12.18",
  "base64 0.23.1",
  "encoding_rs_io",
  "granit-parser",
@@ -9057,7 +9051,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-auth"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9090,7 +9084,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-cli"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -9109,7 +9103,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-common"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9170,7 +9164,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-db"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "log",
@@ -9186,7 +9180,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-entity"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cpe",
  "csaf-rs",
@@ -9208,7 +9202,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-infrastructure"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-cors",
  "actix-tls",
@@ -9242,7 +9236,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-migration"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -9276,7 +9270,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-analysis"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9317,7 +9311,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-exploit-intelligence"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9350,7 +9344,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-fundamental"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9424,7 +9418,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-importer"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9484,7 +9478,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ingestor"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9544,7 +9538,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-notification"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -9570,7 +9564,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-storage"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -9600,7 +9594,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ui"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-web",
  "actix-web-static-files",
@@ -9622,7 +9616,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-user"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9644,14 +9638,14 @@ dependencies = [
 
 [[package]]
 name = "trustify-query"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "utoipa",
 ]
 
 [[package]]
 name = "trustify-query-derive"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -9659,7 +9653,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-server"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9702,7 +9696,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-test-context"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9752,7 +9746,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-trustd"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -10243,12 +10237,11 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb54f33acc68fd454578d9820b0bde1a1a3d17aa17bb7b6595806d02886d409"
+checksum = "a0181c14ddd6c7b8b0b0132a5f1ea2f32be0d893cd3ea97b6e3b28886b8a3d1c"
 dependencies = [
  "cfg-if",
- "once_cell",
  "rustversion",
  "serde",
  "wasm-bindgen-macro",
@@ -10257,9 +10250,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.79"
+version = "0.4.80"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cbab34de2d982e9b48e18d216d04c4a6f641066ff19ffb699980f591ee3610e"
+checksum = "5e14e0327cb5368ad60ccb22d04a9827a693c95a926d8d125e9fa39e0baec501"
 dependencies = [
  "js-sys",
  "tokio",
@@ -10268,9 +10261,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e29d0c35b16e224a7eeb5cd2d25e3e1968fbd65604117b44d3b789d00ee8535"
+checksum = "6e931a02a39abdbf66966fc35902b5ed58344750a70885bed4ebb3d8eaf28ed9"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -10278,9 +10271,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f501a8bc3719dba86ef8ae4728879c08001bea749eb1333ac5b91e040e2a6b7"
+checksum = "2ca4b54280e455bd831e33a6b8e734baf432fe63fbc35c42ac14ce67a043a53a"
 dependencies = [
  "bumpalo",
  "proc-macro2",
@@ -10291,9 +10284,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.129"
+version = "0.2.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6"
+checksum = "3b1f9c3798725016c6ee5f2f57869ec0831e8bbc0ab0310a86e787e97f41389e"
 dependencies = [
  "unicode-ident",
 ]
@@ -10313,23 +10306,23 @@ dependencies = [
 
 [[package]]
 name = "wasmtimer"
-version = "0.4.3"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c598d6b99ea013e35844697fc4670d08339d5cda15588f193c6beedd12f644b"
+checksum = "c62b7f338e4397a45d054c15a2b36a93d57cccdda7be11a7d7b045d47b5e70ce"
 dependencies = [
  "futures",
  "js-sys",
  "parking_lot",
- "pin-utils",
+ "pin-project-lite",
  "slab",
  "wasm-bindgen",
 ]
 
 [[package]]
 name = "web-sys"
-version = "0.3.106"
+version = "0.3.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88261b9deccee56594c11a3460c462c41f58d148598fe70ad77070126a68aba4"
+checksum = "d7d179596ff5ec0f6de4db64d54011bde6289cc49603d3a6e4ce3f329207ab88"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -10347,9 +10340,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-root-certs"
-version = "1.0.10"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb"
+checksum = "293198dcebfb821155b5092ab94b5a82ff180eddd7241df3bd6e66a4ffd1a585"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -10694,7 +10687,7 @@ checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
 
 [[package]]
 name = "xtask"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "bytes",
