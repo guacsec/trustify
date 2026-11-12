@@ -218,3 +218,6 @@ spdx-rs = { git = "https://github.com/ctron/spdx-rs", branch = "feature/add_alia
 
 # required due to https://github.com/rh-jfuller/trustify-clients/pull/10
 trustify-client = { git = "https://github.com/ctron/trustify-clients.git", branch = "derive-partial-eq" }
+
+[profile.dev]
+debug = "line-tables-only"
