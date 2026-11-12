@@ -57,12 +57,13 @@ impl<'g> DatasetLoader<'g> {
         for i in 0..zip.len() {
             let mut file = zip.by_index(i)?;
 
-            tracing::debug!("archive entry: {}", file.name());
+            let file_name = file.name()?;
+            tracing::debug!("archive entry: {file_name}");
 
             if !file.is_file() {
                 continue;
             }
-            if file.name() == ".DS_Store" || file.name().ends_with("/.DS_Store") {
+            if file_name == ".DS_Store" || file_name.ends_with("/.DS_Store") {
                 continue;
             }
 
