@@ -9,10 +9,6 @@ ignore = [
     { id = "RUSTSEC-2023-0071", reason = "transitive dep via sequoia-openpgp; no fix available" },
     # h2 0.3.x: unbounded empty DATA frames (via actix-http; no 0.3.x patch)
     { id = "RUSTSEC-2026-0258", reason = "transitive dep via actix-http; h2 0.3.x EOL, no patch available" },
-    # zip: extraction vulnerabilities fixed in 9.x; utoipa-swagger-ui 10.0.1 requires 8.6.
-    { id = "RUSTSEC-2026-0367", reason = "zip 8.x; upgrade workspace dependency and utoipa-swagger-ui to use zip >=9" },
-    { id = "RUSTSEC-2026-0368", reason = "zip 8.x; upgrade workspace dependency and utoipa-swagger-ui to use zip >=9" },
-    { id = "RUSTSEC-2026-0369", reason = "zip 8.x; upgrade workspace dependency and utoipa-swagger-ui to use zip >=9" },
     # crypto-bigint: timing variability in constant-time ops (transitive via aws-sigv4/ecdsa)
     { id = "RUSTSEC-2026-0387", reason = "transitive dep via aws-sigv4/ecdsa; upstream crates not yet updated to >=0.7.6" },
     # zstd-safe 7.x: three advisories fixed in >=8.2.0; pinned by build-info-build via zstd 0.13.x
