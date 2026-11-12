@@ -123,8 +123,9 @@ pub fn ingest_page() -> Html {
             <br />
 
             <div style="display: flex; flex-direction: column; gap: var(--pf-t--global--spacer--md);">
-                { for state.outcomes.iter().map(|outcome| html! {
-                    <IngestOutcomeView outcome={outcome.clone()} />
+                // Outcomes are appended within an upload; keep each view attached to its result.
+                { for state.outcomes.iter().enumerate().map(|(index, outcome)| html! {
+                    <IngestOutcomeView key={index} outcome={outcome.clone()} />
                 }) }
             </div>
 
