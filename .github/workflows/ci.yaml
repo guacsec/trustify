@@ -147,6 +147,9 @@ jobs:
               echo "::error::Uncommitted changes (run 'cargo xtask generate-schemas' after making changes to the models)"
               exit 1
           fi
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
       - name: Check the docs
         run: |
           cd docs/book
