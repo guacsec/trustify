@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794479122405,
+  "lastUpdate": 1794480623135,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24870,6 +24870,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/d9e77828c9fadfa52c7a16ecb129441dcc7007b5"
         },
         "date": 1794479120092,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "desmax74@users.noreply.github.com",
+            "name": "Massimiliano Dessì - (Fast Chauffeur)",
+            "username": "desmax74"
+          },
+          "distinct": false,
+          "id": "23593b1ec881e2db4d58e75fb39a1e5da31ba59a",
+          "message": "build(deps): update csaf-rs to 0.7.1",
+          "timestamp": "2026-11-12T09:10:07Z",
+          "tree_id": "8d541fd78201ddd76885d30b91eb1a681d53bc8d",
+          "url": "https://github.com/guacsec/trustify/commit/23593b1ec881e2db4d58e75fb39a1e5da31ba59a"
+        },
+        "date": 1794480619777,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
