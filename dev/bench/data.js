@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794480623135,
+  "lastUpdate": 1794514794790,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24904,6 +24904,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "a014ec0806b64ea2f9473d967e3c334c1eba83d7",
+          "message": "perf(http): prefer zstd for API responses and load tests\n\nPrefer zstd over Brotli for dynamic API responses when client quality\nweights are equal. Preserve explicit preferences, codec fallbacks,\nstatic-asset negotiation, and already-encoded response bodies.\n\nAdvertise zstd in the shared Locust client and add decoding support\nfor Python 3.13. Request identity explicitly when compression is\ndisabled, and fail early when the zstd decoder is unavailable.",
+          "timestamp": "2026-11-12T18:46:35Z",
+          "tree_id": "7466457b857d883219f5ad952f295d25fc1fd0b3",
+          "url": "https://github.com/guacsec/trustify/commit/a014ec0806b64ea2f9473d967e3c334c1eba83d7"
+        },
+        "date": 1794514791099,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
