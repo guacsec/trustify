@@ -911,6 +911,8 @@ impl HttpServerBuilder {
             })
         });
 
+        http = http.tcp_nodelay(true);
+
         if self.workers > 0 {
             log::info!("Using {} worker(s)", self.workers);
             http = http.workers(self.workers);
