@@ -7,7 +7,10 @@ use sea_orm::{ConnectionTrait, DbBackend, Statement};
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::TrustifyContext;
+use trustify_db::Database as MigrationDatabase;
+use trustify_module_ingestor::service::Format;
+use trustify_test_context::{TrustifyContext, document_bytes};
+use uuid::Uuid;
 
 const MIGRATION: &str = "m0002710_backfill_advisory_assertions";
 
@@ -16,6 +19,8 @@ const ADVISORIES: &str = "(SELECT id, publisher_namespace FROM advisory)";
 /// Scores without their ID, which is random.
 const SCORES: &str = "(SELECT advisory_id, vulnerability_id, type, vector, score, severity FROM advisory_vulnerability_score)";
 
+const VULNERABILITIES: &str = "(SELECT id, authoritative_advisory_id, base_type, base_score, base_severity FROM vulnerability)";
+
 /// All rows the migration may write.
 const TABLES: &[&str] = &[
     ADVISORIES,
@@ -23,6 +28,7 @@ const TABLES: &[&str] = &[
     "advisory_vulnerability_hash",
     "advisory_vulnerability_product_identifier",
     SCORES,
+    VULNERABILITIES,
     "advisory_vulnerability_upstream",
     "assertion_context",
     "assertion_context_identifier",
@@ -170,6 +176,129 @@ async fn same_as_fresh_ingest(ctx: &TrustifyContext, #[case] document: &str) -> 
     assert_eq!(state(ctx).await?, [0, extraction + 1, verdict + 1]);
 
     run(ctx, Options::default()).await?;
+    assert_eq!(rows(ctx).await?, fresh);
+    Ok(())
+}
+
+/// Rebuild the cached base score, including clearing a score the authoritative document lacks.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::with_scores(true)]
+#[case::without_scores(false)]
+#[test_log::test(tokio::test)]
+async fn restores_base_scores(
+    ctx: &TrustifyContext,
+    #[case] with_scores: bool,
+    #[values(1, 4)] concurrent: usize,
+) -> anyhow::Result<()> {
+    let mut document: Value =
+        serde_json::from_slice(&document_bytes("cve/CVE-2025-6965.json").await?)?;
+    if with_scores {
+        // A higher numeric score from an older CVSS version must not beat v4.0.
+        document["containers"]["cna"]["metrics"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"cvssV3_1": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "baseScore": 9.8,
+                "baseSeverity": "CRITICAL"
+            }}));
+        // Within v4.0, keep the higher score rather than the last metric.
+        document["containers"]["cna"]["metrics"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"cvssV4_0": {
+                "version": "4.0",
+                "vectorString": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N",
+                "baseScore": 0.0,
+                "baseSeverity": "NONE"
+            }}));
+    } else {
+        document["containers"]["cna"]["metrics"] = json!([]);
+        document["containers"]["adp"] = json!([]);
+    }
+    ctx.ingest_bytes_as(&serde_json::to_vec(&document)?, Format::Unknown, ())
+        .await?;
+    let fresh = rows(ctx).await?;
+    assert_eq!(
+        fresh[VULNERABILITIES][0]["base_type"],
+        if with_scores {
+            json!("4.0")
+        } else {
+            Value::Null
+        }
+    );
+    make_older(ctx).await?;
+    ctx.db
+        .execute_unprepared(
+            "UPDATE vulnerability SET base_type = '3.0', base_score = 9.9, base_severity = 'critical'",
+        )
+        .await?;
+    assert_ne!(rows(ctx).await?, fresh);
+
+    run(
+        ctx,
+        Options {
+            concurrent,
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    assert_eq!(rows(ctx).await?, fresh);
+    Ok(())
+}
+
+/// An old advisory's scores cannot replace those of another authoritative advisory or no authority.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::another_advisory(true)]
+#[case::no_authority(false)]
+#[test_log::test(tokio::test)]
+async fn preserves_other_base_scores(
+    ctx: &TrustifyContext,
+    #[case] with_authority: bool,
+) -> anyhow::Result<()> {
+    let older = ctx
+        .ingest_document("cve/CVE-2025-6965-history/1.json")
+        .await?;
+    make_older(ctx).await?;
+    let mut document: Value =
+        serde_json::from_slice(&document_bytes("cve/CVE-2025-6965.json").await?)?;
+    document["containers"]["cna"]["metrics"] = json!([]);
+    document["containers"]["adp"] = json!([]);
+    let latest = ctx
+        .ingest_bytes_as(&serde_json::to_vec(&document)?, Format::Unknown, ())
+        .await?;
+    assert_ne!(older.id, latest.id);
+    // Keep the later document outside the cutoff even when applied_at rounds up to a second.
+    ctx.db
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "UPDATE source_document d SET ingested = now() + interval '1 day' \
+             FROM advisory a WHERE a.source_document_id = d.id AND a.id = $1",
+            [Uuid::parse_str(&latest.id)?.into()],
+        ))
+        .await?;
+    if !with_authority {
+        ctx.db
+            .execute_unprepared("UPDATE vulnerability SET authoritative_advisory_id = NULL")
+            .await?;
+    }
+    let fresh = rows(ctx).await?;
+    assert_eq!(fresh[VULNERABILITIES][0]["base_score"], Value::Null);
+    assert_eq!(
+        fresh[VULNERABILITIES][0]["authoritative_advisory_id"],
+        if with_authority {
+            json!(latest.id)
+        } else {
+            Value::Null
+        }
+    );
+
+    run(ctx, Options::default()).await?;
+
     assert_eq!(rows(ctx).await?, fresh);
     Ok(())
 }
@@ -417,9 +546,17 @@ async fn during_regular_migrations(ctx: &TrustifyContext) -> anyhow::Result<()> 
     let [_, extraction, _] = state(ctx).await?;
 
     let migrator = Migrator::new(ctx.storage.clone(), ());
-    migrator.down(&ctx.db, Some(1)).await?;
+    let applied = migrator.get_applied_migrations(&ctx.db).await?;
+    let position = applied
+        .iter()
+        .position(|migration| migration.name() == MIGRATION)
+        .ok_or_else(|| anyhow::anyhow!("{MIGRATION} is not applied"))?;
+    let steps = (applied.len() - position).try_into()?;
+    migrator.down(&ctx.db, Some(steps)).await?;
     downgrade_statements(ctx).await?;
-    migrator.up(&ctx.db, Some(1)).await?;
+    MigrationDatabase(&ctx.db)
+        .migrate_up_to(&migrator, MIGRATION)
+        .await?;
 
     assert_eq!(rows(ctx).await?, fresh);
     assert_eq!(state(ctx).await?[..2], [0, extraction + 1]);
