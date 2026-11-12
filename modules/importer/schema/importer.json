@@ -708,15 +708,15 @@
           "description": "HTTP Basic authentication.",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "basic"
+            },
             "username": {
               "$ref": "#/$defs/CredentialSource"
             },
             "password": {
               "$ref": "#/$defs/CredentialSource"
-            },
-            "type": {
-              "type": "string",
-              "const": "basic"
             }
           },
           "required": [
@@ -729,12 +729,12 @@
           "description": "Bearer token in the Authorization header.",
           "type": "object",
           "properties": {
-            "token": {
-              "$ref": "#/$defs/CredentialSource"
-            },
             "type": {
               "type": "string",
               "const": "bearer"
+            },
+            "token": {
+              "$ref": "#/$defs/CredentialSource"
             }
           },
           "required": [
@@ -746,15 +746,15 @@
           "description": "Arbitrary header/value pair (e.g. API key headers).",
           "type": "object",
           "properties": {
+            "type": {
+              "type": "string",
+              "const": "apiKey"
+            },
             "header": {
               "type": "string"
             },
             "value": {
               "$ref": "#/$defs/CredentialSource"
-            },
-            "type": {
-              "type": "string",
-              "const": "apiKey"
             }
           },
           "required": [
