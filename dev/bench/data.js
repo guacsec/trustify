@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794575823146,
+  "lastUpdate": 1794576821107,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24962,6 +24962,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "7b947e902e0b40eb2ac7f4d8b0e96c6f89883afc",
+          "message": "chore: enable tcp_nodelay",
+          "timestamp": "2026-11-13T12:21:54Z",
+          "tree_id": "453f327f23a7c20e06c9d7f8c70a5ab7ed4fbd4c",
+          "url": "https://github.com/guacsec/trustify/commit/7b947e902e0b40eb2ac7f4d8b0e96c6f89883afc"
+        },
+        "date": 1794576818372,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
