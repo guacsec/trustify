@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794576821107,
+  "lastUpdate": 1794602431114,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24991,6 +24991,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "994b8bd1be923b94917c0266923336387f81b1d6",
+          "message": "fix(purl): keep context-free fixes on contextual statuses\n\nA fix whose purl_status row has neither a context CPE nor an assertion\ncontext applies to every product context. The scoped lookup introduced\nfor TC-7488 matched only the status's own context, so those fixes\ndisappeared from contextual statuses and from the legacy product-status\nprojection.\n\nInclude context-free fixes in both projections, while still excluding\nfixes that only lack a CPE but belong to a specific assertion.\n\nImplements TC-7488\nAssisted-by: OpenCode (DeepSeek V4.1 Flash)",
+          "timestamp": "2026-11-13T19:05:06Z",
+          "tree_id": "804ee18a240a28fd7cc940ea6cd6ce74b0a5b27b",
+          "url": "https://github.com/guacsec/trustify/commit/994b8bd1be923b94917c0266923336387f81b1d6"
+        },
+        "date": 1794602428908,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
