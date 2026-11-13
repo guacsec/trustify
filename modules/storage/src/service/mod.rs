@@ -99,6 +99,15 @@ pub struct StorageResult {
     pub digests: Digests,
 }
 
+/// Retrieved content and the compression still applied to its stream.
+pub struct StorageContent<S> {
+    pub compression: Compression,
+    pub stream: S,
+}
+
+/// Result of retrieving content together with its storage encoding.
+pub type RetrieveEncodedResult<S, E> = Result<Option<StorageContent<S>>, E>;
+
 impl StorageResult {
     pub fn key(&self) -> StorageKey {
         StorageKey(self.digests.sha256.encode_hex())
@@ -116,13 +125,28 @@ pub trait StorageBackend {
     where
         S: AsyncRead + Unpin + Send;
 
-    /// Retrieve the content as an async reader
+    /// Retrieve decompressed content as an asynchronous byte stream.
     fn retrieve(
         &self,
         key: StorageKey,
     ) -> impl Future<
         Output = Result<
             Option<impl Stream<Item = Result<Bytes, Self::Error>> + Send + use<Self>>,
+            Self::Error,
+        >,
+    > + Send;
+
+    /// Retrieve content without decompressing an accepted storage encoding.
+    ///
+    /// If the stored compression is not accepted, decompress on the fly and
+    /// return [`Compression::None`]. This never compresses uncompressed content.
+    fn retrieve_encoded(
+        &self,
+        key: StorageKey,
+        accepted: &[Compression],
+    ) -> impl Future<
+        Output = RetrieveEncodedResult<
+            impl Stream<Item = Result<Bytes, Self::Error>> + Send + use<Self>,
             Self::Error,
         >,
     > + Send;

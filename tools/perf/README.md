@@ -49,7 +49,7 @@ Format: `reports/<target>_u<users>_<duration>_<timestamp>.html`
 
 `make test` selects the endpoint groups represented in the daily dashboard:
 advisory, analysis, group, importer, advisory-label reads, license, pURL,
-SBOM, and vulnerability. It uses the daily workflow's pinned scenario file so
+SBOM, vulnerability, and correlation. It uses the daily workflow's pinned scenario file so
 scenario-based detail and recommendation tasks are enabled. Use `make test-v3`
 for the additional product, organization, weakness, miscellaneous, and website
 workloads. Label mutation tasks remain excluded because the perf client lacks
@@ -65,12 +65,13 @@ update permission.
 | `make test-purl` | v3 pURL list + detail + recommend |
 | `make test-product` | v3 product list + detail |
 | `make test-organization` | v3 organization list + detail |
-| `make test-importer` | v3 importer list + detail |
+| `make test-importer` | importer list (v4) + v3 detail |
 | `make test-license` | v3 license list + slow queries |
 | `make test-weakness` | v3 weakness list + detail |
 | `make test-group` | v3 SBOM group list + detail |
 | `make test-misc` | v3 well-known + UI helpers |
 | `make test-analysis-v3` | v3 analysis + graph rendering |
+| `make test-correlation` | v3 correlation engine reads |
 
 ### Cross-cutting targets
 
@@ -99,6 +100,37 @@ make test-readonly SCENARIO_FILE=etc/scenarios/main/full-20260412.json5
 | `SCENARIO_FILE` | `etc/scenarios/main/full-20260317T023702Z.json5` | Path to JSON5 scenario file |
 
 Run `make clean` to remove all generated reports and cached files.
+
+### Capability-aware workloads
+
+Before spawning users, the Locust entry point reads `/.well-known/trustify` and
+omits workloads whose required capability is not advertised. This keeps
+optional features such as correlation from producing expected `422` failures
+when disabled. The dedicated `make test-correlation` target reports a clean
+skip when correlation is unavailable and fails if capability discovery itself
+cannot be completed.
+
+### Correlation measurements
+
+Verdict reads now use asynchronously published snapshots. Before a steady-state
+run, check `/api/v3/correlation/freshness`: extraction pending counts,
+`needs_refresh`, and `verdict_lag.pending` should be zero. Check that the scenario's
+`get_correlation_sbom` has a non-null `freshness.generation`. Locust records a
+failure for uncomputed verdict reads so empty, unfinished snapshots cannot silently
+produce misleading latency results. Stale completed snapshots remain valid reads.
+For runs during processing, record the starting and ending backlog alongside results;
+these tasks do not measure worker throughput or ingestion-to-publication latency.
+
+Separate report rows measure verdict pages with and without totals, the second
+page, count-only requests, and the metadata-only request used by UI polling.
+Choose an SBOM with more than 25 verdicts to exercise a nonempty second page.
+SBOM searches cover affected verdicts with and without totals and an exact
+vulnerability filter using the existing `get_vulnerability` scenario field.
+Use a vulnerability present in published verdicts for a positive-match benchmark.
+Remediations are included in verdict payloads; there is no standalone remediation
+request. Repeated total requests primarily measure the warm pagination cache.
+The expanded task mix and explicit verdict query names change aggregate/report
+comparability with earlier runs; compare equivalent request shapes.
 
 ## CI Workflows and Dashboards
 
@@ -267,10 +299,15 @@ uv run python compare.py reports/old_stats.csv reports/new_stats.csv --threshold
 
 ## HTTP compression
 
-By default, all requests send `Accept-Encoding: gzip, deflate, br` to
+By default, all requests send `Accept-Encoding: zstd, gzip, deflate, br` to
 match real browser/client behaviour. Responses are decompressed
 transparently by the HTTP client, so reported response times include
 server-side compression cost and reflect realistic end-to-end latency.
+
+`uv run` installs the required zstd decoder through `urllib3[zstd]`, including
+the backport needed by Python 3.13. Environments that install Locust directly
+(including the scale-test workflow) must also install `urllib3[zstd]==2.8.0`.
+The client fails at startup rather than advertising zstd without a decoder.
 
 To disable compression and measure raw uncompressed transfer cost:
 
@@ -278,8 +315,15 @@ To disable compression and measure raw uncompressed transfer cost:
 TOOLS_PERF_NO_COMPRESSION=1 make test-readonly
 ```
 
-This is useful for isolating query/serialization time from gzip overhead,
-or for comparing compressed vs uncompressed response sizes.
+This sends `Accept-Encoding: identity`, overriding the HTTP client's default
+compression headers. It is useful for isolating query/serialization time from
+compression overhead, or for comparing compressed vs uncompressed response sizes.
+
+Run the compression negotiation and decoding regression tests with:
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
 
 ## Tags: readonly vs mutate
 
@@ -428,7 +472,7 @@ AUTH_DISABLED=true make test
 | `TOOLS_PERF_WAIT_TIME_FROM` | `1` | Min seconds between requests per user |
 | `TOOLS_PERF_WAIT_TIME_TO` | `3` | Max seconds between requests per user |
 | `TOOLS_PERF_SCENARIO_FILE` | (unset) | Path to a JSON5 scenario file with pre-computed IDs |
-| `TOOLS_PERF_NO_COMPRESSION` | (unset) | Set to `1` to disable gzip/deflate/br on requests |
+| `TOOLS_PERF_NO_COMPRESSION` | (unset) | Set to `1` to request identity encoding instead of zstd/gzip/deflate/br |
 | `ISSUER_URL` | (unset) | OIDC issuer URL |
 | `CLIENT_ID` | (unset) | OAuth2 client ID |
 | `CLIENT_SECRET` | (unset) | OAuth2 client secret |
@@ -609,7 +653,7 @@ def validated_get(self) -> None:
 ```
 tools/perf/
 ├── Makefile             # Test targets with auto-named reports
-├── pyproject.toml       # Dependencies (locust, json5)
+├── pyproject.toml       # Dependencies (locust, json5, urllib3[zstd])
 ├── locustfile.py        # Entry point -- API version dispatch
 ├── compare.py           # Compare two _stats.csv runs (markdown/csv)
 ├── auth.py              # OIDC token provider (client_credentials)

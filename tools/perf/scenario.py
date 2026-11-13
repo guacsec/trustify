@@ -64,6 +64,9 @@ class Scenario:
     get_weakness: str | None = None
     get_spdx_license: str | None = None
     delete_sbom_pool: list[str] = field(default_factory=list)
+    get_correlation_sbom: str | None = None
+    correlation_query: str | None = None
+    get_correlation_advisory: str | None = None
 
 
 def load_scenario() -> Scenario:

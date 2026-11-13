@@ -1,6 +1,7 @@
 """ImporterUserV3 -- importer endpoint load tests.
 
-List and detail endpoints for /api/v3/importer.
+Importer endpoints: the list from /api/v4/importer (the v3 list is deprecated),
+detail and reports from /api/v3/importer.
 Scenario-driven detail lookups require TOOLS_PERF_SCENARIO_FILE.
 """
 
@@ -25,8 +26,8 @@ class ImporterUserV3(AuthenticatedHttpUser):
     @task
     def list_importer(self) -> None:
         self.client.get(
-            "/api/v3/importer?total=true",
-            name="/api/v3/importer?total=true",
+            "/api/v4/importer?total=true",
+            name="/api/v4/importer?total=true",
         )
 
     @tag("v3", "importer", "detail", "readonly")
