@@ -5,7 +5,7 @@ HttpUser directly.  When AUTH_DISABLED is not set (or false), the
 OIDC token is acquired on_start and set as the default Authorization
 header on the requests session.
 
-Compression (gzip/deflate/br) is enabled by default to match real
+Compression (zstd/gzip/deflate/br) is enabled by default to match real
 browser/client behaviour.  Set TOOLS_PERF_NO_COMPRESSION=1 to
 disable it and measure raw uncompressed transfer cost.
 """
@@ -16,6 +16,7 @@ import logging
 import os
 
 from locust import HttpUser
+from urllib3.response import HTTPResponse
 
 from auth import create_provider, is_auth_disabled, OidcTokenProvider
 
@@ -39,15 +40,22 @@ def _get_provider() -> OidcTokenProvider:
 class AuthenticatedHttpUser(HttpUser):
     """HttpUser subclass that injects auth and compression headers.
 
-    When AUTH_DISABLED=true, behaves identically to plain HttpUser.
-    When TOOLS_PERF_NO_COMPRESSION=1, Accept-Encoding is not set.
+    When AUTH_DISABLED=true, skips OIDC authentication.
+    When TOOLS_PERF_NO_COMPRESSION=1, requests identity encoding explicitly.
     """
 
     abstract = True
 
     def on_start(self) -> None:
-        if not _NO_COMPRESSION:
-            self.client.headers["Accept-Encoding"] = "gzip, deflate, br"
+        if _NO_COMPRESSION:
+            self.client.headers["Accept-Encoding"] = "identity"
+        else:
+            if "zstd" not in HTTPResponse.CONTENT_DECODERS:
+                raise RuntimeError(
+                    "Zstd response decoding is unavailable. Run 'uv sync' in "
+                    "tools/perf or install 'urllib3[zstd]==2.8.0'."
+                )
+            self.client.headers["Accept-Encoding"] = "zstd, gzip, deflate, br"
 
         if is_auth_disabled():
             logger.debug("Auth disabled -- skipping OIDC token")
