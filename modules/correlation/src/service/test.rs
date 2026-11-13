@@ -1,4 +1,4 @@
-use crate::extractor::Extractors;
+use crate::extractor::{Assertion, Extractors};
 use crate::{
     model::{
         ApiAssertionStatus, AssertionOrigin, ComponentRef, ConfidenceFactor, ConfidenceReason,
@@ -51,6 +51,307 @@ async fn weighted_context_assessments(ctx: &TrustifyContext) -> anyhow::Result<[
         ids.push(Uuid::parse_str(&ctx.ingest_json(advisory).await?.id)?);
     }
     Ok([ids[0], ids[1]])
+}
+
+/// Creates an already-matched transient assertion at the version absent from the catalog.
+fn transient_candidate_assertion(
+    advisory_id: Uuid,
+    status: AssertionStatus,
+    context_id: Option<Uuid>,
+) -> Assertion {
+    Assertion {
+        extractor: "purl_vendor_fix_test",
+        advisory_id,
+        vulnerability_id: "CVE-2023-44487".into(),
+        status,
+        confidence: 1.0,
+        factors: vec![ConfidenceFactor::new(ConfidenceReason::Purl, 1.0)],
+        matched_value: MatchedValue::new("pkg:generic/weighted-context@2.0.0"),
+        context_id,
+        requires_context: false,
+        version_range_id: None,
+        source_assertions: Default::default(),
+    }
+}
+
+/// Verifies exact transient verdict and winning provenance follow provider authority, not Fixed presence.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::fix(
+    "https://www.redhat.com",
+    "https://upstream.example.com",
+    AssertionStatus::Affected,
+    VerdictStatus::Fixed,
+    true
+)]
+#[case::affected(
+    "https://upstream.example.com",
+    "https://www.redhat.com",
+    AssertionStatus::Affected,
+    VerdictStatus::Affected,
+    false
+)]
+#[case::investigating(
+    "https://upstream.example.com",
+    "https://www.redhat.com",
+    AssertionStatus::UnderInvestigation,
+    VerdictStatus::UnderInvestigation,
+    false
+)]
+#[test_log::test(actix_web::test)]
+async fn transient_candidate_preserves_authoritative_verdict(
+    ctx: &TrustifyContext,
+    #[case] fixing_provider: &str,
+    #[case] opposing_provider: &str,
+    #[case] opposing_status: AssertionStatus,
+    #[case] expected: VerdictStatus,
+    #[case] fixing_wins: bool,
+) -> anyhow::Result<()> {
+    use crate::model::{ProviderIdentity, ResolutionRequest};
+
+    // Given conflicting, equally confident stated evidence with explicit source providers.
+    let [fixing, opposing] = weighted_context_assessments(ctx).await?;
+    let mut fixed = transient_candidate_assertion(fixing, AssertionStatus::Fixed, None);
+    fixed.matched_value.source_provider = Some(ProviderIdentity {
+        identifiers: vec![format!("namespace:{fixing_provider}")],
+        ..Default::default()
+    });
+    let mut other = transient_candidate_assertion(opposing, opposing_status, None);
+    other.matched_value.source_provider = Some(ProviderIdentity {
+        identifiers: vec![format!("namespace:{opposing_provider}")],
+        ..Default::default()
+    });
+    let tx = ctx.db.begin().await?;
+    let mut cache = ReportQueryCache::new(ProviderSnapshot::load(&tx, &[], &[]).await?);
+
+    // When the existing resolver receives both assertions in the component's provider context.
+    let results = CorrelationService::default()
+        .query_purl_candidates(
+            &[(
+                "pkg:generic/weighted-context@2.0.0".parse()?,
+                vec![fixed, other],
+            )],
+            &ResolutionRequest {
+                component_provider: Some("https://www.redhat.com".into()),
+                ..Default::default()
+            },
+            Some(&[]),
+            &mut cache,
+            &tx,
+        )
+        .await?;
+
+    // Then status and advisory identify the selected evidence, not an any-Fixed shortcut.
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].verdicts.len(), 1);
+    let verdict = &results[0].verdicts[0];
+    assert_eq!(verdict.vulnerability_id, "CVE-2023-44487");
+    assert_eq!(verdict.status, expected);
+    assert_eq!(
+        verdict.winning_advisory_id,
+        Some(if fixing_wins { fixing } else { opposing })
+    );
+    assert_eq!(verdict.resolution.confidence, 1.0);
+    assert!(verdict.resolution.has_conflict);
+    Ok(())
+}
+
+/// Verifies supplemental qualifier checks share ordinary PURL eligibility, including positive matches.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::missing_module("", false)]
+#[case::different_module("?rpmmod=nodejs:20:other:context", false)]
+#[case::matching_module("?rpmmod=nodejs:18:module:context", true)]
+#[test_log::test(actix_web::test)]
+async fn transient_candidate_preserves_module_eligibility(
+    ctx: &TrustifyContext,
+    #[case] qualifiers: &str,
+    #[case] eligible: bool,
+) -> anyhow::Result<()> {
+    use crate::model::ResolutionRequest;
+
+    // Given explicit fixing evidence scoped to a specific module.
+    let [advisory, _] = weighted_context_assessments(ctx).await?;
+    let mut assertion = transient_candidate_assertion(advisory, AssertionStatus::Fixed, None);
+    assertion.matched_value =
+        MatchedValue::new("pkg:rpm/redhat/scoped@1.0.0?rpmmod=nodejs:18:module:context");
+    let tx = ctx.db.begin().await?;
+    let mut cache = ReportQueryCache::new(ProviderSnapshot::load(&tx, &[], &[]).await?);
+
+    // When the candidate carries no module, another module, or the matching module.
+    let results = CorrelationService::default()
+        .query_purl_candidates(
+            &[(
+                format!("pkg:rpm/redhat/scoped@1.0.0{qualifiers}").parse()?,
+                vec![assertion],
+            )],
+            &ResolutionRequest::default(),
+            Some(&[]),
+            &mut cache,
+            &tx,
+        )
+        .await?;
+
+    // Then only compatible source evidence participates in resolution.
+    let selected = results[0]
+        .verdicts
+        .iter()
+        .map(|verdict| {
+            (
+                verdict.vulnerability_id.as_str(),
+                verdict.status,
+                verdict.winning_advisory_id,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        selected,
+        if eligible {
+            vec![("CVE-2023-44487", VerdictStatus::Fixed, Some(advisory))]
+        } else {
+            vec![]
+        }
+    );
+    Ok(())
+}
+
+/// Verifies transient assertions use weighted context, source provenance and request-local metadata.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::local_over_root((ContextSource::Node, 0), (ContextSource::Describing, 0), VerdictStatus::Fixed, 1.0)]
+#[case::nearer_ancestor((ContextSource::AncestorNode, 1), (ContextSource::AncestorNode, 2), VerdictStatus::Fixed, 0.9)]
+#[case::farther_ancestor((ContextSource::AncestorNode, 3), (ContextSource::AncestorNode, 1), VerdictStatus::Affected, 0.9)]
+#[case::ancestor_sbom((ContextSource::AncestorSbom, 1), (ContextSource::AncestorSbom, 2), VerdictStatus::Fixed, 0.7)]
+#[test_log::test(actix_web::test)]
+async fn transient_candidate_preserves_weighted_context(
+    ctx: &TrustifyContext,
+    #[case] fixed_context: (ContextSource, u32),
+    #[case] affected_context: (ContextSource, u32),
+    #[case] expected_status: VerdictStatus,
+    #[case] expected_confidence: f64,
+) -> anyhow::Result<()> {
+    use crate::{extractor::context::NodeCpe, model::ResolutionRequest};
+    use sea_orm::TryIntoModel;
+    use trustify_common::{cpe::Cpe, purl::Purl};
+    use trustify_entity::{cpe, purl_status, versioned_purl};
+
+    // Given assertions at an ad-hoc version outside both fixtures' stored version ranges.
+    let (fixed_source, fixed_distance) = fixed_context;
+    let (affected_source, affected_distance) = affected_context;
+    let [fixed_id, affected_id] = weighted_context_assessments(ctx).await?;
+    let target = "pkg:generic/weighted-context@2.0.0".parse::<Purl>()?;
+    let mut evidence = Vec::new();
+    let mut contexts = Vec::new();
+    for (advisory_id, status, cpe, source, distance) in [
+        (
+            fixed_id,
+            AssertionStatus::Fixed,
+            "cpe:/a:example:weighted-product:1.0",
+            fixed_source,
+            fixed_distance,
+        ),
+        (
+            affected_id,
+            AssertionStatus::Affected,
+            "cpe:/a:example:weighted-product:2.0",
+            affected_source,
+            affected_distance,
+        ),
+    ] {
+        let context_id = purl_status::Entity::find()
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+            .one(&ctx.db)
+            .await?
+            .unwrap()
+            .assertion_context_id;
+        assert!(context_id.is_some());
+        evidence.push(transient_candidate_assertion(
+            advisory_id,
+            status,
+            context_id,
+        ));
+        contexts.push(NodeCpe {
+            cpe: cpe::ActiveModel::from(cpe.parse::<Cpe>()?).try_into_model()?,
+            source,
+            distance,
+        });
+    }
+    let tx = ctx.db.begin().await?;
+    let mut cache = ReportQueryCache::new(ProviderSnapshot::load(&tx, &[], &[]).await?);
+    let candidates = vec![(target.clone(), evidence)];
+    let service = CorrelationService::default();
+    let prepared = service.prepare_purl_candidates(&candidates, &tx).await?;
+    let targets = vec![target.clone()];
+
+    // When the same raw transient evidence is resolved with different weighted node contexts.
+    let resolved = CorrelationService::query_prepared_purl_candidates(
+        &prepared,
+        &targets,
+        &ResolutionRequest::default(),
+        Some(&contexts),
+        &mut cache,
+        &tx,
+    )
+    .await?;
+    let result = targets
+        .iter()
+        .filter_map(|target| resolved.get(target).cloned())
+        .collect::<Vec<_>>();
+    contexts[0].source = affected_source;
+    contexts[0].distance = affected_distance;
+    contexts[1].source = fixed_source;
+    contexts[1].distance = fixed_distance;
+    let resolved = CorrelationService::query_prepared_purl_candidates(
+        &prepared,
+        &targets,
+        &ResolutionRequest::default(),
+        Some(&contexts),
+        &mut cache,
+        &tx,
+    )
+    .await?;
+    let changed = targets
+        .iter()
+        .filter_map(|target| resolved.get(target).cloned())
+        .collect::<Vec<_>>();
+
+    // Then selection retains exact vulnerability/source/confidence, and no scoped verdict is cached.
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].verdicts.len(), 1);
+    let verdict = &result[0].verdicts[0];
+    assert_eq!(verdict.vulnerability_id, "CVE-2023-44487");
+    assert_eq!(verdict.status, expected_status);
+    assert_eq!(verdict.resolution.confidence, expected_confidence);
+    assert_eq!(
+        verdict.winning_advisory_id,
+        Some(if expected_status == VerdictStatus::Fixed {
+            fixed_id
+        } else {
+            affected_id
+        })
+    );
+    assert_eq!(
+        verdict
+            .matches
+            .iter()
+            .map(|matched| matched.advisory_id)
+            .collect::<HashSet<_>>(),
+        HashSet::from([fixed_id, affected_id])
+    );
+    assert!(
+        verdict
+            .matches
+            .iter()
+            .all(|matched| matched.extractor == "purl_vendor_fix_test")
+    );
+    assert_ne!(changed[0].verdicts[0].status, expected_status);
+    assert_eq!(
+        versioned_purl::Entity::find_by_id(target.version_uuid())
+            .one(&tx)
+            .await?,
+        None
+    );
+    Ok(())
 }
 
 /// Verifies weighted identifier resolution retains every source and hop-distance confidence.

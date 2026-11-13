@@ -4,21 +4,19 @@ use super::{
     cpe::CpeExtractor,
     digest::DigestExtractor,
     product_identifier::ProductIdentifierExtractor,
-    purl::PurlExtractor,
+    purl::{PurlExtractor, ecosystem::Ecosystem},
     version::retain_in_range,
     writer::EvidenceWriter,
 };
 use crate::{
     error::Error,
-    model::IdentifierRef,
+    model::{IdentifierKind, IdentifierRef},
     service::freshness::{lock_revision, lock_sboms},
 };
 use sea_orm::DatabaseTransaction;
-use std::{
-    collections::{BTreeSet, HashMap},
-    slice,
-};
+use std::collections::{BTreeSet, HashMap};
 use tracing::instrument;
+use trustify_common::purl::Purl;
 use uuid::Uuid;
 
 /// The set of active extractors.
@@ -225,22 +223,101 @@ impl Extractors {
         node: Option<&[NodeCpe]>,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<Assertion>, Error> {
+        Ok(self
+            .query_candidates(&[(identifier.clone(), Vec::new())], node, tx)
+            .await?
+            .into_iter()
+            .next()
+            .unwrap_or_default())
+    }
+
+    /// Batch-match candidates and scope both stored and transient evidence identically.
+    ///
+    /// Transient assertions must already apply to their exact candidate. Neither assertions nor
+    /// scoped results are persisted or cached; candidate indices keep deduplication target-local.
+    pub(crate) async fn query_candidates(
+        &self,
+        candidates: &[(IdentifierRef, Vec<Assertion>)],
+        node: Option<&[NodeCpe]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<Vec<Assertion>>, Error> {
+        Self::scope_candidates(self.match_candidates(candidates, tx).await?, node, tx).await
+    }
+
+    /// Extract raw candidate evidence once, applying normal qualifier eligibility to supplements.
+    pub(crate) async fn match_candidates(
+        &self,
+        candidates: &[(IdentifierRef, Vec<Assertion>)],
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<Vec<Assertion>>, Error> {
+        let identifiers = candidates
+            .iter()
+            .map(|(identifier, _)| identifier.clone())
+            .collect::<Vec<_>>();
         let mut assertions = Vec::new();
+        for (index, (identifier, supplements)) in candidates.iter().enumerate() {
+            for assertion in supplements {
+                if identifier.kind == IdentifierKind::Purl {
+                    let (Ok(target), Ok(source)) = (
+                        identifier.value.parse::<Purl>(),
+                        assertion.matched_value.identifier.parse::<Purl>(),
+                    ) else {
+                        continue;
+                    };
+                    if !Ecosystem::of(&target.ty, target.namespace.as_deref())
+                        .qualifiers_match(&target.qualifiers, &source.qualifiers)
+                    {
+                        continue;
+                    }
+                }
+                assertions.push((index, assertion.clone()));
+            }
+        }
         for extractor in &self.0 {
             assertions.extend(
                 extractor
-                    .match_identifiers(slice::from_ref(identifier), tx)
+                    .match_identifiers(&identifiers, tx)
                     .await?
                     .into_iter()
-                    .map(|m| m.assertion),
+                    .map(|matched| (matched.index, matched.assertion)),
             );
         }
+        let mut groups = vec![Vec::new(); candidates.len()];
+        for (index, assertion) in assertions {
+            if let Some(group) = groups.get_mut(index) {
+                group.push(assertion);
+            }
+        }
+        Ok(groups)
+    }
+
+    /// Reapply product context independently to a prepared, unscoped batch without re-extraction.
+    pub(crate) async fn scope_candidates(
+        candidates: Vec<Vec<Assertion>>,
+        node: Option<&[NodeCpe]>,
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<Vec<Assertion>>, Error> {
+        let count = candidates.len();
+        let assertions = candidates
+            .into_iter()
+            .enumerate()
+            .flat_map(|(index, assertions)| {
+                assertions
+                    .into_iter()
+                    .map(move |assertion| (index, assertion))
+            })
+            .collect::<Vec<_>>();
         // Preserve the existing context-free query semantics. With supplied context, apply
         // the same compatibility and confidence calculation used during SBOM extraction.
-        let contexts =
-            context::load_contexts(assertions.iter().filter_map(|a| a.context_id), tx).await?;
-        let mut result = Vec::<Assertion>::new();
-        for mut assertion in assertions {
+        let contexts = context::load_contexts(
+            assertions
+                .iter()
+                .filter_map(|(_, assertion)| assertion.context_id),
+            tx,
+        )
+        .await?;
+        let mut result = Vec::<(usize, Assertion)>::new();
+        for (index, mut assertion) in assertions {
             if let Some(node) = node {
                 let scope = context::scope(
                     assertion.context_id.and_then(|id| contexts.get(&id)),
@@ -259,18 +336,24 @@ impl Extractors {
             }
             assertion.context_id = None;
             let sources = std::mem::take(&mut assertion.source_assertions);
-            if let Some(existing) = result.iter_mut().find(|existing| {
+            if let Some((_, existing)) = result.iter_mut().find(|(existing_index, existing)| {
                 let mut value = (*existing).clone();
                 value.source_assertions.clear();
-                value == assertion
+                *existing_index == index && value == assertion
             }) {
                 existing.source_assertions.extend(sources);
             } else {
                 assertion.source_assertions = sources;
-                result.push(assertion);
+                result.push((index, assertion));
             }
         }
-        Ok(result)
+        let mut groups = vec![Vec::new(); count];
+        for (index, assertion) in result {
+            if let Some(group) = groups.get_mut(index) {
+                group.push(assertion);
+            }
+        }
+        Ok(groups)
     }
 }
 

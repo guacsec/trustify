@@ -1,7 +1,7 @@
 use crate::{
     error::Error,
     extractor::{
-        Extractors, SourceAssertionRef,
+        Assertion, Extractors, SourceAssertionRef,
         context::{NodeCpe, format_cpe},
     },
     model::{
@@ -16,6 +16,7 @@ use sea_orm::{
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
+use trustify_common::{db::chunk::chunked_with, purl::Purl};
 use trustify_entity::{
     advisory, advisory_vulnerability_score, advisory_vulnerability_upstream, assertion_context,
     correlation_evidence, correlation_evidence::AssertionStatus, correlation_evidence_context,
@@ -72,13 +73,72 @@ impl ReportQueryCache {
             .filter(|id| !self.loaded_advisories.contains(*id))
             .copied()
             .collect::<Vec<_>>();
-        if !missing.is_empty() {
+        for missing in chunked_with(1, missing) {
             let names = load_advisory_names(&missing, connection).await?;
             self.providers.load_advisories(connection, &missing).await?;
             self.advisory_names.extend(names);
             self.loaded_advisories.extend(missing);
         }
         Ok(())
+    }
+}
+
+/// Request-local raw candidate matches and source metadata, reusable across independent contexts.
+///
+/// No scoped match or verdict is retained here; each resolution reapplies its own product context.
+pub struct PreparedPurlCandidates {
+    assertions: HashMap<Purl, Vec<Assertion>>,
+    metadata: QueryMetadata,
+}
+
+/// Vulnerability/source metadata loaded once for a batch, without any selected verdicts.
+struct QueryMetadata {
+    titles: HashMap<String, Option<String>>,
+    scores: HashMap<(Uuid, String), Vec<ScoreRef>>,
+    remediations: remediation::Remediations,
+}
+
+impl QueryMetadata {
+    async fn load<'a>(
+        assertions: impl IntoIterator<Item = &'a Assertion>,
+        connection: &DatabaseTransaction,
+    ) -> Result<Self, Error> {
+        let assertions = assertions.into_iter().collect::<Vec<_>>();
+        let advisories = assertions
+            .iter()
+            .map(|assertion| assertion.advisory_id)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let vulnerabilities = assertions
+            .iter()
+            .map(|assertion| assertion.vulnerability_id.as_str())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let mut titles = HashMap::new();
+        for chunk in chunked_with(1, vulnerabilities.iter().copied()) {
+            titles.extend(load_vulnerability_titles(&chunk, connection).await?);
+        }
+        let mut scores = HashMap::new();
+        for advisory_chunk in chunked_with(2, advisories.iter().copied()) {
+            for vulnerability_chunk in chunked_with(2, vulnerabilities.iter().copied()) {
+                scores
+                    .extend(load_scores(&advisory_chunk, &vulnerability_chunk, connection).await?);
+            }
+        }
+        let remediations = remediation::Remediations::load(
+            assertions
+                .iter()
+                .flat_map(|assertion| assertion.source_assertions.iter().copied()),
+            connection,
+        )
+        .await?;
+        Ok(Self {
+            titles,
+            scores,
+            remediations,
+        })
     }
 }
 
@@ -400,6 +460,127 @@ impl CorrelationService {
         .await
     }
 
+    /// Resolves recommendation candidates with transient assertions through normal PURL matching.
+    ///
+    /// Matching is batched; only advisory/provider metadata is cached, never scoped matches or
+    /// verdicts. Additional assertions must already identify the exact candidate they apply to.
+    /// They retain their source/context and participate in the same resolution as stored evidence.
+    pub async fn query_purl_candidates(
+        &self,
+        candidates: &[(Purl, Vec<Assertion>)],
+        request: &ResolutionRequest,
+        node_cpes: Option<&[NodeCpe]>,
+        cache: &mut ReportQueryCache,
+        connection: &DatabaseTransaction,
+    ) -> Result<Vec<QueryResult>, Error> {
+        let prepared = self.prepare_purl_candidates(candidates, connection).await?;
+        let targets = candidates
+            .iter()
+            .map(|(purl, _)| purl.clone())
+            .collect::<Vec<_>>();
+        let results = Self::query_prepared_purl_candidates(
+            &prepared, &targets, request, node_cpes, cache, connection,
+        )
+        .await?;
+        Ok(targets
+            .into_iter()
+            .filter_map(|purl| results.get(&purl).cloned())
+            .collect())
+    }
+
+    /// Deduplicates and extracts a request's candidates once, including source metadata in batches.
+    pub async fn prepare_purl_candidates(
+        &self,
+        candidates: &[(Purl, Vec<Assertion>)],
+        connection: &DatabaseTransaction,
+    ) -> Result<PreparedPurlCandidates, Error> {
+        let mut unique = HashMap::<Purl, Vec<Assertion>>::new();
+        for (purl, assertions) in candidates {
+            unique
+                .entry(purl.clone())
+                .or_default()
+                .extend(assertions.iter().cloned());
+        }
+        let mut targets = unique.into_iter().collect::<Vec<_>>();
+        targets.sort_by_cached_key(|(purl, _)| purl.to_string());
+        let identifiers = targets
+            .iter()
+            .map(|(purl, assertions)| {
+                (
+                    IdentifierRef {
+                        kind: IdentifierKind::Purl,
+                        value: purl.to_string(),
+                    },
+                    assertions.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let groups = self
+            .extractors
+            .match_candidates(&identifiers, connection)
+            .await?;
+        let metadata = QueryMetadata::load(groups.iter().flatten(), connection).await?;
+        Ok(PreparedPurlCandidates {
+            assertions: targets
+                .into_iter()
+                .map(|(purl, _)| purl)
+                .zip(groups)
+                .collect(),
+            metadata,
+        })
+    }
+
+    /// Resolves prepared raw matches for only these targets under this independent provider/context.
+    pub async fn query_prepared_purl_candidates(
+        prepared: &PreparedPurlCandidates,
+        targets: &[Purl],
+        request: &ResolutionRequest,
+        node_cpes: Option<&[NodeCpe]>,
+        cache: &mut ReportQueryCache,
+        connection: &DatabaseTransaction,
+    ) -> Result<HashMap<Purl, QueryResult>, Error> {
+        if request.node_id.is_some() || !request.product_context.is_empty() {
+            return Err(Error::BadRequest(
+                "Candidate queries accept weighted node context, not ad-hoc context or node selection".into(),
+            ));
+        }
+        cache.providers.context(request)?;
+        let groups = targets
+            .iter()
+            .map(|purl| prepared.assertions.get(purl).cloned().unwrap_or_default())
+            .collect();
+        let groups = Extractors::scope_candidates(groups, node_cpes, connection).await?;
+        let advisory_ids = groups
+            .iter()
+            .flatten()
+            .map(|assertion| assertion.advisory_id)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        cache.load(&advisory_ids, connection).await?;
+        let mut results = HashMap::with_capacity(targets.len());
+        for (purl, assertions) in targets.iter().zip(groups) {
+            let identifier = IdentifierRef {
+                kind: IdentifierKind::Purl,
+                value: purl.to_string(),
+            };
+            results.insert(
+                purl.clone(),
+                Self::resolve_query_matches(
+                    identifier,
+                    request,
+                    node_cpes,
+                    assertions,
+                    Some(&mut *cache),
+                    connection,
+                    Some(&prepared.metadata),
+                )
+                .await?,
+            );
+        }
+        Ok(results)
+    }
+
     /// Shares provider resolution and verdict assembly between ad-hoc and weighted-node queries.
     async fn query_identifier_in_context(
         &self,
@@ -420,7 +601,7 @@ impl CorrelationService {
             ));
         }
         resolution::provider::ResolutionContext::new(Vec::new(), request)?;
-        let mut matches = if let Some(cpes) = node_cpes {
+        let matches = if let Some(cpes) = node_cpes {
             self.extractors
                 .query_with_node_context(&identifier, cpes, connection)
                 .await?
@@ -429,6 +610,22 @@ impl CorrelationService {
                 .query_with_context(&identifier, &request.product_context, connection)
                 .await?
         };
+        Self::resolve_query_matches(
+            identifier, request, node_cpes, matches, cache, connection, None,
+        )
+        .await
+    }
+
+    /// Assembles query verdicts identically for extracted and transient candidate evidence.
+    async fn resolve_query_matches(
+        identifier: IdentifierRef,
+        request: &ResolutionRequest,
+        node_cpes: Option<&[NodeCpe]>,
+        mut matches: Vec<Assertion>,
+        cache: Option<&mut ReportQueryCache>,
+        connection: &DatabaseTransaction,
+        metadata: Option<&QueryMetadata>,
+    ) -> Result<QueryResult, Error> {
         if let Some(vulnerability) = &request.vulnerability_id {
             matches.retain(|a| &a.vulnerability_id == vulnerability);
         }
@@ -440,12 +637,13 @@ impl CorrelationService {
             .into_iter()
             .collect::<Vec<_>>();
 
-        let vuln_ids = matches
-            .iter()
-            .map(|a| a.vulnerability_id.as_str())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
+        let fresh_metadata;
+        let metadata = if let Some(metadata) = metadata {
+            metadata
+        } else {
+            fresh_metadata = QueryMetadata::load(&matches, connection).await?;
+            &fresh_metadata
+        };
 
         let fresh_names;
         let fresh_snapshot;
@@ -468,17 +666,6 @@ impl CorrelationService {
         }
         let component_provider =
             snapshot.component_provider(None, None, &provider_identifiers, &context);
-        let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
-        let mut scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
-
-        let remediations = remediation::Remediations::load(
-            matches
-                .iter()
-                .flat_map(|assertion| assertion.source_assertions.iter().copied()),
-            connection,
-        )
-        .await?;
-
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
         let mut groups = BTreeMap::<&str, Vec<(AssertionStatus, QueryMatch)>>::new();
         for assertion in &matches {
@@ -490,7 +677,7 @@ impl CorrelationService {
                 .push((
                     assertion.status,
                     QueryMatch {
-                        remediations: remediations.for_sources(
+                        remediations: metadata.remediations.for_sources(
                             assertion.advisory_id,
                             &assertion.vulnerability_id,
                             &assertion.source_assertions,
@@ -542,10 +729,15 @@ impl CorrelationService {
             )?;
             verdicts.push(QueryVerdict {
                 vulnerability_id: vuln_id.into(),
-                vulnerability_title: vuln_titles.get(vuln_id).cloned().flatten(),
+                vulnerability_title: metadata.titles.get(vuln_id).cloned().flatten(),
                 scores: decision
                     .winning_advisory
-                    .and_then(|advisory_id| scores.remove(&(advisory_id, vuln_id.to_string())))
+                    .and_then(|advisory_id| {
+                        metadata
+                            .scores
+                            .get(&(advisory_id, vuln_id.to_string()))
+                            .cloned()
+                    })
                     .unwrap_or_default(),
                 status: decision.status,
                 winning_advisory_id: decision.winning_advisory,

@@ -51,8 +51,11 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, JoinType,
-    QueryFilter, QuerySelect, RelationTrait,
-    sea_query::{Alias, Expr, ExprTrait, Func, PgFunc, SimpleExpr},
+    QueryFilter, QuerySelect, QueryTrait, RelationTrait,
+    sea_query::{
+        Alias, Expr, ExprTrait, Func, IntoIden, IntoValueTuple, PgFunc, SimpleExpr, TableRef,
+        ValueTuple,
+    },
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -625,6 +628,10 @@ impl Extractor for PurlExtractor {
             .filter(|id| !persisted_vp_ids.contains(id))
             .copied()
             .collect::<Vec<_>>();
+        let synthetic_purls = synthetic_vp_ids
+            .iter()
+            .filter_map(|id| purls_by_versioned_id.get(id).map(|purl| (*id, purl)))
+            .collect::<Vec<_>>();
         let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
@@ -638,24 +645,12 @@ impl Extractor for PurlExtractor {
                     );
                 }
             }
-            for versioned_purl_id in &synthetic_vp_ids {
-                let Some(purl) = purls_by_versioned_id.get(versioned_purl_id) else {
-                    continue;
-                };
-                let Some(version) = purl.version.as_deref() else {
-                    continue;
-                };
+            for chunk in synthetic_purls.chunks(5000) {
                 rows.extend(
-                    load_synthetic_purl_status_matches(
-                        *versioned_purl_id,
-                        purl,
-                        version,
-                        &candidates,
-                        tx,
-                    )
-                    .await?
-                    .into_iter()
-                    .map(|row| (source, row)),
+                    load_synthetic_purl_status_matches(chunk, &candidates, tx)
+                        .await?
+                        .into_iter()
+                        .map(|row| (source, row)),
                 );
             }
         }
@@ -754,11 +749,9 @@ async fn load_purl_status_matches(
         .await?)
 }
 
-/// Load advisory status ranges for an input version with no persisted `versioned_purl` row.
+/// Batch-load ranges for ad-hoc versions without persisting PURLs; four binds per target stay chunked.
 async fn load_synthetic_purl_status_matches(
-    versioned_purl_id: Uuid,
-    purl: &Purl,
-    version: &str,
+    purls: &[(Uuid, &Purl)],
     candidates: &Candidates,
     connection: &DatabaseTransaction,
 ) -> Result<Vec<PurlStatusMatch>, Error> {
@@ -777,14 +770,32 @@ async fn load_synthetic_purl_status_matches(
         )
         .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def());
 
-    Ok(candidates
-        .select(query, Expr::value(version.to_owned()))
-        .column_as(Expr::value(versioned_purl_id), "versioned_purl_id")
+    let targets = Alias::new("synthetic_target");
+    let rows: Vec<ValueTuple> = purls
+        .iter()
+        .filter_map(|(id, purl)| {
+            Some((purl.package_uuid(), purl.version.as_deref()?, *id).into_value_tuple())
+        })
+        .collect();
+    let mut query = candidates
+        .select(query, Expr::col((targets.clone(), Alias::new("column2"))))
+        .column_as(
+            Expr::col((targets.clone(), Alias::new("column3"))),
+            "versioned_purl_id",
+        )
         .column_as(Expr::cust("'{}'::jsonb"), "sbom_qualifiers")
-        .filter(base_purl::Column::Type.eq(purl.ty.clone()))
-        .filter(base_purl::Column::Namespace.eq(purl.namespace.clone()))
-        .filter(base_purl::Column::Name.eq(purl.name.clone()))
-        .filter(advisory::Column::Deprecated.eq(false))
+        .filter(
+            purl_status::Column::BasePurlId
+                .is_in(purls.iter().map(|(_, purl)| purl.package_uuid())),
+        )
+        .filter(advisory::Column::Deprecated.eq(false));
+    QueryTrait::query(&mut query).join(
+        JoinType::InnerJoin,
+        TableRef::ValuesList(rows, targets.clone().into_iden()),
+        Expr::col((targets, Alias::new("column1")))
+            .equals((purl_status::Entity, purl_status::Column::BasePurlId)),
+    );
+    Ok(query
         .into_model::<PurlStatusMatch>()
         .all(connection)
         .instrument(info_span!("loading synthetic purl status matches"))

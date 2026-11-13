@@ -18,7 +18,7 @@ use sea_orm::{
 };
 use sea_query::Expr;
 use trustify_entity::{
-    assertion_context, base_purl, purl_status, status, version_range, versioned_purl,
+    advisory, assertion_context, base_purl, purl_status, status, version_range, versioned_purl,
 };
 
 /// Returns a Config with a pattern matching dot- and hyphen-separated vendor rebuilds (e.g. `3.0.3.redhat-00002`, `0.14.1-redhat-00001`).
@@ -34,6 +34,7 @@ fn vendor_config() -> Config {
 }
 use serde_json::{Value, json};
 use std::{
+    collections::BTreeSet,
     str::FromStr,
     sync::{Arc, Mutex},
 };
@@ -45,7 +46,7 @@ use trustify_api::correlation::{ProviderAliasData, ProviderAliasIdentifier};
 use trustify_common::{
     db::Database, db::pagination_cache::PaginationCache, model::PaginatedResults, purl::Purl,
 };
-use trustify_module_correlation::service::resolution::store;
+use trustify_module_correlation::{extractor::purl::rule::rules, service::resolution::store};
 use trustify_module_ingestor::graph::Graph;
 use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
 use urlencoding::encode;
@@ -1850,8 +1851,8 @@ async fn recommend_report_reuses_advisory_metadata_per_request(
     }
 
     // Each advisory is loaded once when first encountered in each request, not once per winner.
-    // Both loads happen once per request: the batch loading the statuses of the candidate versions,
-    // and the correlation cache loading the advisory metadata of each winner.
+    // Selection no longer loads a redundant recommendation-status batch for reports.
+    // Only the correlation cache loads each distinct advisory, once per request.
     assert_eq!(
         spans
             .lock()
@@ -1859,8 +1860,8 @@ async fn recommend_report_reuses_advisory_metadata_per_request(
             .iter()
             .filter(|name| **name == "loading advisories")
             .count(),
-        6,
-        "each request should load candidate status advisories once plus each distinct winner advisory"
+        4,
+        "each request should load each distinct winner advisory once"
     );
     Ok(())
 }
@@ -2407,6 +2408,390 @@ async fn recommend_report_resolves_shipped_supplier_alias(
     assert_eq!(
         report["packages"][0]["advisory_id"],
         "https://www.redhat.com/#REPORT-SHIPPED-ALIAS"
+    );
+    Ok(())
+}
+
+/// Ingests a fixing event whose vendor version is not enumerated or persisted.
+async fn ingest_synthetic_report_fix(ctx: &TrustifyContext) -> anyhow::Result<Uuid> {
+    Ok(Uuid::parse_str(&ctx.ingest_json(json!({
+        "schema_version": "1.7.3", "id": "RHLW-synthetic-report", "aliases": ["CVE-2099-7573"],
+        "modified": "2025-01-01T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Maven", "name": "com.example:crosslib", "purl": "pkg:maven/com.example/crosslib"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.0.redhat-00001"}]}],
+            "versions": ["1.0.0"]
+        }]
+    })).await?.id)?)
+}
+
+/// Verifies promotion extracts candidate evidence once per source for multiple/repeated inputs.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn promotion_batches_repeated_candidate_queries(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given two shipped builds and two non-persisted fixes in one advisory.
+    ctx.ingest_json(minimal_cdx(
+        "batch-promotion",
+        "00000000-0000-0000-0000-757300000010",
+        &[
+            (
+                "batch-a",
+                "1.0.0.redhat-00001",
+                "pkg:maven/com.example/batch-a@1.0.0.redhat-00001",
+            ),
+            (
+                "batch-b",
+                "1.0.0.redhat-00001",
+                "pkg:maven/com.example/batch-b@1.0.0.redhat-00001",
+            ),
+        ],
+    ))
+    .await?;
+    let affected = ["batch-a", "batch-b"].map(|name| json!({
+            "package": {"ecosystem": "Maven", "name": format!("com.example:{name}"), "purl": format!("pkg:maven/com.example/{name}")},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.0.redhat-00002"}]}]
+        }));
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3", "id": "RHLW-batch-promotion", "modified": "2025-01-01T00:00:00Z",
+        "affected": affected
+    }))
+    .await?;
+    let sources = rules(&ctx.db).await?.len() + 1;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(spans.clone()));
+
+    // When the request contains multiple packages and repeats the first package.
+    let result = recommend(
+        &app,
+        &[
+            "pkg:maven/com.example/batch-a@1.0.0",
+            "pkg:maven/com.example/batch-b@1.0.0",
+            "pkg:maven/com.example/batch-a@1.0.0",
+        ],
+    )
+    .with_subscriber(subscriber)
+    .await;
+
+    // Then exact fixes are returned, with one synthetic query per rule/stated source, not per input.
+    assert_eq!(result["recommendations"].as_object().unwrap().len(), 2);
+    assert_eq!(
+        result["recommendations"]["pkg:maven/com.example/batch-a@1.0.0"][0]["package"],
+        "pkg:maven/com.example/batch-a@1.0.0.redhat-00002"
+    );
+    assert_eq!(
+        result["recommendations"]["pkg:maven/com.example/batch-b@1.0.0"][0]["package"],
+        "pkg:maven/com.example/batch-b@1.0.0.redhat-00002"
+    );
+    assert_eq!(
+        spans
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|span| **span == "loading synthetic purl status matches")
+            .count(),
+        sources
+    );
+    assert_eq!(
+        versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::Version.eq("1.0.0.redhat-00002"))
+            .count(&ctx.db)
+            .await?,
+        0
+    );
+    Ok(())
+}
+
+/// Verifies a module-restricted fixing event cannot address a persisted unqualified/different module.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::missing_module("")]
+#[case::different_module("?rpmmod=nodejs:20:other:context")]
+#[test_log::test(actix_web::test)]
+async fn synthetic_report_rejects_incompatible_module_fix(
+    ctx: &TrustifyContext,
+    #[case] qualifiers: &str,
+) -> anyhow::Result<()> {
+    // Given a persisted build and a fix explicitly restricted to another RPM module.
+    let upstream = format!("pkg:rpm/redhat/scoped-fix@1.0.0{qualifiers}");
+    let fixed = format!("pkg:rpm/redhat/scoped-fix@1.0.0.redhat-00001{qualifiers}");
+    let sbom = ctx
+        .ingest_json(minimal_cdx(
+            "scoped-fix",
+            "00000000-0000-0000-0000-757300000011",
+            &[
+                ("scoped-fix", "1.0.0", &upstream),
+                ("scoped-build", "1.0.0.redhat-00001", &fixed),
+            ],
+        ))
+        .await?;
+    // Unsupported ecosystem exercises the stated-PURL exact fallback; ordinary OSV ingestion
+    // deliberately retains explicitly supplied PURLs independently of inferred ecosystem PURLs.
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3", "id": "RHLW-scoped-fix", "modified": "2025-01-01T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Debian", "name": "scoped-fix", "purl": "pkg:rpm/redhat/scoped-fix?rpmmod=nodejs:18:module:context"},
+            "versions": ["1.0.0"],
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": "1.0.0.redhat-00001"}]}]
+        }]
+    })).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // When reporting the independently persisted candidate without the fixing source's module.
+    let report = recommend_report_req(&app, &[Uuid::parse_str(&sbom.id)?]).await;
+
+    // Then qualified source metadata is not merely copied: it is ineligible to vote Fixed.
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(
+        versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::Version.eq("1.0.0.redhat-00001"))
+            .count(&ctx.db)
+            .await?,
+        1
+    );
+    Ok(())
+}
+
+/// Removes a fixture's catalog PURL while retaining its advisory status and product context.
+async fn make_report_purl_synthetic(ctx: &TrustifyContext, value: &str) -> anyhow::Result<()> {
+    let purl = value.parse::<Purl>()?;
+    purl_status::Entity::update_many()
+        .col_expr(
+            purl_status::Column::QualifiedPurlId,
+            Expr::value(None::<Uuid>),
+        )
+        .filter(purl_status::Column::QualifiedPurlId.eq(purl.qualifier_uuid()))
+        .exec(&ctx.db)
+        .await?;
+    versioned_purl::Entity::delete_by_id(purl.version_uuid())
+        .exec(&ctx.db)
+        .await?;
+    Ok(())
+}
+
+/// Verifies transient Fixed evidence cannot override the resolver's authoritative verdict.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::authoritative_fix("https://www.redhat.com", "Upstream", "known_affected", true)]
+#[case::authoritative_affected("https://upstream.example.com", "Red Hat", "known_affected", false)]
+#[case::authoritative_investigation(
+    "https://upstream.example.com",
+    "Red Hat",
+    "under_investigation",
+    false
+)]
+#[test_log::test(actix_web::test)]
+async fn synthetic_report_respects_authoritative_verdict(
+    ctx: &TrustifyContext,
+    #[case] fixing_provider: &str,
+    #[case] opposing_publisher: &str,
+    #[case] opposing_status: &str,
+    #[case] addressed: bool,
+    #[values(false, true)] older_not_affected: bool,
+) -> anyhow::Result<()> {
+    const UPSTREAM: &str = "pkg:maven/com.example/crosslib@1.0.0";
+    const FIXED: &str = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+    const CPE: &str = "cpe:/a:example:crosslib:1.0";
+
+    // Given a synthetic fixing source and independent assessments with explicit authority.
+    register_report_provider_aliases(ctx).await?;
+    let fixing_id = ingest_synthetic_report_fix(ctx).await?;
+    purl_status::Entity::update_many()
+        .col_expr(
+            purl_status::Column::SourceProvider,
+            Expr::value(json!({"identifiers": [format!("namespace:{fixing_provider}")]})),
+        )
+        .filter(purl_status::Column::AdvisoryId.eq(fixing_id))
+        .exec(&ctx.db)
+        .await?;
+    ctx.ingest_json(contextual_csaf_vex(
+        "SYNTHETIC-OPPOSITION",
+        "2026-01-15T00:00:00+00:00",
+        opposing_publisher,
+        "Product",
+        CPE,
+        &[("crosslib", FIXED)],
+        &[("CVE-2099-7573", opposing_status, &[0])],
+    ))
+    .await?;
+    // An older independent NotAffected assessment must not override authoritative Affected.
+    if older_not_affected {
+        ctx.ingest_json(contextual_csaf_vex(
+            "SYNTHETIC-OLDER-NOT-AFFECTED",
+            "2024-01-15T00:00:00+00:00",
+            "Upstream",
+            "Product",
+            CPE,
+            &[("crosslib", FIXED)],
+            &[("CVE-2099-7573", "known_not_affected", &[0])],
+        ))
+        .await?;
+    }
+    make_report_purl_synthetic(ctx, FIXED).await?;
+    let sbom = ctx
+        .ingest_json(contextual_cdx(
+            "synthetic-authority",
+            "00000000-0000-0000-0000-757300000001",
+            UPSTREAM,
+            "Red Hat",
+            CPE,
+        ))
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let vendor_rows = versioned_purl::Entity::find_by_id(FIXED.parse::<Purl>()?.version_uuid());
+    assert_eq!(vendor_rows.clone().count(&ctx.db).await?, 0);
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // When both endpoints consume the same non-persisted candidate.
+    let recommendations = recommend(&app, &[UPSTREAM]).await;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then independent source assessments survive, but only the selected verdict is addressed.
+    let entry = &recommendations["recommendations"][UPSTREAM][0];
+    assert_eq!(entry["package"], FIXED);
+    let assessments = entry["vulnerabilities"].as_array().unwrap();
+    let mut expected_sources = BTreeSet::from([
+        "RHLW-synthetic-report",
+        if opposing_publisher == "Red Hat" {
+            "https://red-hat.example.com/#SYNTHETIC-OPPOSITION"
+        } else {
+            "https://upstream.example.com/#SYNTHETIC-OPPOSITION"
+        },
+    ]);
+    if older_not_affected {
+        expected_sources.insert("https://upstream.example.com/#SYNTHETIC-OLDER-NOT-AFFECTED");
+    }
+    assert_eq!(
+        assessments
+            .iter()
+            .map(|assessment| assessment["advisory_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        expected_sources
+    );
+    let fixing = assessments
+        .iter()
+        .find(|assessment| assessment["advisory_id"] == "RHLW-synthetic-report")
+        .unwrap();
+    assert_eq!(fixing["id"], "CVE-2099-7573");
+    assert_eq!(fixing["status"], "Fixed");
+    assert_eq!(
+        fixing["remediations"][0]["data"]["fixed"],
+        "1.0.0.redhat-00001"
+    );
+    let expected = if addressed {
+        json!([{
+            "purl": UPSTREAM, "recommended_purl": FIXED, "advisory_id": "RHLW-synthetic-report",
+            "vulnerabilities": ["CVE-2099-7573"], "found_in": [sbom_id]
+        }])
+    } else {
+        json!([])
+    };
+    assert_eq!(report["packages"], expected);
+    assert_eq!(
+        report["impact_summary"]["addressable_packages"],
+        usize::from(addressed)
+    );
+    assert_eq!(
+        report["sboms"][0]["addressable_packages"],
+        usize::from(addressed)
+    );
+    assert_eq!(
+        report["sboms"][0]["vulnerability_count"],
+        usize::from(addressed)
+    );
+    assert_eq!(vendor_rows.count(&ctx.db).await?, 0);
+    Ok(())
+}
+
+/// Verifies transient context is resolved before grouping identical PURLs from different SBOMs.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::component_context(false)]
+#[case::describing_context(true)]
+#[test_log::test(actix_web::test)]
+async fn synthetic_report_preserves_context_membership(
+    ctx: &TrustifyContext,
+    #[case] describing: bool,
+) -> anyhow::Result<()> {
+    const UPSTREAM: &str = "pkg:maven/com.example/crosslib@1.0.0";
+    const FIXED: &str = "pkg:maven/com.example/crosslib@1.0.0.redhat-00001";
+
+    // Given fixing evidence scoped to product 2 and two SBOMs with the same upstream PURL.
+    let fixing_id = ingest_synthetic_report_fix(ctx).await?;
+    let context_advisory = Uuid::parse_str(
+        &ctx.ingest_json(contextual_csaf_vex(
+            "SYNTHETIC-CONTEXT",
+            "2024-01-15T00:00:00+00:00",
+            "Red Hat",
+            "Product 2",
+            "cpe:/a:example:crosslib:2.0",
+            &[("context-only", "pkg:maven/com.example/context-only@2.0.0")],
+            &[("CVE-2099-75730", "known_affected", &[0])],
+        ))
+        .await?
+        .id,
+    )?;
+    let context_id = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(context_advisory))
+        .one(&ctx.db)
+        .await?
+        .unwrap()
+        .assertion_context_id
+        .unwrap();
+    purl_status::Entity::update_many()
+        .col_expr(
+            purl_status::Column::AssertionContextId,
+            Expr::value(context_id),
+        )
+        .filter(purl_status::Column::AdvisoryId.eq(fixing_id))
+        .exec(&ctx.db)
+        .await?;
+    let mut sboms = Vec::new();
+    for (name, serial, cpe) in [
+        (
+            "other-product",
+            "00000000-0000-0000-0000-757300000002",
+            "cpe:/a:example:crosslib:1.0",
+        ),
+        (
+            "fixed-product",
+            "00000000-0000-0000-0000-757300000003",
+            "cpe:/a:example:crosslib:2.0",
+        ),
+    ] {
+        let mut document = contextual_cdx(name, serial, UPSTREAM, "Red Hat", cpe);
+        if describing {
+            document["components"][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("cpe");
+            document["metadata"]["component"]["cpe"] = json!(cpe);
+        }
+        sboms.push(Uuid::parse_str(&ctx.ingest_json(document).await?.id)?);
+    }
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+
+    // When resolution sees the component or inherited describing context of each SBOM.
+    let report = recommend_report_req(&app, &sboms).await;
+
+    // Then the incompatible/unresolved SBOM is not addressed, and membership does not leak.
+    assert_eq!(
+        report["packages"],
+        json!([{
+            "purl": UPSTREAM, "recommended_purl": FIXED, "advisory_id": "RHLW-synthetic-report",
+            "vulnerabilities": ["CVE-2099-7573"], "found_in": [sboms[1]]
+        }])
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
+    assert_eq!(report["sboms"][1]["vulnerability_count"], 1);
+    assert_eq!(
+        versioned_purl::Entity::find_by_id(FIXED.parse::<Purl>()?.version_uuid())
+            .count(&ctx.db)
+            .await?,
+        0
     );
     Ok(())
 }
@@ -3377,6 +3762,138 @@ async fn get_recommendations_osv_fixed_event_advisory_only(
     Ok(())
 }
 
+/// Verifies republishing removes synthetic fixes without hiding independently persisted candidates.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::known_scheme(
+    "Maven",
+    "org.example:revised-fix",
+    "pkg:maven/org.example/revised-fix"
+)]
+#[case::exact_fallback("Debian", "revised-fix", "pkg:deb/debian/revised-fix")]
+#[test_log::test(actix_web::test)]
+async fn vendor_fix_uses_current_advisory_revision(
+    ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] package_name: &str,
+    #[case] base: &str,
+    #[values(false, true)] persisted: bool,
+) -> anyhow::Result<()> {
+    const FIXED_VERSION: &str = "1.0.0.rhlw-00001";
+    const ADVISORY: &str = "RHLW-republished-fix";
+    let upstream = format!("{base}@1.0.0");
+    let fixed = format!("{base}@{FIXED_VERSION}");
+
+    // Given an upstream-only SBOM and a current explicit fixed event.
+    let sbom = ctx
+        .ingest_json(minimal_cdx(
+            "revised-fix",
+            "00000000-0000-0000-0000-757200000001",
+            &[("revised-fix", "1.0.0", &upstream)],
+        ))
+        .await?;
+    let mut document = json!({
+        "schema_version": "1.7.3", "id": ADVISORY, "aliases": ["CVE-2099-7572"],
+        "modified": "2025-01-01T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": ecosystem, "name": package_name, "purl": base},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": FIXED_VERSION}]}],
+            "versions": ["1.0.0"]
+        }]
+    });
+    let previous = Uuid::parse_str(&ctx.ingest_json(document.clone()).await?.id)?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let vendor_rows =
+        versioned_purl::Entity::find().filter(versioned_purl::Column::Version.eq(FIXED_VERSION));
+    assert_eq!(vendor_rows.clone().count(&ctx.db).await?, 0);
+    let before = recommend(&app, &[&upstream]).await;
+    assert_eq!(before["recommendations"][&upstream][0]["package"], fixed);
+    let assessment = &before["recommendations"][&upstream][0]["vulnerabilities"][0];
+    assert_eq!(assessment["id"], "CVE-2099-7572");
+    assert_eq!(assessment["advisory_id"], ADVISORY);
+    assert_eq!(assessment["status"], "Fixed");
+    assert_eq!(
+        assessment["remediations"][0]["data"]["fixed"],
+        FIXED_VERSION
+    );
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let before_report = recommend_report_req(&app, &[sbom_id]).await;
+    assert_eq!(
+        before_report["packages"],
+        json!([{
+            "purl": upstream, "recommended_purl": fixed, "advisory_id": ADVISORY,
+            "vulnerabilities": ["CVE-2099-7572"], "found_in": [sbom_id]
+        }])
+    );
+    assert_eq!(vendor_rows.clone().count(&ctx.db).await?, 0);
+    if persisted {
+        ctx.ingest_json(minimal_cdx(
+            "catalog",
+            "00000000-0000-0000-0000-757200000002",
+            &[("revised-fix", FIXED_VERSION, &fixed)],
+        ))
+        .await?;
+    }
+
+    // When the same advisory is republished with last_affected instead of fixed.
+    document["modified"] = json!("2026-01-01T00:00:00Z");
+    document["affected"][0]["ranges"][0]["events"] =
+        json!([{"introduced": "1.0.0"}, {"last_affected": FIXED_VERSION}]);
+    // Enumerated OSV versions are persisted by ingestion. Only the already-persisted
+    // control lists the vendor version, so the other cases remain genuinely synthetic.
+    document["affected"][0]["versions"] = if persisted {
+        json!(["1.0.0", FIXED_VERSION])
+    } else {
+        json!(["1.0.0"])
+    };
+    let current = Uuid::parse_str(&ctx.ingest_json(document).await?.id)?;
+    assert_eq!(
+        vendor_rows.clone().count(&ctx.db).await?,
+        u64::from(persisted)
+    );
+    assert_ne!(previous, current);
+    assert!(
+        advisory::Entity::find_by_id(previous)
+            .one(&ctx.db)
+            .await?
+            .unwrap()
+            .deprecated
+    );
+    assert!(
+        !advisory::Entity::find_by_id(current)
+            .one(&ctx.db)
+            .await?
+            .unwrap()
+            .deprecated
+    );
+    let after = recommend(&app, &[&upstream]).await;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then stale synthetic candidates, assessments, remediations and addressability disappear.
+    let expected = if persisted {
+        json!([{
+            "package": fixed, "vulnerabilities": [{"id": "CVE-2099-7572", "status": "Affected", "advisory_id": ADVISORY, "remediations": []}]
+        }])
+    } else {
+        json!([])
+    };
+    assert_eq!(after["recommendations"][&upstream], expected);
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
+    assert_eq!(vendor_rows.count(&ctx.db).await?, u64::from(persisted));
+    Ok(())
+}
+
 /// Verifies that neither range-based nor exact-version `last_affected` statuses synthesize fixed recommendations.
 #[test_context(TrustifyContext)]
 #[rstest]
@@ -3734,17 +4251,18 @@ async fn affected_persisted_build_does_not_hide_fix(
     Ok(())
 }
 
-/// Verifies that a newer non-affected assessment of a shipped build prevents advisory-only promotion.
+/// Verifies authority, rather than independent-source dates, controls promotion of a shipped build.
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case::fixed("fixed", "Fixed")]
 #[case::not_affected("known_not_affected", "NotAffected")]
 #[case::under_investigation("under_investigation", "UnderInvestigation")]
 #[test_log::test(actix_web::test)]
-async fn newer_persisted_assessment_prevents_vendor_fix_promotion(
+async fn authoritative_persisted_assessment_prevents_vendor_fix_promotion(
     ctx: &TrustifyContext,
     #[case] csaf_status: &str,
     #[case] expected_status: &str,
+    #[values("2024-01-15T00:00:00+00:00", "2026-01-01T00:00:00+00:00")] assessment_date: &str,
 ) -> Result<(), anyhow::Error> {
     const UPSTREAM_PURL: &str = "pkg:maven/org.example/partial@5.3.18";
     const SHIPPED_PURL: &str = "pkg:maven/org.example/partial@5.3.18.rhlw-00001";
@@ -3773,15 +4291,29 @@ async fn newer_persisted_assessment_prevents_vendor_fix_promotion(
         }]
     })).await?;
 
-    // And a newer assessment of the shipped build superseding that affected status
+    // And an authoritative source's assessment, with a date independent of the OSV source.
     let mut assessment = minimal_csaf_vex(
         "TEST-PARTIAL-ASSESSMENT",
         "Partial Product",
         &[("partial-5.3.18.rhlw-00001", SHIPPED_PURL)],
         &[("CVE-2099-0021", csaf_status, &[0])],
     );
-    assessment["document"]["tracking"]["current_release_date"] = json!("2026-01-01T00:00:00+00:00");
+    assessment["document"]["tracking"]["current_release_date"] = json!(assessment_date);
+    // Maven OSV has no publisher; an explicit statement provider makes the CSAF source
+    // authoritative through the existing alias policy, not through its modification date.
+    assessment["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
     ctx.ingest_json(assessment).await?;
+    let tx = ctx.db.begin().await?;
+    let aliases = store::list_aliases(&tx).await?;
+    let redhat = aliases
+        .iter()
+        .find(|alias| alias.data.provider == "https://www.redhat.com")
+        .unwrap();
+    let mut data = redhat.data.clone();
+    data.aliases
+        .push(ProviderAliasIdentifier::Purl("maven/org.example".into()));
+    store::save_alias(Some(redhat.id), data, &tx).await?;
+    tx.commit().await?;
     let app = caller_with(
         ctx,
         Config {
@@ -3792,12 +4324,11 @@ async fn newer_persisted_assessment_prevents_vendor_fix_promotion(
     )
     .await?;
 
-    // When recommending, only the latest assessment should influence candidate precedence
+    // When recommending, the matching provider controls eligibility regardless of source dates.
     let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
     let entry = &recommendations["recommendations"][UPSTREAM_PURL][0];
     assert_eq!(entry["package"], SHIPPED_PURL);
-    // Recommendations report every source stating a status, so the older affected assessment and
-    // the newer one coexist; the newer assessment is the one the test asserts on.
+    // Independent assessments still coexist in the recommendation response.
     let vulnerabilities = entry["vulnerabilities"].as_array().unwrap();
     let assessment = vulnerabilities
         .iter()
@@ -3806,16 +4337,156 @@ async fn newer_persisted_assessment_prevents_vendor_fix_promotion(
                 .as_str()
                 .is_some_and(|id| id.ends_with("#TEST-PARTIAL-ASSESSMENT"))
         })
-        .expect("newer assessment should be reported");
+        .expect("authoritative assessment should be reported");
     assert_eq!(assessment["id"], "CVE-2099-0021");
     assert_eq!(assessment["status"], expected_status);
-    // The report resolves addressability through the correlation engine, which does not treat
-    // conflicting sources as resolved: the older advisory still marks the shipped build affected,
-    // so no package is reported as addressed even though the newer assessment says otherwise.
+    // Report addressability follows the authoritative selected verdict, not the conflict flag.
     let report = recommend_report_req(&app, &[sbom_id]).await;
-    assert_eq!(report["packages"], json!([]));
-    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    if expected_status == "UnderInvestigation" {
+        assert_eq!(report["packages"], json!([]));
+        assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    } else {
+        let packages = report["packages"].as_array().unwrap();
+        assert_eq!(
+            packages
+                .iter()
+                .map(|package| package["purl"].as_str().unwrap())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([UPSTREAM_PURL, SHIPPED_PURL])
+        );
+        for package in packages {
+            assert_eq!(package["recommended_purl"], SHIPPED_PURL);
+            assert_eq!(
+                package["advisory_id"],
+                "https://www.redhat.com/#TEST-PARTIAL-ASSESSMENT"
+            );
+            assert_eq!(package["vulnerabilities"], json!(["CVE-2099-0021"]));
+        }
+    }
 
+    Ok(())
+}
+
+/// Verifies real Netty records promote only the applicable fix while retaining upstream assessments.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::advisory_only(false, false)]
+#[case::shipped_and_vendor(true, false)]
+#[case::shipped_vendor_and_upstream(true, true)]
+#[test_log::test(actix_web::test)]
+async fn netty_vendor_fix_preserves_independent_evidence(
+    ctx: &TrustifyContext,
+    #[case] shipped: bool,
+    #[case] upstream_advisory: bool,
+) -> anyhow::Result<()> {
+    const UPSTREAM: &str = "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final";
+    const SHIPPED: &str = "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final-redhat-00001";
+    const FIXED: &str = "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final-rhlw-00002";
+    const RHLW: &str = "RHLW-2026-02416b185203289c";
+
+    // Given the reviewer's real RHLW record and optional shipped build/upstream GHSA.
+    let mut components = vec![("netty-codec-dns", "4.1.132.Final", UPSTREAM)];
+    if shipped {
+        components.push((
+            "netty-codec-dns-shipped",
+            "4.1.132.Final-redhat-00001",
+            SHIPPED,
+        ));
+    }
+    let sbom = ctx
+        .ingest_json(minimal_cdx(
+            "netty-codec-dns",
+            "00000000-0000-0000-0000-757100000001",
+            &components,
+        ))
+        .await?;
+    ctx.ingest_document("osv/RHLW-2026-02416b185203289c.json")
+        .await?;
+    if upstream_advisory {
+        // Relevant 4.1 branch of https://api.osv.dev/v1/vulns/GHSA-cm33-6792-r9fm,
+        // fetched 2026-11-13; prose, severity and the independent 4.2 branch are omitted.
+        ctx.ingest_json(json!({
+            "schema_version": "1.9.0", "id": "GHSA-cm33-6792-r9fm",
+            "aliases": ["CVE-2026-42579"], "modified": "2026-09-10T03:51:05.363150105Z",
+            "published": "2026-05-07T00:12:47Z",
+            "affected": [{
+                "package": {"ecosystem": "Maven", "name": "io.netty:netty-codec-dns", "purl": "pkg:maven/io.netty/netty-codec-dns"},
+                "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "4.1.133.Final"}]}],
+                "versions": ["4.1.132.Final"]
+            }]
+        })).await?;
+    }
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![
+                Regex::new(r"^(.+)[.-]redhat-[0-9]+$")?,
+                Regex::new(r"^(.+)[.-]rhlw-[0-9]+$")?,
+            ],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When querying both endpoints without persisting the fixed build.
+    let recommendations = recommend(&app, &[UPSTREAM]).await;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the unrelated upstream identifier does not veto the RHLW target's fix.
+    let entry = &recommendations["recommendations"][UPSTREAM][0];
+    assert_eq!(entry["package"], FIXED);
+    let assessments = entry["vulnerabilities"].as_array().unwrap();
+    let fixed = assessments
+        .iter()
+        .find(|assessment| assessment["id"] == RHLW)
+        .unwrap();
+    assert_eq!(fixed["advisory_id"], RHLW);
+    assert_eq!(fixed["status"], "Fixed");
+    assert_eq!(
+        fixed["remediations"][0]["data"]["fixed"],
+        "4.1.132.Final-rhlw-00002"
+    );
+    let independent = assessments
+        .iter()
+        .filter(|assessment| assessment["id"] != RHLW)
+        .cloned()
+        .collect::<Vec<_>>();
+    let expected = if upstream_advisory {
+        vec![
+            json!({"id": "CVE-2026-42579", "status": "Affected", "advisory_id": "GHSA-cm33-6792-r9fm"}),
+        ]
+    } else {
+        vec![]
+    };
+    assert_eq!(independent.iter().map(|assessment| json!({"id": assessment["id"], "status": assessment["status"], "advisory_id": assessment["advisory_id"]})).collect::<Vec<_>>(), expected);
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(
+        packages
+            .iter()
+            .map(|package| package["purl"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        components.iter().map(|(_, _, purl)| *purl).collect()
+    );
+    for package in packages {
+        assert_eq!(package["recommended_purl"], FIXED);
+        assert_eq!(package["vulnerabilities"], json!([RHLW]));
+        assert_eq!(package["advisory_id"], RHLW);
+        assert_eq!(package["found_in"], json!([sbom_id]));
+    }
+    assert_eq!(
+        report["impact_summary"]["addressable_packages"],
+        components.len()
+    );
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    assert_eq!(
+        versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::Version.eq("4.1.132.Final-rhlw-00002"))
+            .count(&ctx.db)
+            .await?,
+        0
+    );
     Ok(())
 }
 
