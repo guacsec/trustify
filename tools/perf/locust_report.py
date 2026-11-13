@@ -578,7 +578,7 @@ document.querySelectorAll('table.sortable').forEach(tbl=>{
     const asc = th.getAttribute('aria-sort')!=='ascending';
     tbl.querySelectorAll('th').forEach(h=>h.removeAttribute('aria-sort'));
     th.setAttribute('aria-sort', asc?'ascending':'descending');
-    const val = td => { const t=td.childNodes[0]?.textContent?.trim()??''; const n=parseFloat(t.replace(/[,%]/g,'')); return isNaN(n)?t.toLowerCase():n; };
+    const val = td => { const t=td.getAttribute('data-sort-value')??td.childNodes[0]?.textContent?.trim()??''; const n=parseFloat(t.replace(/[,%]/g,'')); return isNaN(n)?t.toLowerCase():n; };
     const body = tbl.tBodies[0]; let cur={h:null,rows:[]}; const blocks=[cur];
     [...body.rows].forEach(r=>{ if(r.classList.contains('grp')){cur={h:r,rows:[]};blocks.push(cur);} else cur.rows.push(r); });
     blocks.forEach(b=>{ b.rows.sort((a,c)=>{const x=val(a.cells[ci]),y=val(c.cells[ci]); return (x>y?1:x<y?-1:0)*(asc?1:-1);});
@@ -991,7 +991,7 @@ def build_index(runs: list[dict], title: str, target: str | None, threshold_pct:
         r, b = runs[i], runs[i - 1] if i else None
         source = run_source(r.get("metadata", {}))
         rl.append(
-            f"<tr><td class='l'><a href=\"{esc(r['href'])}\">{fmt_dt(r['t'])}</a></td><td class='l name'>{esc(r['label'])}</td>"
+            f"<tr><td class='l' data-sort-value=\"{r['t']}\"><a href=\"{esc(r['href'])}\">{fmt_dt(r['t'])}</a></td><td class='l name'>{esc(r['label'])}</td>"
             f"<td>{source}</td>"
             f"<td>{fmt_dur(r['duration']) if r['duration'] else '–'}</td><td>{fmt(r['users'])}</td>"
             f"<td>{fmt(r['requests'])}</td><td>{r['fail_rate']:.1%}</td>"

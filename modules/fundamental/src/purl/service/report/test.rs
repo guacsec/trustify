@@ -2,7 +2,7 @@ use super::{ProviderIdentity, ReportContext, ReportError, context, source::Recov
 use crate::purl::service::{PurlService, StatusInfo};
 use bytes::Bytes;
 use futures_util::{
-    Stream, StreamExt,
+    Stream, StreamExt, TryStreamExt,
     stream::{self, BoxStream},
 };
 use rstest::rstest;
@@ -27,7 +27,9 @@ use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::{
     advisory, cpe, sbom, source_document, version_range, version_scheme::VersionScheme,
 };
-use trustify_module_storage::service::{StorageBackend, StorageKey, StorageResult, StoreError};
+use trustify_module_storage::service::{
+    Compression, StorageBackend, StorageKey, StorageResult, StoreError,
+};
 use trustify_test_context::TrustifyContext;
 use uuid::Uuid;
 
@@ -378,6 +380,22 @@ impl StorageBackend for InputStorage {
     async fn delete(&self, _key: StorageKey) -> Result<(), Self::Error> {
         Ok(())
     }
+}
+
+#[rstest]
+#[case::identity(&[])]
+#[case::zstd(&[Compression::Zstd])]
+#[test_log::test(tokio::test)]
+async fn input_storage_retrieve_encoded(#[case] accepted: &[Compression]) -> anyhow::Result<()> {
+    let storage = InputStorage::Bytes(b"scripted input".to_vec());
+    let content = storage
+        .retrieve_encoded(StorageKey::from_sha256(&"0".repeat(64)), accepted)
+        .await?
+        .unwrap();
+    assert_eq!(content.compression, Compression::None);
+    let chunks = content.stream.try_collect::<Vec<_>>().await?;
+    assert_eq!(chunks.concat(), b"scripted input");
+    Ok(())
 }
 
 /// A stream failure after successful chunks cannot produce confirmed supplier absence.
