@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794514794790,
+  "lastUpdate": 1794575823146,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -24928,6 +24928,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/a014ec0806b64ea2f9473d967e3c334c1eba83d7"
         },
         "date": 1794514791099,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "7953f9dada2da90da2012498261962d2dbc3ac81",
+          "message": "fix(migration): refresh authoritative base scores after backfill\n\nAssisted-by: Codex (GPT-6)",
+          "timestamp": "2026-11-13T11:55:02Z",
+          "tree_id": "2bfd5e0931d934a4a850c51e40bf0bdfbdcffcca",
+          "url": "https://github.com/guacsec/trustify/commit/7953f9dada2da90da2012498261962d2dbc3ac81"
+        },
+        "date": 1794575820855,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
