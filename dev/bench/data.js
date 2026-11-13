@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794602431114,
+  "lastUpdate": 1794614112624,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25020,6 +25020,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": true,
+          "id": "0024127838366fc0621c0d253f617a418b0cecfb",
+          "message": "chore: attempt to reduce grype xtask container alerts",
+          "timestamp": "2026-11-13T22:38:07Z",
+          "tree_id": "f427c9da9d58e16e3f9d90f860913bdf5886803f",
+          "url": "https://github.com/guacsec/trustify/commit/0024127838366fc0621c0d253f617a418b0cecfb"
+        },
+        "date": 1794614110021,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
