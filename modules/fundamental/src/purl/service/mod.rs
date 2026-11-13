@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::iter::once;
 
 use crate::{
     Error,
@@ -25,6 +26,7 @@ use sea_query::{
     Alias, Asterisk, ColumnType, Expr, ExprTrait, Func, IntoIden, IntoValueTuple,
     JoinType::{self, InnerJoin},
     Order, SimpleExpr, TableRef, UnionType, ValueTuple,
+    extension::postgres::PgExpr,
 };
 use tracing::{Instrument, info_span, instrument};
 use trustify_api::correlation::{IdentifierKind, IdentifierRef, ResolutionRequest, VerdictStatus};
@@ -68,12 +70,16 @@ struct PurlKey<'a> {
 }
 
 /// Vulnerability status record linking a vulnerability ID to its VEX status and remediations.
+#[derive(Clone)]
 struct StatusInfo {
     vuln_id: String,
     status_slug: String,
     remediations: Vec<remediation::Model>,
     /// The advisory identifier that reported this status.
     advisory_id: Option<String>,
+    /// When the advisory reporting this status was last updated, used to let a newer assessment
+    /// of the same vulnerability supersede an older one while selecting a recommendation winner.
+    advisory_date: Option<time::OffsetDateTime>,
     advisory_pk: Uuid,
     derived: bool,
     is_default: bool,
@@ -139,6 +145,7 @@ struct VersionGroup {
 struct ReportWinner {
     upstream_purl: String,
     recommended_purl: String,
+    winner_vp_id: Uuid,
     component_provider: Option<String>,
     product_context: Vec<NodeCpe>,
     found_in: Vec<Uuid>,
@@ -172,6 +179,43 @@ struct Winner<'a> {
     purl_string: String,
     versioned_purl: &'a versioned_purl::Model,
     base: &'a base_purl::Model,
+}
+
+/// Recommendation candidates per base PURL: persisted versioned PURLs plus the versions
+/// synthesized from advisory data, with the provenance and fixed statuses of the latter.
+#[derive(Default)]
+struct AdvisoryVersionedPurls {
+    /// Candidate versioned PURLs, grouped by base PURL ID.
+    by_base: HashMap<Uuid, Vec<versioned_purl::Model>>,
+    /// The candidates known only from a VendorFix remediation. Such a version may never have
+    /// shipped, so it only displaces another candidate when it fixes a vulnerability whose
+    /// effective assessment affects that candidate; otherwise it is a fallback when no other
+    /// candidate matches.
+    vendor_fix_only_vp_ids: HashSet<Uuid>,
+    /// Fixed statuses of the candidates whose version is fixed by a VendorFix remediation.
+    vendor_fix_statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>>,
+}
+
+/// A VendorFix remediation whose fixed version closes the affected range it remediates, or which
+/// is attached to an exact-version affected status used as a fallback.
+#[derive(FromQueryResult)]
+struct VendorFixRow {
+    base_purl_id: Uuid,
+    vulnerability_id: String,
+    fixed_version: String,
+    advisory_identifier: String,
+    advisory_modified: Option<time::OffsetDateTime>,
+    advisory_published: Option<time::OffsetDateTime>,
+    purl_status_id: Uuid,
+    purl_status_advisory_id: Uuid,
+    context_cpe_id: Option<Uuid>,
+    assertion_context_id: Option<Uuid>,
+    remediation_id: Uuid,
+    remediation_advisory_id: Uuid,
+    remediation_vulnerability_id: String,
+    remediation_details: Option<String>,
+    remediation_url: Option<String>,
+    remediation_data: serde_json::Value,
 }
 
 impl<'a> PurlKey<'a> {
@@ -658,16 +702,17 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let versioned_by_base =
-            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+        let candidates = Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
         let base_purl_map: HashMap<_, _> = base_purls
             .iter()
             .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
 
-        let mut winners = Vec::new();
-
+        // Resolve the pattern-matching candidates of every input before selecting a winner: the
+        // precedence rules need the statuses of more than one candidate, because a version known
+        // only from an advisory may be an unshipped rebuild that must not displace a shipped one.
+        let mut matched = Vec::new();
         for ip in &input_purls {
             let key = PurlKey::from_purl(&ip.purl);
             let Some(&base) = base_purl_map.get(&key) else {
@@ -675,47 +720,58 @@ impl PurlService {
                 continue;
             };
 
-            let highest = self
-                .recommend_patterns
-                .iter()
-                .filter_map(|pattern| {
-                    Self::find_highest_vendor_patch(
-                        pattern,
-                        &ip.input_version,
-                        versioned_by_base.get(&base.id),
-                    )
-                })
-                .max_by(|a, b| a.version.cmp(&b.version));
+            let matching = Self::matching_candidates(
+                &self.recommend_patterns,
+                &ip.input_version,
+                candidates.by_base.get(&base.id),
+            );
+            if matching.is_empty() {
+                recommendations.insert(ip.purl.to_string(), Vec::new());
+                continue;
+            }
+            matched.push((ip, base, matching));
+        }
 
-            if let Some(winner_vp) = highest {
+        // Fetch the statuses of every matching candidate in one batch, keyed by each candidate's
+        // versioned PURL ID. Every candidate is matched against its own version, so candidates
+        // sharing a base PURL with different versions cannot pick up each other's version-range
+        // statuses.
+        let mut statuses_by_vp = Self::fetch_vulnerability_statuses(
+            matched.iter().flat_map(|(_, base, matching)| {
+                matching
+                    .iter()
+                    .map(move |vp| (base.id, vp.version.as_str(), vp.id))
+            }),
+            connection,
+        )
+        .await?;
+
+        // VendorFix records their fixed version at an exclusive range boundary, so ordinary
+        // version matching does not return the status for these candidates.
+        for (vp_id, vendor_fix_statuses) in &candidates.vendor_fix_statuses_by_vp {
+            statuses_by_vp
+                .entry(*vp_id)
+                .or_default()
+                .extend(vendor_fix_statuses.iter().cloned());
+        }
+
+        let mut winners = Vec::new();
+        for (ip, base, matching) in matched {
+            if let Some(versioned_purl) = Self::select_winner(
+                &matching,
+                &candidates.vendor_fix_only_vp_ids,
+                &statuses_by_vp,
+                &candidates.vendor_fix_statuses_by_vp,
+            ) {
                 winners.push(Winner {
                     purl_string: ip.purl.to_string(),
-                    versioned_purl: winner_vp,
+                    versioned_purl,
                     base,
                 });
             } else {
                 recommendations.insert(ip.purl.to_string(), Vec::new());
             }
         }
-
-        if winners.is_empty() {
-            return Ok(recommendations);
-        }
-
-        // Fetch all winners' statuses in one batch, keyed by each winner's versioned PURL ID.
-        // Every winner is matched against its own version, so winners sharing a base PURL with
-        // different versions cannot pick up each other's version-range statuses.
-        let statuses_by_vp = Self::fetch_vulnerability_statuses(
-            winners.iter().map(|winner| {
-                (
-                    winner.base.id,
-                    winner.versioned_purl.version.as_str(),
-                    winner.versioned_purl.id,
-                )
-            }),
-            connection,
-        )
-        .await?;
 
         // Assemble recommendations from per-winner statuses
         for winner in winners {
@@ -907,6 +963,7 @@ impl PurlService {
                         status_slug: slug,
                         remediations: rems,
                         advisory_id: Some(advisory.identifier),
+                        advisory_date: advisory.modified.or(advisory.published),
                         advisory_pk: effective.status.advisory_id,
                         derived: effective.derived,
                         is_default: effective.status.is_default,
@@ -1049,48 +1106,51 @@ impl PurlService {
         Ok(results)
     }
 
-    /// Loads all versioned PURLs for the given base PURLs, grouped by base PURL ID.
+    /// Loads all versioned PURLs for the given base PURLs, grouped by base PURL ID, plus the
+    /// candidates synthesized from advisory data.
     /// Chunks the IN clause to stay within Postgres bind parameter limits.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn fetch_versioned_purls_by_base<C: ConnectionTrait>(
         base_purls: &[base_purl::Model],
         connection: &C,
-    ) -> Result<HashMap<Uuid, Vec<versioned_purl::Model>>, Error> {
+    ) -> Result<AdvisoryVersionedPurls, Error> {
         let base_purl_ids: Vec<_> = base_purls.iter().map(|bp| bp.id).collect();
 
-        let mut by_base: HashMap<_, Vec<_>> = HashMap::new();
-        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        let mut candidates = AdvisoryVersionedPurls::default();
+        let id_chunks = chunked_with(1, base_purl_ids.iter().copied());
         for chunk in id_chunks {
             let batch = versioned_purl::Entity::find()
                 .filter(versioned_purl::Column::BasePurlId.is_in(chunk))
                 .all(connection)
                 .await?;
             for vp in batch {
-                by_base.entry(vp.base_purl_id).or_default().push(vp);
+                candidates
+                    .by_base
+                    .entry(vp.base_purl_id)
+                    .or_default()
+                    .push(vp);
             }
         }
 
-        // Supplement with exact-version advisory entries (status `not_affected` or `fixed`).
-        // In advisory-only deployments without vendor SBOMs, these purl_status rows are the
-        // only source of vendor-rebuilt version strings. Using a deterministic UUID (v5 of
-        // base_purl_id + version) lets the rest of the pipeline treat them uniformly; status
-        // lookup matches winners by version, so it does not need to know which rows are synthetic.
-        Self::extend_with_advisory_versions(
-            base_purls.iter().map(|bp| bp.id),
-            &mut by_base,
-            connection,
-        )
-        .await?;
+        // Supplement with exact-version advisory entries and explicit VendorFix versions. In
+        // advisory-only deployments without vendor SBOMs, these rows are the only source of
+        // vendor-rebuilt versions. Deterministic IDs let the rest of the pipeline treat synthetic
+        // candidates uniformly with persisted versioned PURLs.
+        Self::extend_with_advisory_versions(&base_purl_ids, &mut candidates, connection).await?;
 
-        Ok(by_base)
+        Ok(candidates)
     }
 
-    /// Fetches exact-version `not_affected` and `fixed` purl_status entries and adds any
-    /// version strings not already present in `by_base` as synthetic versioned_purl models.
+    /// Fetches exact-status advisory versions and explicit OSV VendorFix versions, adding missing
+    /// candidates to `candidates` and associating fixed status metadata with each VendorFix
+    /// version.
+    ///
+    /// Synthesize at query time so advisory-only deployments need no vendor SBOM or persisted
+    /// vendor PURL, and ingestion stays independent of recommendation patterns.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn extend_with_advisory_versions<C: ConnectionTrait>(
-        base_purl_ids: impl IntoIterator<Item = Uuid>,
-        by_base: &mut HashMap<Uuid, Vec<versioned_purl::Model>>,
+        base_purl_ids: &[Uuid],
+        candidates: &mut AdvisoryVersionedPurls,
         connection: &C,
     ) -> Result<(), Error> {
         #[derive(FromQueryResult)]
@@ -1099,7 +1159,13 @@ impl PurlService {
             version: String,
         }
 
-        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        let AdvisoryVersionedPurls {
+            by_base,
+            vendor_fix_only_vp_ids,
+            vendor_fix_statuses_by_vp,
+        } = candidates;
+
+        let id_chunks = chunked_with(1, base_purl_ids.iter().copied());
         for chunk in id_chunks {
             let rows: Vec<AdvisoryVersion> = purl_status::Entity::find()
                 .select_only()
@@ -1131,7 +1197,250 @@ impl PurlService {
             }
         }
 
+        let id_chunks = chunked_with(1, base_purl_ids.iter().copied());
+        for chunk in id_chunks {
+            for row in Self::fetch_vendor_fix_rows(chunk, connection).await? {
+                let entry = by_base.entry(row.base_purl_id).or_default();
+                let id = if let Some(versioned_purl) =
+                    entry.iter().find(|vp| vp.version == row.fixed_version)
+                {
+                    versioned_purl.id
+                } else {
+                    let id = Uuid::new_v5(&row.base_purl_id, row.fixed_version.as_bytes());
+                    vendor_fix_only_vp_ids.insert(id);
+                    entry.push(versioned_purl::Model {
+                        id,
+                        base_purl_id: row.base_purl_id,
+                        version: row.fixed_version.clone(),
+                    });
+                    id
+                };
+
+                vendor_fix_statuses_by_vp
+                    .entry(id)
+                    .or_default()
+                    .push(StatusInfo {
+                        vuln_id: row.vulnerability_id,
+                        status_slug: "fixed".to_string(),
+                        remediations: vec![remediation::Model {
+                            id: row.remediation_id,
+                            advisory_id: row.remediation_advisory_id,
+                            vulnerability_id: row.remediation_vulnerability_id,
+                            category: remediation::RemediationCategory::VendorFix,
+                            details: row.remediation_details,
+                            url: row.remediation_url,
+                            data: row.remediation_data,
+                        }],
+                        advisory_id: Some(row.advisory_identifier),
+                        advisory_date: row.advisory_modified.or(row.advisory_published),
+                        advisory_pk: row.purl_status_advisory_id,
+                        derived: false,
+                        is_default: false,
+                        stated_id: row.purl_status_id,
+                        context_cpe_id: row.context_cpe_id,
+                        assertion_context_id: row.assertion_context_id,
+                    });
+            }
+        }
+
         Ok(())
+    }
+
+    /// Fetches the OSV fixed events of the given base PURLs in one query: non-default `affected`
+    /// statuses whose VendorFix remediation fixes the exclusive upper bound of the status range,
+    /// or is attached to an exact-version fallback status with inclusive, equal bounds.
+    ///
+    /// The filtering runs in SQL so the cost follows the number of fixed events rather than the
+    /// number of `affected` statuses, and the only bind parameters are the given base PURL IDs, so
+    /// callers can chunk them to stay within the Postgres bind parameter limit.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn fetch_vendor_fix_rows<C: ConnectionTrait>(
+        base_purl_ids: impl IntoIterator<Item = Uuid>,
+        connection: &C,
+    ) -> Result<Vec<VendorFixRow>, Error> {
+        let fixed_version =
+            Expr::col((remediation::Entity, remediation::Column::Data)).cast_json_field("fixed");
+
+        let query = purl_status::Entity::find()
+            .select_only()
+            .column_as(purl_status::Column::BasePurlId, "base_purl_id")
+            .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
+            .expr_as(fixed_version.clone(), "fixed_version")
+            .column_as(advisory::Column::Identifier, "advisory_identifier")
+            .column_as(advisory::Column::Modified, "advisory_modified")
+            .column_as(advisory::Column::Published, "advisory_published")
+            .column_as(purl_status::Column::Id, "purl_status_id")
+            .column_as(purl_status::Column::AdvisoryId, "purl_status_advisory_id")
+            .column_as(purl_status::Column::ContextCpeId, "context_cpe_id")
+            .column_as(
+                purl_status::Column::AssertionContextId,
+                "assertion_context_id",
+            )
+            .column_as(remediation::Column::Id, "remediation_id")
+            .column_as(remediation::Column::AdvisoryId, "remediation_advisory_id")
+            .column_as(
+                remediation::Column::VulnerabilityId,
+                "remediation_vulnerability_id",
+            )
+            .column_as(remediation::Column::Details, "remediation_details")
+            .column_as(remediation::Column::Url, "remediation_url")
+            .column_as(remediation::Column::Data, "remediation_data")
+            .join(InnerJoin, purl_status::Relation::Status.def())
+            .join(InnerJoin, purl_status::Relation::Advisory.def())
+            .join(InnerJoin, purl_status::Relation::VersionRange.def())
+            .join(
+                InnerJoin,
+                remediation_purl_status::Relation::PurlStatus.def().rev(),
+            )
+            .join(
+                InnerJoin,
+                remediation_purl_status::Relation::Remediation.def(),
+            )
+            .filter(purl_status::Column::BasePurlId.is_in(base_purl_ids))
+            .filter(purl_status::Column::IsDefault.eq(false))
+            .filter(status::Column::Slug.eq("affected"))
+            .filter(remediation::Column::Category.eq(remediation::RemediationCategory::VendorFix))
+            .filter(fixed_version.clone().is_not_null())
+            .filter(
+                Condition::any()
+                    .add(
+                        Condition::all()
+                            .add(version_range::Column::HighInclusive.eq(false))
+                            .add(
+                                Expr::col((
+                                    version_range::Entity,
+                                    version_range::Column::HighVersion,
+                                ))
+                                .eq(fixed_version),
+                            ),
+                    )
+                    .add(
+                        Condition::all()
+                            .add(version_range::Column::LowInclusive.eq(true))
+                            .add(version_range::Column::HighInclusive.eq(true))
+                            .add(
+                                Expr::col((
+                                    version_range::Entity,
+                                    version_range::Column::LowVersion,
+                                ))
+                                .eq(Expr::col((
+                                    version_range::Entity,
+                                    version_range::Column::HighVersion,
+                                ))),
+                            ),
+                    ),
+            )
+            .into_model::<VendorFixRow>();
+
+        let rows = query
+            .all(connection)
+            .instrument(info_span!("querying vendor-fix statuses"))
+            .await?;
+        Ok(rows)
+    }
+
+    /// Collects the candidates matching an input version across all recommend patterns, highest
+    /// version first and without duplicates.
+    fn matching_candidates<'a>(
+        patterns: &[Regex],
+        input_version: &semver::Version,
+        candidates: Option<&'a Vec<versioned_purl::Model>>,
+    ) -> Vec<&'a versioned_purl::Model> {
+        let Some(candidates) = candidates else {
+            return Vec::new();
+        };
+        let mut matching: Vec<_> = candidates
+            .iter()
+            .filter(|vp| {
+                patterns.iter().any(|pattern| {
+                    Self::find_highest_vendor_patch(pattern, input_version, once(*vp)).is_some()
+                })
+            })
+            .collect();
+        matching.sort_unstable_by(|a, b| b.version.cmp(&a.version));
+        matching
+    }
+
+    /// Picks the latest assessment per vulnerability, preserving the first status on date ties.
+    ///
+    /// Recommendations report every source stating a status (e.g. upstream "Affected" alongside a
+    /// vendor "Fixed"), but precedence needs a single verdict per vulnerability: the most recently
+    /// updated advisory wins, so a newer assessment supersedes an older one.
+    fn latest_statuses(infos: &[StatusInfo]) -> HashMap<&str, &StatusInfo> {
+        let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
+        for info in infos {
+            best_by_vuln
+                .entry(info.vuln_id.as_str())
+                .and_modify(|existing| {
+                    if info.advisory_date > existing.advisory_date {
+                        *existing = info;
+                    }
+                })
+                .or_insert(info);
+        }
+        best_by_vuln
+    }
+
+    /// Selects the candidate to recommend for an input version, given its matching candidates in
+    /// descending version order.
+    ///
+    /// The highest persisted (or exact advisory status) candidate wins. A candidate known only
+    /// from a VendorFix remediation may never have shipped, so it only outranks that candidate
+    /// when it fixes a vulnerability whose latest assessment still affects it, and when the
+    /// candidate is not itself left affected by a reintroduced range.
+    fn select_winner<'a>(
+        matching: &[&'a versioned_purl::Model],
+        vendor_fix_only_vp_ids: &HashSet<Uuid>,
+        statuses_by_vp: &HashMap<Uuid, Vec<StatusInfo>>,
+        vendor_fix_statuses_by_vp: &HashMap<Uuid, Vec<StatusInfo>>,
+    ) -> Option<&'a versioned_purl::Model> {
+        let preferred = *matching
+            .iter()
+            .find(|vp| !vendor_fix_only_vp_ids.contains(&vp.id))
+            .or_else(|| matching.first())?;
+
+        let statuses_of = |vp: &versioned_purl::Model| -> &[StatusInfo] {
+            statuses_by_vp.get(&vp.id).map(Vec::as_slice).unwrap_or(&[])
+        };
+
+        let affected_vulns: HashSet<&str> = Self::latest_statuses(statuses_of(preferred))
+            .into_values()
+            .filter(|status| status.status_slug == "affected")
+            .map(|status| status.vuln_id.as_str())
+            .collect();
+
+        for candidate in matching
+            .iter()
+            .filter(|vp| vp.version > preferred.version && vendor_fix_only_vp_ids.contains(&vp.id))
+        {
+            let fixes_affected =
+                vendor_fix_statuses_by_vp
+                    .get(&candidate.id)
+                    .is_some_and(|infos| {
+                        infos
+                            .iter()
+                            .any(|info| affected_vulns.contains(info.vuln_id.as_str()))
+                    });
+            if !fixes_affected {
+                continue;
+            }
+
+            let candidate_statuses = statuses_of(candidate);
+            let addresses = candidate_statuses.iter().any(|status| {
+                matches!(status.status_slug.as_str(), "fixed" | "not_affected")
+                    && affected_vulns.contains(status.vuln_id.as_str())
+            });
+            // A fixed event reintroduced at the same version leaves the candidate affected, so it
+            // is not a genuine fix for that vulnerability.
+            let still_affected = candidate_statuses.iter().any(|status| {
+                status.status_slug == "affected" && affected_vulns.contains(status.vuln_id.as_str())
+            });
+            if addresses && !still_affected {
+                return Some(candidate);
+            }
+        }
+
+        Some(preferred)
     }
 
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
@@ -1143,10 +1452,10 @@ impl PurlService {
     fn find_highest_vendor_patch<'a>(
         pattern: &Regex,
         input_version: &semver::Version,
-        versioned_purls: Option<&'a Vec<versioned_purl::Model>>,
+        versioned_purls: impl IntoIterator<Item = &'a versioned_purl::Model>,
     ) -> Option<&'a versioned_purl::Model> {
-        versioned_purls?
-            .iter()
+        versioned_purls
+            .into_iter()
             .filter_map(|vp| {
                 let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
                 let upstream = lenient_semver::parse(upstream_str)
@@ -1300,30 +1609,51 @@ impl PurlService {
             .filter(base_purl::Column::Id.is_in(base_purl_ids_vec))
             .all(connection)
             .await?;
-        let versioned_by_base =
-            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+        let candidates = Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
-        // Pattern-match each (base, version) to find the highest vendor patch.
-        let mut winners: Vec<ReportWinner> = Vec::new();
-
+        // Pattern-match each (base, version) to find its matching candidates, highest first.
+        let mut groups = Vec::with_capacity(version_groups.len());
         for (key, group) in &version_groups {
             let Ok(input_version) = lenient_semver::parse(&key.version) else {
                 continue;
             };
+            let matching = Self::matching_candidates(
+                &self.recommend_patterns,
+                &input_version,
+                candidates.by_base.get(&key.base_purl_id),
+            );
+            if !matching.is_empty() {
+                groups.push((key, group, matching));
+            }
+        }
 
-            let highest = self
-                .recommend_patterns
-                .iter()
-                .filter_map(|pattern| {
-                    Self::find_highest_vendor_patch(
-                        pattern,
-                        &input_version,
-                        versioned_by_base.get(&key.base_purl_id),
-                    )
-                })
-                .max_by(|a, b| a.version.cmp(&b.version));
+        // Candidate precedence needs the statuses of the advisory-only candidates too, so load
+        // them for every matching candidate in one batch.
+        let mut statuses_by_vp = Self::fetch_vulnerability_statuses(
+            groups.iter().flat_map(|(key, _, matching)| {
+                matching
+                    .iter()
+                    .map(move |vp| (key.base_purl_id, vp.version.as_str(), vp.id))
+            }),
+            connection,
+        )
+        .await?;
+        for (vp_id, vendor_fix_statuses) in &candidates.vendor_fix_statuses_by_vp {
+            statuses_by_vp
+                .entry(*vp_id)
+                .or_default()
+                .extend(vendor_fix_statuses.iter().cloned());
+        }
 
-            let Some(winner_vp) = highest else {
+        let mut winners: Vec<ReportWinner> = Vec::new();
+
+        for (key, group, matching) in groups {
+            let Some(winner_vp) = Self::select_winner(
+                &matching,
+                &candidates.vendor_fix_only_vp_ids,
+                &statuses_by_vp,
+                &candidates.vendor_fix_statuses_by_vp,
+            ) else {
                 continue;
             };
 
@@ -1348,6 +1678,7 @@ impl PurlService {
             winners.push(ReportWinner {
                 upstream_purl,
                 recommended_purl,
+                winner_vp_id: winner_vp.id,
                 component_provider: group.component_provider.clone(),
                 product_context: group.product_context.clone(),
                 found_in: group.sbom_ids.clone(),
@@ -1414,6 +1745,30 @@ impl PurlService {
                     .entry((status, advisory_id))
                     .or_default()
                     .insert(verdict.vulnerability_id);
+            }
+
+            // A candidate synthesized from a VendorFix remediation has no persisted PURL for the
+            // correlation to resolve, so its own fixed statuses are the addressability evidence.
+            if candidates
+                .vendor_fix_only_vp_ids
+                .contains(&winner.winner_vp_id)
+            {
+                for info in candidates
+                    .vendor_fix_statuses_by_vp
+                    .get(&winner.winner_vp_id)
+                    .into_iter()
+                    .flatten()
+                {
+                    let status = match info.status_slug.as_str() {
+                        "fixed" => ReportVerdictStatus::Fixed,
+                        "not_affected" => ReportVerdictStatus::NotAffected,
+                        _ => continue,
+                    };
+                    resolved_groups
+                        .entry((status, info.advisory_id.clone()))
+                        .or_default()
+                        .insert(info.vuln_id.clone());
+                }
             }
 
             if resolved_groups.is_empty() {

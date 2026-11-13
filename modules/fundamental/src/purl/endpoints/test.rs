@@ -1850,6 +1850,8 @@ async fn recommend_report_reuses_advisory_metadata_per_request(
     }
 
     // Each advisory is loaded once when first encountered in each request, not once per winner.
+    // Both loads happen once per request: the batch loading the statuses of the candidate versions,
+    // and the correlation cache loading the advisory metadata of each winner.
     assert_eq!(
         spans
             .lock()
@@ -1857,8 +1859,8 @@ async fn recommend_report_reuses_advisory_metadata_per_request(
             .iter()
             .filter(|name| **name == "loading advisories")
             .count(),
-        4,
-        "three winners sharing two advisories should require two metadata loads per request"
+        6,
+        "each request should load candidate status advisories once plus each distinct winner advisory"
     );
     Ok(())
 }
@@ -3239,6 +3241,640 @@ async fn recommend_report_excludes_unaddressed_package(
     assert_eq!(report["impact_summary"]["addressable_packages"], 0);
     assert_eq!(report["sboms"][0]["addressable_packages"], 0);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
+
+    Ok(())
+}
+
+/// Verifies that range-based and exact-version OSV fixed events synthesize recommendations and report entries.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::known_scheme(
+    "Maven",
+    "org.springframework:spring-expression",
+    "pkg:maven/org.springframework/spring-expression",
+    "pkg:maven/org.springframework/spring-expression@5.3.18",
+    "pkg:maven/org.springframework/spring-expression@5.3.18.rhlw-00010"
+)]
+#[case::exact_version_fallback(
+    "Debian",
+    "spring-expression",
+    "pkg:deb/debian/spring-expression",
+    "pkg:deb/debian/spring-expression@5.3.18",
+    "pkg:deb/debian/spring-expression@5.3.18.rhlw-00010"
+)]
+#[test_log::test(actix_web::test)]
+async fn get_recommendations_osv_fixed_event_advisory_only(
+    ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] package_name: &str,
+    #[case] base_purl: &str,
+    #[case] upstream_purl: &str,
+    #[case] fixed_purl: &str,
+) -> Result<(), anyhow::Error> {
+    const FIXED_VERSION: &str = "5.3.18.rhlw-00010";
+
+    // Given an upstream SBOM and an OSV fixed event, without a persisted vendor PURL
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "springexpr-5.3.18-base",
+            "00000000-0000-0000-0000-726300000001",
+            &[("spring-expression", "5.3.18", upstream_purl)],
+        ))
+        .await?
+        .id,
+    )?;
+
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "x_RHLW-CVE-2023-20861-5.3.18",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2023-20861"],
+        "affected": [{
+            "package": {
+                "ecosystem": ecosystem,
+                "name": package_name,
+                "purl": base_purl
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [
+                    {"introduced": "5.3.18"},
+                    {"fixed": FIXED_VERSION}
+                ]
+            }],
+            "versions": ["5.3.18", "5.3.18+build.1"]
+        }]
+    }))
+    .await?;
+
+    let persisted_vendor_purls = versioned_purl::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            versioned_purl::Relation::BasePurl.def(),
+        )
+        .filter(base_purl::Column::Name.eq("spring-expression"))
+        .filter(versioned_purl::Column::Version.eq(FIXED_VERSION));
+    assert_eq!(
+        persisted_vendor_purls.clone().count(&ctx.db).await?,
+        0,
+        "the fixed candidate must come from advisory metadata, not a persisted vendor PURL"
+    );
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting recommendations for the upstream package
+    let recommendations = recommend(&app, &[upstream_purl]).await;
+
+    // Then the fixed-event candidate and its remediation are returned
+    let entries = recommendations["recommendations"][upstream_purl]
+        .as_array()
+        .unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["package"], fixed_purl);
+    let vulnerabilities = entries[0]["vulnerabilities"].as_array().unwrap();
+    assert_eq!(vulnerabilities.len(), 1);
+    assert_eq!(vulnerabilities[0]["id"], "CVE-2023-20861");
+    assert_eq!(vulnerabilities[0]["status"], "Fixed");
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["category"],
+        "vendor_fix"
+    );
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["details"],
+        "Fixed in 5.3.18.rhlw-00010"
+    );
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["data"]["fixed"],
+        FIXED_VERSION
+    );
+
+    // And the report marks that package and vulnerability as addressed
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    assert_eq!(report["packages"].as_array().unwrap().len(), 1);
+    assert_eq!(report["packages"][0]["purl"], upstream_purl);
+    assert_eq!(report["packages"][0]["recommended_purl"], fixed_purl);
+    assert_eq!(
+        report["packages"][0]["vulnerabilities"],
+        json!(["CVE-2023-20861"])
+    );
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 1);
+    assert_eq!(
+        persisted_vendor_purls.count(&ctx.db).await?,
+        0,
+        "query-time synthesis must not persist the fixed candidate"
+    );
+
+    Ok(())
+}
+
+/// Verifies that neither range-based nor exact-version `last_affected` statuses synthesize fixed recommendations.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::known_scheme(
+    "Maven",
+    "org.example:last-affected",
+    "pkg:maven/org.example/last-affected",
+    "pkg:maven/org.example/last-affected@1.0.0"
+)]
+#[case::exact_version_fallback(
+    "Debian",
+    "last-affected",
+    "pkg:deb/debian/last-affected",
+    "pkg:deb/debian/last-affected@1.0.0"
+)]
+#[test_log::test(actix_web::test)]
+async fn get_recommendations_osv_last_affected_is_not_candidate(
+    ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] package_name: &str,
+    #[case] base_purl: &str,
+    #[case] upstream_purl: &str,
+) -> Result<(), anyhow::Error> {
+    // Given an upstream SBOM and an OSV last_affected event, with no fixed event
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "last-affected-base",
+            "00000000-0000-0000-0000-736400000002",
+            &[("last-affected", "1.0.0", upstream_purl)],
+        ))
+        .await?
+        .id,
+    )?;
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "GHSA-test-rhlw-last-affected",
+        "modified": "2025-01-01T00:00:00Z",
+        "affected": [{
+            "package": {
+                "ecosystem": ecosystem,
+                "name": package_name,
+                "purl": base_purl
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [
+                    {"introduced": "0"},
+                    {"last_affected": "1.0.0.rhlw-00001"}
+                ]
+            }],
+            "versions": ["1.0.0"]
+        }]
+    }))
+    .await?;
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting recommendations and a report for the upstream package
+    let recommendations = recommend(&app, &[upstream_purl]).await;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the last_affected boundary is not presented as fixed
+    assert_eq!(recommendations["recommendations"][upstream_purl], json!([]));
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 0);
+
+    Ok(())
+}
+
+/// Verifies that the VendorFix lookup stays within the Postgres bind parameter limit when a
+/// package has more affected statuses than the limit allows in one query.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn vendor_fix_pass_respects_bind_parameter_limit(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.example/huge@1.0.0";
+
+    // Given a package with more than 65,535 affected statuses and no vendor rebuild
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "GHSA-huge",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2099-0001"],
+        "affected": [{
+            "package": {
+                "ecosystem": "Maven",
+                "name": "org.example:huge",
+                "purl": "pkg:maven/org.example/huge"
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]
+            }]
+        }]
+    }))
+    .await?;
+
+    ctx.db
+        .execute_unprepared(
+            "INSERT INTO purl_status (id, advisory_id, vulnerability_id, status_id, base_purl_id, \
+                 qualified_purl_id, version_range_id, context_cpe_id, assertion_context_id, \
+                 is_default, source_provider) \
+             SELECT gen_random_uuid(), ps.advisory_id, ps.vulnerability_id, ps.status_id, \
+                 ps.base_purl_id, ps.qualified_purl_id, ps.version_range_id, ps.context_cpe_id, \
+                 ps.assertion_context_id, ps.is_default, ps.source_provider \
+             FROM purl_status ps JOIN base_purl bp ON bp.id = ps.base_purl_id \
+             CROSS JOIN generate_series(1, 66000) WHERE bp.name = 'huge'",
+        )
+        .await?;
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting a recommendation, recording the service's query spans
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(spans.clone()));
+    let resp = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v3/purl/recommend")
+                .set_json(json!({ "purls": [UPSTREAM_PURL] }))
+                .to_request(),
+        )
+        .with_subscriber(subscriber)
+        .await;
+
+    // Then the request succeeds with no recommendation, using the instrumented VendorFix query
+    assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    let body: Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["recommendations"][UPSTREAM_PURL], json!([]));
+    assert!(
+        spans
+            .lock()
+            .unwrap()
+            .contains(&"querying vendor-fix statuses"),
+        "the VendorFix lookup should run as its own instrumented query"
+    );
+
+    Ok(())
+}
+
+/// Verifies that an advisory-only fix does not outrank a shipped build outside its affected range.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn unshipped_fixed_event_does_not_outrank_persisted_build(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.example/ghost@5.3.18";
+    const SHIPPED_PURL: &str = "pkg:maven/org.example/ghost@5.3.18.rhlw-00010";
+
+    // Given an SBOM shipping the upstream and a vendor build, and a third-party OSV record whose
+    // fixed event names a higher vendor version that was never shipped
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "ghost-5.3.18",
+            "00000000-0000-0000-0000-282900000004",
+            &[
+                ("ghost", "5.3.18", UPSTREAM_PURL),
+                ("ghost", "5.3.18.rhlw-00010", SHIPPED_PURL),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "GHSA-ghost",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2099-0004"],
+        "affected": [{
+            "package": {
+                "ecosystem": "Maven",
+                "name": "org.example:ghost",
+                "purl": "pkg:maven/org.example/ghost"
+            },
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [{"introduced": "5.3.18.rhlw-00050"}, {"fixed": "5.3.18.rhlw-00099"}]
+            }]
+        }]
+    }))
+    .await?;
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting a recommendation and a report for the upstream package
+    let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the shipped build is recommended, without the unshipped version's fixed status
+    let entries = recommendations["recommendations"][UPSTREAM_PURL]
+        .as_array()
+        .unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["package"], SHIPPED_PURL);
+    assert_eq!(entries[0]["vulnerabilities"], json!([]));
+
+    // And the report does not count the package as addressable
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+
+    Ok(())
+}
+
+/// Verifies that a relevant advisory-only fix beats an affected persisted build, not an unrelated higher fix.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::range("Maven", "org.example:partial", "pkg:maven/org.example/partial")]
+#[case::exact_version_fallback("Debian", "partial", "pkg:deb/debian/partial")]
+#[test_log::test(actix_web::test)]
+async fn affected_persisted_build_does_not_hide_fix(
+    ctx: &TrustifyContext,
+    #[case] ecosystem: &str,
+    #[case] package_name: &str,
+    #[case] base_purl: &str,
+) -> Result<(), anyhow::Error> {
+    let upstream_purl = format!("{base_purl}@5.3.18");
+    let old_build = format!("{base_purl}@5.3.18.rhlw-00001");
+    let fixed_purl = format!("{base_purl}@5.3.18.rhlw-00010");
+    let other_stream = format!("{base_purl}@6.0.0");
+    let other_build = format!("{base_purl}@6.0.0.rhlw-00001");
+
+    // Given persisted builds in two streams, but no persisted fixed version
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "partial-5.3.18",
+            "00000000-0000-0000-0000-282900000021",
+            &[
+                ("partial", "5.3.18", &upstream_purl),
+                ("partial", "5.3.18.rhlw-00001", &old_build),
+                ("partial", "6.0.0", &other_stream),
+                ("partial", "6.0.0.rhlw-00001", &other_build),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // And a real fix plus a higher, unrelated fixed event that does not affect either shipped build
+    for (id, cve, introduced, fixed, versions) in [
+        (
+            "RHLW-partial",
+            "CVE-2099-0021",
+            "5.3.18",
+            "5.3.18.rhlw-00010",
+            vec!["5.3.18", "5.3.18.rhlw-00001"],
+        ),
+        (
+            "GHSA-unrelated",
+            "CVE-2099-0022",
+            "5.3.18.rhlw-00050",
+            "5.3.18.rhlw-00099",
+            vec!["5.3.18+build.50"],
+        ),
+    ] {
+        ctx.ingest_json(json!({
+            "schema_version": "1.7.3",
+            "id": id,
+            "modified": "2025-01-01T00:00:00Z",
+            "aliases": [cve],
+            "affected": [{
+                "package": {"ecosystem": ecosystem, "name": package_name, "purl": base_purl},
+                "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": introduced}, {"fixed": fixed}]}],
+                "versions": versions
+            }]
+        }))
+        .await?;
+    }
+
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When recommending both streams, the first gets its relevant fix and the second stays isolated
+    let recommendations = recommend(&app, &[&upstream_purl, &other_stream]).await;
+    let entry = &recommendations["recommendations"][&upstream_purl][0];
+    assert_eq!(entry["package"], fixed_purl);
+    let vulnerabilities = entry["vulnerabilities"].as_array().unwrap();
+    assert_eq!(vulnerabilities.len(), 1);
+    assert_eq!(vulnerabilities[0]["id"], "CVE-2099-0021");
+    assert_eq!(vulnerabilities[0]["status"], "Fixed");
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["category"],
+        "vendor_fix"
+    );
+    assert_eq!(
+        vulnerabilities[0]["remediations"][0]["data"]["fixed"],
+        "5.3.18.rhlw-00010"
+    );
+    assert_eq!(
+        recommendations["recommendations"][&other_stream][0]["package"],
+        other_build
+    );
+    assert_eq!(
+        recommendations["recommendations"][&other_stream][0]["vulnerabilities"],
+        json!([])
+    );
+
+    // And the report addresses that CVE for the upstream and the old affected build
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 2);
+    for package in packages {
+        assert!(
+            [upstream_purl.as_str(), old_build.as_str()]
+                .contains(&package["purl"].as_str().unwrap())
+        );
+        assert_eq!(package["recommended_purl"], fixed_purl);
+        assert_eq!(package["vulnerabilities"], json!(["CVE-2099-0021"]));
+        assert_eq!(package["advisory_id"], "RHLW-partial");
+        assert_eq!(package["found_in"], json!([sbom_id]));
+    }
+    assert_eq!(report["impact_summary"]["addressable_packages"], 2);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    assert_eq!(
+        versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::Version.eq("5.3.18.rhlw-00010"))
+            .count(&ctx.db)
+            .await?,
+        0
+    );
+
+    Ok(())
+}
+
+/// Verifies that a newer non-affected assessment of a shipped build prevents advisory-only promotion.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::fixed("fixed", "Fixed")]
+#[case::not_affected("known_not_affected", "NotAffected")]
+#[case::under_investigation("under_investigation", "UnderInvestigation")]
+#[test_log::test(actix_web::test)]
+async fn newer_persisted_assessment_prevents_vendor_fix_promotion(
+    ctx: &TrustifyContext,
+    #[case] csaf_status: &str,
+    #[case] expected_status: &str,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.example/partial@5.3.18";
+    const SHIPPED_PURL: &str = "pkg:maven/org.example/partial@5.3.18.rhlw-00001";
+
+    // Given an old affected assessment with an advisory-only fix
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "partial-assessed",
+            "00000000-0000-0000-0000-282900000023",
+            &[
+                ("partial", "5.3.18", UPSTREAM_PURL),
+                ("partial", "5.3.18.rhlw-00001", SHIPPED_PURL),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "RHLW-partial",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2099-0021"],
+        "affected": [{
+            "package": {"ecosystem": "Maven", "name": "org.example:partial", "purl": "pkg:maven/org.example/partial"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "5.3.18"}, {"fixed": "5.3.18.rhlw-00010"}]}]
+        }]
+    })).await?;
+
+    // And a newer assessment of the shipped build superseding that affected status
+    let mut assessment = minimal_csaf_vex(
+        "TEST-PARTIAL-ASSESSMENT",
+        "Partial Product",
+        &[("partial-5.3.18.rhlw-00001", SHIPPED_PURL)],
+        &[("CVE-2099-0021", csaf_status, &[0])],
+    );
+    assessment["document"]["tracking"]["current_release_date"] = json!("2026-01-01T00:00:00+00:00");
+    ctx.ingest_json(assessment).await?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When recommending, only the latest assessment should influence candidate precedence
+    let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
+    let entry = &recommendations["recommendations"][UPSTREAM_PURL][0];
+    assert_eq!(entry["package"], SHIPPED_PURL);
+    // Recommendations report every source stating a status, so the older affected assessment and
+    // the newer one coexist; the newer assessment is the one the test asserts on.
+    let vulnerabilities = entry["vulnerabilities"].as_array().unwrap();
+    let assessment = vulnerabilities
+        .iter()
+        .find(|vulnerability| {
+            vulnerability["advisory_id"]
+                .as_str()
+                .is_some_and(|id| id.ends_with("#TEST-PARTIAL-ASSESSMENT"))
+        })
+        .expect("newer assessment should be reported");
+    assert_eq!(assessment["id"], "CVE-2099-0021");
+    assert_eq!(assessment["status"], expected_status);
+    // The report resolves addressability through the correlation engine, which does not treat
+    // conflicting sources as resolved: the older advisory still marks the shipped build affected,
+    // so no package is reported as addressed even though the newer assessment says otherwise.
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+
+    Ok(())
+}
+
+/// Verifies that a fixed event reintroduced at the same version cannot displace a shipped build.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn reintroduced_vendor_fix_does_not_replace_persisted_build(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    const UPSTREAM_PURL: &str = "pkg:maven/org.example/regress@5.3.18";
+    const SHIPPED_PURL: &str = "pkg:maven/org.example/regress@5.3.18.rhlw-00001";
+
+    // Given a shipped affected build and a fixed event immediately reintroducing the same CVE
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "regress-5.3.18",
+            "00000000-0000-0000-0000-282900000024",
+            &[
+                ("regress", "5.3.18", UPSTREAM_PURL),
+                ("regress", "5.3.18.rhlw-00001", SHIPPED_PURL),
+            ],
+        ))
+        .await?
+        .id,
+    )?;
+    ctx.ingest_json(json!({
+        "schema_version": "1.7.3",
+        "id": "RHLW-regress",
+        "modified": "2025-01-01T00:00:00Z",
+        "aliases": ["CVE-2099-0024"],
+        "affected": [{
+            "package": {"ecosystem": "Maven", "name": "org.example:regress", "purl": "pkg:maven/org.example/regress"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [
+                {"introduced": "5.3.18"},
+                {"fixed": "5.3.18.rhlw-00010"},
+                {"introduced": "5.3.18.rhlw-00010"}
+            ]}]
+        }]
+    }))
+    .await?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)\.rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When recommending, the still-affected synthetic version is not a genuine fix
+    let recommendations = recommend(&app, &[UPSTREAM_PURL]).await;
+    let entry = &recommendations["recommendations"][UPSTREAM_PURL][0];
+    assert_eq!(entry["package"], SHIPPED_PURL);
+    assert_eq!(entry["vulnerabilities"][0]["id"], "CVE-2099-0024");
+    assert_eq!(entry["vulnerabilities"][0]["status"], "Affected");
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    assert_eq!(report["packages"], json!([]));
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
 
     Ok(())
 }
