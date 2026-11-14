@@ -103,6 +103,16 @@ We welcome contributions! To get started:
 See [CONVENTIONS.md](CONVENTIONS.md) for coding standards and
 [docs/](docs/) for architecture decisions, OIDC setup, and deployment guides.
 
+## Tools
+
+Standalone utilities that run against a Trustify server. They live outside the
+workspace and are built on their own.
+
+| Tool | Description |
+|------|-------------|
+| [tools/perf](tools/perf) | Locust load-test suite and report comparison |
+| [tools/sbom-group-report](tools/sbom-group-report) | HTML or CSV vulnerability report for an SBOM group and its nested groups |
+
 ## Ecosystem
 
 | Repository | Description |
