@@ -316,6 +316,7 @@ jobs:
         uses: anchore/scan-action@v7
         id: scan-trustd
         with:
+          grype-version: v0.117.0
           image: docker-archive:trustd.tar
           fail-build: false
           severity-cutoff: high
@@ -334,6 +335,7 @@ jobs:
         uses: anchore/scan-action@v7
         id: scan-xtask
         with:
+          grype-version: v0.117.0
           image: docker-archive:xtask.tar
           fail-build: false
           severity-cutoff: high
