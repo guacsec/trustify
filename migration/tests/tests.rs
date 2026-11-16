@@ -36,6 +36,47 @@ async fn since(
     Ok(u32::try_from(names.len() - position)?)
 }
 
+/// The concurrent CPE index is valid, covers the ID, rolls back, and tolerates a manual index.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn cpe_vendor_product_version_index_migration(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use sea_orm::ConnectionTrait;
+    use trustify_common::db::sql;
+
+    let index_definition = async || -> anyhow::Result<Option<String>> {
+        Ok(ctx
+            .db
+            .query_one_raw(sql(
+                "SELECT pg_get_indexdef(indexrelid) AS indexdef FROM pg_index \
+                 WHERE indexrelid = to_regclass('public.cpe_vendor_product_version_idx') \
+                 AND indisvalid AND indisready",
+                [],
+            ))
+            .await?
+            .map(|row| row.try_get::<String>("", "indexdef"))
+            .transpose()?)
+    };
+    let definition = "CREATE INDEX cpe_vendor_product_version_idx ON public.cpe \
+                      USING btree (vendor, product, version) INCLUDE (id)";
+    assert_eq!(index_definition().await?.as_deref(), Some(definition));
+
+    let migrator = without_backfill(ctx);
+    let steps = since(
+        &migrator,
+        &ctx.db,
+        "m0002730_cpe_vendor_product_version_index",
+    )
+    .await?;
+    migrator.down(&ctx.db, Some(steps)).await?;
+    assert_eq!(index_definition().await?, None);
+
+    // An operator may already have installed the index to mitigate a slow query.
+    ctx.db.execute_unprepared(definition).await?;
+    migrator.up(&ctx.db, Some(steps)).await?;
+    assert_eq!(index_definition().await?.as_deref(), Some(definition));
+    Ok(())
+}
+
 /// Queue installation leaves existing advisories to the extraction of the SBOMs, which sees all of
 /// them, and reinstalls verdict work metadata.
 #[test_context(TrustifyContext)]
