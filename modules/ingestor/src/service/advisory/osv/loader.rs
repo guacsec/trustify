@@ -24,11 +24,19 @@ use crate::{
     },
 };
 use osv::schema::{Ecosystem, Event, Package, Range, RangeType, ReferenceType, Vulnerability};
-use sea_orm::{ConnectionTrait, TransactionTrait};
-use std::{collections::HashSet, fmt::Debug, str::FromStr};
+use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait, TransactionTrait};
+use std::{
+    collections::{BTreeSet, HashSet},
+    fmt::Debug,
+    str::FromStr,
+};
 use tracing::instrument;
-use trustify_common::{hashing::Digests, purl::Purl, time::ChronoExt};
-use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
+use trustify_common::{
+    db::chunk::EntityChunkedIter, hashing::Digests, purl::Purl, time::ChronoExt,
+};
+use trustify_entity::{
+    advisory_vulnerability_upstream, labels::Labels, version_scheme::VersionScheme,
+};
 
 pub struct OsvLoader<'g> {
     graph: &'g Graph,
@@ -116,6 +124,26 @@ impl<'g> OsvLoader<'g> {
             })
             .collect::<Vec<_>>();
 
+        // the upstream vulnerabilities the record refers to (e.g. the CVEs of a distribution's
+        // record): different vulnerabilities, not aliases, so its statements stay under its IDs
+        let upstream = osv
+            .upstream
+            .iter()
+            .flatten()
+            .filter(|id| !cve_ids.contains(&id.as_str()))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut upstream_models = Vec::new();
+        for id in &cve_ids {
+            for upstream_id in &upstream {
+                upstream_models.push(advisory_vulnerability_upstream::ActiveModel {
+                    advisory_id: Set(advisory.advisory.id),
+                    vulnerability_id: Set(id.to_string()),
+                    upstream_id: Set(upstream_id.clone()),
+                });
+            }
+        }
+
         for cve_id in cve_ids {
             self.graph.ingest_vulnerability(cve_id, (), tx).await?;
 
@@ -188,6 +216,13 @@ impl<'g> OsvLoader<'g> {
         purl::batch_create_base_purls(base_purls, tx).await?;
 
         purl_status_creator.create(tx).await?;
+
+        for batch in upstream_models.into_iter().chunked() {
+            advisory_vulnerability_upstream::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(tx)
+                .await?;
+        }
 
         Ok(IngestResult {
             id: advisory.advisory.id.to_string(),
@@ -1091,6 +1126,85 @@ mod test {
                 && r.high_version.as_deref() == Some("1.11.1")
                 && r.high_inclusive == Some(false)
         }));
+
+        Ok(())
+    }
+
+    /// A distribution's record refers to the upstream CVEs, which aren't aliases: its statements
+    /// stay under its own ID. Ported from main, where `DSA-5790-1` carries the links; on 0.7 an
+    /// ordinary record without a CVE alias stores no `advisory_vulnerability` link, so a
+    /// Lightwell record (keyed on its record ID) stands in.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn upstream(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::QueryOrder;
+        use std::collections::BTreeSet;
+        use trustify_entity::advisory_vulnerability_upstream;
+        use uuid::Uuid;
+
+        // Given a Lightwell record whose `upstream` also lists its own record ID, which is a
+        // vulnerability ID here and must not be stored as an upstream link
+        let (mut osv, digests): (Vulnerability, _) =
+            document("osv/RHLW-2026-02416b185203289c.json").await?;
+        osv.upstream
+            .get_or_insert_with(Vec::new)
+            .push(osv.id.clone());
+
+        let graph = Graph::new();
+        let loader = OsvLoader::new(&graph);
+        let result = ctx
+            .db
+            .transaction(async |tx| {
+                loader
+                    .load(
+                        ("file", "RHLW-2026-02416b185203289c.json"),
+                        osv,
+                        &digests,
+                        None,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+        let advisory_id = Uuid::parse_str(&result.id)?;
+
+        // Then one link per (record ID, upstream ID) is stored, without the record ID itself
+        let upstream = advisory_vulnerability_upstream::Entity::find()
+            .filter(advisory_vulnerability_upstream::Column::AdvisoryId.eq(advisory_id))
+            .order_by_asc(advisory_vulnerability_upstream::Column::UpstreamId)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|link| (link.vulnerability_id, link.upstream_id))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            upstream,
+            vec![
+                (
+                    "RHLW-2026-02416b185203289c".to_string(),
+                    "CVE-2026-42579".to_string(),
+                ),
+                (
+                    "RHLW-2026-02416b185203289c".to_string(),
+                    "GHSA-cm33-6792-r9fm".to_string(),
+                ),
+            ]
+        );
+
+        // And the statements stay under the record ID
+        let vulnerabilities = purl_status::Entity::find()
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|statement| statement.vulnerability_id)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            vulnerabilities,
+            ["RHLW-2026-02416b185203289c".to_string()]
+                .into_iter()
+                .collect()
+        );
 
         Ok(())
     }
