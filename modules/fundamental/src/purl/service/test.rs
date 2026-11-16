@@ -519,6 +519,7 @@ fn assemble_recommend_entry_merges_remediations() {
             status_slug: "fixed".into(),
             remediations,
             advisory_id: Some("TEST-STREAMS".into()),
+            upstream: Vec::new(),
             source_id: Uuid::nil(),
             status_id: Uuid::nil(),
             advisory_pk: Uuid::nil(),
