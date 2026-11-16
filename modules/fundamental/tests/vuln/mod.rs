@@ -3,14 +3,21 @@
 #![allow(deprecated)]
 
 use itertools::Itertools;
-use serde_json::json;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_query::Expr;
+use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::id::Id;
+use trustify_entity::{
+    correlation_option::{self, CorrelationOptionKey},
+    purl_status, status,
+};
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
 use trustify_module_ingestor::service::Format;
-use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
+use trustify_test_context::{Dataset, TrustifyContext, document_bytes, subset::ContainsSubset};
+use uuid::Uuid;
 
 /// Reverse of the SBOM-page CPE match: a vulnerability's details must backlink
 /// the SBOMs that match it via a package CPE (not just via PURL / product_status).
@@ -94,6 +101,122 @@ async fn vuln_backlink_cpe_context_mismatch(ctx: &TrustifyContext) -> Result<(),
     .await?;
 
     assert!(sboms.is_empty(), "unexpected related SBOMs: {sboms:?}");
+    Ok(())
+}
+
+/// Match effective ranges before SBOM expansion without losing implied statuses or CPE isolation.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_backlink_effective_statuses(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let mut advisory: Value = serde_json::from_slice(
+        &document_bytes("csaf/issues/cpe_context_backlink/advisory-match.json").await?,
+    )?;
+    // Red Hat enables fixed_is_first_fixed by default; this exact fix implies affected below it.
+    advisory["document"]["publisher"]["namespace"] = json!("https://www.redhat.com");
+    advisory["vulnerabilities"][0]["product_status"] =
+        json!({"fixed": ["widgetos-9:libwidget-1.0"]});
+    ctx.ingest_json(advisory).await?;
+
+    for (name, version, cpe) in [
+        ("below", "0.9", Some("cpe:/a:acme:widgetos:9.2")),
+        ("fixed", "1.0", Some("cpe:/a:acme:widgetos:9.2")),
+        ("above", "1.1", Some("cpe:/a:acme:widgetos:9.2")),
+        ("other-stream", "0.9", Some("cpe:/a:acme:widgetos:8.1")),
+        ("no-cpe", "0.9", None),
+    ] {
+        let mut sbom: Value = serde_json::from_slice(
+            &document_bytes("cyclonedx/issues/cpe_context_backlink/sbom.json").await?,
+        )?;
+        sbom["serialNumber"] = json!(format!("urn:uuid:{}", Uuid::new_v4()));
+        sbom["metadata"]["component"]["name"] = json!(name);
+        sbom["metadata"]["component"]
+            .as_object_mut()
+            .expect("component is an object")
+            .remove("cpe");
+        if let Some(cpe) = cpe {
+            sbom["metadata"]["component"]["cpe"] = json!(cpe);
+        }
+        sbom["components"][0]["version"] = json!(version);
+        sbom["components"][0]["purl"] = json!(format!("pkg:rpm/acme/libwidget@{version}"));
+        ctx.ingest_json(sbom).await?;
+    }
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+    let backlinks = async || -> anyhow::Result<Vec<(String, String, String)>> {
+        let details = service
+            .fetch_vulnerability("CVE-2024-99999", Default::default(), false, &ctx.db)
+            .await?
+            .expect("vulnerability must exist");
+        let mut result = Vec::new();
+        for advisory in details.advisories {
+            for sbom in advisory.sboms {
+                for (status, purls) in sbom.purl_statuses {
+                    for purl in purls {
+                        result.push((
+                            sbom.head.name.clone(),
+                            status.clone(),
+                            purl.head.purl.to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+        result.sort();
+        Ok(result)
+    };
+    let fixed = (
+        "fixed".to_string(),
+        "fixed".to_string(),
+        "pkg:rpm/acme/libwidget@1.0".to_string(),
+    );
+    assert_eq!(
+        backlinks().await?,
+        vec![
+            (
+                "below".to_string(),
+                "affected".to_string(),
+                "pkg:rpm/acme/libwidget@0.9".to_string(),
+            ),
+            fixed.clone(),
+            (
+                "no-cpe".to_string(),
+                "affected".to_string(),
+                "pkg:rpm/acme/libwidget@0.9".to_string(),
+            ),
+        ]
+    );
+
+    // Disabling the option must remove only the implied affected backlinks, immediately.
+    correlation_option::Entity::delete_many()
+        .filter(correlation_option::Column::Key.eq(CorrelationOptionKey::FixedIsFirstFixed))
+        .exec(&ctx.db)
+        .await?;
+    assert_eq!(backlinks().await?, vec![fixed]);
+
+    // Default assertions must never produce legacy backlinks, even for an exact match.
+    purl_status::Entity::update_many()
+        .col_expr(purl_status::Column::IsDefault, Expr::value(true))
+        .filter(purl_status::Column::VulnerabilityId.eq("CVE-2024-99999"))
+        .exec(&ctx.db)
+        .await?;
+    assert!(backlinks().await?.is_empty());
+
+    // An explicit not_affected assertion is also excluded from backlinks.
+    let not_affected = status::Entity::find()
+        .filter(status::Column::Slug.eq("not_affected"))
+        .one(&ctx.db)
+        .await?
+        .expect("not_affected status must exist");
+    purl_status::Entity::update_many()
+        .set(purl_status::ActiveModel {
+            is_default: Set(false),
+            status_id: Set(not_affected.id),
+            ..Default::default()
+        })
+        .filter(purl_status::Column::VulnerabilityId.eq("CVE-2024-99999"))
+        .exec(&ctx.db)
+        .await?;
+    assert!(backlinks().await?.is_empty());
     Ok(())
 }
 
