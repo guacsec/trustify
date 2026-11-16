@@ -40,7 +40,9 @@ Other `affected` entries of the same record are still processed.
 Vulnerabilities and package statuses are keyed on the `CVE-` entries of `aliases`.
 Lightwell records list their CVEs in `upstream` and have no `aliases`, so, as on
 `main`, a Lightwell record without a CVE alias is keyed on its own record ID
-(`RHLW-…`). Its `upstream` CVEs are not used: statuses stored under a CVE are shared
+(`RHLW-…`). Its `upstream` CVEs are stored as links
+(`advisory_vulnerability_upstream`, one row per vulnerability ID and upstream ID)
+but still not used for statuses: statuses stored under a CVE are shared
 with every other advisory for that CVE and package, and recommendations do not
 isolate vendors, so a Lightwell range would override other vendors' assessments of
 non-Lightwell builds. Ordinary records without a CVE alias store no statuses.
