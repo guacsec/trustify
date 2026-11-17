@@ -201,10 +201,12 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 
 ## Dependency Updates
 
-On release branches, batch dependency updates before cutting a release rather than updating
-dependencies ad hoc for individual CVEs or crates. Run `cargo update` to update all
-dependencies within their declared semver requirements; avoid targeted single-crate bumps.
-Batching keeps lockfile churn to one commit per update cycle.
+On release branches, batch dependency updates before cutting a release. Run a full `cargo update`
+to update all available semver-compatible dependencies; one batch may cover multiple outstanding
+security fixes. If a full batch does not select a required security fix, first make any constraint
+adjustment scoped to that task and retry the full batch. A package-targeted Cargo update is
+permitted only as a last resort when the full batch and any task-scoped constraint adjustment still
+cannot select the required fix; record the rationale for the targeted update.
 
 After updating, verify the lockfile and the full project checks:
 
