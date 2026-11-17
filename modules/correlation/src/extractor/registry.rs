@@ -1,5 +1,6 @@
 use super::{
     Assertion, Extractor, MatchPart, MatchSink, NodeIdentifier, NodeMatch, NodeRef,
+    SourceAssertionRef,
     class::{classify, members},
     context::{self, NodeCpe, Scope, Scoper},
     cpe::CpeExtractor,
@@ -395,7 +396,9 @@ impl Extractors {
             tx,
         )
         .await?;
-        let mut result = Vec::<(usize, Assertion)>::new();
+        let mut groups = (0..count)
+            .map(|_| Vec::<(Assertion, BTreeSet<SourceAssertionRef>)>::new())
+            .collect::<Vec<_>>();
         for (index, mut assertion) in assertions {
             if let Some(node) = node {
                 let scope = context::scope(
@@ -415,24 +418,30 @@ impl Extractors {
             }
             assertion.context_id = None;
             let sources = std::mem::take(&mut assertion.source_assertions);
-            if let Some((_, existing)) = result.iter_mut().find(|(existing_index, existing)| {
-                let mut value = (*existing).clone();
-                value.source_assertions.clear();
-                *existing_index == index && value == assertion
-            }) {
-                existing.source_assertions.extend(sources);
-            } else {
-                assertion.source_assertions = sources;
-                result.push((index, assertion));
+            let Some(group) = groups.get_mut(index) else {
+                continue;
+            };
+            // Only one candidate's assertions can merge. Keep sources aside to compare without cloning.
+            match group
+                .iter_mut()
+                .find(|(existing, _)| *existing == assertion)
+            {
+                Some((_, existing)) => existing.extend(sources),
+                None => group.push((assertion, sources)),
             }
         }
-        let mut groups = vec![Vec::new(); count];
-        for (index, assertion) in result {
-            if let Some(group) = groups.get_mut(index) {
-                group.push(assertion);
-            }
-        }
-        Ok(groups)
+        Ok(groups
+            .into_iter()
+            .map(|group| {
+                group
+                    .into_iter()
+                    .map(|(mut assertion, sources)| {
+                        assertion.source_assertions = sources;
+                        assertion
+                    })
+                    .collect()
+            })
+            .collect())
     }
 }
 
@@ -676,8 +685,10 @@ mod test {
     use super::*;
     use crate::model::{IdentifierKind, MatchedRange, MatchedValue};
     use sea_orm::{FromQueryResult, TransactionTrait};
+    use std::time::{Duration, Instant};
     use test_context::test_context;
     use trustify_common::db::sql;
+    use trustify_entity::correlation_evidence::AssertionStatus;
     use trustify_test_context::TrustifyContext;
 
     fn identifier(node: &str, value: &str) -> NodeIdentifier {
@@ -691,6 +702,82 @@ mod test {
                 value: value.into(),
             },
         }
+    }
+
+    fn scoped_assertion(source: u128) -> Assertion {
+        Assertion {
+            extractor: "purl",
+            advisory_id: Uuid::nil(),
+            vulnerability_id: "CVE-2099-2829".into(),
+            status: AssertionStatus::Fixed,
+            confidence: 1.0,
+            factors: Vec::new(),
+            matched_value: MatchedValue::new("pkg:generic/candidate@1.0.0"),
+            context_id: None,
+            requires_context: false,
+            version_range_id: None,
+            source_assertions: BTreeSet::from([SourceAssertionRef::Purl(Uuid::from_u128(source))]),
+        }
+    }
+
+    /// Equal assertions merge their sources within one candidate, never across candidates.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn scoped_candidates_preserve_sources_and_isolation(
+        ctx: &TrustifyContext,
+    ) -> anyhow::Result<()> {
+        let tx = ctx.db.begin().await?;
+        let mut merged = scoped_assertion(1);
+        merged
+            .source_assertions
+            .extend(scoped_assertion(2).source_assertions);
+        let groups = Extractors::scope_candidates(
+            vec![
+                vec![
+                    scoped_assertion(1),
+                    scoped_assertion(2),
+                    scoped_assertion(1),
+                ],
+                vec![scoped_assertion(3)],
+                Vec::new(),
+            ],
+            Some(&[]),
+            &tx,
+        )
+        .await?;
+        assert_eq!(
+            groups,
+            vec![vec![merged], vec![scoped_assertion(3)], vec![]]
+        );
+        Ok(())
+    }
+
+    /// Bounds cross-candidate deduplication work; kept out of CI because it measures elapsed time.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    #[ignore = "timing-sensitive scaling check; run explicitly"]
+    async fn scoped_candidates_scale_across_candidates(
+        ctx: &TrustifyContext,
+    ) -> anyhow::Result<()> {
+        let tx = ctx.db.begin().await?;
+        let candidates = (0..8_000)
+            .map(|_| vec![scoped_assertion(1), scoped_assertion(2)])
+            .collect();
+        let start = Instant::now();
+        let groups = Extractors::scope_candidates(candidates, Some(&[]), &tx).await?;
+        let elapsed = start.elapsed();
+        assert_eq!(groups.len(), 8_000);
+        assert!(
+            groups
+                .iter()
+                .all(|group| group.len() == 1 && group[0].source_assertions.len() == 2)
+        );
+        eprintln!("Scoped 16,000 assertions across 8,000 candidates in {elapsed:?}");
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "cross-candidate deduplication took {elapsed:?}"
+        );
+        Ok(())
     }
 
     /// A node's identifiers stay together, and nodes are ordered by their identifiers.

@@ -28,6 +28,11 @@ pub enum Error {
     Query(#[from] query::Error),
     #[error(transparent)]
     Ingestor(#[from] trustify_module_ingestor::service::Error),
+    #[error("correlation query failed: {source}")]
+    Correlation {
+        #[from]
+        source: trustify_module_correlation::error::Error,
+    },
     #[error(transparent)]
     Purl(#[from] PurlErr),
     #[error(transparent)]
@@ -173,9 +178,29 @@ impl ResponseError for Error {
             // They are logged and a generic error response is returned to avoid leaking
             // internal state to end users.
             err => {
-                log::warn!("{err}");
+                tracing::warn!("{err}");
                 HttpResponse::InternalServerError().json(ErrorInformation::new("Internal", ""))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Error;
+    use std::error::Error as StdError;
+    use trustify_module_correlation::error::Error as CorrelationError;
+
+    #[test]
+    fn correlation_error_keeps_typed_source() {
+        let error = Error::from(CorrelationError::BadRequest(
+            "invalid candidate context".into(),
+        ));
+        assert!(matches!(
+            &error,
+            Error::Correlation { source: CorrelationError::BadRequest(message) }
+                if message == "invalid candidate context"
+        ));
+        assert!(error.source().unwrap().is::<CorrelationError>());
     }
 }
