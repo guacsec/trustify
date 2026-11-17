@@ -2075,6 +2075,34 @@ async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<()
     Ok(())
 }
 
+/// Vendor matching rejects other upstream versions, missing captures, and malformed versions.
+#[test]
+fn vendor_patch_matches_only_the_requested_upstream_version() {
+    let pattern = Regex::new(r"^(.+)\.redhat-[0-9]+$").unwrap();
+    let upstream = lenient_semver::parse("4.3.4").unwrap();
+    for (vendor, expected) in [
+        ("4.3.4.redhat-00008", true),
+        ("4.3.4.Final.redhat-00002", true),
+        ("4.3.5.redhat-00008", false),
+        ("4.4.4.redhat-00008", false),
+        ("5.3.4.redhat-00008", false),
+        ("invalid.redhat-00008", false),
+        ("4.3.4", false),
+    ] {
+        assert_eq!(
+            PurlService::matches_vendor_patch(&pattern, &upstream, vendor),
+            expected,
+            "{vendor}"
+        );
+    }
+    let no_capture = Regex::new(r"4\.3\.4\.redhat-[0-9]+$").unwrap();
+    assert!(!PurlService::matches_vendor_patch(
+        &no_capture,
+        &upstream,
+        "4.3.4.redhat-00008"
+    ));
+}
+
 /// Verifies that the redhat pattern's capture group extracts the upstream base version.
 #[test]
 fn test_pattern_extracts_upstream_version() {

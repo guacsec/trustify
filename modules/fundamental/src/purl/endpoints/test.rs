@@ -2,6 +2,7 @@ use crate::{
     Config,
     purl::{
         model::{
+            VexStatus,
             details::base_purl::BasePurlDetails,
             summary::{base_purl::BasePurlSummary, purl::PurlSummary},
         },
@@ -52,7 +53,7 @@ use trustify_test_context::{TrustifyContext, call::CallService, subset::Contains
 use urlencoding::encode;
 use uuid::Uuid;
 
-/// Captures span names so recommendation tests can assert which query paths ran.
+/// Captures span and diagnostic names so recommendation tests can check query paths and warnings.
 #[derive(Clone)]
 struct SpanNameRecorder(Arc<Mutex<Vec<&'static str>>>);
 
@@ -64,6 +65,10 @@ impl<S: tracing::Subscriber> Layer<S> for SpanNameRecorder {
         _ctx: Context<'_, S>,
     ) {
         self.0.lock().unwrap().push(attrs.metadata().name());
+    }
+
+    fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+        self.0.lock().unwrap().push(event.metadata().name());
     }
 }
 
@@ -2470,6 +2475,47 @@ async fn ingest_synthetic_report_fix(ctx: &TrustifyContext) -> anyhow::Result<Uu
     })).await?.id)?)
 }
 
+/// Invalid provider metadata retains a conservative fixing assessment and emits a diagnostic.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn malformed_vendor_fix_provider_is_reported_conservatively(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let advisory_id = ingest_synthetic_report_fix(ctx).await?;
+    purl_status::Entity::update_many()
+        .col_expr(
+            purl_status::Column::SourceProvider,
+            Expr::value(json!({"identifiers": 42})),
+        )
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .exec(&ctx.db)
+        .await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let subscriber = tracing_subscriber::registry().with(SpanNameRecorder(events.clone()));
+    let result = recommend(&app, &["pkg:maven/com.example/crosslib@1.0.0"])
+        .with_subscriber(subscriber)
+        .await;
+    let entry = &result["recommendations"]["pkg:maven/com.example/crosslib@1.0.0"][0];
+    assert_eq!(
+        entry["package"],
+        "pkg:maven/com.example/crosslib@1.0.0.redhat-00001"
+    );
+    assert_eq!(entry["vulnerabilities"][0]["id"], "CVE-2099-7573");
+    assert_eq!(entry["vulnerabilities"][0]["status"], "Fixed");
+    assert_eq!(
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|name| **name == "invalid vendor-fix source provider")
+            .count(),
+        1,
+        "invalid provider metadata must not be silently discarded"
+    );
+    Ok(())
+}
+
 /// Verifies promotion batches matching and advisory eligibility for multiple/repeated inputs.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -4322,14 +4368,14 @@ async fn affected_persisted_build_does_not_hide_fix(
 /// Verifies authority, rather than independent-source dates, controls promotion of a shipped build.
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::fixed("fixed", "Fixed")]
-#[case::not_affected("known_not_affected", "NotAffected")]
-#[case::under_investigation("under_investigation", "UnderInvestigation")]
+#[case::fixed("fixed", VexStatus::Fixed)]
+#[case::not_affected("known_not_affected", VexStatus::NotAffected)]
+#[case::under_investigation("under_investigation", VexStatus::UnderInvestigation)]
 #[test_log::test(actix_web::test)]
 async fn authoritative_persisted_assessment_prevents_vendor_fix_promotion(
     ctx: &TrustifyContext,
     #[case] csaf_status: &str,
-    #[case] expected_status: &str,
+    #[case] expected_status: VexStatus,
     #[values("2024-01-15T00:00:00+00:00", "2026-01-01T00:00:00+00:00")] assessment_date: &str,
 ) -> Result<(), anyhow::Error> {
     const UPSTREAM_PURL: &str = "pkg:maven/org.example/partial@5.3.18";
@@ -4407,10 +4453,10 @@ async fn authoritative_persisted_assessment_prevents_vendor_fix_promotion(
         })
         .expect("authoritative assessment should be reported");
     assert_eq!(assessment["id"], "CVE-2099-0021");
-    assert_eq!(assessment["status"], expected_status);
+    assert_eq!(assessment["status"], json!(expected_status));
     // Report addressability follows the authoritative selected verdict, not the conflict flag.
     let report = recommend_report_req(&app, &[sbom_id]).await;
-    if expected_status == "UnderInvestigation" {
+    if expected_status == VexStatus::UnderInvestigation {
         assert_eq!(report["packages"], json!([]));
         assert_eq!(report["impact_summary"]["addressable_packages"], 0);
     } else {

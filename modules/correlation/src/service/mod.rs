@@ -92,6 +92,7 @@ impl ReportQueryCache {
 /// Request-local raw candidate matches and source metadata, reusable across independent contexts.
 ///
 /// No scoped match or verdict is retained here; each resolution reapplies its own product context.
+/// Advisory eligibility and source metadata are a snapshot for one request, not a cross-request cache.
 pub struct PreparedPurlCandidates {
     assertions: HashMap<Purl, Vec<Assertion>>,
     metadata: QueryMetadata,
@@ -493,6 +494,13 @@ impl CorrelationService {
     /// Matching is batched; only advisory/provider metadata is cached, never scoped matches or
     /// verdicts. Additional assertions must already identify the exact candidate they apply to.
     /// They retain their source/context and participate in the same resolution as stored evidence.
+    ///
+    /// Returns one result per input candidate in input order, including repeated PURLs. Assertions
+    /// supplied for repeated PURLs are combined before matching. `request` may set provider and
+    /// vulnerability filters, but node selection and ad-hoc `product_context` are rejected.
+    /// `node_cpes: None` uses context-free query rules; `Some(&[])` supplies a known-empty node
+    /// context, while nonempty contexts retain each CPE's source and distance for weighting.
+    /// Invalid resolution requests, database failures, and invalid source metadata return errors.
     pub async fn query_purl_candidates(
         &self,
         candidates: &[(Purl, Vec<Assertion>)],
@@ -517,6 +525,11 @@ impl CorrelationService {
     }
 
     /// Deduplicates and extracts a request's candidates once, including source metadata in batches.
+    ///
+    /// Equal PURLs share their supplied assertions. The result retains unscoped evidence and an
+    /// advisory-eligibility snapshot only for the current request/transaction; each later query
+    /// must apply its own provider and weighted node context. No PURL or evidence is persisted.
+    /// Database failures and invalid source metadata return errors.
     pub async fn prepare_purl_candidates(
         &self,
         candidates: &[(Purl, Vec<Assertion>)],
@@ -559,6 +572,14 @@ impl CorrelationService {
     }
 
     /// Resolves prepared raw matches for only these targets under this independent provider/context.
+    ///
+    /// Returns a map keyed by the requested PURLs, without an ordering guarantee; repeated targets
+    /// produce one entry, and targets absent from `prepared` have no verdicts. `request` may set
+    /// provider and vulnerability filters, but node selection and ad-hoc `product_context` return
+    /// `BadRequest`. `node_cpes: None` applies context-free rules; `Some(&[])` represents a known
+    /// empty context. Source/distance weights are preserved for supplied CPEs. Prepared evidence
+    /// and metadata are reused, but scoped assertions and verdicts are recomputed for this call.
+    /// Database failures and invalid resolution/source metadata also return errors.
     pub async fn query_prepared_purl_candidates(
         prepared: &PreparedPurlCandidates,
         targets: &[Purl],
