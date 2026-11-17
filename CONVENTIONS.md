@@ -199,6 +199,20 @@ This command performs the following steps in order:
 
 Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must be included in the commit.
 
+## Dependency Updates
+
+On release branches, batch dependency updates before cutting a release rather than updating
+dependencies ad hoc for individual CVEs or crates. Run `cargo update` to update all
+dependencies within their declared semver requirements; avoid targeted single-crate bumps.
+Batching keeps lockfile churn to one commit per update cycle.
+
+After updating, verify the lockfile and the full project checks:
+
+```sh
+cargo check --locked
+cargo xtask precommit
+```
+
 ## Dependencies
 
 - All dependencies are declared in `[workspace.dependencies]` in the root `Cargo.toml` with pinned versions
