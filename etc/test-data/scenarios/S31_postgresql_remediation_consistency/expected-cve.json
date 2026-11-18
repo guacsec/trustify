@@ -1,0 +1,10 @@
+{
+  "advisories": [
+    "cve/CVE-2026-103484.json"
+  ],
+  "sboms": {
+    "sbom/tpa_228_sbom_spdx_jq.json.xz": {},
+    "sbom/controls.cdx.json": {},
+    "sbom/controls.spdx.json": {}
+  }
+}
