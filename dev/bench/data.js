@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795006094768,
+  "lastUpdate": 1795015176055,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25136,6 +25136,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "b241009121f1431f5b0a52bbfcf71422d706f97a",
+          "message": "test(correlation): cover merging normalized product contexts\n\nVerify distinct stored contexts merge equivalent scoped assertions and their source references only within the same candidate. Keep confidence factors, context normalization, and empty candidate results explicit.\n\nRefs TC-7263\n\nAssisted-by: OpenCode (GPT-6.1 Sol)",
+          "timestamp": "2026-11-18T14:15:54Z",
+          "tree_id": "ca45c7a1e87c6b337230f1084e97c7f58d522800",
+          "url": "https://github.com/guacsec/trustify/commit/b241009121f1431f5b0a52bbfcf71422d706f97a"
+        },
+        "date": 1795015173545,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
