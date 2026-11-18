@@ -1446,6 +1446,7 @@ pub struct QueryCatcher {
     pub advisory_vulnerability: Arc<advisory_vulnerability::Model>,
     pub vulnerability: Arc<vulnerability::Model>,
     pub context_cpe: Option<Arc<cpe::Model>>,
+    pub assertion_context_id: Option<Uuid>,
     pub status: Arc<status::Model>,
     pub organization: Option<Arc<organization::Model>>,
 }
@@ -1489,6 +1490,7 @@ impl FromQueryResult for QueryCatcher {
             )?),
             context_cpe: Self::from_query_result_multi_model_optional(res, "", cpe::Entity)?
                 .map(Arc::new),
+            assertion_context_id: res.try_get("", "assertion_context_id")?,
             status: Arc::new(Self::from_query_result_multi_model(
                 res,
                 "",
@@ -1507,6 +1509,10 @@ impl FromQueryResult for QueryCatcher {
 impl FromQueryResultMultiModel for QueryCatcher {
     fn try_into_multi_model<E: EntityTrait>(select: Select<E>) -> Result<Select<E>, DbErr> {
         select
+            .column_as(
+                trustify_entity::purl_status::Column::AssertionContextId,
+                "assertion_context_id",
+            )
             .try_model_columns(advisory::Entity)?
             .try_model_columns(advisory_vulnerability::Entity)?
             .try_model_columns(vulnerability::Entity)?

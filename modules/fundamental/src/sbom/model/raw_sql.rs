@@ -1,40 +1,33 @@
+use crate::legacy_context::{
+    self,
+    assertion::{self, PackageNodes},
+};
+
 #[cfg(test)]
 mod test;
 
-/// This constant is a SQL subquery that filters the context_cpe_id
-/// based on the given sbom_id. It reads from the materialized
-/// sbom_describing_cpe table instead of computing the join at query time.
-/// The generalized CPE logic expands matches to include all CPEs sharing
-/// the same vendor, product, and major version.
-pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
-(
-    context_cpe_id IS NULL OR
-    context_cpe_id IN (
-        WITH filtered_cpes AS (
-            SELECT cpe.*
-            FROM sbom_describing_cpe sdc
-            JOIN cpe ON sdc.cpe_id = cpe.id
-            WHERE sdc.sbom_id = $1
-        ),
-        generalized_cpes AS (
-            SELECT *
-            FROM cpe
-            WHERE (vendor, product, version) IN (
-                  SELECT vendor, product, split_part(version, '.', 1)
-                  FROM filtered_cpes
-              )
-        )
-        SELECT id FROM filtered_cpes
-        UNION
-        SELECT id FROM generalized_cpes
-    ) OR (
-        SELECT cpe_id
-        FROM sbom_describing_cpe
-        WHERE sbom_id = $1
-        LIMIT 1
-    ) IS NULL
-)
-"#;
+/// PURL applicability is package-local; the SBOM root is only a fallback for
+/// packages without a recognized RPM product context.
+pub fn context_cpe_filter_sql() -> String {
+    let (explicit, missing) = legacy_context::describing("purl_status.context_cpe_id", "$1");
+    let cpe = legacy_context::filter(
+        "purl_status.context_cpe_id",
+        "qualified_purl.purl",
+        "COALESCE(version_range.high_version, version_range.low_version)",
+        &explicit,
+        &missing,
+        &legacy_context::attribute_proof("proof_d.sbom_id = $1"),
+    );
+    let assertion = assertion::filter(
+        "purl_status.context_cpe_id",
+        "purl_status.assertion_context_id",
+        "qualified_purl.purl",
+        "COALESCE(version_range.high_version, version_range.low_version)",
+        "$1",
+        PackageNodes::Node("sbom_package.node_id"),
+    );
+    format!("({cpe}) AND ({assertion})")
+}
 
 /// Returns SQL that counts affected vulnerabilities grouped by severity for
 /// multiple SBOMs in a single query. Combines PURL-based matching (via
@@ -48,8 +41,8 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 /// Deduplicates package versions before matching, sharing range checks across
 /// nodes, qualifiers and SBOMs in the page. Parameterized LATERAL lookups keep
 /// the status search scoped to those packages instead of scanning the entire
-/// status corpus. Context filtering remains per SBOM after range matching.
-pub fn batch_severity_counts_sql() -> &'static str {
+/// status corpus. Context filtering remains per qualified package and SBOM.
+pub fn batch_severity_counts_sql() -> String {
     r#"
     WITH
     -- Unnest the input array of SBOM IDs
@@ -57,17 +50,23 @@ pub fn batch_severity_counts_sql() -> &'static str {
         SELECT unnest($1::uuid[]) AS sbom_id
     ),
 
-    -- Counts depend on package identity/version, not on how many nodes or
-    -- qualified PURLs reference it. Keep only the requested SBOMs' packages.
+    -- Deduplicate narrow refs before joining package metadata. Repeated nodes
+    -- neither repeat those joins nor widen the DISTINCT key to the PURL JSON.
+    sbom_purl_refs AS (
+        SELECT DISTINCT spr.sbom_id, spr.qualified_purl_id
+        FROM input_sboms i
+        JOIN sbom_node_purl_ref spr ON spr.sbom_id = i.sbom_id
+    ),
     sbom_purl_info AS MATERIALIZED (
-        SELECT DISTINCT
+        SELECT
             spr.sbom_id,
             vp.version,
             vp.base_purl_id,
             bp.name,
-            bp.namespace
-        FROM input_sboms i
-        JOIN sbom_node_purl_ref spr ON spr.sbom_id = i.sbom_id
+            bp.namespace,
+            qp.id AS qualified_purl_id,
+            qp.purl
+        FROM sbom_purl_refs spr
         JOIN qualified_purl qp ON spr.qualified_purl_id = qp.id
         JOIN versioned_purl vp ON qp.versioned_purl_id = vp.id
         JOIN base_purl bp ON vp.base_purl_id = bp.id
@@ -107,7 +106,9 @@ pub fn batch_severity_counts_sql() -> &'static str {
             SELECT DISTINCT
                 pst.advisory_id,
                 pst.vulnerability_id,
-                pst.context_cpe_id
+                pst.context_cpe_id,
+                pst.assertion_context_id,
+                COALESCE(vr.high_version, vr.low_version) AS range_bound
             -- Preserve stated and publisher-derived statuses and their ranges.
             FROM purl_status_effective pst
             JOIN version_range_effective vr
@@ -133,30 +134,28 @@ pub fn batch_severity_counts_sql() -> &'static str {
               SELECT 1 FROM advisory a
               WHERE a.id = pm.advisory_id AND a.deprecated
           )
-          AND (
-              pm.context_cpe_id IS NULL
-              OR pm.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
-              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
-          )
+          AND {purl_context}
+          AND {assertion_context}
     ),
 
-    -- CPE product_status matches by name
+    -- CPE product_status matches by name. Like PURL lookups, keep these
+    -- parameterized so the planner cannot scan the complete status corpus.
     cpe_matches_name AS (
         SELECT DISTINCT
             sp.sbom_id,
             ps.advisory_id,
             ps.vulnerability_id
-        FROM product_status ps
-        JOIN sbom_purl_info sp ON ps.package = sp.name
+        FROM sbom_purl_info sp
+        CROSS JOIN LATERAL (
+            SELECT candidate.* FROM product_status candidate
+            WHERE candidate.package = sp.name
+            OFFSET 0
+        ) ps
         JOIN status ON ps.status_id = status.id
         JOIN advisory ON ps.advisory_id = advisory.id
         WHERE status.slug = 'affected'
           AND advisory.deprecated = false
-          AND (
-              ps.context_cpe_id IS NULL
-              OR ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
-              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
-          )
+          AND {product_context}
     ),
 
     -- CPE product_status matches by namespace/name
@@ -165,18 +164,18 @@ pub fn batch_severity_counts_sql() -> &'static str {
             sp.sbom_id,
             ps.advisory_id,
             ps.vulnerability_id
-        FROM product_status ps
-        JOIN sbom_purl_info sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
+        FROM sbom_purl_info sp
+        CROSS JOIN LATERAL (
+            SELECT candidate.* FROM product_status candidate
+            WHERE candidate.package = CONCAT(sp.namespace, '/', sp.name)
+            OFFSET 0
+        ) ps
         JOIN status ON ps.status_id = status.id
         JOIN advisory ON ps.advisory_id = advisory.id
         WHERE sp.namespace IS NOT NULL
           AND status.slug = 'affected'
           AND advisory.deprecated = false
-          AND (
-              ps.context_cpe_id IS NULL
-              OR ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
-              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
-          )
+          AND {product_context}
     ),
 
     -- Package-level CPEs harvested from SBOMs (e.g. SPDX cpe23Type refs),
@@ -258,6 +257,32 @@ pub fn batch_severity_counts_sql() -> &'static str {
     FROM scored
     GROUP BY sbom_id, severity
     "#
+    .replace(
+        "{purl_context}",
+        &legacy_context::filter(
+            "pm.context_cpe_id", "sp.purl", "pm.range_bound",
+            "pm.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes WHERE sbom_id = sp.sbom_id)",
+            "sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)",
+            &legacy_context::attribute_proof("proof_d.sbom_id = sp.sbom_id"),
+        ),
+    )
+    .replace(
+        "{assertion_context}",
+        &assertion::filter(
+            "pm.context_cpe_id", "pm.assertion_context_id", "sp.purl", "pm.range_bound",
+            "sp.sbom_id",
+            PackageNodes::AnyOccurrence("sp.qualified_purl_id"),
+        ),
+    )
+    .replace(
+        "{product_context}",
+        &legacy_context::filter(
+            "ps.context_cpe_id", "sp.purl", "NULL::text",
+            "ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes WHERE sbom_id = sp.sbom_id)",
+            "sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)",
+            &legacy_context::attribute_proof("proof_d.sbom_id = sp.sbom_id"),
+        ),
+    )
 }
 
 /// Returns SQL that finds advisory/vulnerability matches for a single SBOM
@@ -271,7 +296,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
 /// kernel OS (`o:linux:linux_kernel`), plus `version_matches()` against the
 /// version range recorded on `cpe_status` -- deliberately *not*
 /// filtered by the `sbom_describing_cpe` context filter
-/// ([`CONTEXT_CPE_FILTER_SQL`]): that concept encodes Red Hat product-stream
+/// ([`context_cpe_filter_sql`]): that concept encodes Red Hat product-stream
 /// membership and is meaningless for component-level CPEs harvested from
 /// third-party SBOMs (e.g. SPDX `cpe23Type` external references).
 ///
@@ -328,6 +353,8 @@ pub fn cpe_advisory_info_sql() -> String {
             "advisory_vulnerability"."vulnerability_id" AS "av_vulnerability_id",
             "vulnerability"."id" AS "vulnerability_id",
             m.qualified_purl_id AS "qualified_purl_id",
+            NULL::uuid AS "base_purl_id",
+            NULL::uuid AS "assertion_context_id",
             m.sbom_id AS "sbom_id",
             m.node_id AS "node_id",
             "status"."id" AS "status_id",
@@ -377,6 +404,7 @@ pub fn product_advisory_info_sql() -> String {
                 qp.id as qualified_purl_id,
                 bp.name,
                 bp.namespace,
+                qp.purl,
                 spr.sbom_id,
                 spr.node_id
             FROM sbom_node_purl_ref spr
@@ -398,11 +426,13 @@ pub fn product_advisory_info_sql() -> String {
                 sp.qualified_purl_id,
                 sp.sbom_id,
                 sp.node_id
-            FROM product_status ps
-            JOIN sbom_purls sp ON ps.package = sp.name
-            WHERE (ps.context_cpe_id IS NULL
-                   OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
-                   OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
+            FROM sbom_purls sp
+            CROSS JOIN LATERAL (
+                SELECT candidate.* FROM product_status candidate
+                WHERE candidate.package = sp.name
+                OFFSET 0
+            ) ps
+            WHERE {product_context}
         ),
 
         -- Match 2: Namespace/name concatenation (handles scoped packages like npm, maven)
@@ -416,12 +446,14 @@ pub fn product_advisory_info_sql() -> String {
                 sp.qualified_purl_id,
                 sp.sbom_id,
                 sp.node_id
-            FROM product_status ps
-            JOIN sbom_purls sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
+            FROM sbom_purls sp
+            CROSS JOIN LATERAL (
+                SELECT candidate.* FROM product_status candidate
+                WHERE candidate.package = CONCAT(sp.namespace, '/', sp.name)
+                OFFSET 0
+            ) ps
             WHERE sp.namespace IS NOT NULL
-              AND (ps.context_cpe_id IS NULL
-                   OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
-                   OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
+              AND {product_context}
         ),
 
         -- Union the two match types to eliminate OR in JOIN
@@ -438,6 +470,8 @@ pub fn product_advisory_info_sql() -> String {
             "advisory_vulnerability"."vulnerability_id" AS "av_vulnerability_id",
             "vulnerability"."id" AS "vulnerability_id",
             m.qualified_purl_id AS "qualified_purl_id",
+            NULL::uuid AS "base_purl_id",
+            NULL::uuid AS "assertion_context_id",
             m.sbom_id AS "sbom_id",
             m.node_id AS "node_id",
             "status"."id" AS "status_id",
@@ -456,5 +490,15 @@ pub fn product_advisory_info_sql() -> String {
         WHERE ($2::text[] = ARRAY[]::text[] OR "status"."slug" = ANY($2::text[]))
           AND "advisory"."deprecated" = false
         "#
-    .to_string()
+    .replace(
+        "{product_context}",
+        &legacy_context::filter(
+            "ps.context_cpe_id",
+            "sp.purl",
+            "NULL::text",
+            "ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)",
+            "NOT EXISTS (SELECT 1 FROM filtered_cpes)",
+            &legacy_context::attribute_proof("proof_d.sbom_id = sp.sbom_id"),
+        ),
+    )
 }

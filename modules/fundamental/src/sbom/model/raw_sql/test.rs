@@ -222,7 +222,7 @@ fn status_index_scans_must_be_constrained_to_the_current_package() {
 }
 
 #[test_context(TrustifyContext)]
-#[test(tokio::test)]
+#[test(actix_web::test)]
 async fn severity_counts_use_package_scoped_status_lookups(
     ctx: &TrustifyContext,
 ) -> anyhow::Result<()> {
@@ -305,6 +305,22 @@ async fn severity_counts_use_package_scoped_status_lookups(
         assert_eq!(
             node["Actual Loops"], 500,
             "one status lookup per distinct version, not per node or SBOM: {plan:#}"
+        );
+    }
+    // The expensive evidence paths are for assertion-only matches, not the
+    // context-free assertions used by this page-sized fixture.
+    let evidence_scans = nodes
+        .iter()
+        .filter(|node| node["Alias"] == "scope_identifier")
+        .collect::<Vec<_>>();
+    assert!(
+        !evidence_scans.is_empty(),
+        "missing evidence subplan: {plan:#}"
+    );
+    for node in evidence_scans {
+        assert_eq!(
+            node["Actual Loops"], 0,
+            "unscoped assertion did evidence work: {plan:#}"
         );
     }
     let service = SbomService::new(PaginationCache::for_test());

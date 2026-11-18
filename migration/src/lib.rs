@@ -119,6 +119,7 @@ mod m0002710_backfill_advisory_assertions;
 mod m0002720_correlation_current_advisories;
 mod m0002730_cpe_vendor_product_version_index;
 mod m0002740_preload_nist_crypto_remediation;
+mod m0002750_legacy_context_purl;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -253,6 +254,7 @@ impl MigratorExt for Migrator {
             .normal(m0002720_correlation_current_advisories::Migration)
             .normal(m0002730_cpe_vendor_product_version_index::Migration)
             .normal(m0002740_preload_nist_crypto_remediation::Migration)
+            .normal(m0002750_legacy_context_purl::Migration)
     }
 }
 
