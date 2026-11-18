@@ -1,0 +1,127 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "lightwell_scoped_ecosystem_woodstox",
+  "documentNamespace": "https://trustify.test/lightwell_scoped_ecosystem_woodstox",
+  "creationInfo": {
+    "licenseListVersion": "3.28",
+    "creators": [
+      "Organization: Red Hat",
+      "Tool: -"
+    ],
+    "created": "2026-11-13T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "lightwell_scoped_ecosystem_woodstox",
+      "SPDXID": "SPDXRef-Package-Root-lightwell_scoped_ecosystem_woodstox",
+      "versionInfo": "1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-6.0.3",
+      "versionInfo": "6.0.3",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-6.0.3-rhlw",
+      "versionInfo": "6.0.3.rhlw-00001",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3.rhlw-00001"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-6.4.0",
+      "versionInfo": "6.4.0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.4.0"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-foreign-woodstox-6.0.3",
+      "versionInfo": "6.0.3",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.example/woodstox-core@6.0.3"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-6.0.3",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_scoped_ecosystem_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-6.0.3-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_scoped_ecosystem_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-6.4.0",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_scoped_ecosystem_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-foreign-woodstox-6.0.3",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_scoped_ecosystem_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_scoped_ecosystem_woodstox",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

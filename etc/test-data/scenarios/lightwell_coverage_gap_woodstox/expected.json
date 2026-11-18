@@ -1,0 +1,19 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-dd8ed0b211be109b.json",
+    "advisories/RHLW-2026-403d1e66c95ef9bb.json",
+    "advisories/RHLW-2026-36d9ed0bb47c794f.json"
+  ],
+  "sboms": {
+    "sbom_coverage_gap_woodstox.cdx.json": {
+      "woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      }
+    },
+    "sbom_coverage_gap_woodstox.spdx.json": {
+      "SPDXRef-Package-woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      }
+    }
+  }
+}

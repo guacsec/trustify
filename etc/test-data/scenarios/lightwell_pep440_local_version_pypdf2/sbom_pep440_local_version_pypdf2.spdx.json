@@ -1,0 +1,150 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "lightwell_pep440_local_version_pypdf2",
+  "documentNamespace": "https://trustify.test/lightwell_pep440_local_version_pypdf2",
+  "creationInfo": {
+    "licenseListVersion": "3.28",
+    "creators": [
+      "Organization: Red Hat",
+      "Tool: -"
+    ],
+    "created": "2026-11-13T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "lightwell_pep440_local_version_pypdf2",
+      "SPDXID": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "versionInfo": "1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-2.0.0",
+      "versionInfo": "2.0.0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@2.0.0"
+        }
+      ]
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-3.0.0",
+      "versionInfo": "3.0.0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@3.0.0"
+        }
+      ]
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-3.0.1",
+      "versionInfo": "3.0.1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@3.0.1"
+        }
+      ]
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-3.0.1-rhlw",
+      "versionInfo": "3.0.1+rhlw.1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@3.0.1+rhlw.1"
+        }
+      ]
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-3.0.2",
+      "versionInfo": "3.0.2",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@3.0.2"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-2.0.0",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-3.0.0",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-3.0.1",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-3.0.1-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-3.0.2",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_pep440_local_version_pypdf2",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

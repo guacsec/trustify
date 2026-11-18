@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.9.0",
+  "id": "RHLW-2026-730f8211b080b586",
+  "published": "2026-10-16T12:36:14Z",
+  "modified": "2026-10-16T12:36:14Z",
+  "severity": [
+    {
+      "type": "CVSS_V4",
+      "score": "CVSS:4.0/AV:L/AC:H/AT:P/PR:H/UI:N/VC:L/VI:L/VA:L/SC:L/SI:L/SA:L/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:N/AU:N/R:X/V:X/RE:M/U:Green"
+    }
+  ],
+  "references": [
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-1225",
+      "type": "ADVISORY"
+    }
+  ],
+  "summary": "Lightwell Security Advisory: logback-core 1.5.18.rhlw-00003",
+  "details": "Red Hat Lightwell has released ch.qos.logback:logback-core 1.5.18.rhlw-00003 with a backported security fix.\n\nCVE-2026-1225: ACE vulnerability in configuration file processing  by QOS.CH logback-core up to and including version 1.5.24 in Java applications, allows an attacker to instantiate classes already present on the class path by compromising an existing logback configuration file.\n\n\n\n\nThe instantiation of a potentially malicious Java class requires that said class is present on the user's class-path. In addition, the attacker must  have write access to a \nconfiguration file. However, after successful instantiation, the instance is very likely to be discarded with no further ado.\n\nThis patched artifact is a drop-in replacement for ch.qos.logback:logback-core 1.5.18 from Maven Central.",
+  "upstream": [
+    "CVE-2026-1225"
+  ],
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "Red Hat Lightwell:Maven",
+        "name": "ch.qos.logback:logback-core",
+        "purl": "pkg:maven/ch.qos.logback/logback-core"
+      },
+      "versions": [
+        "1.5.18"
+      ],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "1.5.18.rhlw-00003"
+            }
+          ]
+        }
+      ],
+      "database_specific": {
+        "lightwell": {
+          "backport_base_version": "1.5.18",
+          "remediated_version": "1.5.18.rhlw-00003",
+          "repository_url": "https://packages.redhat.com/lightwell/java/remediated/"
+        }
+      }
+    }
+  ],
+  "credits": [
+    {
+      "name": "Red Hat Lightwell",
+      "type": "REMEDIATION_DEVELOPER"
+    }
+  ]
+}

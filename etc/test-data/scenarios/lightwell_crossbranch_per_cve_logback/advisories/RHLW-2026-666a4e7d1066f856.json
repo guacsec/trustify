@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.9.0",
+  "id": "RHLW-2026-666a4e7d1066f856",
+  "published": "2026-09-17T11:29:15Z",
+  "modified": "2026-09-17T11:29:15Z",
+  "severity": [
+    {
+      "type": "CVSS_V4",
+      "score": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:L/SI:L/SA:N/E:P/RE:M/U:Green"
+    }
+  ],
+  "references": [
+    {
+      "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/10xxx/CVE-2026-10532.json",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-10532",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/qos-ch/logback",
+      "type": "PACKAGE"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-jhq6-gfmj-v8fx",
+      "type": "ADVISORY"
+    }
+  ],
+  "summary": "Lightwell Security Advisory: logback-core 1.5.16.rhlw-00002",
+  "details": "Red Hat Lightwell has released ch.qos.logback:logback-core 1.5.16.rhlw-00002 with a backported security fix.\n\nCVE-2026-10532: Logback deserialization whitelist bypass for Proxy objects\n\nThis patched artifact is a drop-in replacement for ch.qos.logback:logback-core 1.5.16 from Maven Central.",
+  "upstream": [
+    "CVE-2026-10532",
+    "GHSA-jhq6-gfmj-v8fx"
+  ],
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "Red Hat Lightwell:Maven",
+        "name": "ch.qos.logback:logback-core",
+        "purl": "pkg:maven/ch.qos.logback/logback-core"
+      },
+      "versions": [
+        "1.5.16"
+      ],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "1.5.16.rhlw-00002"
+            }
+          ]
+        }
+      ],
+      "database_specific": {
+        "lightwell": {
+          "backport_base_version": "1.5.16",
+          "remediated_version": "1.5.16.rhlw-00002",
+          "repository_url": "https://packages.redhat.com/lightwell/java/remediated/"
+        }
+      }
+    }
+  ],
+  "credits": [
+    {
+      "name": "Red Hat Lightwell",
+      "type": "REMEDIATION_DEVELOPER"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-dd8ed0b211be109b.json"
+  ],
+  "sboms": {
+    "sbom_introduced_zero_woodstox.cdx.json": {
+      "woodstox-1.0.0": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "woodstox-4.9.0": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "woodstox-5.0.2": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "woodstox-5.0.3": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      }
+    },
+    "sbom_introduced_zero_woodstox.spdx.json": {
+      "SPDXRef-Package-woodstox-1.0.0": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "SPDXRef-Package-woodstox-4.9.0": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "SPDXRef-Package-woodstox-5.0.2": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "SPDXRef-Package-woodstox-5.0.3": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      }
+    }
+  }
+}

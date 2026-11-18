@@ -1,0 +1,40 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:61f139e4-3d8c-4af9-8865-0ea0b0c3e735",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-lightwell_crossbranch_per_cve_logback",
+      "type": "application",
+      "name": "lightwell_crossbranch_per_cve_logback",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "logback-1.5.9",
+      "type": "library",
+      "name": "logback-core",
+      "version": "1.5.9",
+      "purl": "pkg:maven/ch.qos.logback/logback-core@1.5.9"
+    },
+    {
+      "bom-ref": "logback-1.5.9-rhlw",
+      "type": "library",
+      "name": "logback-core",
+      "version": "1.5.9.rhlw-00031",
+      "purl": "pkg:maven/ch.qos.logback/logback-core@1.5.9.rhlw-00031"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-lightwell_crossbranch_per_cve_logback",
+      "dependsOn": [
+        "logback-1.5.9",
+        "logback-1.5.9-rhlw"
+      ]
+    }
+  ]
+}

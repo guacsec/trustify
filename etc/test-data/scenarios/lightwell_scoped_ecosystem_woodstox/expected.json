@@ -1,0 +1,17 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-403d1e66c95ef9bb.json"
+  ],
+  "sboms": {
+    "sbom_scoped_ecosystem_woodstox.cdx.json": {
+      "woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      }
+    },
+    "sbom_scoped_ecosystem_woodstox.spdx.json": {
+      "SPDXRef-Package-woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      }
+    }
+  }
+}

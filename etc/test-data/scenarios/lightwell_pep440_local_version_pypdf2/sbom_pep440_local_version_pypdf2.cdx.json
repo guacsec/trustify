@@ -1,0 +1,64 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:3033dbab-8380-482f-8eb8-ab99bee0d6a5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-lightwell_pep440_local_version_pypdf2",
+      "type": "application",
+      "name": "lightwell_pep440_local_version_pypdf2",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pypdf2-2.0.0",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "2.0.0",
+      "purl": "pkg:pypi/pypdf2@2.0.0"
+    },
+    {
+      "bom-ref": "pypdf2-3.0.0",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "3.0.0",
+      "purl": "pkg:pypi/pypdf2@3.0.0"
+    },
+    {
+      "bom-ref": "pypdf2-3.0.1",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "3.0.1",
+      "purl": "pkg:pypi/pypdf2@3.0.1"
+    },
+    {
+      "bom-ref": "pypdf2-3.0.1-rhlw",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "3.0.1+rhlw.1",
+      "purl": "pkg:pypi/pypdf2@3.0.1+rhlw.1"
+    },
+    {
+      "bom-ref": "pypdf2-3.0.2",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "3.0.2",
+      "purl": "pkg:pypi/pypdf2@3.0.2"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-lightwell_pep440_local_version_pypdf2",
+      "dependsOn": [
+        "pypdf2-2.0.0",
+        "pypdf2-3.0.0",
+        "pypdf2-3.0.1",
+        "pypdf2-3.0.1-rhlw",
+        "pypdf2-3.0.2"
+      ]
+    }
+  ]
+}
