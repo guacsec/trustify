@@ -5,7 +5,9 @@ use test_context::test_context;
 use trustify_test_context::{TrustifyContext, call::CallService};
 
 use crate::{
-    purl::model::details::purl::PurlDetails, sbom::model::details::SbomAdvisory, test::caller,
+    purl::model::details::purl::{PurlDetails, StatusContext},
+    sbom::model::details::SbomAdvisory,
+    test::caller,
     vulnerability::model::AnalysisResponseV3,
 };
 
@@ -769,9 +771,8 @@ async fn s7_cpeonly_opentofu_image(ctx: &TrustifyContext) -> Result<(), anyhow::
 // ===========================================================================
 // S8: Epoch mismatch openjdk (TC-5733)
 //
-// rpmver_cmp ignores RPM epoch. When the SBOM PURL omits ?epoch= but the
-// advisory carries it, the token comparison misaligns and produces a wrong
-// verdict. Both with-epoch and no-epoch should yield the same result.
+// An omitted epoch compares as zero. Both fixtures are below the RHEL 8
+// AppStream fix, regardless of whether they state epoch=1.
 // ===========================================================================
 
 #[test_context(TrustifyContext)]
@@ -799,29 +800,23 @@ async fn s8_epoch_mismatch_openjdk(
 
     let cves = ["CVE-2026-41254", "CVE-2026-46968", "CVE-2026-47010"];
 
-    // no-epoch SBOM → affected for all 3
-    {
+    for variant in ["no-epoch", "with-epoch"] {
         let sbom = ctx
             .ingest_document(&format!(
-                "scenarios/S8_epoch_mismatch_openjdk/sbom_openjdk_no-epoch.{fmt}.json"
+                "scenarios/S8_epoch_mismatch_openjdk/sbom_openjdk_{variant}.{fmt}.json"
             ))
             .await?;
         let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
-        for cve in &cves {
-            assert_advisory_has_cve(&adv, cve);
-        }
-    }
-
-    // with-epoch SBOM → same verdict: affected for all 3
-    {
-        let sbom = ctx
-            .ingest_document(&format!(
-                "scenarios/S8_epoch_mismatch_openjdk/sbom_openjdk_with-epoch.{fmt}.json"
-            ))
-            .await?;
-        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
-        for cve in &cves {
-            assert_advisory_has_cve(&adv, cve);
+        for cve in cves {
+            assert!(
+                adv.iter().flat_map(|a| &a.status).any(|s| {
+                    s.vulnerability.identifier == cve
+                        && s.status == "affected"
+                        && matches!(&s.context, Some(StatusContext::Cpe(cpe))
+                            if cpe == "cpe:/a:redhat:enterprise_linux:8:*:appstream:*")
+                }),
+                "S8 {fmt}/{variant}: {cve} missing affected RHEL 8 AppStream status: {adv:#?}"
+            );
         }
     }
 

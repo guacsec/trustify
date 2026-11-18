@@ -20,6 +20,7 @@ pub use endpoints::{Config, configure};
 pub use error::Error;
 
 mod correlation;
+mod legacy_context;
 mod sbom_group;
 #[cfg(test)]
 pub mod test;
