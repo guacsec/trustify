@@ -12,6 +12,7 @@ use crate::{
 use actix_web::{HttpResponse, Responder, get, post, web};
 use regex::Regex;
 use sea_orm::{IsolationLevel, prelude::Uuid};
+use serde_qs::actix::QsQuery;
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
@@ -67,7 +68,7 @@ pub fn configure(
 /// Retrieve details of a fully-qualified pURL
 pub async fn get(
     service: web::Data<PurlService>,
-    db: web::Data<db::ReadOnly>,
+    db: web::Data<db::ReadOnly>,modules/fundamental/src/purl/endpoints/mod.rs
     key: web::Path<String>,
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadSbom>,
@@ -82,12 +83,22 @@ pub async fn get(
     }
 }
 
+#[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParmodules/fundamental/src/purl/endpoints/mod.rsams)]
+#[into_params(parameter_in = Query)]
+struct CryptoFilterQuery {
+    /// Filter by crypto asset name (algorithm, key, ...). Only packages generating any of the
+    /// provided crypto asset names will be returned. Can be specified multiple times.
+    #[serde(default)]
+    crypto: Vec<String>,
+}
+
 #[utoipa::path(
     operation_id = "listPurl",
     tag = "purl",
     params(
         Query,
         Paginated,
+        CryptoFilterQuery,
     ),
     responses(
         (status = 200, description = "All relevant matching qualified PURLs", body = PaginatedResults<PurlSummary>),
@@ -100,10 +111,15 @@ pub async fn all(
     db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
+    QsQuery(crypto_filter): QsQuery<CryptoFilterQuery>,
     _: Require<ReadSbom>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
-    Ok(HttpResponse::Ok().json(service.purls(search, paginated, &tx).await?))
+    Ok(HttpResponse::Ok().json(
+        service
+            .purls_with_crypto(search, crypto_filter.crypto, paginated, &tx)
+            .await?,
+    ))
 }
 
 mod v2 {
