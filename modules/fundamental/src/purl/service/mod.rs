@@ -50,8 +50,9 @@ use trustify_entity::{
     advisory, base_purl,
     correlation_evidence::AssertionStatus,
     correlation_evidence_context::ContextSource,
-    license, purl_status,
+    license, package_relates_to_package, purl_status,
     qualified_purl::{self, CanonicalPurl},
+    relationship::Relationship,
     remediation, remediation_purl_status, sbom, sbom_license_expanded, sbom_node,
     sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
 };
@@ -678,6 +679,20 @@ impl PurlService {
         paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<PurlSummary>, Error> {
+        self.purls_with_crypto(query, Vec::<String>::new(), paginated, connection)
+            .await
+    }
+
+    /// List PURLs, optionally restricted to packages that generate a crypto asset (algorithm,
+    /// key, ...) with one of the given names. An empty `crypto` list applies no restriction.
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
+    pub async fn purls_with_crypto<C: ConnectionTrait>(
+        &self,
+        query: Query,
+        crypto: Vec<String>,
+        paginated: impl Pagination,
+        connection: &C,
+    ) -> Result<PaginatedResults<PurlSummary>, Error> {
         let mut select = qualified_purl::Entity::find().filtering_with(
             query.clone(),
             qualified_purl::Entity
@@ -754,6 +769,64 @@ impl PurlService {
 
             select =
                 select.filter(qualified_purl::Column::Id.in_subquery(spdx_select.into_query()));
+        }
+
+        if !crypto.is_empty() {
+            // packages (left) generating (relationship) a crypto node (right) with a given name
+            let generated = sea_query::Query::select()
+                .column((
+                    sbom_node_purl_ref::Entity,
+                    sbom_node_purl_ref::Column::QualifiedPurlId,
+                ))
+                .from(sbom_node_purl_ref::Entity)
+                .join(
+                    InnerJoin,
+                    package_relates_to_package::Entity,
+                    Expr::col((
+                        sbom_node_purl_ref::Entity,
+                        sbom_node_purl_ref::Column::SbomId,
+                    ))
+                    .equals((
+                        package_relates_to_package::Entity,
+                        package_relates_to_package::Column::SbomId,
+                    ))
+                    .and(
+                        Expr::col((
+                            sbom_node_purl_ref::Entity,
+                            sbom_node_purl_ref::Column::NodeId,
+                        ))
+                        .equals((
+                            package_relates_to_package::Entity,
+                            package_relates_to_package::Column::LeftNodeId,
+                        )),
+                    ),
+                )
+                .join(
+                    InnerJoin,
+                    sbom_node::Entity,
+                    Expr::col((sbom_node::Entity, sbom_node::Column::SbomId))
+                        .equals((
+                            package_relates_to_package::Entity,
+                            package_relates_to_package::Column::SbomId,
+                        ))
+                        .and(
+                            Expr::col((sbom_node::Entity, sbom_node::Column::NodeId)).equals((
+                                package_relates_to_package::Entity,
+                                package_relates_to_package::Column::RightNodeId,
+                            )),
+                        ),
+                )
+                .and_where(
+                    Expr::col((
+                        package_relates_to_package::Entity,
+                        package_relates_to_package::Column::Relationship,
+                    ))
+                    .eq(Relationship::Generates),
+                )
+                .and_where(Expr::col((sbom_node::Entity, sbom_node::Column::Name)).is_in(crypto))
+                .to_owned();
+
+            select = select.filter(qualified_purl::Column::Id.in_subquery(generated));
         }
 
         let limiter = select.limiting(connection, paginated, &self.cache)?;

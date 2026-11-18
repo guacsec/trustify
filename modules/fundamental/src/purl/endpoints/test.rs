@@ -4663,3 +4663,63 @@ async fn reintroduced_vendor_fix_does_not_replace_persisted_build(
 
     Ok(())
 }
+
+/// The `crypto` filter keeps only packages generating a crypto asset with a matching name.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn list_purls_filtered_by_crypto(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a CBOM where `crypto-library` provides AES, and `some-library` doesn't
+    let mut cbom: Value = serde_json::from_slice(
+        &trustify_test_context::document_bytes("cyclonedx/cryptographic/cbom.json").await?,
+    )?;
+    for component in cbom["components"].as_array_mut().unwrap() {
+        let purl = match component["bom-ref"].as_str() {
+            Some("crypto-library") => "pkg:maven/org.acme/crypto-library@1.0.0",
+            Some("some-library") => "pkg:maven/org.acme/some-library@1.0.0",
+            _ => continue,
+        };
+        component["purl"] = json!(purl);
+    }
+
+    // And `some-library` provides a *non-crypto* component which happens to be named like the
+    // crypto asset: it must not be matched by the crypto filter.
+    cbom["components"].as_array_mut().unwrap().push(json!({
+        "type": "library",
+        "bom-ref": "not-crypto-aes",
+        "name": "AES",
+        "version": "1.0.0",
+    }));
+    for dependency in cbom["dependencies"].as_array_mut().unwrap() {
+        if dependency["ref"] == "some-library" {
+            dependency["provides"] = json!(["not-crypto-aes"]);
+        }
+    }
+    ctx.ingest_json(cbom).await?;
+
+    let app = caller(ctx).await?;
+    let list = async |query: &str| -> Value {
+        app.call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v3/purl?total=true{query}"))
+                .to_request(),
+        )
+        .await
+    };
+
+    // Without filter, both packages are listed
+    assert_eq!(list("").await["total"], 2);
+
+    // With the algorithm name, only the package generating the crypto asset is returned
+    let response = list("&crypto=AES").await;
+    assert_eq!(response["total"], 1, "{response:#}");
+    assert_eq!(
+        response["items"][0]["purl"],
+        "pkg:maven/org.acme/crypto-library@1.0.0"
+    );
+
+    // Multiple values and unknown names
+    assert_eq!(list("&crypto=AES&crypto=unknown").await["total"], 1);
+    assert_eq!(list("&crypto=unknown").await["total"], 0);
+
+    Ok(())
+}
