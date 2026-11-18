@@ -182,8 +182,8 @@ struct GroupFilterQuery {
 #[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 struct CryptoFilterQuery {
-    /// Filter by crypto algorithm name. Only SBOMs containing any of the provided algorithm
-    /// names will be returned. Can be specified multiple times.
+    /// Filter by crypto asset name (algorithm, key, ...). Only SBOMs containing any of the
+    /// provided crypto asset names will be returned. Can be specified multiple times.
     #[serde(default)]
     crypto: Vec<String>,
 }
