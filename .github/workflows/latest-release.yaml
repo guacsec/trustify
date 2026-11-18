@@ -1,8 +1,5 @@
 name: latest-release
 
-# Build "latest" container, run e2e tests against it, and deploy it to
-# https://trustify-latest-staging.apps.cluster.trustification.rocks/
-
 on:
   push:
     branches:
@@ -13,11 +10,6 @@ on:
 concurrency:
   group: latest-release-${{ github.ref }}
   cancel-in-progress: false
-
-env:
-  OPENSHIFT_NAMESPACE: trustify-latest
-  OPENSHIFT_SERVER: https://api.cluster.trustification.rocks:6443
-  APP_NAME: staging
 
 jobs:
   init:
@@ -122,27 +114,3 @@ jobs:
           registry: ghcr.io/${{ github.repository_owner }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-  deploy:
-    if: ${{ (github.repository == 'guacsec/trustify') && (needs.init.outputs.version == 'main') }}
-    runs-on: ubuntu-24.04
-    needs:
-      - publish
-
-    steps:
-
-      - name: Log in and set context
-        uses: redhat-actions/oc-login@v2
-        with:
-          openshift_server_url: ${{ env.OPENSHIFT_SERVER }}
-          openshift_token: ${{ secrets.OPENSHIFT_TOKEN }}
-
-      - name: Install trustify
-        uses: trustification/trustify-operator/.github/actions/install-trustify@main
-        env:
-          SERVER_IMAGE: ${{ needs.publish.outputs.image }}
-        with:
-          operator-bundle-image: ghcr.io/trustification/trustify-operator-bundle:latest
-          trustify-cr: '{"kind":"Trustify","apiVersion":"org.trustify/v1alpha1","metadata":{"name":"${{ env.APP_NAME }}"},"spec":{"serverImage":"${{ env.SERVER_IMAGE }}"}}'
-          namespace: ${{ env.OPENSHIFT_NAMESPACE }}
-          app-name: ${{ env.APP_NAME }}
