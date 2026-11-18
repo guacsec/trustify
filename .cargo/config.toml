@@ -5,30 +5,3 @@ xtask-ai = "run --features ai --package xtask --"
 [env]
 CARGO_WORKSPACE_ROOT = { value = "", relative = true }
 POSTGRESQL_VERSION = { value = "=17.2.1", force = false }
-
-# Use LLVM lld instead of GNU ld. Biggest single win: linking dominates
-# incremental rebuilds in a 25-crate workspace. No install needed — rustc
-# ships rust-lld and resolves it via its self-contained gcc-ld shims.
-# Scoped to the Linux host target so the wasm `ui` build and
-# macOS/Windows contributors are unaffected.
-[target.x86_64-unknown-linux-gnu]
-#rustflags = ["-C", "link-arg=-fuse-ld=mold"]
-
-[profile.dev]
-debug = false
-# Emit debuginfo to .dwo files instead of the binary -> much less for the
-# linker to copy/relocate. Panic backtraces keep file:line (verified).
-split-debuginfo = "unpacked"
-incremental = true
-
-# Dependencies rarely need stepping through; drop their debuginfo entirely.
-# Backtrace frames for deps keep symbol names, lose file:line.
-[profile.dev.package."*"]
-debug = false
-
-# Build scripts and proc macros (sea-orm, serde, utoipa, async-trait derives
-# run on nearly every crate here). Optimizing them costs a one-time hit on
-# syn/quote and pays back on every expansion.
-[profile.dev.build-override]
-debug = false
-
