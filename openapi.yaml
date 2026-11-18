@@ -3865,6 +3865,16 @@ paths:
         required: false
         schema:
           type: boolean
+      - name: crypto
+        in: query
+        description: |-
+          Filter by crypto asset name (algorithm, key, ...). Only packages generating any of the
+          provided crypto asset names will be returned. Can be specified multiple times.
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
       responses:
         '200':
           description: All relevant matching qualified PURLs
@@ -4201,8 +4211,8 @@ paths:
       - name: crypto
         in: query
         description: |-
-          Filter by crypto algorithm name. Only SBOMs containing any of the provided algorithm
-          names will be returned. Can be specified multiple times.
+          Filter by crypto asset name (algorithm, key, ...). Only SBOMs containing any of the
+          provided crypto asset names will be returned. Can be specified multiple times.
         required: false
         schema:
           type: array

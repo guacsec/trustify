@@ -2049,6 +2049,39 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+/// The `crypto` filter must match any crypto asset (algorithms as well as keys).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn list_sboms_filtered_by_crypto(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let request = TestRequest::post()
+        .uri("/api/v3/sbom")
+        .set_payload(document_bytes("cyclonedx/cryptographic/keycloak-cbom.json").await?)
+        .to_request();
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let result: IngestResult = actix_web::test::read_body_json(response).await;
+    let id = result.id.to_string();
+
+    // algorithm, key (related-crypto-material), and unknown name
+    for (name, expected) in [
+        ("ECDH", 1),
+        ("key@b627000e-ed4e-449c-acb9-4e9547d6ee93", 1),
+        ("does-not-exist", 0),
+    ] {
+        let uri = format!("/api/v3/sbom?total=true&crypto={name}");
+        let req = TestRequest::get().uri(&uri).to_request();
+        let response: Value = app.call_and_read_body_json(req).await;
+        assert_eq!(response["total"], expected, "crypto={name}: {response:#}");
+        if expected > 0 {
+            assert_eq!(response["items"][0]["id"], id);
+        }
+    }
+
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_aibom_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
