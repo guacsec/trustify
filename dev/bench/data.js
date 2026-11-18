@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795015176055,
+  "lastUpdate": 1795027038591,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25165,6 +25165,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "3f05e6aa0931a21e2a7a5953a2885d5efc89ad73",
+          "message": "fix(crypto): missing EOF",
+          "timestamp": "2026-11-18T17:18:25Z",
+          "tree_id": "0a20f0373d15a9250b55e41c4edca859e9562fac",
+          "url": "https://github.com/guacsec/trustify/commit/3f05e6aa0931a21e2a7a5953a2885d5efc89ad73"
+        },
+        "date": 1795027036390,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
