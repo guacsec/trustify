@@ -91,8 +91,6 @@ impl PurlDetails {
                 .ok_or(Error::Data("underlying package missing".to_string()))?
         };
 
-        let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package.id);
-
         let purl_statuses = purl_status::find_effective()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
             .join(JoinType::LeftJoin, purl_status::effective_version_range())
@@ -102,12 +100,12 @@ impl PurlDetails {
                     .arg(Expr::value(package_version.version.clone()))
                     .arg(Expr::col((version_range::Entity, Asterisk))),
             ))
-            .filter(
-                Condition::any()
-                    .add(purl_status::Column::ContextCpeId.is_null())
-                    .add(purl_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
-                    .add(Expr::exists(sbom_has_cpes).not()),
-            )
+            .filter(package_context_filter(
+                "purl_status.context_cpe_id",
+                "COALESCE(version_range.high_version, version_range.low_version)",
+                qualified_package,
+            ))
+            .filter(package_assertion_filter(qualified_package))
             .distinct_on([ColumnRef::Column(sea_query::ColumnName::from((
                 purl_status::Entity.into_iden(),
                 purl_status::Column::Id.into_iden(),
@@ -118,7 +116,7 @@ impl PurlDetails {
 
         let product_statuses = get_product_statuses_for_purl(
             tx,
-            qualified_package.id,
+            qualified_package,
             &package.name,
             package.namespace.as_deref(),
         )
@@ -252,9 +250,55 @@ fn cpe_context_subqueries(
     (allowed_cpe_ids, sbom_has_cpes)
 }
 
+/// Bind the requested PURL itself, rather than inferring its distro from the
+/// union of SBOM roots that happen to contain it (or requiring ingestion first).
+fn package_context_filter(
+    context: &str,
+    bound: &str,
+    package: &qualified_purl::Model,
+) -> SimpleExpr {
+    let (allowed, has_cpes) = cpe_context_subqueries(package.id);
+    Expr::cust_with_exprs(
+        crate::legacy_context::filter(context, "$1", bound, "$2", "$3", "$4"),
+        [
+            Expr::value(package.purl.clone()),
+            Expr::cust(context.to_owned()).in_subquery(allowed),
+            Expr::exists(has_cpes).not(),
+            Expr::cust_with_values(
+                crate::legacy_context::attribute_proof(
+                    "proof_d.sbom_id IN (SELECT sbom_id FROM sbom_node_purl_ref WHERE qualified_purl_id = $1)",
+                ),
+                [package.id],
+            ),
+        ],
+    )
+}
+
+fn package_assertion_filter(package: &qualified_purl::Model) -> SimpleExpr {
+    let predicate = crate::legacy_context::assertion::filter(
+        "purl_status.context_cpe_id",
+        "purl_status.assertion_context_id",
+        "$2",
+        "COALESCE(version_range.high_version, version_range.low_version)",
+        "ownership.sbom_id",
+        "$1",
+    );
+    Expr::cust_with_exprs(
+        format!(
+            r#"EXISTS (
+            SELECT 1 FROM (
+                SELECT NULL::uuid AS sbom_id
+                UNION SELECT sbom_id FROM sbom_node_purl_ref WHERE qualified_purl_id = $1
+            ) ownership WHERE {predicate}
+        )"#
+        ),
+        [Expr::value(package.id), Expr::value(package.purl.clone())],
+    )
+}
+
 async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     tx: &C,
-    qualified_package_id: Uuid,
+    qualified_package: &qualified_purl::Model,
     purl_name: &str,
     namespace_name: Option<&str>,
 ) -> Result<Vec<ProductStatusCatcher>, Error> {
@@ -263,16 +307,10 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
         .join(JoinType::Join, sbom::Relation::Node.def())
         .join(JoinType::Join, sbom::Relation::Packages.def())
         .join(JoinType::Join, sbom_node::Relation::Purl.def())
-        .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package_id))
+        .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
         .select_only()
         .column(sbom::Column::SbomId)
         .into_query();
-
-    // CPE context filtering — only return product statuses whose
-    // context CPE matches the describing CPEs of SBOMs containing this
-    // PURL.  Mirrors the purl_status CPE context filter in
-    // PurlDetails::from_entity.
-    let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package_id);
 
     // Main query to get product statuses
     let product_statuses_query = product_status::Entity::find()
@@ -299,12 +337,11 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
         // 2.x), not the *package* version (e.g. keycloak-core 18.0.6).
         // Product applicability is validated through the product_version
         // → SBOM join chain above.
-        .filter(
-            Condition::any()
-                .add(product_status::Column::ContextCpeId.is_null())
-                .add(product_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
-                .add(Expr::exists(sbom_has_cpes).not()),
-        )
+        .filter(package_context_filter(
+            "product_status.context_cpe_id",
+            "NULL::text",
+            qualified_package,
+        ))
         .filter(Expr::col(product_status::Column::Package).eq(purl_name).or(
             namespace_name.map_or(Expr::value(false), |ns| {
                 Expr::col(product_status::Column::Package).eq(format!("{ns}/{purl_name}"))

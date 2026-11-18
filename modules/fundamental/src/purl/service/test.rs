@@ -106,7 +106,7 @@ async fn fixed_versions_rhel_contexts(ctx: &TrustifyContext) -> anyhow::Result<(
     Ok(())
 }
 
-/// Verifies each returned status retains its context even when the PURL occurs in both streams.
+/// The installed RPM's stream wins even when its PURL occurs under two SBOM roots.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn fixed_versions_each_status_context(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -119,7 +119,8 @@ async fn fixed_versions_each_status_context(ctx: &TrustifyContext) -> anyhow::Re
     ] {
         ingest_context_sbom(ctx, cpe, purl).await?;
     }
-    // When both product contexts are eligible for the qualified-PURL response.
+    // The el8 package does not become an el9 package merely by occurring in an
+    // SBOM whose describing CPE identifies el9.
     let details = PurlService::new(PaginationCache::for_test())
         .purl_by_purl(&Purl::from_str(purl)?, Default::default(), &ctx.db)
         .await?
@@ -144,19 +145,13 @@ async fn fixed_versions_each_status_context(ctx: &TrustifyContext) -> anyhow::Re
         .collect::<Vec<_>>();
     contexts.sort();
     contexts.dedup();
-    // Then each status has its own stream's fixes, not the union of eligible CPEs.
+    // Only the package's own stream and fixes are eligible.
     assert_eq!(
         contexts,
-        [
-            (
-                "cpe:/o:redhat:enterprise_linux:8:*:baseos:*",
-                vec!["7.61.1-22.el8_6.3"]
-            ),
-            (
-                "cpe:/o:redhat:enterprise_linux:9:*:baseos:*",
-                vec!["7.76.1-14.el9_0.4"]
-            ),
-        ]
+        [(
+            "cpe:/o:redhat:enterprise_linux:8:*:baseos:*",
+            vec!["7.61.1-22.el8_6.3"]
+        )]
     );
     Ok(())
 }
