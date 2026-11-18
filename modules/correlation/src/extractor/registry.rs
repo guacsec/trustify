@@ -683,12 +683,20 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::model::{IdentifierKind, MatchedRange, MatchedValue};
-    use sea_orm::{FromQueryResult, TransactionTrait};
+    use crate::model::{
+        ConfidenceFactor, ConfidenceReason, IdentifierKind, MatchedRange, MatchedValue,
+    };
+    use sea_orm::{ActiveModelTrait, EntityTrait, FromQueryResult, Set, TransactionTrait};
     use std::time::{Duration, Instant};
     use test_context::test_context;
-    use trustify_common::db::sql;
-    use trustify_entity::correlation_evidence::AssertionStatus;
+    use trustify_common::{cpe::Cpe, db::sql};
+    use trustify_entity::{
+        assertion_context::{self, AssertionContextCategory},
+        assertion_context_identifier::{self, ContextIdentifierKind},
+        correlation_evidence::AssertionStatus,
+        correlation_evidence_context::ContextSource,
+        cpe,
+    };
     use trustify_test_context::TrustifyContext;
 
     fn identifier(node: &str, value: &str) -> NodeIdentifier {
@@ -749,6 +757,82 @@ mod test {
             groups,
             vec![vec![merged], vec![scoped_assertion(3)], vec![]]
         );
+        Ok(())
+    }
+
+    /// Distinct matching contexts normalize before deduplication, retaining candidate-local sources.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn scoped_candidates_merge_after_context_normalization(
+        ctx: &TrustifyContext,
+    ) -> anyhow::Result<()> {
+        let product = "cpe:/a:example:normalization-product:1.0".parse::<Cpe>()?;
+        let tx = ctx.db.begin().await?;
+        let product = cpe::ActiveModel::from(product).insert(&tx).await?;
+        let context_ids = [Uuid::new_v4(), Uuid::new_v4()];
+        let categories = [
+            AssertionContextCategory::DefaultComponentOf,
+            AssertionContextCategory::InstalledOn,
+        ];
+        assertion_context::Entity::insert_many(context_ids.into_iter().zip(categories).map(
+            |(id, category)| assertion_context::ActiveModel {
+                id: Set(id),
+                category: Set(Some(category)),
+                name: Set("Normalization Product".into()),
+            },
+        ))
+        .exec(&tx)
+        .await?;
+        assertion_context_identifier::Entity::insert_many(context_ids.into_iter().map(
+            |context_id| assertion_context_identifier::ActiveModel {
+                context_id: Set(context_id),
+                kind: Set(ContextIdentifierKind::Cpe),
+                value: Set(product.to_string()),
+                cpe_id: Set(Some(product.id)),
+            },
+        ))
+        .exec(&tx)
+        .await?;
+        assert_ne!(context_ids[0], context_ids[1]);
+        let node = [NodeCpe {
+            cpe: product,
+            source: ContextSource::Node,
+            distance: 0,
+        }];
+
+        let mut first = scoped_assertion(1);
+        first.context_id = Some(context_ids[0]);
+        first.requires_context = true;
+        let mut second = first.clone();
+        second.context_id = Some(context_ids[1]);
+        second.source_assertions = scoped_assertion(2).source_assertions;
+        let mut other_candidate = second.clone();
+        other_candidate.source_assertions = scoped_assertion(3).source_assertions;
+
+        let mut merged = first.clone();
+        merged.context_id = None;
+        merged.apply(ConfidenceFactor::new(
+            ConfidenceReason::ProductConfirmed {
+                source: ContextSource::Node.into(),
+                distance: 0,
+                source_factor: Some(1.0),
+                wildcard_factor: Some(1.0),
+            },
+            1.0,
+        ));
+        merged
+            .source_assertions
+            .extend(second.source_assertions.iter().copied());
+        let mut separate = merged.clone();
+        separate.source_assertions = other_candidate.source_assertions.clone();
+
+        let groups = Extractors::scope_candidates(
+            vec![vec![first, second], vec![other_candidate], Vec::new()],
+            Some(&node),
+            &tx,
+        )
+        .await?;
+        assert_eq!(groups, vec![vec![merged], vec![separate], vec![]]);
         Ok(())
     }
 
