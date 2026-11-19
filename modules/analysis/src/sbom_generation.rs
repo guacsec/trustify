@@ -4,6 +4,7 @@ use crate::Error;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque, btree_map::Entry},
@@ -13,7 +14,7 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use trustify_common::{cpe::Cpe as CommonCpe, purl::Purl};
 use trustify_entity::{
-    cpe, license, package_relates_to_package, qualified_purl,
+    cpe, license, licensing_infos, package_relates_to_package, qualified_purl,
     relationship::Relationship,
     sbom,
     sbom_external_node::{self, DiscriminatorType, ExternalType},
@@ -98,6 +99,10 @@ pub async fn generate_spdx<C: ConnectionTrait>(
 
     let (nodes, node_ids) = fetch_nodes(&source_ids, db, &mut diagnostics).await?;
     let relationships = fetch_relationships(&source_ids, db).await?;
+    let extracted_licenses = licensing_infos::Entity::find()
+        .filter(licensing_infos::Column::SbomId.is_in(source_ids.clone()))
+        .all(db)
+        .await?;
     let mut external_targets: HashMap<NodeKey, Vec<NodeKey>> = HashMap::new();
     for link in links {
         external_targets
@@ -112,6 +117,7 @@ pub async fn generate_spdx<C: ConnectionTrait>(
         &node_ids,
         &relationships,
         &external_targets,
+        &extracted_licenses,
         options,
         &mut diagnostics,
     )?;
@@ -702,12 +708,16 @@ fn spdx_checksum_type(checksum_type: &str) -> Option<&'static str> {
     })
 }
 
+// The parameters are the already-loaded composition inputs; bundling them into
+// a struct would not make the call site clearer.
+#[allow(clippy::too_many_arguments)]
 fn render_spdx(
     sources: &BTreeMap<Uuid, sbom::Model>,
     nodes: &[ComposedNode],
     node_ids: &HashMap<NodeKey, String>,
     relationships: &[package_relates_to_package::Model],
     external_targets: &HashMap<NodeKey, Vec<NodeKey>>,
+    extracted_licenses: &[licensing_infos::Model],
     options: &GenerationOptions,
     diagnostics: &mut Vec<String>,
 ) -> Result<Vec<u8>, Error> {
@@ -717,6 +727,69 @@ fn render_spdx(
             |cpe| format!("Product SBOM for {cpe}"),
         )
     });
+
+    // Resolve each composed node's SPDX ID and license expressions once, so the
+    // containment pass and the emission pass agree and emit each diagnostic once.
+    let mut file_nodes: HashMap<&str, &ComposedNode> = HashMap::new();
+    let mut license_expressions: HashMap<&str, (String, String)> = HashMap::new();
+    for node in nodes {
+        let source_node = node
+            .source_keys
+            .first()
+            .ok_or_else(|| Error::Data("composed SBOM node has no source provenance".into()))?;
+        let spdx_id = node_ids.get(source_node).ok_or_else(|| {
+            Error::Data(format!(
+                "missing SPDX ID for source node {}",
+                source_node.node_id
+            ))
+        })?;
+        if node.kind == NodeKind::File {
+            file_nodes.insert(spdx_id.as_str(), node);
+        }
+        let declared = license_expression(&node.declared_licenses, diagnostics);
+        let concluded = license_expression(&node.concluded_licenses, diagnostics);
+        license_expressions.insert(spdx_id.as_str(), (declared, concluded));
+    }
+
+    // SPDX 2.3 requires `filesAnalyzed: true` (plus the verification code and
+    // file licenses) for packages that contain files.
+    let mut contained_files: HashMap<String, BTreeSet<String>> = HashMap::new();
+    for relation in relationships {
+        if relation.relationship != Relationship::Contains {
+            continue;
+        }
+        let left_key = NodeKey {
+            sbom_id: relation.sbom_id,
+            node_id: relation.left_node_id.clone(),
+        };
+        let right_key = NodeKey {
+            sbom_id: relation.sbom_id,
+            node_id: relation.right_node_id.clone(),
+        };
+        let contained: BTreeSet<String> =
+            relation_targets(&right_key, sources, node_ids, external_targets)
+                .into_iter()
+                .filter(|id| file_nodes.contains_key(id.as_str()))
+                .collect();
+        if contained.is_empty() {
+            continue;
+        }
+        for package_id in relation_targets(&left_key, sources, node_ids, external_targets) {
+            contained_files
+                .entry(package_id)
+                .or_default()
+                .extend(contained.iter().cloned());
+        }
+    }
+    // The synthetic root contains every emitted node, files included.
+    let product_id = "SPDXRef-Product";
+    let all_files: BTreeSet<String> = file_nodes.keys().map(|id| (*id).to_string()).collect();
+    if !all_files.is_empty() {
+        contained_files
+            .entry(product_id.to_string())
+            .or_default()
+            .extend(all_files);
+    }
 
     let mut packages = Vec::new();
     let mut files = Vec::new();
@@ -743,8 +816,10 @@ fn render_spdx(
             .map(|(algorithm, value)| json!({"algorithm": algorithm, "checksumValue": value}))
             .collect();
         let external_refs = external_references(&node.purls, &node.cpes);
-        let declared = license_expression(&node.declared_licenses, diagnostics);
-        let concluded = license_expression(&node.concluded_licenses, diagnostics);
+        let (declared, concluded) = license_expressions
+            .get(spdx_id.as_str())
+            .cloned()
+            .unwrap_or_else(|| ("NOASSERTION".into(), "NOASSERTION".into()));
         let claims = license_comment(&node.declared_licenses, &node.concluded_licenses);
         let mut comment = format!("Trustify source nodes: {source_provenance}");
         if let Some(group) = &node.group {
@@ -756,11 +831,19 @@ fn render_spdx(
 
         match node.kind {
             NodeKind::Package => {
+                let contained = contained_files.get(spdx_id.as_str());
+                let (files_analyzed, verification_code, license_info_from_files) = file_analysis(
+                    spdx_id,
+                    contained,
+                    &file_nodes,
+                    &license_expressions,
+                    diagnostics,
+                );
                 let mut package = json!({
                     "name": node.name,
                     "SPDXID": spdx_id,
                     "downloadLocation": "NOASSERTION",
-                    "filesAnalyzed": false,
+                    "filesAnalyzed": files_analyzed,
                     "licenseConcluded": concluded,
                     "licenseDeclared": declared,
                     "copyrightText": "NOASSERTION",
@@ -769,6 +852,13 @@ fn render_spdx(
                     "externalRefs": external_refs,
                     "comment": comment,
                 });
+                if let Some(code) = verification_code {
+                    package["packageVerificationCode"] =
+                        json!({"packageVerificationCodeValue": code});
+                }
+                if files_analyzed {
+                    package["licenseInfoFromFiles"] = json!(license_info_from_files);
+                }
                 if let Some(version) = &node.version {
                     package["versionInfo"] = json!(version);
                 }
@@ -786,7 +876,6 @@ fn render_spdx(
         }
     }
 
-    let product_id = "SPDXRef-Product";
     let mut product_external_refs = Vec::new();
     if let Some(product_cpe) = &options.target_cpe {
         product_external_refs.push(json!({
@@ -795,11 +884,18 @@ fn render_spdx(
             "referenceLocator": product_cpe,
         }));
     }
+    let (product_files_analyzed, product_verification_code, product_license_info) = file_analysis(
+        product_id,
+        contained_files.get(product_id),
+        &file_nodes,
+        &license_expressions,
+        diagnostics,
+    );
     let mut product = json!({
         "name": document_name.clone(),
         "SPDXID": product_id,
         "downloadLocation": "NOASSERTION",
-        "filesAnalyzed": false,
+        "filesAnalyzed": product_files_analyzed,
         "licenseConcluded": "NOASSERTION",
         "licenseDeclared": "NOASSERTION",
         "copyrightText": "NOASSERTION",
@@ -810,6 +906,12 @@ fn render_spdx(
         "externalRefs": product_external_refs,
         "comment": "Synthetic aggregate root; source provenance is attached to child packages.",
     });
+    if let Some(code) = product_verification_code {
+        product["packageVerificationCode"] = json!({"packageVerificationCodeValue": code});
+    }
+    if product_files_analyzed {
+        product["licenseInfoFromFiles"] = json!(product_license_info);
+    }
     if options.supplier.is_none()
         && let Some(fields) = product.as_object_mut()
     {
@@ -878,6 +980,50 @@ fn render_spdx(
             })
         })
         .collect();
+    // SPDX 2.3 requires every `LicenseRef-*` used by the document to be defined
+    // in `hasExtractedLicensingInfos`; carry the definitions through from the
+    // source documents.
+    //
+    // `licensing_infos` also holds CycloneDX license metadata keyed by BOM ref
+    // or license name. Those are not SPDX definitions, and a definition without
+    // `extractedText` is invalid, so only well-formed `LicenseRef-*` rows with
+    // text are emitted.
+    let mut extracted: BTreeMap<&str, Value> = BTreeMap::new();
+    for info in extracted_licenses {
+        if !is_license_ref(&info.license_id) {
+            continue;
+        }
+        if info.extracted_text.trim().is_empty() {
+            diagnostics.push(format!(
+                "extracted license {} has no extracted text",
+                info.license_id
+            ));
+            continue;
+        }
+        let entry = extracted
+            .entry(info.license_id.as_str())
+            .or_insert_with(|| {
+                let mut entry = json!({
+                    "licenseId": &info.license_id,
+                    "extractedText": &info.extracted_text,
+                });
+                if !info.name.is_empty() {
+                    entry["name"] = json!(&info.name);
+                }
+                if !info.comment.is_empty() {
+                    entry["comment"] = json!(&info.comment);
+                }
+                entry
+            });
+        if entry["extractedText"].as_str() != Some(info.extracted_text.as_str()) {
+            diagnostics.push(format!(
+                "conflicting definitions for extracted license {}",
+                info.license_id
+            ));
+        }
+    }
+    let extracted: Vec<Value> = extracted.into_values().collect();
+
     let creators = vec!["Tool: Trustify SBOM generator".to_string()];
     let now = OffsetDateTime::now_utc();
     // SPDX 2.3 requires `YYYY-MM-DDThh:mm:ssZ`; RFC 3339 would add fractional
@@ -915,6 +1061,9 @@ fn render_spdx(
             sources.len(), options.source_formats
         ),
     });
+    if !extracted.is_empty() {
+        document["hasExtractedLicensingInfos"] = json!(extracted);
+    }
     if incomplete {
         document["annotations"] = json!([{
             "annotationDate": created,
@@ -1024,6 +1173,68 @@ fn license_expression(licenses: &BTreeSet<String>, diagnostics: &mut Vec<String>
             "NOASSERTION".into()
         }
     }
+}
+
+/// Whether `id` is a well-formed SPDX `LicenseRef-*` identifier.
+fn is_license_ref(id: &str) -> bool {
+    id.strip_prefix("LicenseRef-").is_some_and(|suffix| {
+        !suffix.is_empty()
+            && suffix
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+    })
+}
+
+/// SPDX 2.3 package-level analysis fields for a package that contains files.
+///
+/// Returns `(filesAnalyzed, packageVerificationCode, licenseInfoFromFiles)`.
+/// `licenseInfoFromFiles` carries at least the files' `NOASSERTION` marker, so
+/// it is always a non-empty list when `filesAnalyzed` is true.
+fn file_analysis(
+    spdx_id: &str,
+    contained: Option<&BTreeSet<String>>,
+    file_nodes: &HashMap<&str, &ComposedNode>,
+    license_expressions: &HashMap<&str, (String, String)>,
+    diagnostics: &mut Vec<String>,
+) -> (bool, Option<String>, Vec<String>) {
+    let Some(contained) = contained.filter(|contained| !contained.is_empty()) else {
+        return (false, None, Vec::new());
+    };
+
+    let mut sha1s = Vec::new();
+    let mut licenses = BTreeSet::new();
+    let mut missing_sha1 = 0usize;
+    for file_id in contained {
+        let Some(file) = file_nodes.get(file_id.as_str()) else {
+            continue;
+        };
+        match file.checksums.iter().find(|(kind, _)| kind == "SHA1") {
+            Some((_, value)) => sha1s.push(value.to_ascii_lowercase()),
+            None => missing_sha1 += 1,
+        }
+        if let Some((declared, _)) = license_expressions.get(file_id.as_str()) {
+            licenses.insert(declared.clone());
+        }
+    }
+
+    let verification_code = if missing_sha1 > 0 {
+        diagnostics.push(format!(
+            "package {spdx_id} contains {missing_sha1} file(s) without a SHA1 checksum; \
+             cannot compute packageVerificationCode"
+        ));
+        None
+    } else {
+        // SPDX 2.3: SHA1 over the concatenation of the contained files' SHA1
+        // values, sorted lexicographically.
+        sha1s.sort();
+        let mut hasher = Sha1::new();
+        for value in &sha1s {
+            hasher.update(value.as_bytes());
+        }
+        Some(digest_hex(hasher.finalize().as_slice()))
+    };
+
+    (true, verification_code, licenses.into_iter().collect())
 }
 
 fn license_comment(declared: &BTreeSet<String>, concluded: &BTreeSet<String>) -> Option<String> {

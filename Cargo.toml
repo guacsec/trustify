@@ -132,6 +132,7 @@ cyclonedx-rs = "0.10.1"
 serde_json = { version = "1.0.114", features = ["raw_value"] }
 serde_qs = { version = "1", features = ["actix4"] }
 serde-saphyr = "1"
+sha1 = "0.11"
 sha2 = "0.11"
 spdx = "0.13.3"
 spdx-expression = "0.5.2"
