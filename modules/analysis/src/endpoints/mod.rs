@@ -3,7 +3,7 @@ mod query;
 #[cfg(test)]
 mod tests;
 
-use super::service::{AnalysisService, QueryOptions};
+use super::service::{AnalysisService, LatestGenerationOptions, QueryOptions};
 use crate::{
     endpoints::query::OwnedComponentReference,
     error::Error,
@@ -172,23 +172,48 @@ pub async fn render_sbom_graph(
         Query,
         Paginated,
         QueryOptions,
+        LatestGenerationOptions,
     ),
     responses(
         AuthResponse,
         (status = 200, description = "Retrieved latest component(s) located by search", body = PaginatedResults<Node>),
+        (status = 200, description = "Generated SPDX document when `generate_sbom=true`", body = String, content_type = "application/spdx+json"),
     ),
 )]
 #[get("/v3/analysis/latest/component")]
 /// Retrieve latest SBOM components (packages) by a complex search.
+#[allow(clippy::too_many_arguments)]
 pub async fn search_latest_component(
     service: web::Data<AnalysisService>,
     db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(options): web::Query<QueryOptions>,
+    web::Query(generation_options): web::Query<LatestGenerationOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
+    authorizer: web::Data<Authorizer>,
+    user: UserInformation,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
+    #[cfg(feature = "latest_sbom_generation")]
+    if generation_options.generate_sbom {
+        authorizer.require(&user, Permission::GenerateSbom)?;
+        let source_ids = service.latest_source_sbom_ids(&search, &tx).await?;
+        let generated = crate::sbom_generation::generate_spdx(
+            &source_ids,
+            &crate::sbom_generation::GenerationOptions {
+                source_formats: generation_options.source_format,
+                document_name: generation_options.document_name,
+                supplier: generation_options.supplier,
+                target_cpe: None,
+            },
+            &tx,
+        )
+        .await?;
+        return Ok(generated_spdx_response(generated));
+    }
+    #[cfg(not(feature = "latest_sbom_generation"))]
+    let _ = (&authorizer, &user, &generation_options);
     Ok(HttpResponse::Ok().json(
         service
             .retrieve_latest(&search, options, paginated, &tx)
@@ -203,28 +228,73 @@ pub async fn search_latest_component(
         ("key" = String, Path, description = "provide component name, URL-encoded pURL, or CPE itself"),
         Paginated,
         QueryOptions,
+        LatestGenerationOptions,
     ),
     responses(
         AuthResponse,
         (status = 200, description = "Retrieved latest component(s) located by an exact match of name, pURL, or CPE", body = PaginatedResults<Node>),
+        (status = 200, description = "Generated SPDX document when `generate_sbom=true`", body = String, content_type = "application/spdx+json"),
     ),
 )]
 #[get("/v3/analysis/latest/component/{key}")]
 /// Retrieve latest SBOM components (packages) by name, Package URL, or CPE.
+#[allow(clippy::too_many_arguments)]
 pub async fn get_latest_component(
     service: web::Data<AnalysisService>,
     db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     web::Query(options): web::Query<QueryOptions>,
+    web::Query(generation_options): web::Query<LatestGenerationOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
+    authorizer: web::Data<Authorizer>,
+    user: UserInformation,
 ) -> Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin().await?;
+
+    #[cfg(feature = "latest_sbom_generation")]
+    if generation_options.generate_sbom {
+        authorizer.require(&user, Permission::GenerateSbom)?;
+        let source_ids = service.latest_source_sbom_ids(&query, &tx).await?;
+        let target_cpe = match &query {
+            OwnedComponentReference::Cpe(cpe) => Some(format!("{cpe:0}")),
+            _ => None,
+        };
+        let generated = crate::sbom_generation::generate_spdx(
+            &source_ids,
+            &crate::sbom_generation::GenerationOptions {
+                source_formats: generation_options.source_format,
+                document_name: generation_options.document_name,
+                supplier: generation_options.supplier,
+                target_cpe,
+            },
+            &tx,
+        )
+        .await?;
+        return Ok(generated_spdx_response(generated));
+    }
+    #[cfg(not(feature = "latest_sbom_generation"))]
+    let _ = (&authorizer, &user, &generation_options);
 
     Ok(HttpResponse::Ok().json(
         service
             .retrieve_latest(&query, options, paginated, &tx)
             .await?,
     ))
+}
+
+#[cfg(feature = "latest_sbom_generation")]
+fn generated_spdx_response(generated: crate::sbom_generation::GeneratedSbom) -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("application/spdx+json")
+        .insert_header((
+            "Content-Disposition",
+            "attachment; filename=trustify-generated.spdx.json",
+        ))
+        .insert_header((
+            "X-Trustify-SBOM-Incomplete",
+            generated.incomplete.to_string(),
+        ))
+        .body(generated.bytes)
 }

@@ -6,6 +6,10 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+sbom_generation = ["dep:sha1", "dep:sha2", "dep:spdx", "dep:spdx-expression"]
+latest_sbom_generation = ["sbom_generation"]
+
 [dependencies]
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
@@ -29,6 +33,10 @@ sea-orm = { workspace = true }
 sea-query = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha1 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+spdx = { workspace = true, optional = true }
+spdx-expression = { workspace = true, optional = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
@@ -47,6 +55,7 @@ jsonpath-rust = { workspace = true }
 log = { workspace = true }
 petgraph = { workspace = true }
 rstest = { workspace = true }
+spdx-rs = { workspace = true }
 serde_json = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
