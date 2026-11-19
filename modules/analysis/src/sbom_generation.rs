@@ -1168,7 +1168,32 @@ fn license_expression(licenses: &BTreeSet<String>, diagnostics: &mut Vec<String>
                 return license.clone();
             }
             match spdx_expression::SpdxExpression::parse(license) {
-                Ok(expression) => expression.to_string(),
+                Ok(expression) => {
+                    // `spdx-expression` validates grammar only; the identifier
+                    // must also be on the SPDX license list (or be a
+                    // `LicenseRef-*`, which is defined in the document).
+                    let mut unknown = Vec::new();
+                    for simple in expression.licenses() {
+                        if !simple.license_ref && spdx::license_id(&simple.identifier).is_none() {
+                            unknown.push(simple.identifier.clone());
+                        }
+                    }
+                    for exception in expression.exceptions() {
+                        if spdx::exception_id(exception).is_none() {
+                            unknown.push(exception.to_string());
+                        }
+                    }
+                    if unknown.is_empty() {
+                        expression.to_string()
+                    } else {
+                        unknown.sort();
+                        diagnostics.push(format!(
+                            "non-SPDX license identifier(s) in source assertion `{license}`: {}",
+                            unknown.join(", ")
+                        ));
+                        "NOASSERTION".into()
+                    }
+                }
                 Err(_) => {
                     diagnostics.push(format!("unparsed source license assertion: {license}"));
                     "NOASSERTION".into()
