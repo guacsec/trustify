@@ -879,9 +879,17 @@ fn render_spdx(
         })
         .collect();
     let creators = vec!["Tool: Trustify SBOM generator".to_string()];
-    let created = OffsetDateTime::now_utc()
+    let now = OffsetDateTime::now_utc();
+    // SPDX 2.3 requires `YYYY-MM-DDThh:mm:ssZ`; RFC 3339 would add fractional
+    // seconds, which conformant parsers reject.
+    let created = now
+        .replace_nanosecond(0)
+        .map_err(|err| Error::Any(err.into()))?
         .format(&Rfc3339)
         .map_err(|err| Error::Any(err.into()))?;
+    // The namespace must stay unique per generated document, so its seed keeps
+    // the full timestamp precision that `created` cannot carry.
+    let namespace_time = now.format(&Rfc3339).map_err(|err| Error::Any(err.into()))?;
     let incomplete = !diagnostics.is_empty();
     let diagnostics_text = diagnostics
         .iter()
@@ -894,7 +902,7 @@ fn render_spdx(
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
         "name": document_name,
-        "documentNamespace": document_namespace(sources, options, &created),
+        "documentNamespace": document_namespace(sources, options, &namespace_time),
         "creationInfo": {
             "creators": creators,
             "created": created,
@@ -1038,7 +1046,7 @@ fn license_comment(declared: &BTreeSet<String>, concluded: &BTreeSet<String>) ->
 fn document_namespace(
     sources: &BTreeMap<Uuid, sbom::Model>,
     options: &GenerationOptions,
-    created: &str,
+    timestamp: &str,
 ) -> String {
     let mut seed = String::new();
     for source in sources.values() {
@@ -1051,7 +1059,7 @@ fn document_namespace(
         options.document_name,
         options.supplier,
         options.target_cpe,
-        created
+        timestamp
     );
     let digest = Sha256::digest(seed.as_bytes());
     format!("https://trustify.redhat.com/sbom/{}", digest_hex(&digest))
