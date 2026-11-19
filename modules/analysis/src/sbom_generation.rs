@@ -358,6 +358,7 @@ struct NodeData {
     checksums: BTreeSet<(String, String)>,
     declared_licenses: BTreeSet<String>,
     concluded_licenses: BTreeSet<String>,
+    supplier: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -383,6 +384,7 @@ struct ComposedNode {
     checksums: BTreeSet<(String, String)>,
     declared_licenses: BTreeSet<String>,
     concluded_licenses: BTreeSet<String>,
+    suppliers: BTreeSet<String>,
     source_keys: Vec<NodeKey>,
 }
 
@@ -455,6 +457,7 @@ async fn fetch_nodes<C: ConnectionTrait>(
             checksums: BTreeSet::new(),
             declared_licenses: BTreeSet::new(),
             concluded_licenses: BTreeSet::new(),
+            supplier: package.supplier.as_ref().and_then(supplier_name),
         });
     }
     for file in files {
@@ -476,6 +479,7 @@ async fn fetch_nodes<C: ConnectionTrait>(
             checksums: BTreeSet::new(),
             declared_licenses: BTreeSet::new(),
             concluded_licenses: BTreeSet::new(),
+            supplier: None,
         });
     }
     if raw_nodes.len() > MAX_OUTPUT_NODES {
@@ -597,6 +601,7 @@ async fn fetch_nodes<C: ConnectionTrait>(
             existing
                 .concluded_licenses
                 .extend(node.concluded_licenses.iter().cloned());
+            existing.suppliers.extend(node.supplier.iter().cloned());
             existing.source_keys.push(node.key.clone());
         } else {
             if !variants.is_empty() {
@@ -615,6 +620,7 @@ async fn fetch_nodes<C: ConnectionTrait>(
                 checksums: node.checksums,
                 declared_licenses: node.declared_licenses,
                 concluded_licenses: node.concluded_licenses,
+                suppliers: node.supplier.into_iter().collect(),
                 source_keys: vec![node.key.clone()],
             });
         }
@@ -828,9 +834,13 @@ fn render_spdx(
         if let Some(claims) = claims {
             let _ = write!(&mut comment, "; source license assertions: {claims}");
         }
+        if let Some(claims) = supplier_comment(&node.suppliers) {
+            let _ = write!(&mut comment, "; supplier claims: {claims}");
+        }
 
         match node.kind {
             NodeKind::Package => {
+                let supplier = spdx_supplier(&node.suppliers, diagnostics);
                 let contained = contained_files.get(spdx_id.as_str());
                 let (files_analyzed, verification_code, license_info_from_files) = file_analysis(
                     spdx_id,
@@ -847,7 +857,7 @@ fn render_spdx(
                     "licenseConcluded": concluded,
                     "licenseDeclared": declared,
                     "copyrightText": "NOASSERTION",
-                    "supplier": "NOASSERTION",
+                    "supplier": supplier,
                     "checksums": checksums,
                     "externalRefs": external_refs,
                     "comment": comment,
@@ -1237,6 +1247,65 @@ fn file_analysis(
     (true, verification_code, licenses.into_iter().collect())
 }
 
+/// Extract a package supplier from the stored `sbom_package.supplier` JSON
+/// shape and normalize it to the SPDX 2.3 `Person:`/`Organization:` form.
+///
+/// CycloneDX stores a bare name while SPDX already stores the prefixed form;
+/// normalizing here makes both spellings of the same supplier deduplicate.
+fn supplier_name(value: &Value) -> Option<String> {
+    let name = value
+        .get("name")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .or_else(|| {
+            value
+                .get("identifiers")
+                .and_then(Value::as_array)?
+                .iter()
+                .filter_map(Value::as_str)
+                .find_map(|identifier| identifier.strip_prefix("name:"))
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+        })?;
+    Some(
+        if name.starts_with("Organization:") || name.starts_with("Person:") {
+            name.to_owned()
+        } else {
+            format!("Organization: {name}")
+        },
+    )
+}
+
+/// Records conflicting supplier assertions for the package comment.
+///
+/// SPDX allows a single `supplier` value, so when sources disagree the field
+/// degrades to `NOASSERTION`; listing the claims here preserves the
+/// provenance, mirroring how license assertions are kept in the comment.
+fn supplier_comment(suppliers: &BTreeSet<String>) -> Option<String> {
+    (suppliers.len() > 1).then(|| suppliers.iter().cloned().collect::<Vec<_>>().join(" | "))
+}
+
+/// Render a package supplier in the SPDX 2.3 `Person:`/`Organization:` form.
+fn spdx_supplier(suppliers: &BTreeSet<String>, diagnostics: &mut Vec<String>) -> String {
+    match suppliers.len() {
+        0 => "NOASSERTION".into(),
+        1 => {
+            let Some(supplier) = suppliers.first() else {
+                return "NOASSERTION".into();
+            };
+            supplier.clone()
+        }
+        _ => {
+            diagnostics.push(format!(
+                "multiple distinct package suppliers (recorded in the package comment): {}",
+                suppliers.iter().cloned().collect::<Vec<_>>().join(" | ")
+            ));
+            "NOASSERTION".into()
+        }
+    }
+}
+
 fn license_comment(declared: &BTreeSet<String>, concluded: &BTreeSet<String>) -> Option<String> {
     let mut claims = Vec::new();
     if !declared.is_empty() {
@@ -1349,6 +1418,60 @@ mod tests {
             );
         }
         assert_eq!(spdx_checksum_type("unknown"), None);
+    }
+
+    #[test]
+    fn supplier_names_normalize_to_the_spdx_form() {
+        // CycloneDX stores a bare name, SPDX the already-prefixed form; both
+        // must normalize to the same value so they deduplicate.
+        assert_eq!(
+            supplier_name(&json!({"name": "Red Hat"})).as_deref(),
+            Some("Organization: Red Hat")
+        );
+        assert_eq!(
+            supplier_name(&json!({"name": "Organization: Red Hat"})).as_deref(),
+            Some("Organization: Red Hat")
+        );
+        assert_eq!(
+            supplier_name(&json!({"name": "Person: Jane Doe"})).as_deref(),
+            Some("Person: Jane Doe")
+        );
+        assert_eq!(
+            supplier_name(&json!({"identifiers": ["name:Acme"]})).as_deref(),
+            Some("Organization: Acme")
+        );
+        assert_eq!(supplier_name(&json!({"name": "  "})), None);
+        assert_eq!(supplier_name(&json!({})), None);
+    }
+
+    #[test]
+    fn conflicting_suppliers_degrade_and_are_kept_in_the_comment() {
+        let mut suppliers = BTreeSet::new();
+        suppliers.insert("Organization: Red Hat".to_string());
+        suppliers.insert("Organization: SUSE".to_string());
+
+        let mut diagnostics = Vec::new();
+        assert_eq!(spdx_supplier(&suppliers, &mut diagnostics), "NOASSERTION");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.contains("multiple distinct package suppliers")),
+            "conflict must be reported: {diagnostics:?}"
+        );
+        assert_eq!(
+            supplier_comment(&suppliers).as_deref(),
+            Some("Organization: Red Hat | Organization: SUSE")
+        );
+
+        // A single supplier is emitted in the field and not repeated in the comment.
+        let single = ["Organization: Red Hat".to_string()].into_iter().collect();
+        let mut diagnostics = Vec::new();
+        assert_eq!(
+            spdx_supplier(&single, &mut diagnostics),
+            "Organization: Red Hat"
+        );
+        assert!(diagnostics.is_empty());
+        assert_eq!(supplier_comment(&single), None);
     }
 
     #[test]
