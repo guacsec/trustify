@@ -67,9 +67,15 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // must be withdrawn, as the update was
     assert!(v.head.withdrawn.is_some());
-    // one needs to be withdrawn, the original one isn't
-    assert!(v.advisories[0].head.head.withdrawn.is_none());
-    assert!(v.advisories[1].head.head.withdrawn.is_some());
+    // one needs to be withdrawn, the original one isn't. Both advisories share the
+    // document ID and type, so their relative order is not defined by the ordering
+    // contract.
+    let withdrawn = v
+        .advisories
+        .iter()
+        .filter(|advisory| advisory.head.head.withdrawn.is_some())
+        .count();
+    assert_eq!(withdrawn, 1);
 
     // done
 
