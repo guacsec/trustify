@@ -4665,6 +4665,8 @@ async fn reintroduced_vendor_fix_does_not_replace_persisted_build(
 }
 
 /// The `crypto` filter keeps only packages generating a crypto asset with a matching name.
+/// Neither non-crypto nodes sharing the name, nor non-package nodes (e.g. machine-learning models)
+/// generating the asset, are matched.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn list_purls_filtered_by_crypto(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -4694,6 +4696,20 @@ async fn list_purls_filtered_by_crypto(ctx: &TrustifyContext) -> Result<(), anyh
             dependency["provides"] = json!(["not-crypto-aes"]);
         }
     }
+
+    // And a machine-learning model, which carries a PURL but isn't a package, also provides the
+    // crypto asset: it must not be returned by the crypto filter either.
+    cbom["components"].as_array_mut().unwrap().push(json!({
+        "type": "machine-learning-model",
+        "bom-ref": "ml-model",
+        "name": "some-model",
+        "version": "1.0.0",
+        "purl": "pkg:huggingface/acme/some-model@1.0.0",
+    }));
+    cbom["dependencies"].as_array_mut().unwrap().push(json!({
+        "ref": "ml-model",
+        "provides": ["aes128gcm"],
+    }));
     ctx.ingest_json(cbom).await?;
 
     let app = caller(ctx).await?;
@@ -4706,8 +4722,8 @@ async fn list_purls_filtered_by_crypto(ctx: &TrustifyContext) -> Result<(), anyh
         .await
     };
 
-    // Without filter, both packages are listed
-    assert_eq!(list("").await["total"], 2);
+    // Without filter, both packages and the machine-learning model are listed
+    assert_eq!(list("").await["total"], 3);
 
     // With the algorithm name, only the package generating the crypto asset is returned
     let response = list("&crypto=AES").await;

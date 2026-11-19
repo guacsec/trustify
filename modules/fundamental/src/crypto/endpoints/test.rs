@@ -521,3 +521,46 @@ async fn list_algorithms_includes_recommendation(
 
     Ok(())
 }
+
+/// Verifies that only packages are counted as generating a crypto asset: a machine-learning model
+/// generating the same asset is not a package.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn packages_count_ignores_non_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use serde_json::{Value, json};
+
+    // Given a CBOM where `crypto-library` (a package) provides AES
+    let mut cbom: Value =
+        serde_json::from_slice(&document_bytes("cyclonedx/cryptographic/cbom.json").await?)?;
+
+    // And a machine-learning model, which isn't a package, also provides AES
+    cbom["components"].as_array_mut().unwrap().push(json!({
+        "type": "machine-learning-model",
+        "bom-ref": "ml-model",
+        "name": "some-model",
+        "version": "1.0.0",
+        "purl": "pkg:huggingface/acme/some-model@1.0.0",
+    }));
+    cbom["dependencies"].as_array_mut().unwrap().push(json!({
+        "ref": "ml-model",
+        "provides": ["aes128gcm"],
+    }));
+    ctx.ingest_json(cbom).await?;
+
+    let app = caller(ctx).await?;
+    let request = TestRequest::get()
+        .uri("/api/v3/crypto/algorithm?total=true")
+        .to_request();
+    let response: PaginatedResults<CryptoAlgorithmSummary> =
+        app.call_and_read_body_json(request).await;
+
+    // Then only the package is counted
+    let aes = response
+        .items
+        .iter()
+        .find(|item| item.name == "AES")
+        .expect("AES should be listed");
+    assert_eq!(aes.packages_count, 1, "{aes:#?}");
+
+    Ok(())
+}

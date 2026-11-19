@@ -54,7 +54,8 @@ use trustify_entity::{
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
     remediation, remediation_purl_status, sbom, sbom_crypto, sbom_license_expanded, sbom_node,
-    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
+    sbom_node_purl_ref, sbom_package, sbom_package_license, status, version_range, versioned_purl,
+    vulnerability,
 };
 use trustify_module_correlation::{
     extractor::{
@@ -773,7 +774,9 @@ impl PurlService {
 
         if !crypto.is_empty() {
             // packages (left) generating (relationship) a crypto asset (right) with a given name;
-            // the `sbom_crypto` join ensures the generated node really is a crypto asset, and not
+            // the `sbom_package` join ensures the left node really is a package (other node kinds,
+            // e.g. a CycloneDX machine-learning model, may carry a PURL too), and the
+            // `sbom_crypto` join ensures the generated node really is a crypto asset, and not
             // just a node which happens to share its name
             let generated = sea_query::Query::select()
                 .column((
@@ -802,6 +805,23 @@ impl PurlService {
                             package_relates_to_package::Column::LeftNodeId,
                         )),
                     ),
+                )
+                .join(
+                    InnerJoin,
+                    sbom_package::Entity,
+                    Expr::col((sbom_package::Entity, sbom_package::Column::SbomId))
+                        .equals((
+                            package_relates_to_package::Entity,
+                            package_relates_to_package::Column::SbomId,
+                        ))
+                        .and(
+                            Expr::col((sbom_package::Entity, sbom_package::Column::NodeId)).equals(
+                                (
+                                    package_relates_to_package::Entity,
+                                    package_relates_to_package::Column::LeftNodeId,
+                                ),
+                            ),
+                        ),
                 )
                 .join(
                     InnerJoin,

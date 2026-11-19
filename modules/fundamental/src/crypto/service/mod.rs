@@ -27,7 +27,7 @@ use trustify_common::{
 };
 use trustify_entity::{
     crypto_remediation, package_relates_to_package, relationship::Relationship, sbom_crypto,
-    sbom_crypto::CryptoAssetType, sbom_node,
+    sbom_crypto::CryptoAssetType, sbom_node, sbom_package,
 };
 use uuid::Uuid;
 
@@ -290,6 +290,9 @@ impl CryptoService {
     }
 
     /// Count packages related to each crypto asset via Generates relationship.
+    ///
+    /// Only real packages (nodes with an `sbom_package` row) are counted: other kinds of nodes
+    /// (e.g. a CycloneDX machine-learning model) may also generate a crypto asset.
     async fn batch_packages_count<C: ConnectionTrait>(
         &self,
         items: &[sbom_crypto::Model],
@@ -315,6 +318,16 @@ impl CryptoService {
             .column_as(
                 package_relates_to_package::Column::LeftNodeId.count(),
                 "packages_count",
+            )
+            .join(
+                JoinType::InnerJoin,
+                package_relates_to_package::Entity::belongs_to(sbom_package::Entity)
+                    .from((
+                        package_relates_to_package::Column::SbomId,
+                        package_relates_to_package::Column::LeftNodeId,
+                    ))
+                    .to((sbom_package::Column::SbomId, sbom_package::Column::NodeId))
+                    .into(),
             )
             .filter(condition)
             .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Generates))
