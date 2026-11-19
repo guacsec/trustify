@@ -68,7 +68,7 @@ pub fn configure(
 /// Retrieve details of a fully-qualified pURL
 pub async fn get(
     service: web::Data<PurlService>,
-    db: web::Data<db::ReadOnly>,modules/fundamental/src/purl/endpoints/mod.rs
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadSbom>,
@@ -83,7 +83,7 @@ pub async fn get(
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParmodules/fundamental/src/purl/endpoints/mod.rsams)]
+#[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 struct CryptoFilterQuery {
     /// Filter by crypto asset name (algorithm, key, ...). Only packages generating any of the
