@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795027038591,
+  "lastUpdate": 1795097647367,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25194,6 +25194,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "gilles@redhat.com",
+            "name": "Gilles Dubreuil",
+            "username": "gildub"
+          },
+          "distinct": false,
+          "id": "10c984b557fd03fde3efd0e8ebbaf220b402824d",
+          "message": "fix(crypto): only consider packages as generating crypto assets\n\nNodes other than packages may carry a PURL and generate (`provides`) a\ncrypto asset, e.g. a CycloneDX machine-learning model. Those have no\n`sbom_package` row, yet were returned by the `crypto` filter of the PURL\nlisting, and counted in the `packages_count` of crypto algorithms.\n\nRequire the left node of the `Generates` relationship to have a matching\n`sbom_package` row in both places.",
+          "timestamp": "2026-11-19T13:06:48Z",
+          "tree_id": "3e938a81d7e430959c3225df2e046cc36abbaaec",
+          "url": "https://github.com/guacsec/trustify/commit/10c984b557fd03fde3efd0e8ebbaf220b402824d"
+        },
+        "date": 1795097644432,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
