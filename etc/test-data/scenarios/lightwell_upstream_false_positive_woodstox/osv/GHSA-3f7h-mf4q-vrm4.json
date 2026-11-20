@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.6.0",
+  "id": "GHSA-3f7h-mf4q-vrm4",
+  "modified": "2026-11-13T00:00:00Z",
+  "published": "2022-09-16T00:00:00Z",
+  "aliases": [
+    "CVE-2022-40152"
+  ],
+  "summary": "Woodstox parsing of XML with deeply nested entity references can cause a denial of service",
+  "details": "AUTHORED FIXTURE - not a copy of any upstream record. Written for TC-7587 to model the unscoped (plain `Maven`) view of CVE-2022-40152, which is the upstream vulnerability that the Red Hat Lightwell woodstox advisories remediate. Simplified to a single affected entry with one open range fixed at the upstream 6.4.0 release, so that the interval alone decides the match: `versions[]` is deliberately absent, because an explicit version list would add a second exact Generic range and mask the interval (see the scenario README).",
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.woodstox:woodstox-core",
+        "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core"
+      },
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            { "introduced": "0" },
+            { "fixed": "6.4.0" }
+          ]
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "type": "ADVISORY",
+      "url": "https://github.com/advisories/GHSA-3f7h-mf4q-vrm4"
+    }
+  ]
+}

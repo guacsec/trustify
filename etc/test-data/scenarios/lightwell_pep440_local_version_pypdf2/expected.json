@@ -1,0 +1,29 @@
+{
+  "advisories": [
+    "../../osv/RHLW-2026-821eaab8409c2a61.json"
+  ],
+  "sboms": {
+    "sbom_pep440_local_version_pypdf2.cdx.json": {
+      "pypdf2-2.0.0": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      },
+      "pypdf2-3.0.0": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      },
+      "pypdf2-3.0.1": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      }
+    },
+    "sbom_pep440_local_version_pypdf2.spdx.json": {
+      "SPDXRef-Package-pypdf2-2.0.0": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      },
+      "SPDXRef-Package-pypdf2-3.0.0": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      },
+      "SPDXRef-Package-pypdf2-3.0.1": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      }
+    }
+  }
+}

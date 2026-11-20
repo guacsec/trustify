@@ -951,6 +951,18 @@ struct Scenario {
 #[case::s27_combined("S27_cve_identifier_synonyms_log4j", "expected.json")]
 #[case::s29_provider("S29_provider_weighting", "expected.json")]
 #[case::s28_regression("S28_fixed_then_regression", "expected.json")]
+#[case::lightwell_scoped_ecosystem("lightwell_scoped_ecosystem_woodstox", "expected.json")]
+#[case::lightwell_introduced_zero("lightwell_introduced_zero_woodstox", "expected.json")]
+#[case::lightwell_branch_isolation("lightwell_branch_isolation_woodstox", "expected.json")]
+#[case::lightwell_coverage_gap("lightwell_coverage_gap_woodstox", "expected.json")]
+#[case::lightwell_crossbranch_per_cve("lightwell_crossbranch_per_cve_logback", "expected.json")]
+#[case::lightwell_bundled_upstream("lightwell_bundled_upstream_spring-expression", "expected.json")]
+#[case::lightwell_pep440_local_version("lightwell_pep440_local_version_pypdf2", "expected.json")]
+#[case::lightwell_upstream_false_positive(
+    "lightwell_upstream_false_positive_woodstox",
+    "expected.json"
+)]
+#[case::lightwell_suffix_detection("lightwell_suffix_detection", "expected.json")]
 #[test_log::test(actix_web::test)]
 async fn scenario(
     ctx: &TrustifyContext,
@@ -1181,6 +1193,18 @@ async fn stored_evidence(
 #[case::s27_combined("S27_cve_identifier_synonyms_log4j", "expected.json")]
 #[case::s29_provider("S29_provider_weighting", "expected.json")]
 #[case::s28_regression("S28_fixed_then_regression", "expected.json")]
+#[case::lightwell_scoped_ecosystem("lightwell_scoped_ecosystem_woodstox", "expected.json")]
+#[case::lightwell_introduced_zero("lightwell_introduced_zero_woodstox", "expected.json")]
+#[case::lightwell_branch_isolation("lightwell_branch_isolation_woodstox", "expected.json")]
+#[case::lightwell_coverage_gap("lightwell_coverage_gap_woodstox", "expected.json")]
+#[case::lightwell_crossbranch_per_cve("lightwell_crossbranch_per_cve_logback", "expected.json")]
+#[case::lightwell_bundled_upstream("lightwell_bundled_upstream_spring-expression", "expected.json")]
+#[case::lightwell_pep440_local_version("lightwell_pep440_local_version_pypdf2", "expected.json")]
+#[case::lightwell_upstream_false_positive(
+    "lightwell_upstream_false_positive_woodstox",
+    "expected.json"
+)]
+#[case::lightwell_suffix_detection("lightwell_suffix_detection", "expected.json")]
 #[test_log::test(actix_web::test)]
 async fn directions_agree(
     ctx: &TrustifyContext,
@@ -1907,6 +1931,93 @@ async fn osv_upstream(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 url: None,
             }]
         )]
+    );
+    Ok(())
+}
+
+/// A Lightwell record that remediates many upstream vulnerabilities at once collapses to a single
+/// verdict, and that verdict still names every upstream identifier.
+///
+/// `expected.json` for `lightwell_bundled_upstream_spring-expression` can only assert that exactly
+/// one verdict key appears; this asserts the other half of the scenario — that collapsing 14
+/// upstream IDs into one verdict is lossless. See that scenario's README.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn lightwell_bundled_upstream_spring_expression(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    // Given the bundled advisory and an SBOM whose component sits inside its range
+    const BASE: &str = "scenarios/lightwell_bundled_upstream_spring-expression";
+    const ADVISORY: &str = "RHLW-2026-25544e781d50b856";
+    ctx.ingest_document(&format!("{BASE}/advisories/{ADVISORY}.json"))
+        .await?;
+    let sbom = ctx
+        .ingest_document(&format!(
+            "{BASE}/sbom_bundled_upstream_spring-expression.cdx.json"
+        ))
+        .await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    tx.commit().await?;
+
+    // When the SBOM is correlated
+    let tx = ctx.db.begin().await?;
+    let verdicts = CorrelationService::default()
+        .correlate_sbom(sbom_id, false, &tx)
+        .await?
+        .verdicts;
+
+    // Then each affected component carries one verdict, under the advisory's own ID, naming all
+    // 14 upstream identifiers: 7 CVE and 7 GHSA.
+    let mut affected = verdicts
+        .iter()
+        .map(|verdict| {
+            let mut upstream = verdict.vulnerability.upstream.clone();
+            upstream.sort();
+            (
+                verdict.component.node_id.as_str(),
+                verdict.vulnerability.id.as_str(),
+                verdict.status,
+                upstream,
+            )
+        })
+        .collect::<Vec<_>>();
+    // `VerdictStatus` is not `Ord`; the node/vulnerability pair already orders these uniquely.
+    affected.sort_by(|left, right| (left.0, left.1).cmp(&(right.0, right.1)));
+
+    let upstream = [
+        "CVE-2023-20860",
+        "CVE-2023-20861",
+        "CVE-2023-20863",
+        "CVE-2024-22243",
+        "CVE-2024-38808",
+        "CVE-2024-38816",
+        "CVE-2025-41249",
+        "GHSA-564r-hj7v-mcr5",
+        "GHSA-7phw-cxx7-q9vq",
+        "GHSA-9cmq-m9j5-mvww",
+        "GHSA-ccgv-vj62-xf9h",
+        "GHSA-cx7f-g6mp-7hqm",
+        "GHSA-jmp9-x22r-554x",
+        "GHSA-wxqc-pxw9-g2p8",
+    ]
+    .map(String::from)
+    .to_vec();
+    assert_eq!(
+        affected,
+        vec![
+            (
+                "spring-expression-5.3.17",
+                ADVISORY,
+                VerdictStatus::Affected,
+                upstream.clone()
+            ),
+            (
+                "spring-expression-5.3.18",
+                ADVISORY,
+                VerdictStatus::Affected,
+                upstream
+            ),
+        ]
     );
     Ok(())
 }

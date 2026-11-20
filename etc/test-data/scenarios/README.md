@@ -51,12 +51,49 @@ remain ignored; `main` was compared through source and expectations, not execute
 | [S29 — provider precedence](S29_provider_weighting/README.md) | Passing | Provider aliases and temporary context covered |
 | [S30 — curl cross-product](S30_crossproduct_curl_notaffected/README.md) | Passing | Renamed from `main`'s original S18 |
 
+## Lightwell OSV scenarios
+
+Spec-first scenarios for Red Hat Lightwell remediated builds (TC-7587). Unlike the numbered
+scenarios, these are named `lightwell_<behaviour>_<subject>` — behaviour first, subject last and
+dropped when the scenario covers the whole dataset. They carry no catalog index.
+
+Every expectation is generated from the OSV schema and `lightwell-osv/docs/README.md` using that
+repo's own `tools/check_ranges.py` (`in_range` + `comparator`), independently of Trustify, and is
+then measured against Trustify. Each README pins snapshot `ae0cbae` (2026-11-13, 288 advisories)
+and `--rule scoped`. Advisories are vendored verbatim from that snapshot, or reused from
+`etc/test-data/osv/`; `versions[]` is never stripped on disk.
+
+| Scenario | State | What it encodes |
+|---|---|---|
+| [scoped ecosystem](lightwell_scoped_ecosystem_woodstox/README.md) | Passing | Matching requires the scoped ecosystem and exact coordinate |
+| [introduced zero](lightwell_introduced_zero_woodstox/README.md) | Passing | `introduced: "0"` is an open low bound, not a literal version |
+| [branch isolation](lightwell_branch_isolation_woodstox/README.md) | Passing | Disjoint intervals; no leakage between base-version lines |
+| [coverage gap](lightwell_coverage_gap_woodstox/README.md) | Passing | **Defect:** empty ≠ safe — 78 uncovered inter-branch gaps |
+| [cross-branch per CVE](lightwell_crossbranch_per_cve_logback/README.md) | Passing | **Defect:** suppression is per upstream CVE, not per advisory |
+| [bundled upstream](lightwell_bundled_upstream_spring-expression/README.md) | Passing | 14 upstream IDs collapse to one verdict, losslessly |
+| [PEP 440 local version](lightwell_pep440_local_version_pypdf2/README.md) | Passing | `+rhlw.N` sorts above its base |
+| [upstream false positive](lightwell_upstream_false_positive_woodstox/README.md) | Passing | An unscoped record reports a remediated build as affected |
+| [suffix detection](lightwell_suffix_detection/README.md) | Passing | **Defect:** all three `rhlw` suffix shapes, not just `.rhlw-` |
+
+All nine run in the service harness in both ingestion orders and both SBOM formats, and again
+through the deprecated purl API in
+[`modules/fundamental/src/correlation/test.rs`](../../../modules/fundamental/src/correlation/test.rs),
+which derives its expectations from the same `expected.json` rather than restating them.
+
+Three defects these scenarios record are to be filed upstream against `lightwell-osv`; see the
+`coverage_gap`, `crossbranch_per_cve` and `suffix_detection` READMEs. The related Maven ordering
+guard lives in
+[`modules/ingestor/tests/version/mavenver.rs`](../../../modules/ingestor/tests/version/mavenver.rs).
+
 ## Current coverage
 
 The [service harness](../../../modules/correlation/src/service/test.rs) covers 27 scenarios through
 39 manifests (78 ingestion-order tests). S7 is the only numbered scenario without accepted
 new-engine coverage. S18 (digests) and S19 (hardware identifiers) have separate extractor and
 service tests, but no full-verdict manifests in the common harness.
+
+The nine `lightwell_*` scenarios above add nine further manifests, all in both formats and both
+ingestion orders.
 
 All migrated original scenarios cover both CycloneDX and SPDX. S20–S22 and S24–S27 currently
 cover CycloneDX only. S23, S28, and S29 cover both formats. The original S18 curl cross-product

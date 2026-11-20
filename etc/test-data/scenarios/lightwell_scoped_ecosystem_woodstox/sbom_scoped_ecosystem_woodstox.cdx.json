@@ -1,0 +1,56 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:abf43e27-b5a8-463b-8192-b84d6def6ef6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-lightwell_scoped_ecosystem_woodstox",
+      "type": "application",
+      "name": "lightwell_scoped_ecosystem_woodstox",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "woodstox-6.0.3",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.0.3",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3"
+    },
+    {
+      "bom-ref": "woodstox-6.0.3-rhlw",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.0.3.rhlw-00001",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3.rhlw-00001"
+    },
+    {
+      "bom-ref": "woodstox-6.4.0",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.4.0",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.4.0"
+    },
+    {
+      "bom-ref": "foreign-woodstox-6.0.3",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.0.3",
+      "purl": "pkg:maven/com.example/woodstox-core@6.0.3"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-lightwell_scoped_ecosystem_woodstox",
+      "dependsOn": [
+        "woodstox-6.0.3",
+        "woodstox-6.0.3-rhlw",
+        "woodstox-6.4.0",
+        "foreign-woodstox-6.0.3"
+      ]
+    }
+  ]
+}

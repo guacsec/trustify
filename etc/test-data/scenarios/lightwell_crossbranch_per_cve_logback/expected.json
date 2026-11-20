@@ -1,0 +1,31 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-07e5370d09e5a6f8.json",
+    "advisories/RHLW-2026-666a4e7d1066f856.json",
+    "advisories/RHLW-2026-730f8211b080b586.json"
+  ],
+  "sboms": {
+    "sbom_crossbranch_per_cve_logback.cdx.json": {
+      "logback-1.5.9": {
+        "RHLW-2026-07e5370d09e5a6f8": "affected",
+        "RHLW-2026-666a4e7d1066f856": "affected",
+        "RHLW-2026-730f8211b080b586": "affected"
+      },
+      "logback-1.5.9-rhlw": {
+        "RHLW-2026-666a4e7d1066f856": "affected",
+        "RHLW-2026-730f8211b080b586": "affected"
+      }
+    },
+    "sbom_crossbranch_per_cve_logback.spdx.json": {
+      "SPDXRef-Package-logback-1.5.9": {
+        "RHLW-2026-07e5370d09e5a6f8": "affected",
+        "RHLW-2026-666a4e7d1066f856": "affected",
+        "RHLW-2026-730f8211b080b586": "affected"
+      },
+      "SPDXRef-Package-logback-1.5.9-rhlw": {
+        "RHLW-2026-666a4e7d1066f856": "affected",
+        "RHLW-2026-730f8211b080b586": "affected"
+      }
+    }
+  }
+}
