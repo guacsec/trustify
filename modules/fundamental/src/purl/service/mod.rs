@@ -39,7 +39,8 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    advisory, base_purl, license, organization, package_relates_to_package, purl_status,
+    advisory, advisory_vulnerability_upstream, base_purl, license, organization,
+    package_relates_to_package, purl_status,
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
     remediation, remediation_purl_status, sbom, sbom_crypto, sbom_license_expanded, sbom_node,
@@ -73,6 +74,10 @@ struct StatusInfo {
     csaf: bool,
     /// The advisory identifier that reported this status, used for report provenance.
     advisory_id: Option<String>,
+    /// The `CVE-` upstream IDs referred to by (advisory, vulnerability), sorted and deduplicated.
+    /// A distribution's record (e.g. Red Hat Lightwell) lists the CVEs it addresses only there;
+    /// empty when there are none, so reports fall back to the vulnerability ID.
+    upstream: Vec<String>,
 }
 
 /// Red Hat CSAF ingestion used to store an `affected` range below every stated `fixed`
@@ -958,6 +963,26 @@ impl PurlService {
                 .collect::<HashMap<_, _>>();
             let remediations = Self::load_remediations(&status_models, connection).await?;
 
+            // The `CVE-` upstream IDs of the batch's (advisory, vulnerability) pairs, in one
+            // query: the report shows them instead of a distribution's record ID.
+            let mut upstream_cves = HashMap::<(Uuid, String), BTreeSet<String>>::new();
+            let advisory_ids = batch
+                .iter()
+                .map(|row| row.status.advisory_id)
+                .collect::<HashSet<_>>();
+            for link in advisory_vulnerability_upstream::Entity::find()
+                .filter(advisory_vulnerability_upstream::Column::AdvisoryId.is_in(advisory_ids))
+                .all(connection)
+                .await?
+            {
+                if link.upstream_id.starts_with("CVE-") {
+                    upstream_cves
+                        .entry((link.advisory_id, link.vulnerability_id))
+                        .or_default()
+                        .insert(link.upstream_id);
+                }
+            }
+
             for (((vuln, advisory), ps), rems) in vulns
                 .into_iter()
                 .zip(advisories_loaded)
@@ -986,6 +1011,10 @@ impl PurlService {
                         .labels
                         .get("type")
                         .is_some_and(|value| value == "csaf");
+                    let upstream = upstream_cves
+                        .get(&(advisory.id, v.id.clone()))
+                        .map(|ids| ids.iter().cloned().collect())
+                        .unwrap_or_default();
                     statuses_by_vp
                         .entry(ps.winner_versioned_purl_id)
                         .or_default()
@@ -1001,6 +1030,7 @@ impl PurlService {
                             provider,
                             csaf,
                             advisory_id: Some(advisory.identifier),
+                            upstream,
                         });
                 }
             }
@@ -1542,10 +1572,19 @@ impl PurlService {
                 .into_iter()
                 .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
             {
+                // A distribution's record lists the CVEs it addresses in `upstream`: show those
+                // instead of its record ID, falling back to the ID when there is no CVE. A status
+                // keyed on a CVE keeps it: `upstream` names *other* vulnerabilities, so
+                // substituting it would replace what a CVE-aliased record is about.
+                let ids = if info.upstream.is_empty() || info.vuln_id.starts_with("CVE-") {
+                    std::iter::once(info.vuln_id.clone()).collect::<Vec<_>>()
+                } else {
+                    info.upstream.clone()
+                };
                 resolved_groups
                     .entry((info.status_slug.clone(), info.advisory_id.clone()))
                     .or_default()
-                    .insert(info.vuln_id.clone());
+                    .extend(ids);
             }
             for ((status, advisory_id), vulnerabilities) in resolved_groups {
                 for id in &found_in {

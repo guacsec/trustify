@@ -2,14 +2,15 @@
 
 use rstest::rstest;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, ModelTrait, QueryFilter, Statement,
+    ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, ModelTrait, QueryFilter, QueryOrder,
+    Statement,
 };
 use serde_json::Value;
 use std::collections::HashSet;
 use test_context::test_context;
 use trustify_entity::{
-    advisory, advisory_vulnerability, base_purl, purl_status, status, version_range,
-    version_scheme::VersionScheme,
+    advisory, advisory_vulnerability, advisory_vulnerability_upstream, base_purl, purl_status,
+    status, version_range, version_scheme::VersionScheme,
 };
 use trustify_module_ingestor::service::Format;
 use trustify_test_context::{TrustifyContext, document_bytes};
@@ -18,6 +19,7 @@ use uuid::Uuid;
 // Fixtures are public advisories from https://github.com/project-lightwell/lightwell-osv.
 struct LightwellCase {
     id: &'static str,
+    upstream: [&'static str; 2],
     purl: &'static str,
     scheme: VersionScheme,
     base: &'static str,
@@ -32,6 +34,7 @@ struct LightwellCase {
 #[rstest]
 #[case::maven(LightwellCase {
     id: "RHLW-2026-02416b185203289c",
+    upstream: ["CVE-2026-42579", "GHSA-cm33-6792-r9fm"],
     purl: "pkg:maven/io.netty/netty-codec-dns",
     scheme: VersionScheme::Maven,
     base: "4.1.132.Final",
@@ -40,6 +43,7 @@ struct LightwellCase {
 })]
 #[case::pypi(LightwellCase {
     id: "RHLW-2026-821eaab8409c2a61",
+    upstream: ["CVE-2023-36464", "GHSA-4vvm-4w3v-6mr8"],
     purl: "pkg:pypi/pypdf2",
     scheme: VersionScheme::Python,
     base: "3.0.1",
@@ -93,7 +97,17 @@ async fn lightwell_native_ranges(
             .await?;
         assert_eq!(vulnerabilities.len(), 1);
         assert_eq!(vulnerabilities[0].vulnerability_id, case.id);
-        // Upstream links (advisory_vulnerability_upstream) are not applicable on release/0.7.z.
+        // And the upstream links are stored one per (record ID, upstream ID)
+        let upstream = advisory_vulnerability_upstream::Entity::find()
+            .filter(advisory_vulnerability_upstream::Column::AdvisoryId.eq(advisory_id))
+            .order_by_asc(advisory_vulnerability_upstream::Column::UpstreamId)
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(upstream.len(), 2);
+        for (link, expected) in upstream.iter().zip(case.upstream) {
+            assert_eq!(link.vulnerability_id, case.id);
+            assert_eq!(link.upstream_id, expected);
+        }
 
         // And the statuses use the native scheme
         let statuses = purl_status::Entity::find()

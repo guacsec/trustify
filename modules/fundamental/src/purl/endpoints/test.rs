@@ -3313,6 +3313,206 @@ async fn lightwell_preserves_redhat_recommendations(
     Ok(())
 }
 
+/// Verifies that the remediation report lists the CVEs a Lightwell build fixes. Lightwell records
+/// state them only in `upstream`, since Lightwell retired its `x_RHLW-…` records with the CVEs in
+/// `aliases` (LWLP-5093).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn lightwell_report_lists_upstream_cves(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given the Lightwell record for `spring-webmvc`, fixed in `5.3.18.rhlw-00010` (a public
+    // advisory from https://github.com/project-lightwell/lightwell-osv)
+    ctx.ingest_document("osv/RHLW-2026-67afc831a93ff9cc.json")
+        .await?;
+    // And an SBOM with the upstream build
+    let input = "pkg:maven/org.springframework/spring-webmvc@5.3.18";
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "lightwell-spring-webmvc",
+            "00000000-0000-0000-0000-000000754701",
+            &[("spring-webmvc", "5.3.18", input)],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)[.-]rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When generating the remediation report
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+    tracing::info!("{report:#?}");
+
+    // Then the Lightwell build is recommended for the upstream build
+    let packages = report["packages"].as_array().unwrap();
+    assert!(!packages.is_empty());
+    for package in packages {
+        assert_eq!(package["purl"], input);
+        assert_eq!(
+            package["recommended_purl"],
+            "pkg:maven/org.springframework/spring-webmvc@5.3.18.rhlw-00010"
+        );
+        // And the row names the Lightwell record, not an upstream CVE
+        assert_eq!(package["advisory_id"], "RHLW-2026-67afc831a93ff9cc");
+    }
+    // And it fixes the CVEs of the record's `upstream` (the order is not part of the contract)
+    let vulnerabilities = packages
+        .iter()
+        .flat_map(|package| package["vulnerabilities"].as_array().unwrap())
+        .filter_map(Value::as_str)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        vulnerabilities,
+        BTreeSet::from([
+            "CVE-2023-20860",
+            "CVE-2024-38816",
+            "CVE-2024-38819",
+            "CVE-2024-38828",
+            "CVE-2025-41242",
+            "CVE-2026-22735",
+            "CVE-2026-22737",
+            "CVE-2026-22741",
+            "CVE-2026-22745",
+        ])
+    );
+
+    Ok(())
+}
+
+/// Verifies that a Lightwell record whose `upstream` lists no `CVE-` ID keeps the record ID in
+/// the report: there is no CVE to show, and the record ID is the key of its statements.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn lightwell_report_without_upstream_cves_lists_record_id(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given the Lightwell record for `spring-webmvc`, with only its GHSA upstream IDs left
+    let mut document: Value = serde_json::from_slice(
+        &trustify_test_context::document_bytes("osv/RHLW-2026-67afc831a93ff9cc.json").await?,
+    )?;
+    document["upstream"] = json!([
+        "GHSA-7phw-cxx7-q9vq",
+        "GHSA-cx7f-g6mp-7hqm",
+        "GHSA-g5vr-rgqm-vf78",
+        "GHSA-w3c8-7r8f-9jp8",
+        "GHSA-r936-gwx5-v52f",
+    ]);
+    ctx.ingest_json(document).await?;
+    // And an SBOM with the upstream build
+    let input = "pkg:maven/org.springframework/spring-webmvc@5.3.18";
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "lightwell-spring-webmvc-ghsa",
+            "00000000-0000-0000-0000-000000754702",
+            &[("spring-webmvc", "5.3.18", input)],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)[.-]rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When generating the remediation report
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the Lightwell build is still recommended, and the row lists the record ID
+    let packages = report["packages"].as_array().unwrap();
+    assert!(!packages.is_empty());
+    for package in packages {
+        assert_eq!(package["purl"], input);
+        assert_eq!(
+            package["recommended_purl"],
+            "pkg:maven/org.springframework/spring-webmvc@5.3.18.rhlw-00010"
+        );
+        assert_eq!(package["advisory_id"], "RHLW-2026-67afc831a93ff9cc");
+        assert_eq!(
+            package["vulnerabilities"],
+            json!(["RHLW-2026-67afc831a93ff9cc"])
+        );
+    }
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
+/**
+ * Verifies that a record keyed on CVE aliases keeps its own CVEs in the report even when its
+ * `upstream` lists a different CVE: `upstream` names *other* vulnerabilities (OSV spec), so
+ * substituting it would replace what the record is about (review round 1, finding F-1).
+ */
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn report_keeps_cve_keyed_ids_when_upstream_differs(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given an OSV record keyed on the CVE alias `CVE-2099-75471` whose `upstream` lists the
+    // different CVE `CVE-2099-75472`
+    let mut document: Value = serde_json::from_slice(
+        &trustify_test_context::document_bytes("osv/RHLW-2026-67afc831a93ff9cc.json").await?,
+    )?;
+    document["id"] = json!("GHSA-7547-acce-pt01");
+    document["aliases"] = json!(["CVE-2099-75471"]);
+    document["upstream"] = json!(["CVE-2099-75472"]);
+    document["affected"][0]["package"]["ecosystem"] = json!("Maven");
+    document["affected"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("database_specific");
+    ctx.ingest_json(document).await?;
+    // And an SBOM with the upstream build
+    let input = "pkg:maven/org.springframework/spring-webmvc@5.3.18";
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "cve-keyed-upstream-spring-webmvc",
+            "00000000-0000-0000-0000-000000754703",
+            &[("spring-webmvc", "5.3.18", input)],
+        ))
+        .await?
+        .id,
+    )?;
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new(r"^(.+)[.-]rhlw-[0-9]+$")?],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When generating the remediation report
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the remediated build is recommended, and the row and the count keep the record's own
+    // CVE alias instead of the different upstream CVE
+    let packages = report["packages"].as_array().unwrap();
+    assert!(!packages.is_empty());
+    for package in packages {
+        assert_eq!(package["purl"], input);
+        assert_eq!(
+            package["recommended_purl"],
+            "pkg:maven/org.springframework/spring-webmvc@5.3.18.rhlw-00010"
+        );
+        assert_eq!(package["advisory_id"], "GHSA-7547-acce-pt01");
+        assert_eq!(package["vulnerabilities"], json!(["CVE-2099-75471"]));
+    }
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
 /// Legacy Red Hat ingestion stores an `affected` range below every stated `fixed` version.
 /// That row is inference, not a statement, so it must not contradict the direct `fixed`
 /// status of the same advisory for the same target.
