@@ -47,7 +47,7 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    advisory, base_purl,
+    advisory, advisory_vulnerability_upstream, base_purl,
     correlation_evidence::AssertionStatus,
     correlation_evidence_context::ContextSource,
     license, package_relates_to_package, purl_status,
@@ -1648,6 +1648,46 @@ impl PurlService {
         matching
     }
 
+    /// The `CVE-` upstream IDs of the vulnerabilities the winning advisories address, keyed by
+    /// advisory and vulnerability, loaded in batches.
+    ///
+    /// A vendor record keyed on its own ID (e.g. a Red Hat Lightwell `RHLW-…` record) lists the CVEs
+    /// it addresses only in `upstream`. A status keyed on a CVE keeps its own ID, so only the
+    /// advisories of addressed statuses keyed on a non-CVE ID are looked up.
+    async fn load_upstream_cves<C: ConnectionTrait>(
+        winners: &[ReportWinner],
+        connection: &C,
+    ) -> Result<HashMap<(Uuid, String), BTreeSet<String>>, Error> {
+        let advisory_ids = winners
+            .iter()
+            .flat_map(|winner| &winner.verdicts)
+            .filter(|verdict| {
+                matches!(
+                    verdict.status,
+                    VerdictStatus::Fixed | VerdictStatus::NotAffected
+                ) && !verdict.vulnerability_id.starts_with("CVE-")
+            })
+            .filter_map(|verdict| verdict.winning_advisory_id)
+            .collect::<BTreeSet<_>>();
+
+        let mut upstream_cves = HashMap::<(Uuid, String), BTreeSet<String>>::new();
+        for chunk in chunked_with(1, advisory_ids) {
+            for link in advisory_vulnerability_upstream::Entity::find()
+                .filter(advisory_vulnerability_upstream::Column::AdvisoryId.is_in(chunk))
+                .all(connection)
+                .await?
+            {
+                if link.upstream_id.starts_with("CVE-") {
+                    upstream_cves
+                        .entry((link.advisory_id, link.vulnerability_id))
+                        .or_default()
+                        .insert(link.upstream_id);
+                }
+            }
+        }
+        Ok(upstream_cves)
+    }
+
     /// Whether capture group 1 of a vendor version names the requested upstream major/minor/patch.
     fn matches_vendor_patch(
         pattern: &Regex,
@@ -1913,6 +1953,9 @@ impl PurlService {
             });
         }
 
+        // The CVEs a vendor record keyed on its own ID addresses, in one batched query.
+        let upstream_cves = Self::load_upstream_cves(&winners, connection).await?;
+
         // Per-SBOM accumulators for the sboms list.
         let mut sbom_addressable: HashMap<Uuid, HashSet<String>> = HashMap::new();
         let mut sbom_vulns: HashMap<Uuid, HashSet<String>> = HashMap::new();
@@ -1935,10 +1978,19 @@ impl PurlService {
                         .find(|matched| matched.advisory_id == winning_id)
                         .map(|matched| matched.advisory_identifier.clone())
                 });
+                // A vendor record keyed on its own ID reports the CVEs it lists in `upstream`;
+                // otherwise (a CVE-keyed status, or no upstream CVE) the vulnerability ID stays.
+                let vulnerabilities = verdict
+                    .winning_advisory_id
+                    .and_then(|advisory| {
+                        upstream_cves.get(&(advisory, verdict.vulnerability_id.clone()))
+                    })
+                    .map(|cves| cves.iter().cloned().collect::<Vec<_>>())
+                    .unwrap_or_else(|| vec![verdict.vulnerability_id.clone()]);
                 resolved_groups
                     .entry((status, advisory_id))
                     .or_default()
-                    .insert(verdict.vulnerability_id.clone());
+                    .extend(vulnerabilities);
             }
 
             if resolved_groups.is_empty() {

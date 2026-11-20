@@ -147,6 +147,9 @@ Generates a remediation report for one or more SBOMs.
 }
 ----
 
+For vendor OSV records keyed on a non-CVE record ID that list the CVEs they address in `upstream` (for example Red Hat Lightwell records), report rows show those upstream CVEs, while `advisory_id` still names the vendor record: the upstream entries are different vulnerabilities, not aliases, so statements and verdicts stay keyed on the record ID.
+A record whose `upstream` lists no `CVE-` ID keeps the record ID in the row, and a record keyed on CVE aliases keeps its own CVEs.
+
 .Error: package count exceeded (400)
 [source,json]
 ----
