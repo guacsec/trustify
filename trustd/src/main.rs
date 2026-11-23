@@ -67,7 +67,10 @@ async fn pm_mode() -> anyhow::Result<ExitCode> {
     if !postgres.database_exists(&db.database.name).await? {
         db.command = db::Command::Create;
     }
-    db.run().await?;
+    let code = db.run().await?;
+    if code != ExitCode::SUCCESS {
+        return Ok(code);
+    }
 
     let api = Trustd::parse_from([
         "trustd",

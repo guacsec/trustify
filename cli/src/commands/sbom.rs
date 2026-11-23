@@ -189,8 +189,7 @@ impl SbomCommands {
                     sort: sort.clone(),
                 };
                 let json = sbom_api::list(&ctx.client, &params).await?;
-                format_list_output(&json, format)?;
-                Ok(ExitCode::SUCCESS)
+                format_list_output(&json, format)
             }
             SbomCommands::Delete {
                 id,
