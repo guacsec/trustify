@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795097647367,
+  "lastUpdate": 1795449778796,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25223,6 +25223,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "88b21bed7dbe495bb51a740ba54baa3247e491fe",
+          "message": "fix: don't discard returned exit codes\n\nClippy (unused_must_use) flagged two places where an `ExitCode` was\ndropped: the `sbom list` CLI command now returns the code from\n`format_list_output`, and `trustd` PM mode now stops if the database\nstep returns a non-success exit code.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nAssisted-by: Claude Code (Claude Opus 5.5)",
+          "timestamp": "2026-11-23T14:57:09Z",
+          "tree_id": "4041f1494453ce40590f6bf442ace4307d09caa0",
+          "url": "https://github.com/guacsec/trustify/commit/88b21bed7dbe495bb51a740ba54baa3247e491fe"
+        },
+        "date": 1795449775115,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
