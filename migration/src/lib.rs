@@ -118,6 +118,7 @@ mod m0002700_correlation_extraction_current;
 mod m0002710_backfill_advisory_assertions;
 mod m0002720_correlation_current_advisories;
 mod m0002730_cpe_vendor_product_version_index;
+mod m0002740_correlation_evidence_details;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -251,6 +252,7 @@ impl MigratorExt for Migrator {
             .data(m0002710_backfill_advisory_assertions::Migration)
             .normal(m0002720_correlation_current_advisories::Migration)
             .normal(m0002730_cpe_vendor_product_version_index::Migration)
+            .normal(m0002740_correlation_evidence_details::Migration)
     }
 }
 

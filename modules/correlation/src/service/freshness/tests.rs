@@ -11,7 +11,9 @@ use std::{
 use test_context::test_context;
 use test_log::test;
 use tokio::{sync::Barrier, time::timeout};
-use trustify_entity::{correlation_evidence, correlation_node_class, sbom};
+use trustify_entity::{
+    correlation_evidence, correlation_evidence_detail, correlation_node_class, sbom,
+};
 use trustify_test_context::TrustifyContext;
 
 async fn ingest(ctx: &TrustifyContext) -> anyhow::Result<Uuid> {
@@ -596,9 +598,13 @@ async fn failed_jobs_preserve_evidence_and_can_be_retried(
         status: Set(correlation_evidence::AssertionStatus::Affected),
         confidence: Set(0.1),
         extractor: Set("obsolete".into()),
-        matched_value: Set(None),
+        matched_value_id: Set(None),
         created_at: Set(OffsetDateTime::now_utc()),
-        confidence_factors: Set(serde_json::json!([])),
+        confidence_factors_id: Set(trustify_entity::correlation_confidence_factors::store(
+            &ctx.db,
+            serde_json::json!([]),
+        )
+        .await?),
         source_assertions: Set(serde_json::json!([{"kind": "digest", "id": Uuid::new_v4()}])),
     }
     .insert(&ctx.db)
@@ -916,13 +922,27 @@ async fn refresh_replaces_changed_evidence_and_finds_new_matches(
     let tx = ctx.db.begin().await?;
     refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
-    let original = correlation_evidence::Entity::find().all(&ctx.db).await?;
+    let original = correlation_evidence_detail::Entity::find()
+        .all(&ctx.db)
+        .await?;
     assert!(!original.is_empty());
-    ctx.db.execute_unprepared("UPDATE correlation_evidence SET confidence = 0.01, confidence_factors = '[]', matched_value = jsonb_set(matched_value, '{ranges}', '[]') ").await?;
+    ctx.db.execute_unprepared(r#"
+        WITH factors AS (
+            INSERT INTO correlation_confidence_factors (id, value) VALUES (correlation_detail_id('[]'), '[]') ON CONFLICT (id) DO NOTHING
+        ), matched AS (
+            INSERT INTO correlation_matched_value (id, value)
+            SELECT correlation_detail_id(jsonb_set(value, '{ranges}', '[]')), jsonb_set(value, '{ranges}', '[]') FROM correlation_matched_value
+            ON CONFLICT (id) DO NOTHING
+        )
+        UPDATE correlation_evidence e SET confidence = 0.01, confidence_factors_id = correlation_detail_id('[]'),
+            matched_value_id = (SELECT correlation_detail_id(jsonb_set(v.value, '{ranges}', '[]')) FROM correlation_matched_value v WHERE v.id = e.matched_value_id)
+    "#).await?;
     let tx = ctx.db.begin().await?;
     refresh_sbom(&Extractors::default(), id, &(), &tx).await?;
     tx.commit().await?;
-    let restored = correlation_evidence::Entity::find().all(&ctx.db).await?;
+    let restored = correlation_evidence_detail::Entity::find()
+        .all(&ctx.db)
+        .await?;
     assert_eq!(restored.len(), original.len());
     for old in &original {
         let new = restored.iter().find(|r| r.id == old.id).unwrap();

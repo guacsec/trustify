@@ -3,6 +3,7 @@ use crate::service::projection::{publish_for_test, publish_in_batches_for_test};
 use sea_orm::{ActiveModelTrait, Set, TransactionTrait};
 use test_context::test_context;
 use trustify_common::model::Paginated;
+use trustify_entity::correlation_evidence;
 use trustify_test_context::TrustifyContext;
 
 #[test_context(TrustifyContext)]
@@ -98,9 +99,15 @@ async fn fixture(ctx: &TrustifyContext) -> anyhow::Result<(Uuid, Uuid)> {
                     status: Set(AssertionStatus::Affected),
                     confidence: Set(1.0),
                     extractor: Set(extractor.into()),
-                    matched_value: Set(None),
+                    matched_value_id: Set(None),
                     created_at: Set(time::OffsetDateTime::now_utc()),
-                    confidence_factors: Set(serde_json::json!([])),
+                    confidence_factors_id: Set(
+                        trustify_entity::correlation_confidence_factors::store(
+                            &ctx.db,
+                            serde_json::json!([]),
+                        )
+                        .await?,
+                    ),
                     source_assertions: Set(
                         serde_json::json!([{"kind": "digest", "id": Uuid::new_v4()}]),
                     ),
@@ -284,7 +291,7 @@ async fn count_only_skips_resolution(ctx: &TrustifyContext) -> anyhow::Result<()
     let (id, _) = fixture(ctx).await?;
     let service = CorrelationService::default();
     let tx = ctx.db.begin().await?;
-    tx.execute_unprepared("UPDATE correlation_evidence SET matched_value = '\"invalid\"'::jsonb")
+    tx.execute_unprepared("WITH invalid AS (INSERT INTO correlation_matched_value (id, value) VALUES (correlation_detail_id('\"invalid\"'), '\"invalid\"') ON CONFLICT (id) DO NOTHING) UPDATE correlation_evidence SET matched_value_id = correlation_detail_id('\"invalid\"')")
         .await?;
     let cache = PaginationCache::for_test();
     for total in [false, true] {

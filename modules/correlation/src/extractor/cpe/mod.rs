@@ -538,7 +538,9 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::advisory_vulnerability_cpe;
-    use trustify_entity::{correlation_evidence, correlation_evidence::AssertionStatus};
+    use trustify_entity::{
+        correlation_evidence, correlation_evidence::AssertionStatus, correlation_evidence_detail,
+    };
     use trustify_test_context::TrustifyContext;
 
     const SBOM: &str = "cyclonedx/cpe_edge_cases.json";
@@ -553,11 +555,11 @@ mod test {
     /// Evidence of an SBOM: (node, vulnerability, status, confidence, its factors, matched value),
     /// sorted.
     async fn evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
-        correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-            .filter(correlation_evidence::Column::Extractor.eq("cpe"))
-            .order_by_asc(correlation_evidence::Column::NodeId)
-            .order_by_asc(correlation_evidence::Column::VulnerabilityId)
+        correlation_evidence_detail::Entity::find()
+            .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
+            .filter(correlation_evidence_detail::Column::Extractor.eq("cpe"))
+            .order_by_asc(correlation_evidence_detail::Column::NodeId)
+            .order_by_asc(correlation_evidence_detail::Column::VulnerabilityId)
             .all(&ctx.db)
             .await?
             .into_iter()

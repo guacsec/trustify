@@ -27,6 +27,8 @@ pub enum Error {
     Distance(#[from] TryFromIntError),
     #[error("unknown candidate source of a PURL match: {0}")]
     CandidateSource(i32),
+    #[error("the stored ID of an evidence detail is missing")]
+    MissingDetail,
     #[error("a worker task failed: {0}")]
     Worker(#[from] JoinError),
 }

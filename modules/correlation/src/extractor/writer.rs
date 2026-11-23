@@ -3,10 +3,10 @@ use crate::error::Error;
 use sea_orm::{
     ActiveEnum,
     ActiveValue::Set,
-    ConnectionTrait, EntityTrait,
+    ConnectionTrait, DatabaseConnection, DatabaseTransaction, EntityTrait, FromQueryResult,
     sea_query::{Expr, OnConflict},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use tracing::{Instrument, info_span};
 use trustify_common::db::{chunk::EntityChunkedIter, sql};
 use trustify_entity::{correlation_evidence, correlation_evidence_context};
@@ -54,6 +54,67 @@ FROM unnest($1::uuid[], $2::uuid[], $3::text[], $4::integer[], $5::text[], $6::t
     AS contexts(evidence_id, context_id, source, distance, node_identifier, context_identifier, confidence)
 ON CONFLICT (evidence_id, context_id, node_identifier, context_identifier) DO NOTHING
 "#;
+
+// The details of evidence (matched values, confidence factors), stored once per distinct value
+// under the ID the database derives from it. Returns the ID of each input value. Inserted in the
+// order of their IDs, as concurrent writers may insert the same values. `{table}` is one of the
+// detail tables, never user input.
+const STORE_DETAILS: &str = r#"
+WITH input AS (
+    SELECT key, key::jsonb AS value FROM unnest($1::text[]) AS t(key)
+), stored AS (
+    INSERT INTO {table} (id, value)
+    SELECT correlation_detail_id(value), value FROM input ORDER BY 1
+    ON CONFLICT (id) DO NOTHING
+)
+SELECT key, correlation_detail_id(value) AS id FROM input
+"#;
+
+/// The number of distinct details stored with one statement.
+const DETAIL_BATCH_SIZE: usize = 10_000;
+
+/// A table of evidence details, see [`STORE_DETAILS`].
+#[derive(Clone, Copy)]
+enum DetailTable {
+    MatchedValue,
+    ConfidenceFactors,
+}
+
+impl DetailTable {
+    fn name(self) -> &'static str {
+        match self {
+            Self::MatchedValue => "correlation_matched_value",
+            Self::ConfidenceFactors => "correlation_confidence_factors",
+        }
+    }
+}
+
+#[derive(FromQueryResult)]
+struct StoredDetail {
+    key: String,
+    id: Uuid,
+}
+
+/// Where evidence is written to.
+#[derive(Clone, Copy)]
+pub struct Target<'a> {
+    /// The transaction of the extraction, for the evidence and its contexts.
+    pub tx: &'a DatabaseTransaction,
+    /// A connection outside the transaction, for the details shared by all evidence (see
+    /// [`STORE_DETAILS`]), `None` to store them in the transaction.
+    ///
+    /// Stored in a transaction, a detail would hold up any other extraction storing the same
+    /// value, until the transaction ends. Committed right away, a detail outlives an extraction
+    /// failing later, until the unreferenced details are removed.
+    pub details: Option<&'a DatabaseConnection>,
+}
+
+impl<'a> Target<'a> {
+    /// Write all of it in the transaction.
+    pub fn transaction(tx: &'a DatabaseTransaction) -> Self {
+        Self { tx, details: None }
+    }
+}
 
 /// A piece of evidence, with the contexts it was matched in.
 struct Pending {
@@ -150,22 +211,52 @@ impl EvidenceWriter {
     /// evidence, and leaving it untouched otherwise.
     ///
     /// Returns the number of evidence entries produced.
-    pub async fn write(self, connection: &impl ConnectionTrait) -> Result<usize, Error> {
+    pub async fn write(self, target: Target<'_>) -> Result<usize, Error> {
         let count = self.evidence.len();
+
+        // the details of each piece of evidence, serialized once, and stored once per value
+        let mut details = Vec::with_capacity(count);
+        let mut matched_values = BTreeSet::new();
+        let mut factor_sets = BTreeSet::new();
+        for pending in self.evidence.values() {
+            let matched_value = serde_json::to_string(&pending.assertion.matched_value)
+                .map_err(Error::MatchedValue)?;
+            let factors =
+                serde_json::to_string(&pending.assertion.factors).map_err(Error::MatchedValue)?;
+            matched_values.insert(matched_value.clone());
+            factor_sets.insert(factors.clone());
+            details.push((matched_value, factors));
+        }
+        let matched_values = store_details(
+            DetailTable::MatchedValue,
+            matched_values.into_iter(),
+            target,
+        )
+        .await?;
+        let factor_sets = store_details(
+            DetailTable::ConfidenceFactors,
+            factor_sets.into_iter(),
+            target,
+        )
+        .await?;
 
         let mut models = Vec::with_capacity(count);
         let mut links = Vec::new();
         // ordered by ID: consistent lock ordering
-        for (id, pending) in self.evidence {
+        for ((id, pending), (matched_value, factors)) in self.evidence.into_iter().zip(details) {
             let Pending {
                 node,
                 assertion,
                 links: contexts,
             } = pending;
-            let matched_value =
-                serde_json::to_value(&assertion.matched_value).map_err(Error::MatchedValue)?;
-            let confidence_factors =
-                serde_json::to_value(&assertion.factors).map_err(Error::MatchedValue)?;
+            let matched_value_id = matched_values
+                .get(&matched_value)
+                .copied()
+                .ok_or(Error::MissingDetail)?;
+            let confidence_factors_id = factor_sets
+                .get(&factors)
+                .copied()
+                .ok_or(Error::MissingDetail)?;
             for link in contexts {
                 links.push(correlation_evidence_context::Model {
                     evidence_id: id,
@@ -186,9 +277,9 @@ impl EvidenceWriter {
                 status: Set(assertion.status),
                 confidence: Set(assertion.confidence),
                 extractor: Set(assertion.extractor.to_string()),
-                matched_value: Set(Some(matched_value)),
+                matched_value_id: Set(Some(matched_value_id)),
                 created_at: Set(time::OffsetDateTime::now_utc()),
-                confidence_factors: Set(confidence_factors),
+                confidence_factors_id: Set(confidence_factors_id),
                 source_assertions: Set(serde_json::to_value(&assertion.source_assertions)
                     .map_err(Error::MatchedValue)?),
             });
@@ -206,14 +297,45 @@ impl EvidenceWriter {
                         .to_owned(),
                 )
                 // with all rows unchanged, nothing is inserted or updated
-                .exec_without_returning(connection)
+                .exec_without_returning(target.tx)
                 .instrument(info_span!("inserting evidence"))
                 .await?;
         }
-        insert_contexts(links, connection).await?;
+        insert_contexts(links, target.tx).await?;
 
         Ok(count)
     }
+}
+
+/// Store the distinct serialized `values` in `table`, returning the ID of each.
+async fn store_details(
+    table: DetailTable,
+    values: impl Iterator<Item = String>,
+    target: Target<'_>,
+) -> Result<HashMap<String, Uuid>, Error> {
+    // SAFETY: the table name is one of the constants of `DetailTable`, the values are bound as a
+    // parameter. A table name can't be a parameter.
+    let statement = STORE_DETAILS.replace("{table}", table.name());
+    let mut values = values.peekable();
+    let mut ids = HashMap::new();
+    while values.peek().is_some() {
+        let batch = values.by_ref().take(DETAIL_BATCH_SIZE).collect::<Vec<_>>();
+        let query = sql(&statement, vec![batch.into()]);
+        let stored = match target.details {
+            Some(connection) => {
+                StoredDetail::find_by_statement(query)
+                    .all(connection)
+                    .await?
+            }
+            None => {
+                StoredDetail::find_by_statement(query)
+                    .all(target.tx)
+                    .await?
+            }
+        };
+        ids.extend(stored.into_iter().map(|detail| (detail.key, detail.id)));
+    }
+    Ok(ids)
 }
 
 /// Bind one array per column, with bounded batches and no unused returned keys.
@@ -264,14 +386,105 @@ async fn insert_contexts(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::model::MatchedValue;
-    use sea_orm::{DatabaseTransaction, IntoActiveModel, Iterable, TransactionTrait};
+    use crate::{
+        extractor::SourceAssertionRef,
+        model::{ConfidenceFactor, ConfidenceReason, MatchedRange, MatchedValue},
+    };
+    use sea_orm::{
+        ColumnTrait, DatabaseTransaction, IntoActiveModel, Iterable, QueryFilter, QueryOrder,
+        TransactionTrait,
+    };
     use std::time::{Duration, Instant};
     use test_context::test_context;
     use trustify_entity::{
-        correlation_evidence::AssertionStatus, correlation_evidence_context::ContextSource,
+        correlation_confidence_factors, correlation_evidence::AssertionStatus,
+        correlation_evidence_context::ContextSource, correlation_evidence_detail,
+        correlation_matched_value,
     };
     use trustify_test_context::TrustifyContext;
+
+    /// The details of the evidence of several nodes are stored once, committed outside the
+    /// extraction's transaction, and read back as written.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(tokio::test)]
+    async fn details_are_stored_once(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let sbom_id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+        let advisory_id =
+            Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
+        let mut matched_value = MatchedValue::new("pkg:rpm/redhat/openssl");
+        matched_value.ranges = vec![MatchedRange {
+            scheme: "rpm".into(),
+            low: None,
+            high: None,
+        }];
+        let factors = vec![ConfidenceFactor::new(ConfidenceReason::Purl, 0.9)];
+        let assertion = Assertion {
+            source_assertions: [SourceAssertionRef::Purl(Uuid::from_u128(1))].into(),
+            extractor: "purl",
+            advisory_id,
+            vulnerability_id: "CVE-2023-33201".into(),
+            status: AssertionStatus::Affected,
+            confidence: 0.9,
+            factors: factors.clone(),
+            matched_value: matched_value.clone(),
+            context_id: None,
+            requires_context: false,
+            version_range_id: None,
+        };
+        let mut writer = EvidenceWriter::new();
+        for node_id in ["a", "b", "c"] {
+            let node = NodeRef {
+                sbom_id,
+                node_id: node_id.into(),
+            };
+            writer.add(&node, assertion.clone())?;
+        }
+
+        let tx = ctx.db.begin().await?;
+        let target = Target {
+            tx: &tx,
+            details: Some(&*ctx.db),
+        };
+        assert_eq!(writer.write(target).await?, 3);
+
+        // stored once each, and visible before the extraction commits
+        let matched_values = correlation_matched_value::Entity::find()
+            .all(&*ctx.db)
+            .await?
+            .into_iter()
+            .map(|row| row.value)
+            .collect::<Vec<_>>();
+        assert_eq!(matched_values, vec![serde_json::to_value(&matched_value)?]);
+        let factor_sets = correlation_confidence_factors::Entity::find()
+            .all(&*ctx.db)
+            .await?
+            .into_iter()
+            .map(|row| row.value)
+            .collect::<Vec<_>>();
+        assert_eq!(factor_sets, vec![serde_json::to_value(&factors)?]);
+        tx.commit().await?;
+
+        let evidence = correlation_evidence_detail::Entity::find()
+            .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
+            .order_by_asc(correlation_evidence_detail::Column::NodeId)
+            .all(&*ctx.db)
+            .await?
+            .into_iter()
+            .map(|row| (row.node_id, row.matched_value, row.confidence_factors))
+            .collect::<Vec<_>>();
+        let expected = |node: &str| -> anyhow::Result<_> {
+            Ok((
+                node.to_string(),
+                Some(serde_json::to_value(&matched_value)?),
+                serde_json::to_value(&factors)?,
+            ))
+        };
+        assert_eq!(
+            evidence,
+            vec![expected("a")?, expected("b")?, expected("c")?]
+        );
+        Ok(())
+    }
 
     /// Use the real column types and indexes, isolated from evidence and its foreign keys.
     async fn context_table(ctx: &TrustifyContext) -> anyhow::Result<DatabaseTransaction> {

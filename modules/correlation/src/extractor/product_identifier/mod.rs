@@ -342,6 +342,7 @@ mod test {
         correlation_evidence::{self, AssertionStatus},
         correlation_evidence_context,
         correlation_evidence_context::ContextSource,
+        correlation_evidence_detail,
     };
     use trustify_test_context::TrustifyContext;
 
@@ -372,11 +373,11 @@ mod test {
     /// context links.
     async fn evidence_of(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
         let mut result = Vec::new();
-        for evidence in correlation_evidence::Entity::find()
-            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-            .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
-            .order_by_asc(correlation_evidence::Column::NodeId)
-            .order_by_asc(correlation_evidence::Column::VulnerabilityId)
+        for evidence in correlation_evidence_detail::Entity::find()
+            .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
+            .filter(correlation_evidence_detail::Column::Extractor.eq(EXTRACTOR_ID))
+            .order_by_asc(correlation_evidence_detail::Column::NodeId)
+            .order_by_asc(correlation_evidence_detail::Column::VulnerabilityId)
             .all(&ctx.db)
             .await?
         {

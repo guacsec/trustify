@@ -187,7 +187,7 @@ async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
     assert_eq!(count[0], count[1]);
     assert_eq!(count[0].remediations, 1);
     tx.execute_raw(sql(
-        "UPDATE correlation_evidence SET matched_value='\"invalid\"'::jsonb WHERE sbom_id=$1",
+        "WITH invalid AS (INSERT INTO correlation_matched_value (id, value) VALUES (correlation_detail_id('\"invalid\"'), '\"invalid\"') ON CONFLICT (id) DO NOTHING) UPDATE correlation_evidence SET matched_value_id = correlation_detail_id('\"invalid\"') WHERE sbom_id=$1",
         vec![id.into()],
     ))
     .await?;
@@ -344,7 +344,7 @@ async fn batched_computation_and_workers_preserve_complete_groups(
     let id = fixture(ctx).await?;
     let tx = ctx.db.begin().await?;
     tx.execute_raw(sql("INSERT INTO sbom_node(sbom_id,node_id,name) SELECT $1,'batch-' || lpad(n::text,4,'0'),'Batch component' FROM generate_series(1,300) n",vec![id.into()])).await?;
-    tx.execute_raw(sql("INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),e.sbom_id,'batch-' || lpad(n::text,4,'0'),advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions FROM correlation_evidence e CROSS JOIN generate_series(1,300) n WHERE sbom_id=$1",vec![id.into()])).await?;
+    tx.execute_raw(sql("INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions) SELECT gen_random_uuid(),e.sbom_id,'batch-' || lpad(n::text,4,'0'),advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions FROM correlation_evidence e CROSS JOIN generate_series(1,300) n WHERE sbom_id=$1",vec![id.into()])).await?;
     tx.commit().await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     // A claimed job is skipped; rolling its transaction back makes it available again.
@@ -424,7 +424,7 @@ async fn add_evidence(id: Uuid, node: &str, tx: &impl ConnectionTrait) -> anyhow
     ))
     .await?;
     tx.execute_raw(sql(
-        "INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),sbom_id,$2,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions FROM correlation_evidence WHERE sbom_id=$1",
+        "INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions) SELECT gen_random_uuid(),sbom_id,$2,advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions FROM correlation_evidence WHERE sbom_id=$1",
         vec![id.into(), node.into()],
     ))
     .await?;

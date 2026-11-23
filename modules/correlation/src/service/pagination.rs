@@ -20,11 +20,11 @@ pub(super) struct EvidenceGroup {
 }
 
 /// Stored statements remain facts; only current advisories participate in resolution.
-fn eligible_evidence(sbom_id: Uuid) -> Select<correlation_evidence::Entity> {
-    correlation_evidence::Entity::find()
-        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+fn eligible_evidence(sbom_id: Uuid) -> Select<correlation_evidence_detail::Entity> {
+    correlation_evidence_detail::Entity::find()
+        .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
         .filter(
-            correlation_evidence::Column::AdvisoryId.in_subquery(
+            correlation_evidence_detail::Column::AdvisoryId.in_subquery(
                 advisory::Entity::find()
                     .select_only()
                     .column(advisory::Column::Id)
@@ -40,16 +40,17 @@ fn eligible_evidence(sbom_id: Uuid) -> Select<correlation_evidence::Entity> {
 pub(super) fn evidence_query(
     sbom_id: Uuid,
     request: &ResolutionRequest,
-) -> Select<correlation_evidence::Entity> {
+) -> Select<correlation_evidence_detail::Entity> {
     let mut query = eligible_evidence(sbom_id);
     if let Some(node) = &request.node_id {
         query = query.filter(
-            Expr::col(correlation_evidence::Column::NodeId)
+            Expr::col(correlation_evidence_detail::Column::NodeId)
                 .eq(class::representative(sbom_id, node)),
         );
     }
     if let Some(vulnerability) = &request.vulnerability_id {
-        query = query.filter(correlation_evidence::Column::VulnerabilityId.eq(vulnerability));
+        query =
+            query.filter(correlation_evidence_detail::Column::VulnerabilityId.eq(vulnerability));
     }
     query
 }
@@ -58,13 +59,13 @@ pub(super) fn evidence_query(
 pub(super) fn groups(
     sbom_id: Uuid,
     request: &ResolutionRequest,
-) -> Select<correlation_evidence::Entity> {
+) -> Select<correlation_evidence_detail::Entity> {
     evidence_query(sbom_id, request)
         .select_only()
-        .column(correlation_evidence::Column::NodeId)
-        .column(correlation_evidence::Column::VulnerabilityId)
-        .group_by(correlation_evidence::Column::NodeId)
-        .group_by(correlation_evidence::Column::VulnerabilityId)
+        .column(correlation_evidence_detail::Column::NodeId)
+        .column(correlation_evidence_detail::Column::VulnerabilityId)
+        .group_by(correlation_evidence_detail::Column::NodeId)
+        .group_by(correlation_evidence_detail::Column::VulnerabilityId)
         .order_by(Expr::cust("node_id COLLATE \"C\""), Order::Asc)
         .order_by(Expr::cust("vulnerability_id COLLATE \"C\""), Order::Asc)
 }
@@ -75,7 +76,7 @@ pub(super) async fn evidence_for_groups(
     sbom_id: Uuid,
     groups: &[EvidenceGroup],
     connection: &DatabaseTransaction,
-) -> Result<Vec<correlation_evidence::Model>, Error> {
+) -> Result<Vec<correlation_evidence_detail::Model>, Error> {
     if groups.is_empty() {
         return Ok(Vec::new());
     }
@@ -88,7 +89,7 @@ pub(super) async fn evidence_for_groups(
             "(node_id, vulnerability_id) IN (SELECT * FROM unnest($1::text[], $2::text[]))",
             [Value::from(nodes), Value::from(vulnerabilities)],
         ))
-        .order_by_asc(correlation_evidence::Column::Id)
+        .order_by_asc(correlation_evidence_detail::Column::Id)
         .all(connection)
         .await?)
 }
@@ -107,12 +108,12 @@ impl CorrelationService {
     ) -> Result<PaginatedResults<ComponentRef>, Error> {
         let evidence = eligible_evidence(sbom_id)
             .select_only()
-            .column(correlation_evidence::Column::NodeId)
+            .column(correlation_evidence_detail::Column::NodeId)
             .filter(
                 // the evidence of the node's class
                 Expr::col((
-                    correlation_evidence::Entity,
-                    correlation_evidence::Column::NodeId,
+                    correlation_evidence_detail::Entity,
+                    correlation_evidence_detail::Column::NodeId,
                 ))
                 .eq(Expr::cust(
                     "coalesce((SELECT c.representative_node_id FROM correlation_node_class c \

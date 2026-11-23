@@ -21,13 +21,14 @@ use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::chunk::chunked_with, purl::Purl};
 use trustify_entity::{
     advisory, advisory_vulnerability_score, advisory_vulnerability_upstream, assertion_context,
-    correlation_evidence, correlation_evidence::AssertionStatus, correlation_evidence_context,
-    sbom, sbom_node, vulnerability,
+    correlation_evidence::AssertionStatus, correlation_evidence_context,
+    correlation_evidence_detail, sbom, sbom_node, vulnerability,
 };
 use uuid::Uuid;
 
 mod class;
 pub mod confidence;
+pub mod detail;
 pub mod extraction;
 pub mod freshness;
 pub mod option;
@@ -255,7 +256,7 @@ impl CorrelationService {
         &self,
         sbom_id: Uuid,
         request: &ResolutionRequest,
-        evidence_rows: &[correlation_evidence::Model],
+        evidence_rows: &[correlation_evidence_detail::Model],
         snapshot: &mut resolution::ProviderSnapshot,
         connection: &DatabaseTransaction,
     ) -> Result<Vec<VerdictSummary>, Error> {
@@ -315,7 +316,8 @@ impl CorrelationService {
         let mut scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
 
         // Group evidence by (node_id, vulnerability_id).
-        let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence::Model>> = BTreeMap::new();
+        let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence_detail::Model>> =
+            BTreeMap::new();
         for row in evidence_rows {
             groups
                 .entry((row.node_id.as_str(), row.vulnerability_id.as_str()))
@@ -808,7 +810,7 @@ impl CorrelationService {
 }
 
 fn decision_evidence(
-    row: &correlation_evidence::Model,
+    row: &correlation_evidence_detail::Model,
     snapshot: &resolution::ProviderSnapshot,
 ) -> Result<resolution::DecisionEvidence, Error> {
     let value = row
@@ -970,7 +972,7 @@ async fn load_unmatched_components(
 
 /// The upstream vulnerabilities of the advisories of evidence, keyed by advisory and vulnerability.
 async fn load_upstream(
-    evidence: &[correlation_evidence::Model],
+    evidence: &[correlation_evidence_detail::Model],
     connection: &impl ConnectionTrait,
 ) -> Result<HashMap<(Uuid, String), Vec<String>>, Error> {
     let advisories = evidence
@@ -1036,7 +1038,7 @@ async fn load_scores(
 
 /// Remediations of the source assertions that survived matching, keyed by evidence ID.
 async fn load_evidence_remediations(
-    evidence: &[correlation_evidence::Model],
+    evidence: &[correlation_evidence_detail::Model],
     connection: &impl ConnectionTrait,
 ) -> Result<HashMap<Uuid, Vec<EvidenceRemediation>>, Error> {
     let references = evidence

@@ -1,9 +1,14 @@
 use crate::{
     extractor::Extractors,
-    service::{extraction, freshness, projection, tuning::WorkerConfig},
+    service::{detail, extraction, freshness, projection, tuning::WorkerConfig},
 };
+use sea_orm::DatabaseConnection;
+use std::time::{Duration, Instant};
 use tokio::{sync::broadcast, task::JoinSet};
 use trustify_common::db::{self, change::ChangeBroadcaster};
+
+/// How often an idle worker removes unreferenced evidence details, see [`detail::run_step`].
+const DETAIL_CLEANUP_INTERVAL: Duration = Duration::from_secs(3600);
 
 /// Run [`WorkerConfig::workers`] workers in parallel, each in its own task, until one fails.
 ///
@@ -35,7 +40,11 @@ pub async fn run_extraction_worker(
     db: db::ReadWrite,
     config: WorkerConfig,
 ) -> anyhow::Result<()> {
-    let extractors = Extractors::default().with_match_batch(config.match_batch);
+    let connection: &DatabaseConnection = &db;
+    let extractors = Extractors::default()
+        .with_match_batch(config.match_batch)
+        .with_detail_connection(connection.clone());
+    let mut cleaned: Option<Instant> = None;
     let mut rx = broadcaster.subscribe();
     // Drain work left by an earlier process immediately on startup.
     let mut pending = true;
@@ -46,9 +55,9 @@ pub async fn run_extraction_worker(
                 Err(broadcast::error::RecvError::Closed) => break,
             },
             _ = tokio::time::sleep(if pending {
-                std::time::Duration::ZERO
+                Duration::ZERO
             } else {
-                std::time::Duration::from_secs(1)
+                Duration::from_secs(1)
             }) => {},
         }
         pending = match extraction::run_step(&db, &extractors, &config).await {
@@ -73,6 +82,20 @@ pub async fn run_extraction_worker(
                 false
             }
         };
+        // only when idle, and skipped while any extraction runs
+        if !pending && cleaned.is_none_or(|at| at.elapsed() >= DETAIL_CLEANUP_INTERVAL) {
+            match detail::run_step(&db).await {
+                Ok(Some(removed)) => {
+                    tracing::debug!(removed, "removed unreferenced evidence details");
+                    cleaned = Some(Instant::now());
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    tracing::warn!(error = %err, "evidence detail cleanup failed");
+                    cleaned = Some(Instant::now());
+                }
+            }
+        }
     }
     Ok(())
 }
