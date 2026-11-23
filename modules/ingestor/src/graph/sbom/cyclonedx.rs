@@ -325,7 +325,7 @@ impl<'a> Creator<'a> {
         let mut creator = ComponentCreator::new(self.sbom_id, self.components.len());
 
         for comp in self.components {
-            creator.add_component(comp)?;
+            let _ = creator.add_component(comp)?;
         }
 
         for (left, rel, right) in self.relations {
@@ -381,7 +381,12 @@ impl ComponentCreator {
         }
     }
 
-    pub fn add_component(&mut self, comp: &Component) -> Result<(), Error> {
+    /// Add a component and everything nested in it, returning the node ID it was stored under.
+    ///
+    /// Components without a `bom-ref` get a generated one. Callers that need to relate to the
+    /// component must use the returned ID rather than deriving it again, otherwise they would
+    /// generate a second, different ID and produce a dangling relationship.
+    pub fn add_component(&mut self, comp: &Component) -> Result<String, Error> {
         let node_id = comp
             .bom_ref
             .clone()
@@ -521,12 +526,7 @@ impl ComponentCreator {
             .iter()
             .flat_map(|pedigree| pedigree.ancestors.iter().flatten())
         {
-            let target = ancestor
-                .bom_ref
-                .clone()
-                .unwrap_or_else(|| Uuid::new_v4().to_string());
-
-            self.add_component(ancestor)?;
+            let target = self.add_component(ancestor)?;
 
             self.add_relation(target, Relationship::AncestorOf, node_id.clone());
         }
@@ -536,17 +536,12 @@ impl ComponentCreator {
             .iter()
             .flat_map(|pedigree| pedigree.variants.iter().flatten())
         {
-            let target = variant
-                .bom_ref
-                .clone()
-                .unwrap_or_else(|| Uuid::new_v4().to_string());
-
-            self.add_component(variant)?;
+            let target = self.add_component(variant)?;
 
             self.add_relation(node_id.clone(), Relationship::Variant, target);
         }
 
-        Ok(())
+        Ok(node_id)
     }
 
     fn add_relation(&mut self, left: String, rel: Relationship, right: String) {
