@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795518522003,
+  "lastUpdate": 1795544779772,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25310,6 +25310,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "5594dea1403580f8a36cb8ca7f889052927e8852",
+          "message": "fix(schema): regenerate importer duration definitions",
+          "timestamp": "2026-11-24T17:09:26Z",
+          "tree_id": "6540b8f7c8b8adff2470d2c8b534d4a57195aee3",
+          "url": "https://github.com/guacsec/trustify/commit/5594dea1403580f8a36cb8ca7f889052927e8852"
+        },
+        "date": 1795544777171,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
