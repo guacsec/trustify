@@ -32,7 +32,7 @@ use std::{
 };
 use tracing::instrument;
 use trustify_common::{
-    db::chunk::EntityChunkedIter, hashing::Digests, purl::Purl, time::ChronoExt,
+    db::chunk::EntityChunkedIter, hashing::Digests, purl::Purl, time::TimestampExt,
 };
 use trustify_entity::{
     advisory_vulnerability_upstream, labels::Labels, version_scheme::VersionScheme,
@@ -70,9 +70,9 @@ impl<'g> OsvLoader<'g> {
             // TODO(#899): check if we have some kind of version information
             version: None,
             issuer,
-            published: osv.published.map(ChronoExt::into_time),
+            published: osv.published.map(TimestampExt::into_time),
             modified: Some(osv.modified.into_time()),
-            withdrawn: osv.withdrawn.map(ChronoExt::into_time),
+            withdrawn: osv.withdrawn.map(TimestampExt::into_time),
         };
         let advisory = match self
             .graph

@@ -25,7 +25,6 @@ clap = { workspace = true, features = ["derive", "env"] }
 csaf-rs = { workspace = true }
 cve = { workspace = true }
 futures-util = { workspace = true }
-humantime = { workspace = true }
 indicatif = { workspace = true, features = ["tokio", "futures"] }
 osv = { workspace = true, features = ["schema"] }
 sea-orm = { workspace = true }

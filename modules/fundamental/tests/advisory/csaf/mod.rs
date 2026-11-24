@@ -116,11 +116,15 @@ async fn prepare_ps_state_change(
         },
         |mut csaf| {
             uptick_tracking(&mut csaf);
-            let next_release_date =
-                chrono::DateTime::parse_from_rfc3339(&csaf.document.tracking.current_release_date)
-                    .expect("test data has a valid release date")
-                    + chrono::Duration::days(1);
-            csaf.document.tracking.current_release_date = next_release_date.to_rfc3339();
+            let next_release_date = time::OffsetDateTime::parse(
+                &csaf.document.tracking.current_release_date,
+                &time::format_description::well_known::Rfc3339,
+            )
+            .expect("test data has a valid release date")
+                + time::Duration::days(1);
+            csaf.document.tracking.current_release_date = next_release_date
+                .format(&time::format_description::well_known::Rfc3339)
+                .expect("valid release date");
 
             let v = csaf
                 .vulnerabilities

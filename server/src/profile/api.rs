@@ -1,5 +1,6 @@
 #[cfg(feature = "garage-door")]
 use crate::embedded_oidc;
+use trustify_common::time::HumanDuration;
 
 use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
@@ -285,7 +286,7 @@ pub struct ExploitIntelligenceArgs {
         env = "EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL",
         default_value = "5s"
     )]
-    pub exploit_intelligence_worker_poll_interval: humantime::Duration,
+    pub exploit_intelligence_worker_poll_interval: HumanDuration,
 
     /// Number of concurrent worker loops processing EI jobs.
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_CONCURRENCY", default_value_t = 5)]
@@ -369,7 +370,7 @@ pub struct EiOidcArguments {
         env = "EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE",
         default_value = "30s"
     )]
-    pub refresh_before: humantime::Duration,
+    pub refresh_before: HumanDuration,
 
     #[arg(
         id = "ei_oidc_tls_insecure",

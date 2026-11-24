@@ -42,7 +42,6 @@ actix-http = { workspace = true }
 bytesize = { workspace = true }
 time = { workspace = true, features = ["macros"] }
 futures = { workspace = true }
-humantime = { workspace = true }
 jsonpath-rust = { workspace = true }
 log = { workspace = true }
 petgraph = { workspace = true }

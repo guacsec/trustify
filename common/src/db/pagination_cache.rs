@@ -1,3 +1,4 @@
+use crate::time::HumanDuration;
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use moka::future::Cache;
 use opentelemetry::{global, metrics::Counter};
@@ -98,14 +99,14 @@ impl PaginationCache {
 #[derive(clap::Args, Debug, Clone)]
 #[command(next_help_heading = "Pagination")]
 pub struct PaginationConfig {
-    /// TTL for cached pagination total counts (humantime, e.g. "60s", "5m")
+    /// TTL for cached pagination total counts (human-readable, e.g. "60s", "5m")
     #[arg(
         id = "pagination-cache-ttl",
         long,
         env = "TRUSTD_PAGINATION_TOTAL_CACHE_TTL",
         default_value = "60s"
     )]
-    pub cache_ttl: humantime::Duration,
+    pub cache_ttl: HumanDuration,
 
     /// Maximum allowed limit for pagination queries (0 = no maximum)
     #[arg(

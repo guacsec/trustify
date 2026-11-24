@@ -1,9 +1,14 @@
+use crate::time::HumanDuration;
 use anyhow::anyhow;
 use clap::ValueEnum;
 use hide::Hide;
-use humantime::parse_duration;
-use std::env;
+use std::{env, time::Duration};
 use time::ext::NumericalStdDuration;
+
+/// Parse a human-readable duration (e.g. `8s`, `2h`).
+fn parse_duration(value: &str) -> Result<Duration, String> {
+    value.parse::<HumanDuration>().map(Duration::from)
+}
 
 const DB_NAME: &str = "trustify";
 const DB_USER: &str = "postgres";
