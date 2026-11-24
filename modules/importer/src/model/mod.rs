@@ -254,8 +254,8 @@ pub struct CommonImporter {
     pub disabled: bool,
 
     /// The period the importer should be run.
-    #[serde(with = "humantime_serde")]
-    #[schemars(with = "HumantimeSerde")]
+    #[serde(with = "trustify_common::time::duration_serde")]
+    #[schemars(with = "DurationString")]
     pub period: Duration,
 
     /// A description for users.
@@ -267,9 +267,9 @@ pub struct CommonImporter {
     pub labels: Labels,
 }
 
-// Just here to create a schema for humantime_serde.
+// Just here to create a schema for the human-readable duration.
 #[derive(schemars::JsonSchema)]
-struct HumantimeSerde(#[allow(unused)] String);
+struct DurationString(#[allow(unused)] String);
 
 impl TryFrom<Model> for Importer {
     type Error = serde_json::Error;

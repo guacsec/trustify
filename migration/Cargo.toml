@@ -26,7 +26,6 @@ csaf-rs = { workspace = true }
 cve = { workspace = true }
 cyclonedx-rs = { workspace = true }
 futures-util = { workspace = true }
-humantime = { workspace = true }
 indicatif = { workspace = true, features = ["tokio", "futures"] }
 osv = { workspace = true, features = ["schema"] }
 sea-orm = { workspace = true }

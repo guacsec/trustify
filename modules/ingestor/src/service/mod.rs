@@ -1,3 +1,4 @@
+use trustify_common::time::HumanDuration;
 pub mod advisory;
 pub mod dataset;
 mod detect;
@@ -362,7 +363,7 @@ impl IngestorService {
             "Ingested: {} ({:?}): took {}",
             result.id,
             result.document_id,
-            humantime::Duration::from(duration),
+            HumanDuration::from(duration),
         );
 
         Ok(result)

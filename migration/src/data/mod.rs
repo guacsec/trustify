@@ -1,3 +1,4 @@
+use trustify_common::time::format_duration;
 mod document;
 mod migration;
 mod partition;
@@ -195,7 +196,7 @@ impl ProgressLogger {
             log::info!(
                 "Progress: {processed}/{} ({rate:.1}/s, ETA: {})",
                 self.total,
-                humantime::format_duration(eta),
+                format_duration(eta),
             );
         }
     }

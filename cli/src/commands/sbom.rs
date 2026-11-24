@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::Context;
 use crate::api::sbom as sbom_api;
 use crate::common::{ListParams, PruneParams};
-use chrono::{DateTime, Local};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 /// Output format for SBOM list
 #[derive(Clone, Default, ValueEnum)]
@@ -244,9 +244,8 @@ impl SbomCommands {
                 quiet,
             } => {
                 let published_before = if let Some(date_str) = published_before {
-                    Some(DateTime::parse_from_rfc3339(date_str)
-                        .map_err(|e| anyhow::anyhow!("Invalid date format for published_before: {}. Expected RFC 3339 format (e.g., 2024-01-15T10:30:45Z)", e))?
-                        .with_timezone(&Local))
+                    Some(OffsetDateTime::parse(date_str, &Rfc3339)
+                        .map_err(|e| anyhow::anyhow!("Invalid date format for published_before: {}. Expected RFC 3339 format (e.g., 2024-01-15T10:30:45Z)", e))?)
                 } else {
                     None
                 };

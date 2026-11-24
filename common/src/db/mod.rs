@@ -1,3 +1,4 @@
+use crate::time::HumanDuration;
 pub mod change;
 pub mod chunk;
 pub mod limiter;
@@ -153,7 +154,7 @@ impl Database {
         opt.sqlx_logging_level(log::LevelFilter::Trace);
         if let Some(threshold) = std::env::var("TRUSTD_SLOW_SQL_THRESHOLD")
             .ok()
-            .and_then(|s| humantime::Duration::from_str(&s).ok())
+            .and_then(|s| HumanDuration::from_str(&s).ok())
         {
             opt.sqlx_logging(true);
             opt.sqlx_slow_statements_logging_settings(log::LevelFilter::Warn, *threshold);
