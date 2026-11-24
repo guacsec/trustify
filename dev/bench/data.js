@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795449778796,
+  "lastUpdate": 1795517423176,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25247,6 +25247,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/88b21bed7dbe495bb51a740ba54baa3247e491fe"
         },
         "date": 1795449775115,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": false,
+          "id": "ed458e0542729fd85d74a0e09f6b015a9a9fe70a",
+          "message": "fix(vulnerability): order related advisories deterministically\n\nOrder the advisories returned by the vulnerability details endpoint in\nSQL, by document ID, advisory type and advisory UUID, instead of sorting\nthe built summaries in Rust, so the query is the single source of truth.\nAdvisories without a type label sort first, as an empty string.\n\nApply the same ordering to the ingestor advisory query, share the typed\nadvisory test fixture between the endpoint and service tests, assert that\nrepeated requests return the same sequence, and cover the UUID tie-break\nand the ingestor ordering.\n\nImplements TC-7641\n\nAssisted-by: OpenCode (DeepSeek V4.1 Flash)",
+          "timestamp": "2026-11-24T09:48:51Z",
+          "tree_id": "b43aa4147aebd8b72ecd93f74c1cce2e4007903c",
+          "url": "https://github.com/guacsec/trustify/commit/ed458e0542729fd85d74a0e09f6b015a9a9fe70a"
+        },
+        "date": 1795517420365,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
