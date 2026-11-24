@@ -9,13 +9,15 @@ use tokio::sync::Mutex;
 use crate::api::client::{ApiClient, ApiError};
 
 /// Build query string and list params from prune parameters
-pub fn build_prune_query(params: &PruneParams) -> (String, ListParams) {
+pub fn build_prune_query(params: &PruneParams) -> Result<(String, ListParams), ApiError> {
     let mut query = params.q.as_deref().unwrap_or("").to_string();
 
     if let Some(d) = params.published_before.as_ref() {
         query.push_str(&format!(
             "&published<{}",
-            d.format(&Rfc3339).expect("valid RFC 3339 timestamp")
+            d.format(&Rfc3339).map_err(|e| {
+                ApiError::InternalError(format!("Failed to format published-before timestamp: {e}"))
+            })?
         ));
     }
 
@@ -23,9 +25,9 @@ pub fn build_prune_query(params: &PruneParams) -> (String, ListParams) {
         let older_than_time = OffsetDateTime::now_utc() - Duration::days(older_than);
         query.push_str(&format!(
             "&ingested<{}",
-            older_than_time
-                .format(&Rfc3339)
-                .expect("valid RFC 3339 timestamp")
+            older_than_time.format(&Rfc3339).map_err(|e| {
+                ApiError::InternalError(format!("Failed to format ingestion cutoff: {e}"))
+            })?
         ));
     }
 
@@ -47,7 +49,7 @@ pub fn build_prune_query(params: &PruneParams) -> (String, ListParams) {
         sort,
     };
 
-    (query, list_params)
+    Ok((query, list_params))
 }
 
 #[derive(Default, Serialize)]
@@ -226,7 +228,7 @@ mod tests {
             ),
             ..Default::default()
         };
-        let (query, _) = build_prune_query(&params);
+        let (query, _) = build_prune_query(&params).unwrap();
         assert_eq!(query, "&published<2024-01-15T10:30:45+02:00");
         let json = serde_json::to_value(params).unwrap();
         assert_eq!(json["published_before"], "2024-01-15T10:30:45+02:00");
@@ -238,10 +240,29 @@ mod tests {
         let (query, _) = build_prune_query(&PruneParams {
             older_than: Some(7),
             ..Default::default()
-        });
+        })
+        .unwrap();
         let after = OffsetDateTime::now_utc() - Duration::days(7);
         let cutoff =
             OffsetDateTime::parse(query.strip_prefix("&ingested<").unwrap(), &Rfc3339).unwrap();
         assert!((before..=after).contains(&cutoff));
+    }
+
+    #[test]
+    fn prune_returns_error_for_timestamp_outside_rfc3339_range() {
+        let params = PruneParams {
+            published_before: Some(
+                time::Date::from_calendar_date(-1, time::Month::January, 1)
+                    .unwrap()
+                    .midnight()
+                    .assume_utc(),
+            ),
+            ..Default::default()
+        };
+        assert!(matches!(
+            build_prune_query(&params),
+            Err(ApiError::InternalError(message))
+                if message.contains("Failed to format published-before timestamp")
+        ));
     }
 }

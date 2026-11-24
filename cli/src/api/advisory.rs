@@ -11,7 +11,7 @@ pub async fn list(client: &ApiClient, params: &ListParams) -> Result<String, Api
 }
 
 pub async fn prune(client: &ApiClient, params: &PruneParams) -> Result<DeleteResult, ApiError> {
-    let (_query, list_params) = build_prune_query(params);
+    let (_query, list_params) = build_prune_query(params)?;
 
     log::info!(
         "Pruning advisories with query: {}",
