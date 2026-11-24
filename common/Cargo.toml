@@ -23,8 +23,8 @@ flate2 = { workspace = true }
 hex = { workspace = true }
 hide = { workspace = true }
 human-date-parser = { workspace = true }
-humantime = { workspace = true }
 isx = { workspace = true }
+jiff = { workspace = true }
 lenient_semver = { workspace = true }
 log = { workspace = true }
 lzma-rust2 = { workspace = true }
@@ -60,7 +60,6 @@ uuid = { workspace = true, features = ["v5", "v7", "serde"] }
 walker-common = { workspace = true, features = ["bzip2", "lzma", "flate2"] }
 
 [dev-dependencies]
-chrono = { workspace = true }
 rand = { workspace = true }
 rstest = { workspace = true }
 serde_json = { workspace = true }

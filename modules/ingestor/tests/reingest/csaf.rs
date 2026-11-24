@@ -5,6 +5,7 @@ use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
+use trustify_common::time::HumanDuration;
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::TrustifyContext;
 use uuid::Uuid;
@@ -19,7 +20,7 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
 
     let ingest_time = start.elapsed();
 
-    log::info!("ingest: {}", humantime::Duration::from(ingest_time));
+    log::info!("ingest: {}", HumanDuration::from(ingest_time));
 
     Ok(())
 }

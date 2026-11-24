@@ -1,3 +1,4 @@
+use crate::time::HumanDuration;
 use anyhow::anyhow;
 use clap::Parser;
 use hide::Hide;
@@ -54,9 +55,9 @@ pub fn parse_concurrency(value: &str) -> Result<NonZeroUsize, String> {
     }
 }
 
-/// Parse a duration of the database connection pool: a humantime duration (e.g. `8s`, `2h`),
+/// Parse a duration of the database connection pool: a human-readable duration (e.g. `8s`, `2h`),
 /// or, for compatibility, a number of seconds.
-fn parse_duration(value: &str) -> Result<humantime::Duration, humantime::DurationError> {
+fn parse_duration(value: &str) -> Result<HumanDuration, String> {
     match value.parse::<u64>() {
         Ok(seconds) => Ok(Duration::from_secs(seconds).into()),
         Err(_) => value.parse(),
@@ -119,13 +120,13 @@ pub struct Database {
     pub region: Option<String>,
 
     #[arg(id = "db-conn-timeout", long, env = ENV_DB_CONNECT_TIMEOUT, value_parser = parse_duration, default_value_t = DB_CONNECT_TIMEOUT.into(), conflicts_with = "db-url")]
-    pub connect_timeout: humantime::Duration,
+    pub connect_timeout: HumanDuration,
     #[arg(id = "db-acquire-timeout", long, env = ENV_DB_ACQUIRE_TIMEOUT, value_parser = parse_duration, default_value_t = DB_ACQUIRE_TIMEOUT.into(), conflicts_with = "db-url")]
-    pub acquire_timeout: humantime::Duration,
+    pub acquire_timeout: HumanDuration,
     #[arg(id = "db-max-lifetime", long, env = ENV_DB_MAX_LIFETIME, value_parser = parse_duration, default_value_t = DB_MAX_LIFETIME.into(), conflicts_with = "db-url")]
-    pub max_lifetime: humantime::Duration,
+    pub max_lifetime: HumanDuration,
     #[arg(id = "db-idle-timeout", long, env = ENV_DB_IDLE_TIMEOUT, value_parser = parse_duration, default_value_t = DB_IDLE_TIMEOUT.into(), conflicts_with = "db-url")]
-    pub idle_timeout: humantime::Duration,
+    pub idle_timeout: HumanDuration,
 }
 
 impl Database {
@@ -192,13 +193,13 @@ pub struct DatabaseReadOnly {
     #[arg(id = "db-ro-sslmode", long, env = ENV_DB_RO_SSLMODE, value_enum)]
     pub sslmode: Option<SslMode>,
     #[arg(id = "db-ro-conn-timeout", long, env = ENV_DB_RO_CONNECT_TIMEOUT, value_parser = parse_duration)]
-    pub connect_timeout: Option<humantime::Duration>,
+    pub connect_timeout: Option<HumanDuration>,
     #[arg(id = "db-ro-acquire-timeout", long, env = ENV_DB_RO_ACQUIRE_TIMEOUT, value_parser = parse_duration)]
-    pub acquire_timeout: Option<humantime::Duration>,
+    pub acquire_timeout: Option<HumanDuration>,
     #[arg(id = "db-ro-max-lifetime", long, env = ENV_DB_RO_MAX_LIFETIME, value_parser = parse_duration)]
-    pub max_lifetime: Option<humantime::Duration>,
+    pub max_lifetime: Option<HumanDuration>,
     #[arg(id = "db-ro-idle-timeout", long, env = ENV_DB_RO_IDLE_TIMEOUT, value_parser = parse_duration)]
-    pub idle_timeout: Option<humantime::Duration>,
+    pub idle_timeout: Option<HumanDuration>,
 }
 
 impl DatabaseReadOnly {
@@ -326,7 +327,7 @@ mod test {
         Ok(())
     }
 
-    /// Durations take humantime, or a number of seconds for compatibility.
+    /// Durations take human-readable units, or a number of seconds for compatibility.
     #[test]
     fn durations() {
         let result = Database::try_parse_from([

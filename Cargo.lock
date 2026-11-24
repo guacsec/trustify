@@ -69,9 +69,9 @@ dependencies = [
 
 [[package]]
 name = "actix-http"
-version = "3.20.3"
+version = "3.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd4ef186188fed2d4f8177d712ad623c751c6e84f45b31da694cc53f483f320b"
+checksum = "50f98f47b03911915aa3f0b856749aa3d3915033afabb295ab6ac5ff3b8bd5c1"
 dependencies = [
  "actix-codec",
  "actix-service",
@@ -200,9 +200,9 @@ dependencies = [
 
 [[package]]
 name = "actix-web"
-version = "4.18.2"
+version = "4.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "697d10a06f7a550791dcb963e3090aa5c65c4d94c029114814a4bd652f30f0b4"
+checksum = "618475ea8d22e5ad6e8aefaf9f56253b6ad856a7522716bea0b48bbb772341ff"
 dependencies = [
  "actix-codec",
  "actix-http",
@@ -245,9 +245,9 @@ dependencies = [
 
 [[package]]
 name = "actix-web-codegen"
-version = "4.5.0"
+version = "4.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7c9f4c52b954a73c76757a3952d3437fca00a2fbcb49704f8a6ea9f767e73f0"
+checksum = "4357272ed7e7ed928f2e6bbb4e422257d0bd4e36f80477faa2f794984b16e386"
 dependencies = [
  "actix-router",
  "proc-macro2",
@@ -3133,7 +3133,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3309,9 +3309,9 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "form_urlencoded"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+checksum = "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
 dependencies = [
  "percent-encoding",
 ]
@@ -4212,16 +4212,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15cdd26707701c53297e2fa6afb323d55fbc1d0810c3aec078ae3ef0424c3c15"
 
 [[package]]
-name = "humantime-serde"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57a3db5ea5923d99402c94e9feb261dc5ee9b4efa158b0315f788cf549cc200c"
-dependencies = [
- "humantime",
- "serde",
-]
-
-[[package]]
 name = "hybrid-array"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4674,14 +4664,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2b005715dcbeb0089a3c0dab99f2ff1cc3b2525323552703d648585d342a383"
 dependencies = [
  "defmt",
- "jiff-core",
- "jiff-static",
+ "jiff-core 0.1.1",
+ "jiff-static 0.2.38",
  "jiff-tzdb-platform",
  "log",
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
  "windows-link",
+]
+
+[[package]]
+name = "jiff"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5e77cbfb9fff4798e283c2d69dff39fc2c45e7da017e5ce95b654e46ea41236"
+dependencies = [
+ "jiff-core 1.0.1",
+ "jiff-static 1.0.2",
+ "log",
+ "portable-atomic",
+ "portable-atomic-util",
+ "serde_core",
 ]
 
 [[package]]
@@ -4695,15 +4699,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "jiff-core"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6b46a105a9874634dd96231021526bf24ca04955a5998c59a9c7666e634b7b8"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "jiff-static"
 version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2cc9817253cf7c7ee4684451bd327e88d6f3658014e54a29198625590650695c"
 dependencies = [
- "jiff-core",
+ "jiff-core 0.1.1",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "jiff-static"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9067a0b23e5be3147d56b2dcf652b18e6b1364caca93fb157653b6fbcab23a9"
+dependencies = [
+ "jiff-core 1.0.1",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -5266,9 +5291,9 @@ checksum = "2e126dda6f34391ab7b444f9922055facc83c07a910da3eb16f1e4d9c45dc777"
 
 [[package]]
 name = "libz-sys"
-version = "1.1.31"
+version = "1.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2"
+checksum = "fee3f59f4321dab0c78d828942e7aa09d0bd8ad6e78a501977e6bf3d02938045"
 dependencies = [
  "cc",
  "libc",
@@ -7148,7 +7173,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7778,7 +7803,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7836,7 +7861,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8554,7 +8579,7 @@ dependencies = [
  "hex",
  "indexmap 1.9.3",
  "indexmap 2.14.2",
- "jiff",
+ "jiff 0.2.38",
  "schemars 0.9.0",
  "schemars 1.2.3",
  "serde_core",
@@ -9366,7 +9391,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9957,7 +9982,6 @@ dependencies = [
  "chrono",
  "clap",
  "futures-util",
- "humantime",
  "jsonpath-rust",
  "log",
  "openid 0.23.0",
@@ -9969,6 +9993,7 @@ dependencies = [
  "serde_json",
  "strum 0.28.0",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tracing",
  "trustify-common",
@@ -9982,7 +10007,6 @@ name = "trustify-cli"
 version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
- "chrono",
  "clap",
  "dotenvy",
  "futures",
@@ -9992,6 +10016,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "wiremock",
 ]
@@ -10038,8 +10063,8 @@ dependencies = [
  "hex",
  "hide",
  "human-date-parser",
- "humantime",
  "isx",
+ "jiff 1.0.2",
  "lenient_semver",
  "log",
  "lzma-rust2 0.16.5",
@@ -10202,7 +10227,6 @@ dependencies = [
  "cve",
  "cyclonedx-rs",
  "futures-util",
- "humantime",
  "indicatif",
  "osv",
  "rstest",
@@ -10241,7 +10265,6 @@ dependencies = [
  "deepsize",
  "fixedbitset",
  "futures",
- "humantime",
  "jsonpath-rust",
  "log",
  "moka",
@@ -10340,7 +10363,6 @@ dependencies = [
  "actix-web",
  "anyhow",
  "bytes",
- "chrono",
  "cpe",
  "criterion",
  "csaf-rs 0.7.1",
@@ -10351,7 +10373,6 @@ dependencies = [
  "futures",
  "futures-util",
  "hex",
- "humantime",
  "isx",
  "itertools 0.14.0",
  "jsonpath-rust",
@@ -10420,12 +10441,9 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "bytesize",
- "chrono",
  "csaf-walker",
  "futures",
  "git2",
- "humantime",
- "humantime-serde",
  "json-merge-patch",
  "liblzma",
  "log",
@@ -10486,7 +10504,6 @@ dependencies = [
  "cvss-rs 0.5.0",
  "cyclonedx-rs",
  "hex",
- "humantime",
  "jsonpath-rust",
  "lenient_semver",
  "log",
@@ -10541,7 +10558,6 @@ dependencies = [
  "anyhow",
  "clap",
  "futures",
- "humantime",
  "sea-orm",
  "serde",
  "serde_json",
@@ -10660,7 +10676,6 @@ dependencies = [
  "clap",
  "futures",
  "garage-door",
- "humantime",
  "log",
  "regex",
  "reqwest 0.13.5",
@@ -11007,9 +11022,9 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "2.5.8"
+version = "2.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+checksum = "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
 dependencies = [
  "form_urlencoded",
  "idna",
@@ -11493,7 +11508,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

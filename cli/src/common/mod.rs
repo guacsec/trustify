@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Duration, Local};
 use futures::stream::{self, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::sync::Mutex;
 
 use crate::api::client::{ApiClient, ApiError};
@@ -13,12 +13,20 @@ pub fn build_prune_query(params: &PruneParams) -> (String, ListParams) {
     let mut query = params.q.as_deref().unwrap_or("").to_string();
 
     if let Some(d) = params.published_before.as_ref() {
-        query.push_str(&format!("&published<{}", d.to_rfc3339()));
+        query.push_str(&format!(
+            "&published<{}",
+            d.format(&Rfc3339).expect("valid RFC 3339 timestamp")
+        ));
     }
 
     if let Some(older_than) = params.older_than {
-        let older_than_time = Local::now() - Duration::days(older_than);
-        query.push_str(&format!("&ingested<{}", older_than_time.to_rfc3339()));
+        let older_than_time = OffsetDateTime::now_utc() - Duration::days(older_than);
+        query.push_str(&format!(
+            "&ingested<{}",
+            older_than_time
+                .format(&Rfc3339)
+                .expect("valid RFC 3339 timestamp")
+        ));
     }
 
     if let Some(labels) = &params.label {
@@ -61,7 +69,8 @@ pub struct PruneParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub published_before: Option<DateTime<Local>>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub published_before: Option<OffsetDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub older_than: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -202,5 +211,37 @@ pub fn new_delete_result(total: u32) -> DeleteResult {
         failed: vec![],
         failed_total: 0,
         total,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prune_preserves_explicit_timestamp_offset() {
+        let params = PruneParams {
+            published_before: Some(
+                OffsetDateTime::parse("2024-01-15T10:30:45+02:00", &Rfc3339).unwrap(),
+            ),
+            ..Default::default()
+        };
+        let (query, _) = build_prune_query(&params);
+        assert_eq!(query, "&published<2024-01-15T10:30:45+02:00");
+        let json = serde_json::to_value(params).unwrap();
+        assert_eq!(json["published_before"], "2024-01-15T10:30:45+02:00");
+    }
+
+    #[test]
+    fn prune_age_is_an_elapsed_duration() {
+        let before = OffsetDateTime::now_utc() - Duration::days(7);
+        let (query, _) = build_prune_query(&PruneParams {
+            older_than: Some(7),
+            ..Default::default()
+        });
+        let after = OffsetDateTime::now_utc() - Duration::days(7);
+        let cutoff =
+            OffsetDateTime::parse(query.strip_prefix("&ingested<").unwrap(), &Rfc3339).unwrap();
+        assert!((before..=after).contains(&cutoff));
     }
 }

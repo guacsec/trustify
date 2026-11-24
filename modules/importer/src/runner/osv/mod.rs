@@ -10,7 +10,6 @@ use crate::{
     },
 };
 use anyhow::bail;
-use chrono::Datelike;
 use handler::OsvHandler;
 use parking_lot::Mutex;
 use std::collections::HashSet;
@@ -18,6 +17,7 @@ use std::{path::Path, path::PathBuf, sync::Arc};
 use tokio::runtime::Handle;
 use tracing::instrument;
 use trustify_common::db::ReadWrite;
+use trustify_common::time::TimestampExt;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::{
     graph::Graph,
@@ -50,6 +50,7 @@ impl<C: RunContext> Context<C> {
             let year = osv
                 .published
                 .unwrap_or(osv.modified)
+                .into_time()
                 .year()
                 .clamp(u16::MIN as _, u16::MAX as _) as u16;
 
