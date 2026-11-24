@@ -361,7 +361,7 @@ pub async fn delete_by_query(
 
 /// Prune SBOMs based on the given parameters
 pub async fn prune(client: &ApiClient, params: &PruneParams) -> Result<DeleteResult, ApiError> {
-    let (_query, list_params) = build_prune_query(params);
+    let (_query, list_params) = build_prune_query(params)?;
 
     log::info!(
         "Pruning SBOMs with query: {}, offset: {:?}, sort: {:?}",
