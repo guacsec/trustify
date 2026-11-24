@@ -39,6 +39,7 @@ use trustify_module_ingestor::{
     service::{Cache, Format, IngestorService},
 };
 use trustify_module_storage::service::{Compression, fs::FileSystemBackend};
+use trustify_server::profile::worker::CorrelationWorkerArgs;
 use walker_common::compression::Detector;
 
 #[derive(Debug, Parser)]
@@ -77,6 +78,54 @@ pub struct GenerateDump {
     /// Log ingestion errors as warnings and continue, allowing an incomplete dump.
     #[arg(long)]
     keep_going: bool,
+
+    #[command(flatten)]
+    correlation: CorrelationWorkerArgs,
+
+    #[command(flatten)]
+    postgres: embedded::PostgresArgs,
+}
+
+/// Drain the fixed input set. An idle worker may exit while others hold claims; those
+/// workers keep draining any follow-up work before they exit too. Dropping the JoinSet
+/// on an error cancels the remaining tasks, so no export can race unfinished work.
+async fn drain_correlation(db: &ReadWrite, config: WorkerConfig) -> anyhow::Result<u64> {
+    let mut workers = tokio::task::JoinSet::new();
+    for _ in 0..config.workers.get() {
+        let db = db.clone();
+        let config = config.clone();
+        workers.spawn(async move {
+            let extractors = Extractors::default().with_match_batch(config.match_batch);
+            let mut events = 0u64;
+            loop {
+                // Advisories are extracted from the ingestion queue, SBOMs by refresh jobs.
+                let advisory = extraction::run_step(&db, &extractors, &config).await?;
+                let sbom = freshness::run_step(&db, &extractors, &config).await?;
+                if !advisory && !sbom {
+                    return Ok::<_, anyhow::Error>(events);
+                }
+                events += 1;
+            }
+        });
+    }
+    let mut events = 0;
+    while let Some(result) = workers.join_next().await {
+        events += result??;
+    }
+    // Failed extractions stay pending for retry. Do not export a dump
+    // advertised as correlated while some ingestion work is unfinished.
+    let overview = db
+        .transaction(async |tx| freshness::overview(tx).await)
+        .await?;
+    let lag = overview.extraction_lag.unwrap_or_default();
+    anyhow::ensure!(
+        lag == ExtractionLag::default() && overview.needs_refresh == 0,
+        "Correlation extraction is incomplete: {} advisory changes ({} failed) and {} SBOMs pending",
+        lag.pending_advisories,
+        lag.failed,
+        overview.needs_refresh,
+    );
+    Ok(events)
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
@@ -91,6 +140,19 @@ pub struct Instructions {
 }
 
 impl GenerateDump {
+    fn database_settings(&self, wd: &Path) -> anyhow::Result<Settings> {
+        let mut settings = embedded::default_settings()?;
+        if self.working_dir.is_some() {
+            settings.data_dir = wd.join("db/data");
+            settings.installation_dir = wd.join("db/instance");
+        } else {
+            // Keep using the shared PostgreSQL installation, only move the data.
+            settings.data_dir = wd.join("db");
+        }
+        self.postgres.apply(&mut settings);
+        Ok(settings)
+    }
+
     fn load_config(&self) -> anyhow::Result<(PathBuf, Instructions)> {
         match &self.input {
             Some(input) => {
@@ -162,17 +224,9 @@ impl GenerateDump {
 
         let migrator = trustify_db::Migrator::new(storage.clone(), ());
 
-        let (db, postgres) = match &self.working_dir {
-            Some(wd) => embedded::create_in(wd.join("db"), &migrator).await?,
-            // Keep using the shared PostgreSQL installation, only move the data.
-            None => {
-                let settings = Settings {
-                    data_dir: wd.join("db"),
-                    ..embedded::default_settings()?
-                };
-                embedded::create_for(settings, Default::default(), &migrator).await?
-            }
-        };
+        let (db, postgres) =
+            embedded::create_for(self.database_settings(&wd)?, Default::default(), &migrator)
+                .await?;
 
         let importer = ImportRunner {
             db: ReadWrite::new(db.clone()),
@@ -195,34 +249,9 @@ impl GenerateDump {
             tracing::info!("Extracting correlation evidence before dumping");
             let start = Instant::now();
             let db_rw = ReadWrite::new(db.clone());
-            let extractors = Extractors::default();
-            // Advisories are extracted from the ingestion queue, SBOMs by refresh jobs.
-            let mut events = 0u64;
-            loop {
-                let advisory =
-                    extraction::run_step(&db_rw, &extractors, &WorkerConfig::default()).await?;
-                let sbom =
-                    freshness::run_step(&db_rw, &extractors, &WorkerConfig::default()).await?;
-                if !advisory && !sbom {
-                    break;
-                }
-                events += 1;
-            }
+            let events = drain_correlation(&db_rw, self.correlation.clone().into()).await?;
             let elapsed = start.elapsed();
 
-            // Failed extractions stay pending for retry. Do not export a dump
-            // advertised as correlated while some ingestion work is unfinished.
-            let overview = db_rw
-                .transaction(async |tx| freshness::overview(tx).await)
-                .await?;
-            let lag = overview.extraction_lag.unwrap_or_default();
-            anyhow::ensure!(
-                lag == ExtractionLag::default() && overview.needs_refresh == 0,
-                "Correlation extraction is incomplete: {} advisory changes ({} failed) and {} SBOMs pending",
-                lag.pending_advisories,
-                lag.failed,
-                overview.needs_refresh,
-            );
             let rate = match elapsed.as_secs_f64() {
                 secs if secs > 0.0 => events as f64 / secs,
                 _ => 0.0,
@@ -601,6 +630,165 @@ mod tests {
         GenerateDump::try_parse_from(args).unwrap()
     }
 
+    #[test]
+    fn tuning_cli() {
+        let command = GenerateDump::try_parse_from([
+            "generate-dump",
+            "--correlation-work-mem",
+            "256MiB",
+            "--correlation-workers",
+            "3",
+            "--correlation-match-batch",
+            "42",
+            "--pg-setting",
+            "max_wal_size=2GB",
+            "--pg-setting",
+            "max_wal_size=4GB",
+            "--pg-setting",
+            "application_name=a=b",
+        ])
+        .unwrap();
+        let config: WorkerConfig = command.correlation.clone().into();
+        assert_eq!(config.workers.get(), 3);
+        assert_eq!(config.work_mem.unwrap().as_u64(), 256 * 1024 * 1024);
+        assert_eq!(config.match_batch, 42);
+        let settings = command.database_settings(Path::new("/work")).unwrap();
+        assert_eq!(settings.configuration["max_wal_size"], "4GB");
+        assert_eq!(settings.configuration["application_name"], "a=b");
+
+        let command =
+            GenerateDump::try_parse_from(["generate-dump", "--correlation-workers", "0"]).unwrap();
+        assert_eq!(
+            command.correlation.correlation_workers,
+            std::thread::available_parallelism().unwrap()
+        );
+        for args in [
+            ["--correlation-work-mem", "1KiB"],
+            ["--correlation-match-batch", "0"],
+            ["--pg-setting", "missing-equals"],
+            ["--pg-setting", "=4GB"],
+            ["--pg-setting", "max_wal_size="],
+        ] {
+            assert!(GenerateDump::try_parse_from(["generate-dump", args[0], args[1]]).is_err());
+        }
+    }
+
+    // Use a subprocess so environment changes cannot race other tests.
+    #[test]
+    fn tuning_environment() {
+        if let Ok(mode) = std::env::var("XTASK_TEST_TUNING_ENV") {
+            let command = command(false);
+            let config: WorkerConfig = command.correlation.clone().into();
+            if mode == "defaults" {
+                assert_eq!(config, WorkerConfig::default());
+                assert!(command.postgres.settings.is_empty());
+                return;
+            }
+            assert_eq!(config.workers.get(), 2);
+            assert_eq!(config.work_mem.unwrap().as_u64(), 128 * 1024 * 1024);
+            assert_eq!(config.match_batch, 17);
+            let settings = command.database_settings(Path::new("/work")).unwrap();
+            assert_eq!(settings.configuration["max_wal_size"], "2GB");
+            assert_eq!(settings.configuration["shared_buffers"], "64MB");
+
+            let command = GenerateDump::try_parse_from([
+                "generate-dump",
+                "--correlation-workers",
+                "3",
+                "--correlation-work-mem",
+                "256MiB",
+                "--correlation-match-batch",
+                "23",
+                "--pg-setting",
+                "max_wal_size=4GB",
+            ])
+            .unwrap();
+            let config: WorkerConfig = command.correlation.clone().into();
+            assert_eq!(config.workers.get(), 3);
+            assert_eq!(config.work_mem.unwrap().as_u64(), 256 * 1024 * 1024);
+            assert_eq!(config.match_batch, 23);
+            let settings = command.database_settings(Path::new("/work")).unwrap();
+            assert_eq!(settings.configuration["max_wal_size"], "4GB");
+            assert!(!settings.configuration.contains_key("shared_buffers"));
+            return;
+        }
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "dataset::tests::tuning_environment",
+                "--nocapture",
+            ])
+            .env("XTASK_TEST_TUNING_ENV", "1")
+            .env("TRUSTD_CORRELATION_WORKERS", "2")
+            .env("TRUSTD_CORRELATION_WORK_MEM", "128MiB")
+            .env("TRUSTD_CORRELATION_MATCH_BATCH", "17")
+            .env(
+                "GENERATE_DUMP_PG_SETTINGS",
+                "max_wal_size=2GB;shared_buffers=64MB",
+            )
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "dataset::tests::tuning_environment",
+                "--nocapture",
+            ])
+            .env("XTASK_TEST_TUNING_ENV", "defaults")
+            .env_remove("TRUSTD_CORRELATION_WORKERS")
+            .env_remove("TRUSTD_CORRELATION_WORK_MEM")
+            .env_remove("TRUSTD_CORRELATION_MATCH_BATCH")
+            .env_remove("GENERATE_DUMP_PG_SETTINGS")
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+
+    #[tokio::test]
+    async fn postgres_settings_apply_in_both_directory_modes() {
+        use postgresql_commands::psql::PsqlBuilder;
+        for explicit in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut command = GenerateDump::try_parse_from([
+                "generate-dump",
+                "--pg-setting",
+                "max_wal_size=2GB",
+                "--pg-setting",
+                "shared_buffers=32MB",
+            ])
+            .unwrap();
+            if explicit {
+                command.working_dir = Some(dir.path().to_owned());
+            }
+            let settings = command.database_settings(dir.path()).unwrap();
+            assert_eq!(
+                settings.data_dir,
+                dir.path().join(if explicit { "db/data" } else { "db" })
+            );
+            if explicit {
+                assert_eq!(settings.installation_dir, dir.path().join("db/instance"));
+            } else {
+                assert_eq!(
+                    settings.installation_dir,
+                    embedded::default_settings().unwrap().installation_dir
+                );
+            }
+            let mut postgres = postgresql_embedded::PostgreSQL::new(settings);
+            postgres.setup().await.unwrap();
+            postgres.start().await.unwrap();
+            let (stdout, _) = PsqlBuilder::from(postgres.settings())
+                .dbname("postgres")
+                .command("SHOW max_wal_size; SHOW shared_buffers;")
+                .build()
+                .execute()
+                .unwrap();
+            assert!(stdout.contains("2GB"), "{stdout}");
+            assert!(stdout.contains("32MB"), "{stdout}");
+            postgres.stop().await.unwrap();
+        }
+    }
+
     fn failed_report() -> RunOutput {
         let mut report = ReportBuilder::new();
         report.add_error(Phase::Validation, "first.yaml", "missing field id");
@@ -839,6 +1027,98 @@ mod tests {
                 "fetchRetries": 0
             }
         })
+    }
+
+    #[tokio::test]
+    async fn parallel_correlation_finishes_before_dump() {
+        let test = DumpTest::new();
+        std::fs::write(test.dir.path().join("advisory.json"), ADVISORY).unwrap();
+        std::fs::write(
+            test.dir.path().join("first.json"),
+            include_str!("../../etc/test-data/correlation/versionless_okhttp.cdx.json"),
+        )
+        .unwrap();
+        std::fs::write(
+            test.dir.path().join("second.json"),
+            include_str!("../../etc/test-data/correlation/openssl_el8_newer.cdx.json"),
+        )
+        .unwrap();
+        let mut command = test.command(
+            false,
+            serde_json::json!({
+                "paths": ["advisory.json", "first.json", "second.json"]
+            }),
+        );
+        command.no_correlation = false;
+        command.correlation.correlation_workers = std::num::NonZeroUsize::new(3).unwrap();
+        command.correlation.correlation_work_mem = Some("64MiB".parse().unwrap());
+        command.correlation.correlation_match_batch = 1;
+        let (result, logs) = capture_run(command).await;
+        result.unwrap();
+        test.assert_advisory_dumped();
+        let dump = std::fs::read_to_string(test.dir.path().join("dump.sql")).unwrap();
+        let rows = |table: &str| {
+            let header = format!("COPY public.{table} (");
+            let section = dump.split_once(&header).unwrap().1;
+            section
+                .split_once('\n')
+                .unwrap()
+                .1
+                .split_once("\\.\n")
+                .unwrap()
+                .0
+        };
+        assert!(rows("correlation_extraction_queue").is_empty());
+        assert!(rows("correlation_extraction_current").is_empty());
+        assert!(rows("correlation_refresh_current").is_empty());
+        let states = rows("correlation_extraction_state");
+        assert_eq!(states.lines().count(), 2, "{states}");
+        // The second COPY column is completed_revision; zero means uncomputed.
+        for state in states.lines() {
+            assert!(
+                state.split('\t').nth(1).unwrap().parse::<i64>().unwrap() > 0,
+                "{state}"
+            );
+        }
+        assert!(
+            logs.find("Correlation extraction complete").unwrap()
+                < logs.find("Dumped to:").unwrap(),
+            "{logs}"
+        );
+    }
+
+    #[tokio::test]
+    async fn parallel_correlation_rejects_pending_failures() {
+        use postgresql_commands::psql::PsqlBuilder;
+        let test = DumpTest::new();
+        let command = test.command(false, serde_json::json!({}));
+        let storage = FileSystemBackend::new(test.dir.path().join("storage"), Compression::Zstd)
+            .await
+            .unwrap();
+        let migrator = trustify_db::Migrator::new(storage, ());
+        let (db, postgres) = embedded::create_for(
+            command.database_settings(test.dir.path()).unwrap(),
+            Default::default(),
+            &migrator,
+        )
+        .await
+        .unwrap();
+        // A legacy SBOM queue entry cannot be extracted from the advisory queue.
+        // Its failure is persisted for retry, rather than returned by run_step.
+        PsqlBuilder::from(postgres.settings())
+            .dbname(db.name())
+            .command("INSERT INTO correlation_extraction_queue(id, entity_type, entity_id) VALUES (gen_random_uuid(), 'sbom', gen_random_uuid())")
+            .build().execute().unwrap();
+        let mut config: WorkerConfig = command.correlation.into();
+        config.workers = std::num::NonZeroUsize::new(3).unwrap();
+        let error = drain_correlation(&ReadWrite::new(db), config)
+            .await
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("1 advisory changes (1 failed)"),
+            "{error:#}"
+        );
+        test.assert_no_output();
     }
 
     // The importer dispatcher has large futures in debug builds. Give these

@@ -8,6 +8,39 @@ use std::{
 use tracing::{Instrument, info_span};
 use trustify_common::{db::Database, decompress::decompress_async_read};
 
+/// PostgreSQL server settings for an embedded database.
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct PostgresArgs {
+    /// Configure embedded PostgreSQL (e.g. max_wal_size=4GB). May be repeated.
+    ///
+    /// Separate assignments in the environment variable with semicolons.
+    /// Later assignments to the same setting win.
+    #[arg(
+        long = "pg-setting",
+        env = "GENERATE_DUMP_PG_SETTINGS",
+        value_name = "NAME=VALUE",
+        value_delimiter = ';',
+        value_parser = parse_setting
+    )]
+    pub settings: Vec<(String, String)>,
+}
+
+impl PostgresArgs {
+    /// Apply overrides before starting PostgreSQL, preserving other settings.
+    pub fn apply(&self, settings: &mut Settings) {
+        settings.configuration.extend(self.settings.iter().cloned());
+    }
+}
+
+fn parse_setting(value: &str) -> Result<(String, String), String> {
+    match value.split_once('=') {
+        Some((name, value)) if !name.trim().is_empty() && !value.trim().is_empty() => {
+            Ok((name.to_owned(), value.to_owned()))
+        }
+        _ => Err("expected NAME=VALUE with a nonempty name and value".into()),
+    }
+}
+
 /// Create common default settings for the embedded database
 pub fn default_settings() -> anyhow::Result<Settings> {
     // **NOTE:** Changing the default version here, one should also change the env-var in the CI job

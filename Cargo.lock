@@ -10122,6 +10122,7 @@ name = "trustify-db"
 version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
+ "clap",
  "log",
  "postgresql_commands",
  "postgresql_embedded",
