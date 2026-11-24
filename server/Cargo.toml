@@ -27,7 +27,6 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 garage-door = { workspace = true, optional = true }
 log = { workspace = true }
-rand = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
