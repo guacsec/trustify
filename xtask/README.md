@@ -27,10 +27,10 @@ the worker count can increase total memory consumption. The match batch bounds
 the matches held before writing evidence; a single node's matches can exceed it.
 
 Repeat `--pg-setting NAME=VALUE` to configure embedded PostgreSQL before startup.
-Alternatively, set `GENERATE_DUMP_PG_SETTINGS` to semicolon-separated assignments:
+Alternatively, set `TRUSTD_EMBEDDED_PG_SETTINGS` to comma-separated assignments:
 
 ```sh
-GENERATE_DUMP_PG_SETTINGS='max_wal_size=4GB;shared_buffers=512MB' \
+TRUSTD_EMBEDDED_PG_SETTINGS='max_wal_size=4GB,shared_buffers=512MB' \
   cargo xtask generate-dump
 ```
 

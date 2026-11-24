@@ -54,6 +54,7 @@
 | `TRUSTD_DISABLE_CORRELATION_WORKER`      | Don't run the correlation worker in the API server, leaving the work to `trustd worker` | `false` |
 | `TRUSTD_DISABLE_FORMATS`                 | Disable these document formats (comma-separated); use `*` to disable all            |                                         |
 | `TRUSTD_DISABLE_IMPORTERS`               | Disable these importer types (comma-separated); use `*` to disable all              |                                         |
+| `TRUSTD_EMBEDDED_PG_SETTINGS`            | Embedded PostgreSQL overrides, currently exposed by `cargo xtask generate-dump`; comma-separated `NAME=VALUE` assignments (e.g. `max_wal_size=4GB,shared_buffers=512MB`); later duplicate names win | |
 | `TRUSTD_ENABLE_FORMATS`                  | Enable only these document formats (comma-separated); conflicts with `TRUSTD_DISABLE_FORMATS` |                                |
 | `TRUSTD_ENABLE_IMPORTERS`                | Enable only these importer types (comma-separated); conflicts with `TRUSTD_DISABLE_IMPORTERS` |                                |
 | `TRUSTD_DB_URL`                          | Complete database URL; conflicts with the other `TRUSTD_DB_*` connection settings   |                                         |

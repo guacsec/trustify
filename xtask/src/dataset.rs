@@ -2,18 +2,19 @@ use anyhow::{Context as _, anyhow};
 use bytes::Bytes;
 use clap::Parser;
 use postgresql_commands::{CommandBuilder, CommandExecutor, pg_dump::PgDumpBuilder};
-use postgresql_embedded::Settings;
 use serde_json::Value;
 use std::{
+    borrow::Cow,
     env,
-    fs::create_dir_all,
+    fs::{File, create_dir_all},
     io::BufReader,
+    mem,
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 use tar::Builder;
 use tempfile::TempDir;
-use tokio::fs;
+use tokio::{fs, task::JoinSet};
 use trustify_common::{db::ReadWrite, model::BinaryByteSize};
 use trustify_db::embedded;
 use trustify_module_correlation::{
@@ -90,7 +91,7 @@ pub struct GenerateDump {
 /// workers keep draining any follow-up work before they exit too. Dropping the JoinSet
 /// on an error cancels the remaining tasks, so no export can race unfinished work.
 async fn drain_correlation(db: &ReadWrite, config: WorkerConfig) -> anyhow::Result<u64> {
-    let mut workers = tokio::task::JoinSet::new();
+    let mut workers = JoinSet::new();
     for _ in 0..config.workers.get() {
         let db = db.clone();
         let config = config.clone();
@@ -140,17 +141,15 @@ pub struct Instructions {
 }
 
 impl GenerateDump {
-    fn database_settings(&self, wd: &Path) -> anyhow::Result<Settings> {
-        let mut settings = embedded::default_settings()?;
-        if self.working_dir.is_some() {
-            settings.data_dir = wd.join("db/data");
-            settings.installation_dir = wd.join("db/instance");
+    fn database_builder(&mut self, wd: &Path) -> anyhow::Result<embedded::Builder> {
+        let builder = embedded::Builder::new()?;
+        let builder = if self.working_dir.is_some() {
+            builder.dir(wd.join("db"))
         } else {
             // Keep using the shared PostgreSQL installation, only move the data.
-            settings.data_dir = wd.join("db");
-        }
-        self.postgres.apply(&mut settings);
-        Ok(settings)
+            builder.data_dir(wd.join("db"))
+        };
+        Ok(builder.args(mem::take(&mut self.postgres)))
     }
 
     fn load_config(&self) -> anyhow::Result<(PathBuf, Instructions)> {
@@ -160,7 +159,7 @@ impl GenerateDump {
                 path.pop();
                 Ok((
                     path,
-                    serde_saphyr::from_reader(BufReader::new(std::fs::File::open(input)?))?,
+                    serde_saphyr::from_reader(BufReader::new(File::open(input)?))?,
                 ))
             }
             None => {
@@ -204,7 +203,7 @@ impl GenerateDump {
         }
     }
 
-    pub async fn run(self) -> anyhow::Result<()> {
+    pub async fn run(mut self) -> anyhow::Result<()> {
         // Without a working directory, prefer a temporary one below the target directory
         // over /tmp, which may be a size-limited tmpfs.
         let (wd, _tmp) = match &self.working_dir {
@@ -224,9 +223,7 @@ impl GenerateDump {
 
         let migrator = trustify_db::Migrator::new(storage.clone(), ());
 
-        let (db, postgres) =
-            embedded::create_for(self.database_settings(&wd)?, Default::default(), &migrator)
-                .await?;
+        let (db, postgres) = self.database_builder(&wd)?.create(&migrator).await?;
 
         let importer = ImportRunner {
             db: ReadWrite::new(db.clone()),
@@ -280,7 +277,7 @@ impl GenerateDump {
         // create storage dump
 
         if let Some(file) = self.storage_output {
-            let tar = std::fs::File::create(&file)?;
+            let tar = File::create(&file)?;
             let mut tar = Builder::new(tar);
             tar.append_dir_all(".", storage_path)?;
             drop(tar);
@@ -511,7 +508,7 @@ impl GenerateDump {
 }
 
 /// Keep report URLs useful for diagnosis without exposing authentication data.
-fn redact_report_file(file: &str) -> std::borrow::Cow<'_, str> {
+fn redact_report_file(file: &str) -> Cow<'_, str> {
     // Avoid treating local paths (including Windows drive letters) as URLs.
     if !file.contains("://") {
         return file.into();
@@ -589,10 +586,17 @@ impl RunContext for Context {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use postgresql_embedded::PostgreSQL;
     use std::{
+        fs::{create_dir, metadata, read_to_string, write},
+        future::Future,
         io::{self, Write},
+        num::NonZeroUsize,
+        process::Command,
         sync::{Arc, Mutex},
+        thread::{Builder as ThreadBuilder, available_parallelism},
     };
+    use tokio::runtime::Builder as RuntimeBuilder;
     use trustify_module_importer::runner::report::{Phase, ReportBuilder};
 
     #[derive(Clone, Default)]
@@ -632,7 +636,7 @@ mod tests {
 
     #[test]
     fn tuning_cli() {
-        let command = GenerateDump::try_parse_from([
+        let mut command = GenerateDump::try_parse_from([
             "generate-dump",
             "--correlation-work-mem",
             "256MiB",
@@ -652,7 +656,8 @@ mod tests {
         assert_eq!(config.workers.get(), 3);
         assert_eq!(config.work_mem.unwrap().as_u64(), 256 * 1024 * 1024);
         assert_eq!(config.match_batch, 42);
-        let settings = command.database_settings(Path::new("/work")).unwrap();
+        let builder = command.database_builder(Path::new("/work")).unwrap();
+        let settings = builder.settings();
         assert_eq!(settings.configuration["max_wal_size"], "4GB");
         assert_eq!(settings.configuration["application_name"], "a=b");
 
@@ -660,7 +665,7 @@ mod tests {
             GenerateDump::try_parse_from(["generate-dump", "--correlation-workers", "0"]).unwrap();
         assert_eq!(
             command.correlation.correlation_workers,
-            std::thread::available_parallelism().unwrap()
+            available_parallelism().unwrap()
         );
         for args in [
             ["--correlation-work-mem", "1KiB"],
@@ -676,8 +681,8 @@ mod tests {
     // Use a subprocess so environment changes cannot race other tests.
     #[test]
     fn tuning_environment() {
-        if let Ok(mode) = std::env::var("XTASK_TEST_TUNING_ENV") {
-            let command = command(false);
+        if let Ok(mode) = env::var("XTASK_TEST_TUNING_ENV") {
+            let mut command = command(false);
             let config: WorkerConfig = command.correlation.clone().into();
             if mode == "defaults" {
                 assert_eq!(config, WorkerConfig::default());
@@ -687,11 +692,12 @@ mod tests {
             assert_eq!(config.workers.get(), 2);
             assert_eq!(config.work_mem.unwrap().as_u64(), 128 * 1024 * 1024);
             assert_eq!(config.match_batch, 17);
-            let settings = command.database_settings(Path::new("/work")).unwrap();
+            let builder = command.database_builder(Path::new("/work")).unwrap();
+            let settings = builder.settings();
             assert_eq!(settings.configuration["max_wal_size"], "2GB");
             assert_eq!(settings.configuration["shared_buffers"], "64MB");
 
-            let command = GenerateDump::try_parse_from([
+            let mut command = GenerateDump::try_parse_from([
                 "generate-dump",
                 "--correlation-workers",
                 "3",
@@ -707,12 +713,13 @@ mod tests {
             assert_eq!(config.workers.get(), 3);
             assert_eq!(config.work_mem.unwrap().as_u64(), 256 * 1024 * 1024);
             assert_eq!(config.match_batch, 23);
-            let settings = command.database_settings(Path::new("/work")).unwrap();
+            let builder = command.database_builder(Path::new("/work")).unwrap();
+            let settings = builder.settings();
             assert_eq!(settings.configuration["max_wal_size"], "4GB");
             assert!(!settings.configuration.contains_key("shared_buffers"));
             return;
         }
-        let status = std::process::Command::new(std::env::current_exe().unwrap())
+        let status = Command::new(env::current_exe().unwrap())
             .args([
                 "--exact",
                 "dataset::tests::tuning_environment",
@@ -723,13 +730,13 @@ mod tests {
             .env("TRUSTD_CORRELATION_WORK_MEM", "128MiB")
             .env("TRUSTD_CORRELATION_MATCH_BATCH", "17")
             .env(
-                "GENERATE_DUMP_PG_SETTINGS",
-                "max_wal_size=2GB;shared_buffers=64MB",
+                "TRUSTD_EMBEDDED_PG_SETTINGS",
+                "max_wal_size=2GB,shared_buffers=64MB",
             )
             .status()
             .unwrap();
         assert!(status.success());
-        let status = std::process::Command::new(std::env::current_exe().unwrap())
+        let status = Command::new(env::current_exe().unwrap())
             .args([
                 "--exact",
                 "dataset::tests::tuning_environment",
@@ -739,7 +746,7 @@ mod tests {
             .env_remove("TRUSTD_CORRELATION_WORKERS")
             .env_remove("TRUSTD_CORRELATION_WORK_MEM")
             .env_remove("TRUSTD_CORRELATION_MATCH_BATCH")
-            .env_remove("GENERATE_DUMP_PG_SETTINGS")
+            .env_remove("TRUSTD_EMBEDDED_PG_SETTINGS")
             .status()
             .unwrap();
         assert!(status.success());
@@ -761,7 +768,8 @@ mod tests {
             if explicit {
                 command.working_dir = Some(dir.path().to_owned());
             }
-            let settings = command.database_settings(dir.path()).unwrap();
+            let builder = command.database_builder(dir.path()).unwrap();
+            let settings = builder.settings();
             assert_eq!(
                 settings.data_dir,
                 dir.path().join(if explicit { "db/data" } else { "db" })
@@ -774,7 +782,7 @@ mod tests {
                     embedded::default_settings().unwrap().installation_dir
                 );
             }
-            let mut postgres = postgresql_embedded::PostgreSQL::new(settings);
+            let mut postgres = PostgreSQL::new(settings.clone());
             postgres.setup().await.unwrap();
             postgres.start().await.unwrap();
             let (stdout, _) = PsqlBuilder::from(postgres.settings())
@@ -945,7 +953,7 @@ mod tests {
 
         fn command(&self, keep_going: bool, instructions: Value) -> GenerateDump {
             let input = self.dir.path().join("instructions.json");
-            std::fs::write(&input, instructions.to_string()).unwrap();
+            write(&input, instructions.to_string()).unwrap();
             let mut command = command(keep_going);
             command.input = Some(input);
             // Share the cached PostgreSQL installation, while keeping each database isolated.
@@ -962,14 +970,9 @@ mod tests {
         }
 
         fn assert_advisory_dumped(&self) {
-            let sql = std::fs::read_to_string(self.dir.path().join("dump.sql")).unwrap();
+            let sql = read_to_string(self.dir.path().join("dump.sql")).unwrap();
             assert!(sql.contains(ADVISORY_ID));
-            assert!(
-                std::fs::metadata(self.dir.path().join("storage.tar"))
-                    .unwrap()
-                    .len()
-                    > 0
-            );
+            assert!(metadata(self.dir.path().join("storage.tar")).unwrap().len() > 0);
         }
     }
 
@@ -1032,13 +1035,13 @@ mod tests {
     #[tokio::test]
     async fn parallel_correlation_finishes_before_dump() {
         let test = DumpTest::new();
-        std::fs::write(test.dir.path().join("advisory.json"), ADVISORY).unwrap();
-        std::fs::write(
+        write(test.dir.path().join("advisory.json"), ADVISORY).unwrap();
+        write(
             test.dir.path().join("first.json"),
             include_str!("../../etc/test-data/correlation/versionless_okhttp.cdx.json"),
         )
         .unwrap();
-        std::fs::write(
+        write(
             test.dir.path().join("second.json"),
             include_str!("../../etc/test-data/correlation/openssl_el8_newer.cdx.json"),
         )
@@ -1050,13 +1053,13 @@ mod tests {
             }),
         );
         command.no_correlation = false;
-        command.correlation.correlation_workers = std::num::NonZeroUsize::new(3).unwrap();
+        command.correlation.correlation_workers = NonZeroUsize::new(3).unwrap();
         command.correlation.correlation_work_mem = Some("64MiB".parse().unwrap());
         command.correlation.correlation_match_batch = 1;
         let (result, logs) = capture_run(command).await;
         result.unwrap();
         test.assert_advisory_dumped();
-        let dump = std::fs::read_to_string(test.dir.path().join("dump.sql")).unwrap();
+        let dump = read_to_string(test.dir.path().join("dump.sql")).unwrap();
         let rows = |table: &str| {
             let header = format!("COPY public.{table} (");
             let section = dump.split_once(&header).unwrap().1;
@@ -1091,18 +1094,17 @@ mod tests {
     async fn parallel_correlation_rejects_pending_failures() {
         use postgresql_commands::psql::PsqlBuilder;
         let test = DumpTest::new();
-        let command = test.command(false, serde_json::json!({}));
+        let mut command = test.command(false, serde_json::json!({}));
         let storage = FileSystemBackend::new(test.dir.path().join("storage"), Compression::Zstd)
             .await
             .unwrap();
         let migrator = trustify_db::Migrator::new(storage, ());
-        let (db, postgres) = embedded::create_for(
-            command.database_settings(test.dir.path()).unwrap(),
-            Default::default(),
-            &migrator,
-        )
-        .await
-        .unwrap();
+        let (db, postgres) = command
+            .database_builder(test.dir.path())
+            .unwrap()
+            .create(&migrator)
+            .await
+            .unwrap();
         // A legacy SBOM queue entry cannot be extracted from the advisory queue.
         // Its failure is persisted for retry, rather than returned by run_step.
         PsqlBuilder::from(postgres.settings())
@@ -1110,7 +1112,7 @@ mod tests {
             .command("INSERT INTO correlation_extraction_queue(id, entity_type, entity_id) VALUES (gen_random_uuid(), 'sbom', gen_random_uuid())")
             .build().execute().unwrap();
         let mut config: WorkerConfig = command.correlation.into();
-        config.workers = std::num::NonZeroUsize::new(3).unwrap();
+        config.workers = NonZeroUsize::new(3).unwrap();
         let error = drain_correlation(&ReadWrite::new(db), config)
             .await
             .unwrap_err();
@@ -1126,12 +1128,12 @@ mod tests {
     fn run_importer_test<F, Fut>(test: F)
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = ()>,
+        Fut: Future<Output = ()>,
     {
-        std::thread::Builder::new()
+        ThreadBuilder::new()
             .stack_size(16 * 1024 * 1024)
             .spawn(move || {
-                tokio::runtime::Builder::new_current_thread()
+                RuntimeBuilder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
@@ -1188,9 +1190,9 @@ mod tests {
 
     fn local_inputs(test: &DumpTest) -> Vec<&'static str> {
         let dir = test.dir.path();
-        std::fs::write(dir.join("broken.json.zst"), b"invalid compressed data").unwrap();
-        std::fs::write(dir.join("invalid.json"), b"not a document").unwrap();
-        std::fs::write(dir.join("valid.json"), ADVISORY).unwrap();
+        write(dir.join("broken.json.zst"), b"invalid compressed data").unwrap();
+        write(dir.join("invalid.json"), b"not a document").unwrap();
+        write(dir.join("valid.json"), ADVISORY).unwrap();
         vec![
             "missing.json",
             "broken.json.zst",
@@ -1246,9 +1248,9 @@ mod tests {
     async fn keep_going_processes_valid_files_in_a_directory_with_invalid_files() {
         let test = DumpTest::new();
         let documents = test.dir.path().join("documents");
-        std::fs::create_dir(&documents).unwrap();
-        std::fs::write(documents.join("invalid.json"), b"not a document").unwrap();
-        std::fs::write(documents.join("valid.json"), ADVISORY).unwrap();
+        create_dir(&documents).unwrap();
+        write(documents.join("invalid.json"), b"not a document").unwrap();
+        write(documents.join("valid.json"), ADVISORY).unwrap();
         let command = test.command(true, serde_json::json!({"paths": ["documents"]}));
         let (result, logs) = capture_run(command).await;
         result.unwrap();
