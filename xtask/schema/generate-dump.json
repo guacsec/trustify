@@ -131,7 +131,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -191,7 +191,7 @@
         "source"
       ]
     },
-    "HumantimeSerde": {
+    "DurationString": {
       "type": "string"
     },
     "Labels": {
@@ -216,7 +216,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -269,7 +269,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -335,7 +335,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -386,7 +386,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -441,7 +441,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -480,7 +480,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
@@ -512,7 +512,7 @@
         },
         "period": {
           "description": "The period the importer should be run.",
-          "$ref": "#/$defs/HumantimeSerde"
+          "$ref": "#/$defs/DurationString"
         },
         "description": {
           "description": "A description for users.",
