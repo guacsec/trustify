@@ -22,7 +22,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
-chrono = { workspace = true, features = ["serde", "clock"] }
+time = { workspace = true, features = ["serde-well-known", "parsing", "formatting"] }
 
 [dev-dependencies]
 wiremock = { workspace = true }

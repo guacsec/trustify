@@ -9,6 +9,7 @@ use core::fmt::{self, Debug, Formatter};
 use std::time::Duration;
 use std::{ops::Deref, sync::Arc};
 use tokio::sync::RwLock;
+use trustify_common::time::HumanDuration;
 use url::Url;
 
 #[derive(Clone, Debug, PartialEq, Eq, clap::Args)]
@@ -41,7 +42,7 @@ pub struct OpenIdTokenProviderConfigArguments {
         env = "OIDC_PROVIDER_REFRESH_BEFORE",
         default_value = "30s"
     )]
-    pub refresh_before: humantime::Duration,
+    pub refresh_before: HumanDuration,
     /// Use insecure TLS when contacting the OIDC issuer
     #[arg(
         id = "oidc_insecure_tls",
@@ -92,7 +93,7 @@ pub struct OpenIdTokenProviderConfig {
     pub client_id: String,
     pub client_secret: String,
     pub issuer_url: String,
-    pub refresh_before: humantime::Duration,
+    pub refresh_before: HumanDuration,
     pub tls_insecure: bool,
     pub scope: Option<String>,
 }
@@ -158,7 +159,7 @@ impl From<OpenIdTokenProviderConfigArguments> for Option<OpenIdTokenProviderConf
 pub struct OpenIdTokenProvider {
     client: Arc<openid::Client>,
     current_token: Arc<RwLock<Option<openid::TemporalBearerGuard>>>,
-    refresh_before: chrono::Duration,
+    refresh_before: time::Duration,
     scope: Option<String>,
 }
 
@@ -178,7 +179,7 @@ impl OpenIdTokenProvider {
     /// Create a new provider using the provided client.
     pub fn new(
         client: openid::Client,
-        refresh_before: chrono::Duration,
+        refresh_before: time::Duration,
         scope: Option<String>,
     ) -> Self {
         Self {
@@ -211,7 +212,7 @@ impl OpenIdTokenProvider {
         .context("Discover OIDC client")?;
         Ok(Self::new(
             client,
-            chrono::Duration::from_std(config.refresh_before.into())?,
+            time::Duration::try_from(*config.refresh_before)?,
             config.scope,
         ))
     }

@@ -15,6 +15,15 @@ ignore = [
     { id = "RUSTSEC-2026-0391", reason = "zstd-safe 7.3.0 pinned by build-info-build; requires zstd-safe >=8.2.0" },
     { id = "RUSTSEC-2026-0398", reason = "zstd-safe 7.3.0 pinned by build-info-build; requires zstd-safe >=8.2.0" },
     { id = "RUSTSEC-2026-0403", reason = "zstd-safe 7.3.0 pinned by build-info-build; requires zstd-safe >=8.2.0" },
+    # cookie 0.16.x is required by actix-web. The affected private-cookie
+    # encryption is not enabled, including with all workspace features.
+    { id = "RUSTSEC-2026-0594", reason = "via actix-web; cookie private/secure features are disabled, so private-cookie nonce generation is not compiled" },
+    # Unmaintained date/time crates have no patched releases. Keep these
+    # exceptions specific to maintenance advisories while replacements are assessed.
+    { id = "RUSTSEC-2026-0543", reason = "upstream OpenID and human-date-parser expose chrono types; CSAF/OSV, SeaORM, walker and UI dependencies also require chrono; no patched release" },
+    { id = "RUSTSEC-2026-0555", reason = "chrono-tz is transitive via tera; replacement requires an upstream template-engine change; no patched release" },
+    { id = "RUSTSEC-2026-0559", reason = "chrono-tz-build is a build dependency of chrono-tz via tera; no patched release" },
+    { id = "RUSTSEC-2026-0542", reason = "local duration handling uses Jiff; upstream csaf-walker, sbom-walker and walker-common still require humantime; no patched release" },
 ]
 
 [licenses]

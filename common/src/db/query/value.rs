@@ -1,3 +1,4 @@
+// human-date-parser requires chrono values at its API boundary.
 use chrono::{Local, NaiveDateTime};
 use human_date_parser::{ParseResult, from_human_time};
 use std::sync::Arc;

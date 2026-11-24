@@ -18,12 +18,9 @@ actix-web = { workspace = true }
 anyhow = { workspace = true }
 bytes = { workspace = true }
 base64 = { workspace = true }
-chrono = { workspace = true }
 csaf-walker = { workspace = true, features = ["crypto-openssl", "csaf"] }
 futures = { workspace = true }
 git2 = { workspace = true }
-humantime = { workspace = true }
-humantime-serde = { workspace = true }
 json-merge-patch = { workspace = true }
 log = { workspace = true }
 num-traits = { workspace = true }
