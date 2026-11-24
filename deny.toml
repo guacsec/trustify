@@ -23,7 +23,6 @@ ignore = [
     { id = "RUSTSEC-2026-0543", reason = "upstream OpenID and human-date-parser expose chrono types; CSAF/OSV, SeaORM, walker and UI dependencies also require chrono; no patched release" },
     { id = "RUSTSEC-2026-0555", reason = "chrono-tz is transitive via tera; replacement requires an upstream template-engine change; no patched release" },
     { id = "RUSTSEC-2026-0559", reason = "chrono-tz-build is a build dependency of chrono-tz via tera; no patched release" },
-    { id = "RUSTSEC-2026-0542", reason = "local duration handling uses Jiff; upstream csaf-walker, sbom-walker and walker-common still require humantime; no patched release" },
 ]
 
 [licenses]
