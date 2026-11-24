@@ -1,10 +1,10 @@
 use crate::authenticator::claims::AccessTokenClaims;
-use chrono::{Duration, Utc};
 use openid::{
     Client, Config, Configurable, Jws, Provider,
     biscuit::Empty,
     error::{Expiry, Mismatch, Missing, Validation},
 };
+use time::{Duration, OffsetDateTime};
 
 pub type AccessToken = Jws<AccessTokenClaims, Empty>;
 
@@ -39,14 +39,15 @@ fn validate_token_exp<'max_age>(
     claims: &AccessTokenClaims,
     max_age: impl Into<Option<&'max_age Duration>>,
 ) -> Result<(), openid::error::Error> {
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     // Now should never be less than the time this code was written!
-    if now.timestamp() < 1504758600 {
-        panic!("chrono::Utc::now() can never be before this was written!")
+    if now.unix_timestamp() < 1504758600 {
+        panic!("OffsetDateTime::now_utc() can never be before this was written!")
     }
     let exp = claims.exp;
-    if exp <= now.timestamp() {
+    if exp <= now.unix_timestamp() {
         return Err(Validation::Expired(
+            // OpenID exposes chrono types in its public error variants.
             chrono::DateTime::from_timestamp(exp, 0)
                 .map(Expiry::Expires)
                 .unwrap_or_else(|| Expiry::NotUnix(exp)),
@@ -57,10 +58,14 @@ fn validate_token_exp<'max_age>(
     if let Some(max) = max_age.into() {
         match claims.auth_time {
             Some(time) => {
-                // get the delta as seconds, or use max (which results in "expired")
-                let age = chrono::Duration::try_seconds(now.timestamp() - time).unwrap_or(*max);
+                // Clamp timestamp subtraction before comparing the token age.
+                let age = Duration::seconds(now.unix_timestamp().saturating_sub(time));
                 if age >= *max {
-                    return Err(Validation::Expired(Expiry::MaxAge(age)).into());
+                    return Err(Validation::Expired(Expiry::MaxAge(
+                        chrono::Duration::try_seconds(age.whole_seconds())
+                            .unwrap_or(chrono::Duration::MAX),
+                    ))
+                    .into());
                 }
             }
             None => return Err(Validation::Missing(Missing::AuthTime).into()),
@@ -110,5 +115,38 @@ pub fn validate_token_aud(
         None => Err(Error::Common(openid::error::Error::Validation(
             Validation::Missing(Missing::Audience),
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn claims(expires: i64, auth_time: Option<i64>) -> AccessTokenClaims {
+        serde_json::from_value(serde_json::json!({
+            "sub": "subject",
+            "iss": "https://issuer.example/",
+            "iat": 0,
+            "exp": expires,
+            "auth_time": auth_time,
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn validates_expiration_with_time_timestamps() {
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        assert!(validate_token_exp(&claims(now + 3600, None), None).is_ok());
+        assert!(validate_token_exp(&claims(now - 3600, None), None).is_err());
+    }
+
+    #[test]
+    fn enforces_max_age_including_extreme_authentication_timestamps() {
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let max_age = Duration::minutes(1);
+        for auth_time in [None, Some(now - 120), Some(i64::MIN)] {
+            assert!(validate_token_exp(&claims(now + 3600, auth_time), &max_age).is_err());
+        }
+        assert!(validate_token_exp(&claims(now + 3600, Some(now)), &max_age).is_ok());
     }
 }

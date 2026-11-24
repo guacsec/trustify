@@ -7,6 +7,7 @@ use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
+use trustify_common::time::HumanDuration;
 use trustify_common::{db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_module_storage::service::StorageBackend;
@@ -30,7 +31,7 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
 
     // check ingest results
 
-    log::info!("ingest: {}", humantime::Duration::from(ingest_time));
+    log::info!("ingest: {}", HumanDuration::from(ingest_time));
 
     assert!(result.warnings.is_empty());
     assert_eq!(result.files.len(), 72);

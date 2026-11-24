@@ -1529,7 +1529,8 @@ async fn query_sboms_by_ingested_time(ctx: &TrustifyContext) -> Result<(), anyho
 
     // Ingest 2 sbom's, capturing the time between each ingestion
     ctx.ingest_document("ubi9-9.2-755.1697625012.json").await?;
-    let t = chrono::Local::now().to_rfc3339();
+    let t =
+        time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
     ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json")
         .await?;
 

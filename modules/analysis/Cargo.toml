@@ -45,7 +45,6 @@ csaf = { workspace = true }
 time = { workspace = true, features = ["macros"] }
 futures = { workspace = true }
 hex = { workspace = true }
-humantime = { workspace = true }
 itertools = { workspace = true }
 jsonpath-rust = { workspace = true }
 log = { workspace = true }

@@ -16,12 +16,9 @@ trustify-module-storage = { workspace = true }
 
 actix-web = { workspace = true }
 anyhow = { workspace = true }
-chrono = { workspace = true }
 csaf-walker = { workspace = true, features = ["crypto-openssl", "csaf"] }
 futures = { workspace = true }
 git2 = { workspace = true }
-humantime = { workspace = true }
-humantime-serde = { workspace = true }
 json-merge-patch = { workspace = true }
 log = { workspace = true }
 num-traits = { workspace = true }

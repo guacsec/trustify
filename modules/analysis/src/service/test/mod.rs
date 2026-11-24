@@ -1,3 +1,4 @@
+use trustify_common::time::format_duration;
 mod cache_eviction;
 mod external_depth;
 mod query;
@@ -663,10 +664,7 @@ async fn load_performance(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
     service.load_all_graphs(&ctx.db).await?;
 
-    log::info!(
-        "Loading took: {}",
-        humantime::format_duration(start.elapsed()?)
-    );
+    log::info!("Loading took: {}", format_duration(start.elapsed()?));
 
     Ok(())
 }
@@ -698,10 +696,7 @@ async fn load_performance_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::
 
     try_join_all(tasks).await?;
 
-    log::info!(
-        "Loading took: {}",
-        humantime::format_duration(start.elapsed()?)
-    );
+    log::info!("Loading took: {}", format_duration(start.elapsed()?));
 
     // now that all are loaded, it should be instant
 
@@ -716,7 +711,7 @@ async fn load_performance_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::
 
     log::info!(
         "Loading (phase 2) took: {}",
-        humantime::format_duration(start.elapsed()?)
+        format_duration(start.elapsed()?)
     );
 
     // done
