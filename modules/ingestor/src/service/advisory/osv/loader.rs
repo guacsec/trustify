@@ -26,7 +26,7 @@ use osv::schema::{Ecosystem, Event, Range, RangeType, ReferenceType, Vulnerabili
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use tracing::instrument;
-use trustify_common::{hashing::Digests, purl::Purl, time::ChronoExt};
+use trustify_common::{hashing::Digests, purl::Purl, time::TimestampExt};
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
 
 pub struct OsvLoader<'g> {
@@ -71,9 +71,9 @@ impl<'g> OsvLoader<'g> {
             // TODO(#899): check if we have some kind of version information
             version: None,
             issuer,
-            published: osv.published.map(ChronoExt::into_time),
+            published: osv.published.map(TimestampExt::into_time),
             modified: Some(osv.modified.into_time()),
-            withdrawn: osv.withdrawn.map(ChronoExt::into_time),
+            withdrawn: osv.withdrawn.map(TimestampExt::into_time),
         };
         let advisory = self
             .graph

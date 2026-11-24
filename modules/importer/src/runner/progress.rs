@@ -4,6 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::runtime::Handle;
+use trustify_common::time::HumanDuration;
 
 pub trait Progress {
     type Instance: ProgressInstance;
@@ -113,7 +114,7 @@ impl ProgressInstance for TracingProgressInstance {
                     // truncate to seconds
                     .map(|eta| Duration::from_secs(eta.as_secs()))
                     // nice format
-                    .map(humantime::Duration::from)
+                    .map(HumanDuration::from)
                     // to string ...
                     .map(|eta| eta.to_string())
                     // ... so that we can provide a nice default

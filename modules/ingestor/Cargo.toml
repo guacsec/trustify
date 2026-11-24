@@ -21,7 +21,6 @@ csaf = { workspace = true }
 cve = { workspace = true }
 cvss = { workspace = true }
 hex = { workspace = true }
-humantime = { workspace = true }
 jsn = { workspace = true }
 jsonpath-rust = { workspace = true }
 lenient_semver = { workspace = true }

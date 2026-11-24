@@ -3,6 +3,7 @@ use anyhow::bail;
 use sea_orm::{ConnectOptions, DatabaseConnection, DbErr};
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManager};
 use std::{collections::HashMap, time::SystemTime};
+use trustify_common::time::HumanDuration;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
@@ -88,11 +89,7 @@ impl Runner {
             }
 
             if let Ok(duration) = start.elapsed() {
-                tracing::info!(
-                    name = run.name(),
-                    "Took {}",
-                    humantime::Duration::from(duration)
-                )
+                tracing::info!(name = run.name(), "Took {}", HumanDuration::from(duration))
             }
         }
 

@@ -64,7 +64,6 @@ cve = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
-humantime = { workspace = true }
 jsonpath-rust = { workspace = true }
 log = { workspace = true }
 opentelemetry = { workspace = true }

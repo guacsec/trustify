@@ -1,5 +1,6 @@
 #![allow(clippy::expect_used)]
 
+use trustify_common::time::HumanDuration;
 mod cyclonedx;
 mod details;
 mod graph;
@@ -106,11 +107,11 @@ where
 
     // log durations
 
-    log::info!("parse: {}", humantime::Duration::from(parse_time));
-    log::info!("ingest 1: {}", humantime::Duration::from(ingest_time_1));
-    log::info!("ingest 2: {}", humantime::Duration::from(ingest_time_2));
-    log::info!("commit: {}", humantime::Duration::from(commit_time));
-    log::info!("test: {}", humantime::Duration::from(test_time));
+    log::info!("parse: {}", HumanDuration::from(parse_time));
+    log::info!("ingest 1: {}", HumanDuration::from(ingest_time_1));
+    log::info!("ingest 2: {}", HumanDuration::from(ingest_time_2));
+    log::info!("commit: {}", HumanDuration::from(commit_time));
+    log::info!("test: {}", HumanDuration::from(test_time));
 
     Ok(())
 }

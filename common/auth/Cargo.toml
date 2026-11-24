@@ -19,7 +19,6 @@ base64 = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 futures-util = { workspace = true }
-humantime = { workspace = true }
 jsonpath-rust = { workspace = true }
 log = { workspace = true }
 openid = { workspace = true }
@@ -30,6 +29,7 @@ serde_json = { workspace = true }
 serde_yml = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
