@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795517423176,
+  "lastUpdate": 1795518522003,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25281,6 +25281,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "320387162a5d242ef02fba739c08f5aa3841c8df",
+          "message": "refactor(db): parse embedded PostgreSQL settings with FromStr",
+          "timestamp": "2026-11-24T09:53:51Z",
+          "tree_id": "0666d8ae488722f00906afa792ead3a6cd6b9c5b",
+          "url": "https://github.com/guacsec/trustify/commit/320387162a5d242ef02fba739c08f5aa3841c8df"
+        },
+        "date": 1795518519182,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
