@@ -1,0 +1,226 @@
+[
+  {
+    "algorithm_name": "RSA-1024",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "RSA-2048",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "RSA-3072",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "RSA-4096",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "ECDH-P224",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "ECDH-P256",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "ECDH-P384",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "ECDH-P521",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "X25519",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "X448",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "DH-1024",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "DH-2048",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "DH-3072",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "DH-4096",
+    "algorithm_primitive": "KEM",
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "RSA-1024",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "RSA-2048",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "RSA-3072",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "RSA-4096",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "ECDSA-P224",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "ECDSA-P256",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "ECDSA-P384",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "ECDSA-P521",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "Ed25519",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "Ed448",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "DSA-2048",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "DSA generation is not approved; select an approved ML-DSA or SLH-DSA parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "DSA-3072",
+    "algorithm_primitive": "Signature",
+    "replacement_name": "DSA generation is not approved; select an approved ML-DSA or SLH-DSA parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "rsa",
+    "algorithm_primitive": null,
+    "replacement_name": "Review required: determine RSA cryptographic usage before selecting a PQC replacement",
+    "replacement_standard": null,
+    "replacement_primitive": null
+  },
+  {
+    "algorithm_name": "ECDH",
+    "algorithm_primitive": null,
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "DH",
+    "algorithm_primitive": null,
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
+    "replacement_standard": "FIPS 203",
+    "replacement_primitive": "KEM"
+  },
+  {
+    "algorithm_name": "DSA",
+    "algorithm_primitive": null,
+    "replacement_name": "DSA generation is not approved; select an approved ML-DSA or SLH-DSA parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "ECDSA",
+    "algorithm_primitive": null,
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  },
+  {
+    "algorithm_name": "EdDSA",
+    "algorithm_primitive": null,
+    "replacement_name": "ML-DSA or SLH-DSA; select an approved parameter set",
+    "replacement_standard": "FIPS 204 / FIPS 205",
+    "replacement_primitive": "Signature"
+  }
+]

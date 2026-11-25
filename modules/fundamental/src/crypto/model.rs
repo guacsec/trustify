@@ -79,20 +79,3 @@ pub struct RemediationMapping {
     #[schema(required)]
     pub replacement_primitive: Option<String>,
 }
-
-/// One entry in a remediation import payload (CSV row or JSON array element).
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-pub struct RemediationImportItem {
-    pub algorithm_name: String,
-    pub algorithm_primitive: Option<String>,
-    pub replacement_name: String,
-    pub replacement_standard: Option<String>,
-    pub replacement_primitive: Option<String>,
-}
-
-/// Result returned after a remediation import operation.
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-pub struct RemediationImportResult {
-    /// Number of mappings processed (inserted or updated).
-    pub count: usize,
-}
