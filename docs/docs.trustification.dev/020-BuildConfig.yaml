@@ -17,9 +17,9 @@ spec:
     git:
       uri: "https://github.com/guacsec/trustify"
     dockerfile: |
-      FROM registry.access.redhat.com/ubi9/ubi:latest AS builder
+      FROM registry.access.redhat.com/ubi10/ubi:latest AS builder
       RUN dnf install -y make
-      RUN dnf module install nodejs:22/common -y
+      RUN dnf install nodejs npm -y
       COPY . /app
       WORKDIR /app/docs/book/
       RUN find /app
