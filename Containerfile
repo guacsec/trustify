@@ -1,7 +1,8 @@
 FROM registry.access.redhat.com/ubi10/ubi:latest AS runtime-dependencies
 
 # Stage runtime libraries for the package-manager-free Micro image, as in the release image.
-RUN dnf install --installroot /stage --setop install_weak_deps=false --nodocs -y zlib openssl krb5-libs libzstd lz4-libs libxml2 && \
+# Managed PostgreSQL also needs Kerberos, zstd, LZ4, and libxml2.
+RUN dnf install --installroot /stage --setop install_weak_deps=false --nodocs -y zlib openssl-libs ca-certificates krb5-libs libzstd lz4-libs libxml2 && \
     dnf clean all --installroot /stage
 
 FROM registry.access.redhat.com/ubi10/ubi:latest AS builder
