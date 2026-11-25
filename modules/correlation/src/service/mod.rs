@@ -1,4 +1,5 @@
 use crate::{
+    compute::on_worker,
     error::Error,
     extractor::{
         Assertion, Extractors, SourceAssertionRef,
@@ -9,14 +10,20 @@ use crate::{
         IdentifierKind, IdentifierRef, MatchedValue, QueryMatch, QueryResult, QueryVerdict,
         ResolutionRequest, SbomVerdictCounts, ScoreRef, VerdictSummary, VulnerabilityRef,
     },
-    service::resolution::ProviderSnapshot,
+    service::resolution::{
+        DecisionEvidence, ProviderSnapshot, provider::ResolutionContext, provider_match, resolve,
+    },
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, QueryFilter,
     QuerySelect, Value,
     sea_query::{Expr, ExprTrait, PgFunc, SimpleExpr},
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use serde::Deserialize;
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    mem::take,
+};
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::chunk::chunked_with, purl::Purl};
 use trustify_entity::{
@@ -211,7 +218,7 @@ impl CorrelationService {
                 "Product context is only supported for identifier queries".into(),
             ));
         }
-        resolution::provider::ResolutionContext::new(Vec::new(), request)?;
+        ResolutionContext::new(Vec::new(), request)?;
         let freshness = freshness::for_sboms(connection, &[sbom_id])
             .await?
             .remove(&sbom_id)
@@ -221,21 +228,25 @@ impl CorrelationService {
             .all(connection)
             .await?;
 
-        let mut snapshot = resolution::ProviderSnapshot::load_sboms(connection, &[sbom_id]).await?;
+        // the matched nodes, before the evidence moves into the verdict computation
+        let representatives = include_unmatched.then(|| {
+            evidence_rows
+                .iter()
+                .map(|row| row.node_id.clone())
+                .collect()
+        });
+
+        let mut snapshot = ProviderSnapshot::load_sboms(connection, &[sbom_id]).await?;
         let verdicts = self
-            .verdicts(sbom_id, request, &evidence_rows, &mut snapshot, connection)
+            .verdicts(sbom_id, request, evidence_rows, &mut snapshot, connection)
             .await?;
         let verdicts =
             class::expand(sbom_id, verdicts, request.node_id.as_deref(), connection).await?;
-        let unmatched_components = if include_unmatched {
+        let unmatched_components = if let Some(representatives) = representatives {
             let node_identifiers = self
                 .extractors
                 .component_identifiers(sbom_id, None, connection)
                 .await?;
-            let representatives = evidence_rows
-                .iter()
-                .map(|row| row.node_id.clone())
-                .collect();
             let members = class::members(sbom_id, representatives, connection).await?;
             let matched = members.values().flatten().map(String::as_str).collect();
             Some(load_unmatched_components(sbom_id, &matched, &node_identifiers, connection).await?)
@@ -252,17 +263,44 @@ impl CorrelationService {
     }
 
     /// Resolve complete evidence groups selected by either a preview or a page.
+    ///
+    /// Loads what the resolution needs, then resolves on a blocking worker thread: resolving
+    /// thousands of groups would otherwise hold up the async tasks sharing the runtime's threads.
     async fn verdicts(
         &self,
         sbom_id: Uuid,
         request: &ResolutionRequest,
-        evidence_rows: &[correlation_evidence_detail::Model],
-        snapshot: &mut resolution::ProviderSnapshot,
+        evidence_rows: Vec<correlation_evidence_detail::Model>,
+        snapshot: &mut ProviderSnapshot,
         connection: &DatabaseTransaction,
     ) -> Result<Vec<VerdictSummary>, Error> {
         if evidence_rows.is_empty() {
             return Ok(Vec::new());
         }
+        let loaded = self
+            .load_verdict_inputs(sbom_id, &evidence_rows, snapshot, connection)
+            .await?;
+
+        // the snapshot moves to the worker thread, and back
+        let request = request.clone();
+        let providers = take(snapshot);
+        let (providers, verdicts) = on_worker(move || {
+            let verdicts = resolve_verdicts(sbom_id, &request, &evidence_rows, &providers, loaded);
+            Ok((providers, verdicts))
+        })
+        .await?;
+        *snapshot = providers;
+        verdicts
+    }
+
+    /// Load everything resolving the verdicts of the evidence needs, besides the evidence.
+    async fn load_verdict_inputs(
+        &self,
+        sbom_id: Uuid,
+        evidence_rows: &[correlation_evidence_detail::Model],
+        snapshot: &mut ProviderSnapshot,
+        connection: &DatabaseTransaction,
+    ) -> Result<VerdictInputs, Error> {
         let node_ids = evidence_rows
             .iter()
             .map(|e| e.node_id.as_str())
@@ -298,139 +336,174 @@ impl CorrelationService {
             .all(connection)
             .await?;
 
-        let node_names: HashMap<&str, &str> = nodes
-            .iter()
-            .map(|n| (n.node_id.as_str(), n.name.as_str()))
-            .collect();
-
         let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
         snapshot
             .load_advisories(connection, advisory_ids.iter().copied())
             .await?;
-        let snapshot = &*snapshot;
         let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
-        let mut contexts =
+        let contexts =
             load_evidence_contexts(evidence_rows.iter().map(|e| e.id), connection).await?;
-        let mut remediations = load_evidence_remediations(evidence_rows, connection).await?;
+        let remediations = load_evidence_remediations(evidence_rows, connection).await?;
         let upstream = load_upstream(evidence_rows, connection).await?;
-        let mut scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
+        let scores = load_scores(&advisory_ids, &vuln_ids, connection).await?;
 
-        // Group evidence by (node_id, vulnerability_id).
-        let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence_detail::Model>> =
-            BTreeMap::new();
-        for row in evidence_rows {
-            groups
-                .entry((row.node_id.as_str(), row.vulnerability_id.as_str()))
-                .or_default()
-                .push(row);
-        }
+        Ok(VerdictInputs {
+            node_identifiers,
+            nodes,
+            advisory_map,
+            vuln_titles,
+            contexts,
+            remediations,
+            upstream,
+            scores,
+        })
+    }
+}
 
-        let context = snapshot.context(request)?;
-        let mut verdicts = Vec::with_capacity(groups.len());
-        for ((node_id, vuln_id), rows) in &groups {
-            let identifiers = node_identifiers
-                .get(*node_id)
-                .map(Vec::as_slice)
-                .unwrap_or_default();
-            let component_provider =
-                snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &context);
-            let inputs = rows
-                .iter()
-                .map(|row| {
-                    Ok(resolution::DecisionEvidence {
-                        contexts: contexts.remove(&row.id).unwrap_or_default(),
-                        remediations: remediations.remove(&row.id).unwrap_or_default(),
-                        ..decision_evidence(row, snapshot)?
-                    })
-                })
-                .collect::<Result<Vec<_>, Error>>()?;
+/// What resolving the verdicts of evidence needs, besides the evidence and the providers.
+struct VerdictInputs {
+    node_identifiers: HashMap<String, Vec<IdentifierRef>>,
+    nodes: Vec<sbom_node::Model>,
+    advisory_map: HashMap<Uuid, AdvisoryName>,
+    vuln_titles: HashMap<String, Option<String>>,
+    contexts: HashMap<Uuid, Vec<EvidenceContext>>,
+    remediations: HashMap<Uuid, Vec<EvidenceRemediation>>,
+    upstream: HashMap<(Uuid, String), Vec<String>>,
+    scores: HashMap<(Uuid, String), Vec<ScoreRef>>,
+}
 
-            let evidence: Vec<_> = rows
-                .iter()
-                .zip(&inputs)
-                .map(|(row, input)| {
-                    let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
-                    let provider = context.provider(&input.provider, "assertion source");
+/// Resolve the verdicts of the evidence, grouped by node and vulnerability. CPU-heavy.
+fn resolve_verdicts(
+    sbom_id: Uuid,
+    request: &ResolutionRequest,
+    evidence_rows: &[correlation_evidence_detail::Model],
+    snapshot: &ProviderSnapshot,
+    inputs: VerdictInputs,
+) -> Result<Vec<VerdictSummary>, Error> {
+    let VerdictInputs {
+        node_identifiers,
+        nodes,
+        advisory_map,
+        vuln_titles,
+        mut contexts,
+        mut remediations,
+        upstream,
+        mut scores,
+    } = inputs;
+    let node_names: HashMap<&str, &str> = nodes
+        .iter()
+        .map(|n| (n.node_id.as_str(), n.name.as_str()))
+        .collect();
 
-                    EvidenceDetail {
-                        id: row.id,
-                        assertion_status: row.status.into(),
-                        confidence: row.confidence,
-                        extractor: row.extractor.clone(),
-                        advisory_id: row.advisory_id,
-                        advisory_identifier: advisory.identifier,
-                        advisory_type: advisory.r#type,
-                        matched_value: row.matched_value.clone().and_then(|value| {
-                            serde_json::from_value(value)
-                                .inspect_err(|err| {
-                                    tracing::warn!("failed to parse matched value: {err}")
-                                })
-                                .ok()
-                        }),
-                        contexts: input.contexts.clone(),
-                        confidence_factors: input.factors.clone(),
-                        remediations: input.remediations.clone(),
-                        provider_match: resolution::provider_match(&component_provider, &provider),
-                        provider,
-                        created_at: row.created_at,
-                    }
-                })
-                .collect();
-
-            let decision = resolution::resolve(
-                &inputs,
-                component_provider.clone(),
-                &context,
-                request.include_explanation,
-            )?;
-            let status = decision.status;
-            let resolution = decision.summary;
-
-            let first = rows
-                .iter()
-                .find(|row| Some(row.advisory_id) == decision.winning_advisory)
-                .copied()
-                .unwrap_or(rows[0]);
-            let advisory = AdvisoryName::of(&advisory_map, first.advisory_id);
-
-            let vuln_title = vuln_titles.get(*vuln_id).cloned().flatten();
-
-            verdicts.push(VerdictSummary {
-                component: build_component_ref(
-                    node_id.to_string(),
-                    node_names.get(node_id).unwrap_or(node_id).to_string(),
-                    &node_identifiers,
-                ),
-                vulnerability: VulnerabilityRef {
-                    id: vuln_id.to_string(),
-                    title: vuln_title,
-                    advisory_id: first.advisory_id,
-                    advisory_identifier: advisory.identifier,
-                    advisory_type: advisory.r#type,
-                    upstream: rows
-                        .iter()
-                        .filter_map(|row| {
-                            upstream.get(&(row.advisory_id, row.vulnerability_id.clone()))
-                        })
-                        .flatten()
-                        .cloned()
-                        .collect::<BTreeSet<_>>()
-                        .into_iter()
-                        .collect(),
-                    scores: scores
-                        .remove(&(first.advisory_id, vuln_id.to_string()))
-                        .unwrap_or_default(),
-                },
-                status,
-                resolution,
-                component_provider,
-                evidence,
-            });
-        }
-
-        Ok(verdicts)
+    // Group evidence by (node_id, vulnerability_id).
+    let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence_detail::Model>> =
+        BTreeMap::new();
+    for row in evidence_rows {
+        groups
+            .entry((row.node_id.as_str(), row.vulnerability_id.as_str()))
+            .or_default()
+            .push(row);
     }
 
+    let context = snapshot.context(request)?;
+    let mut verdicts = Vec::with_capacity(groups.len());
+    for ((node_id, vuln_id), rows) in &groups {
+        let identifiers = node_identifiers
+            .get(*node_id)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let component_provider =
+            snapshot.component_provider(Some(sbom_id), Some(node_id), identifiers, &context);
+        let inputs = rows
+            .iter()
+            .map(|row| {
+                Ok(DecisionEvidence {
+                    contexts: contexts.remove(&row.id).unwrap_or_default(),
+                    remediations: remediations.remove(&row.id).unwrap_or_default(),
+                    ..decision_evidence(row, snapshot)?
+                })
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
+
+        let decision = resolve(
+            &inputs,
+            component_provider.clone(),
+            &context,
+            request.include_explanation,
+        )?;
+        let status = decision.status;
+        let resolution = decision.summary;
+
+        // resolved: the inputs move into the evidence details
+        let evidence: Vec<_> = rows
+            .iter()
+            .zip(inputs)
+            .map(|(row, input)| {
+                let advisory = AdvisoryName::of(&advisory_map, row.advisory_id);
+                let provider = context.provider(&input.provider, "assertion source");
+
+                EvidenceDetail {
+                    id: row.id,
+                    assertion_status: row.status.into(),
+                    confidence: row.confidence,
+                    extractor: row.extractor.clone(),
+                    advisory_id: row.advisory_id,
+                    advisory_identifier: advisory.identifier,
+                    advisory_type: advisory.r#type,
+                    matched_value: input.value,
+                    contexts: input.contexts,
+                    confidence_factors: input.factors,
+                    remediations: input.remediations,
+                    provider_match: provider_match(&component_provider, &provider),
+                    provider,
+                    created_at: row.created_at,
+                }
+            })
+            .collect();
+
+        let first = rows
+            .iter()
+            .find(|row| Some(row.advisory_id) == decision.winning_advisory)
+            .copied()
+            .unwrap_or(rows[0]);
+        let advisory = AdvisoryName::of(&advisory_map, first.advisory_id);
+
+        let vuln_title = vuln_titles.get(*vuln_id).cloned().flatten();
+        // one key per group, the vulnerability is the same for all of its rows
+        let mut key = (first.advisory_id, vuln_id.to_string());
+        let mut upstream_ids = BTreeSet::new();
+        for row in rows {
+            key.0 = row.advisory_id;
+            upstream_ids.extend(upstream.get(&key).into_iter().flatten());
+        }
+        key.0 = first.advisory_id;
+
+        verdicts.push(VerdictSummary {
+            component: build_component_ref(
+                node_id.to_string(),
+                node_names.get(node_id).unwrap_or(node_id).to_string(),
+                &node_identifiers,
+            ),
+            vulnerability: VulnerabilityRef {
+                id: vuln_id.to_string(),
+                title: vuln_title,
+                advisory_id: first.advisory_id,
+                advisory_identifier: advisory.identifier,
+                advisory_type: advisory.r#type,
+                upstream: upstream_ids.into_iter().cloned().collect(),
+                scores: scores.remove(&key).unwrap_or_default(),
+            },
+            status,
+            resolution,
+            component_provider,
+            evidence,
+        });
+    }
+
+    Ok(verdicts)
+}
+
+impl CorrelationService {
     /// Query for advisory/vulnerability matches by identifier.
     ///
     /// Matches the identifier as its given kind only, groups results by
@@ -651,7 +724,7 @@ impl CorrelationService {
                 "Node selection requires an SBOM target".into(),
             ));
         }
-        resolution::provider::ResolutionContext::new(Vec::new(), request)?;
+        ResolutionContext::new(Vec::new(), request)?;
         let matches = if let Some(cpes) = node_cpes {
             self.extractors
                 .query_with_node_context(&identifier, cpes, connection)
@@ -754,7 +827,7 @@ impl CorrelationService {
         for (vuln_id, items) in groups {
             let inputs = items
                 .iter()
-                .map(|(status, m)| resolution::DecisionEvidence {
+                .map(|(status, m)| DecisionEvidence {
                     reference: Uuid::new_v5(
                         &m.advisory_id,
                         serde_json::json!([m.extractor, m.value, m.status])
@@ -777,7 +850,7 @@ impl CorrelationService {
                     remediations: m.remediations.clone(),
                 })
                 .collect::<Vec<_>>();
-            let decision = resolution::resolve(
+            let decision = resolve(
                 &inputs,
                 component_provider.clone(),
                 &context,
@@ -811,12 +884,12 @@ impl CorrelationService {
 
 fn decision_evidence(
     row: &correlation_evidence_detail::Model,
-    snapshot: &resolution::ProviderSnapshot,
-) -> Result<resolution::DecisionEvidence, Error> {
+    snapshot: &ProviderSnapshot,
+) -> Result<DecisionEvidence, Error> {
     let value = row
         .matched_value
-        .clone()
-        .map(serde_json::from_value::<MatchedValue>)
+        .as_ref()
+        .map(MatchedValue::deserialize)
         .transpose()
         .map_err(Error::MatchedValue)?;
     let provider = value
@@ -824,7 +897,7 @@ fn decision_evidence(
         .and_then(|v| v.source_provider.clone())
         .or_else(|| snapshot.advisory_providers.get(&row.advisory_id).cloned())
         .unwrap_or_default();
-    Ok(resolution::DecisionEvidence {
+    Ok(DecisionEvidence {
         reference: row.id.to_string(),
         advisory_id: row.advisory_id,
         status: row.status.into(),
@@ -833,7 +906,7 @@ fn decision_evidence(
         provider,
         contexts: Vec::new(),
         remediations: Vec::new(),
-        factors: serde_json::from_value(row.confidence_factors.clone())
+        factors: Deserialize::deserialize(&row.confidence_factors)
             .inspect_err(|err| tracing::warn!("failed to parse confidence factors: {err}"))
             .unwrap_or_default(),
     })

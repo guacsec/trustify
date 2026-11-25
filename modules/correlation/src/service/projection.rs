@@ -6,6 +6,7 @@ use super::{
     tuning::WorkerConfig,
 };
 use crate::{
+    compute::on_worker,
     error::Error,
     model::{
         CurrentSbom, ResolutionRequest, SbomVerdictCounts, SbomVerdictPage, VerdictFreshness,
@@ -23,7 +24,11 @@ use trustify_common::{
     db::{self, DatabaseExt, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::Pagination,
 };
-use trustify_entity::{correlation_node_class, correlation_verdict, correlation_verdict_freshness};
+use trustify_entity::{
+    correlation_node_class,
+    correlation_verdict::{self, VerdictStatus as StoredVerdictStatus},
+    correlation_verdict_freshness,
+};
 use uuid::Uuid;
 
 /// Bump in a migration together with changes to the default resolver's semantics.
@@ -102,10 +107,8 @@ impl CorrelationService {
             query = query.filter(correlation_verdict::Column::VulnerabilityId.eq(vuln));
         }
         if let Some(status) = status {
-            query = query.filter(
-                correlation_verdict::Column::Status
-                    .eq(correlation_verdict::VerdictStatus::from(status)),
-            );
+            query = query
+                .filter(correlation_verdict::Column::Status.eq(StoredVerdictStatus::from(status)));
         }
         // Include the generation in the shared limiter's bound-value cache key.
         let generation = freshness.generation.unwrap_or_default();
@@ -403,23 +406,34 @@ async fn insert_verdicts(
         return Ok(());
     }
 
-    let mut nodes = Vec::with_capacity(verdicts.len());
-    let mut vulnerabilities = Vec::with_capacity(verdicts.len());
-    let mut statuses = Vec::with_capacity(verdicts.len());
-    let mut snapshots = Vec::with_capacity(verdicts.len());
-    let mut remediation_counts = Vec::with_capacity(verdicts.len());
-    for verdict in verdicts {
-        let distinct = verdict
-            .evidence
-            .iter()
-            .flat_map(|e| e.remediations.iter().map(move |r| (e.advisory_id, r)))
-            .collect::<HashSet<_>>();
-        nodes.push(verdict.component.node_id.clone());
-        vulnerabilities.push(verdict.vulnerability.id.clone());
-        statuses.push(correlation_verdict::VerdictStatus::from(verdict.status).to_value());
-        remediation_counts.push(distinct.len() as i64);
-        snapshots.push(serde_json::to_value(verdict).map_err(Error::MatchedValue)?);
-    }
+    // serializing thousands of snapshots is CPU-heavy, keep it off the async runtime
+    let (nodes, vulnerabilities, statuses, snapshots, remediation_counts) = on_worker(move || {
+        let mut nodes = Vec::with_capacity(verdicts.len());
+        let mut vulnerabilities = Vec::with_capacity(verdicts.len());
+        let mut statuses = Vec::with_capacity(verdicts.len());
+        let mut snapshots = Vec::with_capacity(verdicts.len());
+        let mut remediation_counts = Vec::with_capacity(verdicts.len());
+        for verdict in verdicts {
+            let distinct = verdict
+                .evidence
+                .iter()
+                .flat_map(|e| e.remediations.iter().map(move |r| (e.advisory_id, r)))
+                .collect::<HashSet<_>>();
+            remediation_counts.push(distinct.len() as i64);
+            snapshots.push(serde_json::to_value(&verdict).map_err(Error::MatchedValue)?);
+            statuses.push(StoredVerdictStatus::from(verdict.status).to_value());
+            nodes.push(verdict.component.node_id);
+            vulnerabilities.push(verdict.vulnerability.id);
+        }
+        Ok((
+            nodes,
+            vulnerabilities,
+            statuses,
+            snapshots,
+            remediation_counts,
+        ))
+    })
+    .await?;
 
     tx.execute_raw(sql(
         "INSERT INTO correlation_verdict (sbom_id, node_id, vulnerability_id, status, snapshot, remediation_count) \
@@ -473,7 +487,7 @@ async fn rebuild(
     for (batch, groups) in groups.chunks(batch_size.max(1)).enumerate() {
         let evidence = pagination::evidence_for_groups(id, groups, reads).await?;
         let verdicts = service
-            .verdicts(id, &request, &evidence, &mut snapshot, reads)
+            .verdicts(id, &request, evidence, &mut snapshot, reads)
             .await?;
         insert_verdicts(id, verdicts, writes).await?;
         if let Some(progress) = progress {
