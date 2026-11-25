@@ -639,8 +639,14 @@ mod test {
     #[case::rw_post(false, Method::POST, "/api/v3/advisory", StatusCode::BAD_REQUEST)]
     // normal mode lets PUT through to handler
     #[case::rw_put(false, Method::PUT, "/api/v3/importer/foo", StatusCode::BAD_REQUEST)]
-    // normal mode lets PATCH through to handler
-    #[case::rw_patch(false, Method::PATCH, "/api/v3/importer/foo", StatusCode::NOT_FOUND)]
+    // normal mode does not short-circuit PATCH with 503; the request reaches routing, where
+    // the merge-patch content-type guard rejects it (no such header is sent here)
+    #[case::rw_patch(
+        false,
+        Method::PATCH,
+        "/api/v3/importer/foo",
+        StatusCode::METHOD_NOT_ALLOWED
+    )]
     // normal mode lets DELETE through to handler
     #[case::rw_delete(false, Method::DELETE, "/api/v3/importer/foo", StatusCode::NO_CONTENT)]
     #[test_log::test(actix_web::test)]
