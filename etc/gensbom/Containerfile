@@ -4,7 +4,7 @@ ARG SYFT_TAG=v1.36.0
 
 FROM ${SYFT_REGISTRY}/${SYFT_IMAGE}:${SYFT_TAG} AS syft
 
-FROM registry.access.redhat.com/ubi9/ubi:latest
+FROM registry.access.redhat.com/ubi10/ubi:latest
 
 COPY --from=syft /syft /usr/local/bin/syft
 COPY ./gensbom.sh /usr/local/bin/gensbom.sh
