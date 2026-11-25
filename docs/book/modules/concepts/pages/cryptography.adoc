@@ -68,7 +68,7 @@ Two tabs filter the table by asset type:
 | Number of distinct SBOMs that contain an algorithm with the same name.
 
 | *Recommendation*
-| The NIST PQC replacement recommendation, populated from imported <<remediation-mappings,remediation mappings>>.
+| The PQC replacement guidance, populated from bundled <<remediation-mappings,remediation mappings>>.
 |===
 
 === Filtering and sorting
@@ -164,9 +164,29 @@ Omit `sbom_id` to evaluate all algorithms across all SBOMs.
 [#remediation-mappings]
 == Remediation mappings
 
-Remediation mappings link classical algorithms to their recommended PQC replacements based on https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards).
-NIST IR 8547 is currently the only supported recommendation profile; additional profiles (e.g., ANSSI) will be added in future releases.
-Once imported, the *Recommendation* column in the algorithm inventory table displays the PQC replacement for each matched algorithm.
+Trustify bundles 32 NIST-only reference mappings from `NIST-Only-PQC-Remediation-2026-11.display.json` to provide PQC replacement guidance for matched algorithms in the *Recommendation* column.
+This is locally assembled guidance drawn from NIST sources, including https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards), not a NIST-authored mapping or certification.
+The dataset is not a selectable evaluation profile and does not change the built-in policy evaluator or its compliance verdicts.
+
+=== Bundled data migration
+
+The versioned database data migration `m0002740_preload_nist_crypto_remediation` seeds an empty `crypto_remediation` table when database migrations first apply it.
+The dataset is embedded at build time; no startup file, environment-variable path, or upload is used.
+This is an initial seed, not a dataset replacement mechanism: it neither merges with ANSSI or other mappings nor overwrites existing data.
+If the table is nonempty, seeding fails without changing its contents; an administrator must explicitly resolve existing development data before retrying.
+Normal migration history prevents seeding again on subsequent upgrades, so it does not reset later customizations.
+Rollback removes mappings whose five reference fields still match the bundled values, leaving changed and unrelated mappings untouched.
+No backup table is created, and rollback does not restore an earlier dataset.
+
+The standard data migration skip controls (`--skip` / `MIGRATION_DATA_SKIP` and `--skip-all` / `MIGRATION_DATA_SKIP_ALL`) can defer this migration.
+After database migrations have run, seed a still-empty table using the standard data migration CLI, with skip controls disabled for this migration:
+
+[source,bash]
+----
+trustd db data m0002740_preload_nist_crypto_remediation
+----
+
+Until the deferred preload runs, the bundled mappings have not been applied and any existing mappings remain unchanged.
 
 === Data model
 
@@ -198,67 +218,9 @@ Each mapping contains:
 |===
 
 Mappings are uniquely keyed by `(algorithm_name, algorithm_primitive)`.
-Importing a mapping with the same key updates the existing entry.
-
-=== Importing via CSV
-
-Send a `POST` request with `Content-Type: text/csv` to `/api/v3/crypto/remediation/import`.
-
-.CSV format
-[source,csv]
-----
-algorithm_name,algorithm_primitive,replacement_name,replacement_standard,replacement_primitive
-RSA,pke,ML-KEM-768,FIPS 203,kem
-ECDSA,dsa,ML-DSA-65,FIPS 204,dsa
-ECDH,key-agree,ML-KEM-768,FIPS 203,kem
-SHA-256,hash,SHA-256,,hash
-----
-
-All five columns must be present in the header.
-Leave optional columns blank (empty string) to omit them.
-
-.Example request
-[source,bash]
-----
-curl -X POST /api/v3/crypto/remediation/import \
-  -H "Content-Type: text/csv" \
-  --data-binary @remediation-mappings.csv
-----
-
-=== Importing via JSON
-
-Send a `POST` request with `Content-Type: application/json` to `/api/v3/crypto/remediation/import`.
-
-.JSON format
-[source,json]
-----
-[
-  {
-    "algorithm_name": "RSA",
-    "algorithm_primitive": "pke",
-    "replacement_name": "ML-KEM-768",
-    "replacement_standard": "FIPS 203",
-    "replacement_primitive": "kem"
-  },
-  {
-    "algorithm_name": "ECDSA",
-    "algorithm_primitive": "dsa",
-    "replacement_name": "ML-DSA-65",
-    "replacement_standard": "FIPS 204",
-    "replacement_primitive": "dsa"
-  }
-]
-----
-
-.Response (both formats)
-[source,json]
-----
-{
-  "count": 2
-}
-----
-
-The `count` field indicates the number of mappings processed (inserted or updated).
+Recommendation lookup first tries an exact, case-sensitive match on `(name, primitive)`, then falls back to `(name, null)` for a primitive-independent mapping.
+Neither algorithm names nor primitive values are normalized.
+The dataset's `KEM` and `Signature` primitive labels are deliberately retained unchanged; they are not converted to CycloneDX primitive values.
 
 === Listing current mappings
 
@@ -274,11 +236,11 @@ curl /api/v3/crypto/remediation
 [
   {
     "id": "urn:uuid:...",
-    "algorithm_name": "RSA",
-    "algorithm_primitive": "pke",
-    "replacement_name": "ML-KEM-768",
+    "algorithm_name": "ECDH",
+    "algorithm_primitive": null,
+    "replacement_name": "ML-KEM-768 (NIST default); confirm the application-required security strength",
     "replacement_standard": "FIPS 203",
-    "replacement_primitive": "kem"
+    "replacement_primitive": "KEM"
   }
 ]
 ----
@@ -348,10 +310,6 @@ The following API endpoints are available under the `crypto` tag:
 | `POST`
 | `/v3/crypto/policy/evaluate`
 | Evaluate the built-in policy against all or a specific SBOM's algorithms. Returns per-algorithm verdicts and an aggregate summary.
-
-| `POST`
-| `/v3/crypto/remediation/import`
-| Import algorithm-to-PQC-replacement mappings in CSV or JSON format. Upserts on `(algorithm_name, algorithm_primitive)`.
 
 | `GET`
 | `/v3/crypto/remediation`

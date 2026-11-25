@@ -86,6 +86,7 @@ mod m0002390_create_crypto_remediation;
 mod m0002391_add_crypto_remediation_updated_at;
 mod m0002400_base_purl_name_index;
 mod m0002560_vulnerability_upstream;
+mod m0002740_preload_nist_crypto_remediation;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -187,6 +188,7 @@ impl MigratorExt for Migrator {
             .normal(m0002391_add_crypto_remediation_updated_at::Migration)
             .normal(m0002400_base_purl_name_index::Migration)
             .normal(m0002560_vulnerability_upstream::Migration)
+            .data(m0002740_preload_nist_crypto_remediation::Migration)
     }
 }
 

@@ -1190,32 +1190,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RemediationMapping'
-  /api/v3/crypto/remediation/import:
-    post:
-      tags:
-      - crypto
-      operationId: importCryptoRemediations
-      requestBody:
-        description: 'Algorithm-to-replacement mappings as a JSON array (application/json) or CSV rows (text/csv) with headers: algorithm_name, algorithm_primitive, replacement_name, replacement_standard, replacement_primitive'
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/RemediationImportItem'
-          text/csv:
-            schema:
-              type: string
-        required: true
-      responses:
-        '200':
-          description: Import result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RemediationImportResult'
-        '400':
-          description: The request body could not be parsed as valid JSON or CSV
   /api/v3/crypto/summary:
     get:
       tags:
@@ -7887,39 +7861,6 @@ components:
       - no_fix_planned
       - none_available
       - will_not_fix
-    RemediationImportItem:
-      type: object
-      description: One entry in a remediation import payload (CSV row or JSON array element).
-      required:
-      - algorithm_name
-      - replacement_name
-      properties:
-        algorithm_name:
-          type: string
-        algorithm_primitive:
-          type:
-          - string
-          - 'null'
-        replacement_name:
-          type: string
-        replacement_primitive:
-          type:
-          - string
-          - 'null'
-        replacement_standard:
-          type:
-          - string
-          - 'null'
-    RemediationImportResult:
-      type: object
-      description: Result returned after a remediation import operation.
-      required:
-      - count
-      properties:
-        count:
-          type: integer
-          description: Number of mappings processed (inserted or updated).
-          minimum: 0
     RemediationMapping:
       type: object
       description: A single algorithm-to-NIST-replacement remediation mapping.

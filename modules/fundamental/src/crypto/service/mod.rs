@@ -5,16 +5,15 @@ use crate::{
     crypto::{
         model::{
             AlgorithmPolicyResult, CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationResponse,
-            PolicySummaryResult, RemediationImportItem, RemediationMapping,
+            PolicySummaryResult, RemediationMapping,
         },
         service::policy::{PolicyVerdict, evaluate_algorithm},
     },
 };
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, Condition, ConnectionTrait, EntityTrait, JoinType, LoaderTrait,
-    QueryFilter, QueryOrder, QuerySelect, RelationTrait,
+    ColumnTrait, Condition, ConnectionTrait, EntityTrait, JoinType, LoaderTrait, QueryFilter,
+    QueryOrder, QuerySelect, RelationTrait,
 };
-use sea_query::OnConflict;
 use std::collections::{HashMap, HashSet};
 use tracing::instrument;
 use trustify_common::{
@@ -142,81 +141,6 @@ impl CryptoService {
             items: algorithms,
             total,
         })
-    }
-
-    /// Import remediation mappings, upserting on `(algorithm_name, algorithm_primitive)`.
-    #[instrument(skip_all, err(level = tracing::Level::INFO))]
-    pub async fn import_remediations<C: ConnectionTrait>(
-        &self,
-        mappings: Vec<RemediationImportItem>,
-        connection: &C,
-    ) -> Result<usize, Error> {
-        if mappings.is_empty() {
-            return Ok(0);
-        }
-
-        for m in &mappings {
-            if m.algorithm_name.is_empty() {
-                return Err(Error::BadRequest(
-                    "algorithm_name must not be empty".into(),
-                    None,
-                ));
-            }
-            if m.replacement_name.is_empty() {
-                return Err(Error::BadRequest(
-                    "replacement_name must not be empty".into(),
-                    None,
-                ));
-            }
-        }
-
-        let mut deduped: HashMap<(String, Option<String>), RemediationImportItem> = HashMap::new();
-        for m in mappings {
-            deduped.insert((m.algorithm_name.clone(), m.algorithm_primitive.clone()), m);
-        }
-
-        let mut unique: Vec<RemediationImportItem> = deduped.into_values().collect();
-        unique.sort_by(|a, b| {
-            a.algorithm_name
-                .cmp(&b.algorithm_name)
-                .then(a.algorithm_primitive.cmp(&b.algorithm_primitive))
-        });
-
-        let models: Vec<crypto_remediation::ActiveModel> = unique
-            .into_iter()
-            .map(|m| crypto_remediation::ActiveModel {
-                id: Set(Uuid::now_v7()),
-                algorithm_name: Set(m.algorithm_name),
-                algorithm_primitive: Set(m.algorithm_primitive),
-                replacement_name: Set(m.replacement_name),
-                replacement_standard: Set(m.replacement_standard),
-                replacement_primitive: Set(m.replacement_primitive),
-                updated_at: sea_orm::ActiveValue::NotSet,
-            })
-            .collect();
-
-        let mut count: usize = 0;
-        const CHUNK_SIZE: usize = 500;
-        for chunk in models.chunks(CHUNK_SIZE) {
-            crypto_remediation::Entity::insert_many(chunk.to_vec())
-                .on_conflict(
-                    OnConflict::columns([
-                        crypto_remediation::Column::AlgorithmName,
-                        crypto_remediation::Column::AlgorithmPrimitive,
-                    ])
-                    .update_columns([
-                        crypto_remediation::Column::ReplacementName,
-                        crypto_remediation::Column::ReplacementStandard,
-                        crypto_remediation::Column::ReplacementPrimitive,
-                    ])
-                    .to_owned(),
-                )
-                .exec_without_returning(connection)
-                .await?;
-            count += chunk.len();
-        }
-
-        Ok(count)
     }
 
     /// List all stored remediation mappings.

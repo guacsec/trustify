@@ -72,7 +72,7 @@ pub fn configure(
         config.advisory_upload_limit,
         cache.clone(),
     );
-    crypto::endpoints::configure(svc, db_rw.clone(), db_ro.clone(), cache.clone());
+    crypto::endpoints::configure(svc, db_ro.clone(), cache.clone());
     exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
     license::endpoints::configure(svc, db_ro.clone());
     organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
