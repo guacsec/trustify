@@ -115,38 +115,29 @@ jobs:
         with:
           image_tag: ${{ env.VERSION }}
 
-      - name: Tag images as nightly
-        run: |
-          for img in trustd xtask gensbom; do
-            podman tag "$img:$VERSION" "$img:nightly"
-          done
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push images to ghcr.io
-        uses: redhat-actions/push-to-registry@v3
-        with:
-          image: trustd
-          tags: ${{ env.VERSION }} nightly
-          registry: ghcr.io/${{ github.repository_owner }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push xtask
-        uses: redhat-actions/push-to-registry@v3
-        with:
-          image: xtask
-          tags: ${{ env.VERSION }} nightly
-          registry: ghcr.io/${{ github.repository_owner }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push gensbom
-        uses: redhat-actions/push-to-registry@v3
-        with:
-          image: gensbom
-          tags: ${{ env.VERSION }} nightly
-          registry: ghcr.io/${{ github.repository_owner }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        id: push
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          IMAGE_TAG: ${{ env.VERSION }}
+        run: |
+          set -euo pipefail
+          registry="${REGISTRY,,}"
+          for image in trustd xtask gensbom; do
+            destination="$registry/$image:$IMAGE_TAG"
+            docker tag "$image:$IMAGE_TAG" "$destination"
+            docker push "$destination"
+            docker tag "$image:$IMAGE_TAG" "$registry/$image:nightly"
+            docker push "$registry/$image:nightly"
+          done
+          echo "image=$registry/trustd:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Release notes
         env:

@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     outputs:
-      image: ${{ steps.push.outputs.registry-path }}
+      image: ${{ steps.push.outputs.image }}
 
     permissions:
       contents: write
@@ -85,32 +85,24 @@ jobs:
 
       # Push to ghcr.io
 
-      - name: Push to ghcr.io (trustd)
-        id: push-trustd
-        uses: redhat-actions/push-to-registry@v3
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
         with:
-          image: trustd
-          tags: ${{ needs.init.outputs.version }}
-          registry: ghcr.io/${{ github.repository_owner }}
+          registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push to ghcr.io (xtask)
-        id: push-xtask
-        uses: redhat-actions/push-to-registry@v3
-        with:
-          image: xtask
-          tags: ${{ needs.init.outputs.version }}
-          registry: ghcr.io/${{ github.repository_owner }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push to ghcr.io (gensbom)
-        id: push-gensbom
-        uses: redhat-actions/push-to-registry@v3
-        with:
-          image: gensbom
-          tags: ${{ needs.init.outputs.version }}
-          registry: ghcr.io/${{ github.repository_owner }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push images to ghcr.io
+        id: push
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          IMAGE_TAG: ${{ needs.init.outputs.version }}
+        run: |
+          set -euo pipefail
+          registry="${REGISTRY,,}"
+          for image in trustd xtask gensbom; do
+            destination="$registry/$image:$IMAGE_TAG"
+            docker tag "$image:$IMAGE_TAG" "$destination"
+            docker push "$destination"
+          done
+          echo "image=$registry/trustd:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
