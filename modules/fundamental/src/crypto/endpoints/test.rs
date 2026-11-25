@@ -1,7 +1,7 @@
 use crate::{
     crypto::model::{
         CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse,
-        RemediationImportResult, RemediationMapping,
+        RemediationMapping,
     },
     crypto::service::policy::PolicyVerdict,
     test::caller,
@@ -332,193 +332,100 @@ async fn evaluate_policy_empty_db(ctx: &TrustifyContext) -> Result<(), anyhow::E
     Ok(())
 }
 
-/// Verifies that JSON remediation mappings can be imported and are stored.
+/// Verifies that a fresh database lists exactly the bundled mappings without any upload.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn import_remediations_json(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    // Given: a JSON payload with two remediation mappings
+async fn list_preloaded_remediations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a migrated database with its bundled reference data.
     let app = caller(ctx).await?;
-    let payload = serde_json::json!([
-        {
-            "algorithm_name": "RSA-2048",
-            "algorithm_primitive": null,
-            "replacement_name": "ML-KEM-768",
-            "replacement_standard": "FIPS 203",
-            "replacement_primitive": "KEM"
-        },
-        {
-            "algorithm_name": "ECDSA",
-            "algorithm_primitive": null,
-            "replacement_name": "ML-DSA-65",
-            "replacement_standard": "FIPS 204",
-            "replacement_primitive": "Signature"
-        }
-    ]);
+    let mut expected: Vec<serde_json::Value> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../migration/src/m0002740_preload_nist_crypto_remediation/",
+        "NIST-Only-PQC-Remediation-2026-11.display.json"
+    )))?;
 
-    // When: the payload is POSTed to the import endpoint
-    let request = TestRequest::post()
-        .uri("/api/v3/crypto/remediation/import")
-        .set_json(&payload)
-        .to_request();
-    let response = app.call_service(request).await;
-
-    // Then: the import succeeds and reports 2 processed mappings
-    assert_eq!(response.status(), StatusCode::OK);
-    let result: RemediationImportResult = actix_web::test::read_body_json(response).await;
-    assert_eq!(result.count, 2, "expected 2 imported mappings");
-
-    // Then: the mappings are retrievable via GET /v3/crypto/remediation
-    let list_request = TestRequest::get()
+    // When the read-only listing endpoint is called.
+    let request = TestRequest::get()
         .uri("/api/v3/crypto/remediation")
         .to_request();
-    let mappings: Vec<RemediationMapping> = app.call_and_read_body_json(list_request).await;
-    assert_eq!(mappings.len(), 2, "expected 2 stored mappings");
+    let mappings: Vec<RemediationMapping> = app.call_and_read_body_json(request).await;
+    let mut actual = mappings
+        .into_iter()
+        .map(|mapping| {
+            assert!(!mapping.id.is_nil());
+            let mut value = serde_json::to_value(mapping).unwrap();
+            value.as_object_mut().unwrap().remove("id");
+            value
+        })
+        .collect::<Vec<_>>();
 
-    let rsa = mappings
-        .iter()
-        .find(|m| m.algorithm_name == "RSA-2048")
-        .expect("RSA-2048 mapping should be present");
-    assert_eq!(rsa.replacement_name, "ML-KEM-768");
-    assert_eq!(rsa.replacement_standard.as_deref(), Some("FIPS 203"));
-
+    // Then every persisted five-field mapping matches the source, with no foreign rows.
+    // Sort by mapping identity, independently of JSON object member order.
+    let mapping_key = |mapping: &serde_json::Value| {
+        (
+            mapping["algorithm_name"].as_str().unwrap().to_owned(),
+            mapping["algorithm_primitive"].as_str().map(str::to_owned),
+        )
+    };
+    actual.sort_by_cached_key(mapping_key);
+    expected.sort_by_cached_key(mapping_key);
+    assert_eq!(actual, expected);
+    assert_eq!(actual.len(), 32);
     Ok(())
 }
 
-/// Verifies that CSV remediation mappings can be imported and are stored.
+/// Verifies that the removed remediation upload route returns 404.
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn import_remediations_csv(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    // Given: a CSV payload with one remediation mapping
+#[test_log::test(actix_web::test)]
+async fn remediation_upload_route_is_absent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a fully configured API.
     let app = caller(ctx).await?;
-    let csv = b"algorithm_name,algorithm_primitive,replacement_name,replacement_standard,replacement_primitive\nSHA-1,,SLH-DSA-SHA2-128s,FIPS 205,Hash-based\n";
 
-    // When: the CSV is POSTed with text/csv content-type
+    // When the removed route receives a POST request.
     let request = TestRequest::post()
         .uri("/api/v3/crypto/remediation/import")
-        .insert_header(("content-type", "text/csv"))
-        .set_payload(csv.to_vec())
         .to_request();
     let response = app.call_service(request).await;
 
-    // Then: the import succeeds and reports 1 processed mapping
-    assert_eq!(response.status(), StatusCode::OK);
-    let result: RemediationImportResult = actix_web::test::read_body_json(response).await;
-    assert_eq!(result.count, 1, "expected 1 imported mapping");
-
-    // Then: the mapping is stored with correct values
-    let list_request = TestRequest::get()
-        .uri("/api/v3/crypto/remediation")
-        .to_request();
-    let mappings: Vec<RemediationMapping> = app.call_and_read_body_json(list_request).await;
-    let sha1 = mappings
-        .iter()
-        .find(|m| m.algorithm_name == "SHA-1")
-        .expect("SHA-1 mapping should be present");
-    assert_eq!(sha1.replacement_name, "SLH-DSA-SHA2-128s");
-    assert_eq!(sha1.replacement_standard.as_deref(), Some("FIPS 205"));
-
+    // Then no handler is registered for that route.
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
     Ok(())
 }
 
-/// Verifies that re-importing the same mappings updates existing entries (idempotent).
+/// Verifies that persisted recommendations reach both algorithm listings without an upload.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn import_remediations_idempotent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    // Given: a mapping is imported once
-    let app = caller(ctx).await?;
-    let initial = serde_json::json!([{
-        "algorithm_name": "RSA-2048",
-        "algorithm_primitive": null,
-        "replacement_name": "ML-KEM-768",
-        "replacement_standard": "FIPS 203",
-        "replacement_primitive": null
-    }]);
-
-    let request = TestRequest::post()
-        .uri("/api/v3/crypto/remediation/import")
-        .set_json(&initial)
-        .to_request();
-    app.call_service(request).await;
-
-    // When: the same algorithm is re-imported with an updated replacement
-    let updated = serde_json::json!([{
-        "algorithm_name": "RSA-2048",
-        "algorithm_primitive": null,
-        "replacement_name": "ML-KEM-1024",
-        "replacement_standard": "FIPS 203",
-        "replacement_primitive": null
-    }]);
-    let request = TestRequest::post()
-        .uri("/api/v3/crypto/remediation/import")
-        .set_json(&updated)
-        .to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // Then: only one mapping exists and it reflects the update (no duplicate)
-    let list_request = TestRequest::get()
-        .uri("/api/v3/crypto/remediation")
-        .to_request();
-    let mappings: Vec<RemediationMapping> = app.call_and_read_body_json(list_request).await;
-    let rsa_mappings: Vec<_> = mappings
-        .iter()
-        .filter(|m| m.algorithm_name == "RSA-2048")
-        .collect();
-    assert_eq!(
-        rsa_mappings.len(),
-        1,
-        "re-import must not duplicate mappings"
-    );
-    assert_eq!(
-        rsa_mappings[0].replacement_name, "ML-KEM-1024",
-        "re-import must update existing mapping"
-    );
-
-    Ok(())
-}
-
-/// Verifies that algorithm listing includes the recommendation field after import.
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn list_algorithms_includes_recommendation(
+async fn list_algorithms_includes_preloaded_recommendation(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    // Given: a CBOM is ingested and a remediation mapping is imported for SHA1
+    // Given a CBOM and the mappings preloaded by database migration.
     let app = caller(ctx).await?;
-    ingest_cbom(&app).await;
+    let ingest = ingest_cbom(&app).await;
+    let sbom_id: uuid::Uuid = ingest.id.parse()?;
 
-    let remediation = serde_json::json!([{
-        "algorithm_name": "SHA1",
-        "algorithm_primitive": null,
-        "replacement_name": "SLH-DSA-SHA2-128s",
-        "replacement_standard": "FIPS 205",
-        "replacement_primitive": null
-    }]);
-    let import_request = TestRequest::post()
-        .uri("/api/v3/crypto/remediation/import")
-        .set_json(&remediation)
-        .to_request();
-    app.call_service(import_request).await;
+    // When both the global and per-SBOM inventories are read.
+    for uri in [
+        "/api/v3/crypto/algorithm?total=true&limit=100".to_owned(),
+        format!("/api/v3/sbom/{sbom_id}/crypto?total=true&limit=100"),
+    ] {
+        let request = TestRequest::get().uri(&uri).to_request();
+        let response: PaginatedResults<CryptoAlgorithmSummary> =
+            app.call_and_read_body_json(request).await;
 
-    // When: algorithms are listed (limit=100 to fetch all assets from the CBOM)
-    let request = TestRequest::get()
-        .uri("/api/v3/crypto/algorithm?total=true&limit=100")
-        .to_request();
-    let response: PaginatedResults<CryptoAlgorithmSummary> =
-        app.call_and_read_body_json(request).await;
+        // Then the null-primitive fallback supplies ECDH's recommendation unchanged.
+        let ecdh = response.items.iter().find(|a| a.name == "ECDH").unwrap();
+        assert_eq!(ecdh.primitive.as_deref(), Some("key-agree"));
+        assert_eq!(
+            ecdh.recommendation.as_deref(),
+            Some(
+                "ML-KEM-768 (NIST default); confirm the application-required security strength (FIPS 203)"
+            )
+        );
 
-    // Then: SHA1 entry has a populated recommendation field
-    let sha1 = response
-        .items
-        .iter()
-        .find(|a| a.name == "SHA1")
-        .expect("SHA1 algorithm should be in the listing");
-    assert_eq!(
-        sha1.recommendation.as_deref(),
-        Some("SLH-DSA-SHA2-128s (FIPS 205)"),
-        "SHA1 recommendation should reflect the imported mapping"
-    );
-
+        // And algorithms outside the selected dataset do not receive invented mappings.
+        let sha1 = response.items.iter().find(|a| a.name == "SHA1").unwrap();
+        assert_eq!(sha1.recommendation, None);
+    }
     Ok(())
 }
 

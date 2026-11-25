@@ -1,17 +1,12 @@
-use crate::{
-    Error,
-    crypto::{
-        model::{
-            CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest,
-            PolicyEvaluationResponse, RemediationImportItem, RemediationImportResult,
-            RemediationMapping,
-        },
-        service::CryptoService,
+use crate::crypto::{
+    model::{
+        CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse,
+        RemediationMapping,
     },
+    service::CryptoService,
 };
-use actix_web::{HttpResponse, Responder, get, http::header, post, web};
-use sea_orm::TransactionTrait;
-use trustify_auth::{CreateMetadata, ReadSbom, authorizer::Require};
+use actix_web::{HttpResponse, Responder, get, post, web};
+use trustify_auth::{ReadSbom, authorizer::Require};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache, query::Query},
     model::{Paginated, PaginatedResults},
@@ -21,20 +16,17 @@ use uuid::Uuid;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db_rw: db::ReadWrite,
     db: db::ReadOnly,
     cache: PaginationCache,
 ) {
     let service = CryptoService::new(cache);
     config
-        .app_data(web::Data::new(db_rw))
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(service))
         .service(list_algorithms)
         .service(get_summary)
         .service(list_sbom_crypto)
         .service(evaluate_policy)
-        .service(import_remediations)
         .service(list_remediations);
 }
 
@@ -145,74 +137,6 @@ pub async fn evaluate_policy(
 ) -> actix_web::Result<impl Responder> {
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(state.evaluate_policy(body.sbom_id, &tx).await?))
-}
-
-/// Converts empty-string optional fields (from CSV blank columns) to `None`.
-fn normalize_optional_strings(mut item: RemediationImportItem) -> RemediationImportItem {
-    if item.algorithm_primitive.as_deref() == Some("") {
-        item.algorithm_primitive = None;
-    }
-    if item.replacement_standard.as_deref() == Some("") {
-        item.replacement_standard = None;
-    }
-    if item.replacement_primitive.as_deref() == Some("") {
-        item.replacement_primitive = None;
-    }
-    item
-}
-
-#[utoipa::path(
-    tag = "crypto",
-    operation_id = "importCryptoRemediations",
-    request_body(
-        description = "Algorithm-to-replacement mappings as a JSON array (application/json) \
-                       or CSV rows (text/csv) with headers: algorithm_name, algorithm_primitive, \
-                       replacement_name, replacement_standard, replacement_primitive",
-        content(
-            (Vec<RemediationImportItem> = "application/json"),
-            (String = "text/csv"),
-        ),
-    ),
-    responses(
-        (status = 200, description = "Import result", body = RemediationImportResult),
-        (status = 400, description = "The request body could not be parsed as valid JSON or CSV"),
-    ),
-)]
-#[post("/v3/crypto/remediation/import")]
-pub async fn import_remediations(
-    state: web::Data<CryptoService>,
-    db_rw: web::Data<db::ReadWrite>,
-    content_type: Option<web::Header<header::ContentType>>,
-    bytes: web::Bytes,
-    _: Require<CreateMetadata>,
-) -> Result<impl Responder, Error> {
-    let is_csv = content_type
-        .as_ref()
-        .map(|ct| ct.0.essence_str() == "text/csv")
-        .unwrap_or(false);
-
-    let mappings: Vec<RemediationImportItem> = if is_csv {
-        let mut reader = csv::ReaderBuilder::new()
-            .has_headers(true)
-            .from_reader(bytes.as_ref());
-        reader
-            .deserialize::<RemediationImportItem>()
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| Error::BadRequest(e.to_string().into(), None))?
-            .into_iter()
-            .map(normalize_optional_strings)
-            .collect()
-    } else {
-        let parsed: Vec<RemediationImportItem> = serde_json::from_slice(&bytes)
-            .map_err(|e| Error::BadRequest(e.to_string().into(), None))?;
-        parsed.into_iter().map(normalize_optional_strings).collect()
-    };
-
-    let tx = db_rw.begin().await?;
-    let count = state.import_remediations(mappings, &tx).await?;
-    tx.commit().await?;
-
-    Ok(HttpResponse::Ok().json(RemediationImportResult { count }))
 }
 
 #[utoipa::path(
