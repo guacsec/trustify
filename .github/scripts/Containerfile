@@ -8,9 +8,9 @@ RUN uname -m
 
 RUN mkdir /stage
 
-# install zlib and cleanup
+# Install runtime libraries, including those required by managed PostgreSQL, and clean up.
 
-RUN dnf install --installroot /stage --setop install_weak_deps=false --nodocs -y zlib openssl krb5-libs libzstd lz4-libs libxml2
+RUN dnf install --installroot /stage --setop install_weak_deps=false --nodocs -y zlib openssl-libs ca-certificates krb5-libs libzstd lz4-libs libxml2
 RUN dnf clean all --installroot /stage
 
 # prepare our binary
