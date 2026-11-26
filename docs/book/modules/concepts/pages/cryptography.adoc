@@ -170,9 +170,8 @@ The dataset is not a selectable evaluation profile and does not change the built
 
 === Bundled migration
 
-The versioned database migration `m0002740_preload_nist_crypto_remediation` seeds an empty `crypto_remediation` table when database migrations first apply it.
 The dataset is embedded at build time; no startup file, environment-variable path, or upload is used.
-This is an initial seed, not a dataset replacement mechanism: it neither merges with ANSSI or other mappings nor overwrites existing data.
+This is an initial seed, not a dataset replacement mechanism: therefore it does not overwrites existing data.
 If the table is nonempty, seeding fails without changing its contents; an administrator must explicitly resolve existing development data before retrying.
 Normal migration history prevents seeding again on subsequent upgrades, so it does not reset later customizations.
 Rollback removes mappings whose five reference fields still match the bundled values, leaving changed and unrelated mappings untouched.
