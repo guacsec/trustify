@@ -603,35 +603,68 @@ async fn crypto_remediation_preload_up_down_up(ctx: &TrustifyContext) -> anyhow:
     assert_crypto_remediation_source(ctx).await
 }
 
-/// Any preexisting mapping blocks seeding without losing operator data.
+/// The initial seed replaces earlier development mappings, including overlapping natural keys.
 #[test_context(TrustifyContext)]
 #[rstest::rstest]
 #[case::foreign(vec![("foreign-only", None)])]
 #[case::shared(vec![("rsa", None), ("RSA-2048", Some("KEM"))])]
 #[test_log::test(tokio::test)]
-async fn crypto_remediation_preload_refuses_preexisting_data(
+async fn crypto_remediation_preload_replaces_development_data(
     ctx: &TrustifyContext,
     #[case] keys: Vec<(&str, Option<&str>)>,
 ) -> anyhow::Result<()> {
-    use sea_orm::DbErr;
-
-    // Given operator mappings, whether foreign or sharing bundled natural keys.
+    // Given development mappings, whether foreign or sharing bundled natural keys.
     let migrator = without_backfill(ctx);
     let steps = since(&migrator, &ctx.db, CRYPTO_REMEDIATION_MIGRATION).await?;
     migrator.down(&ctx.db, Some(steps)).await?;
     insert_crypto_remediations(ctx, &keys).await?;
-    let original = crypto_remediation_rows(ctx).await?;
 
-    // When normal migration Up encounters a nonempty table.
+    // When normal migration Up initializes the reference data.
+    migrator.up(&ctx.db, Some(steps)).await?;
+
+    // Then only the exact bundled mappings remain, with no stale development rows.
+    assert_crypto_remediation_source(ctx).await
+}
+
+/// A failed seed restores development mappings, and migration history permits a retry.
+#[test_context(TrustifyContext)]
+#[test_log::test(tokio::test)]
+async fn crypto_remediation_preload_failure_is_atomic(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use sea_orm::ConnectionTrait;
+
+    // Given development data and a constraint that rejects the bundled mappings.
+    let migrator = without_backfill(ctx);
+    let steps = since(&migrator, &ctx.db, CRYPTO_REMEDIATION_MIGRATION).await?;
+    migrator.down(&ctx.db, Some(steps)).await?;
+    insert_crypto_remediations(ctx, &[("foreign-only", None)]).await?;
+    let original = crypto_remediation_rows(ctx).await?;
+    ctx.db
+        .execute_unprepared(
+            "ALTER TABLE crypto_remediation \
+             ADD CONSTRAINT crypto_remediation_seed_rejected \
+             CHECK (algorithm_name = 'foreign-only')",
+        )
+        .await?;
+
+    // When insertion fails after the table has been cleared.
     let error = migrator.up(&ctx.db, Some(steps)).await.unwrap_err();
 
-    // Then it reports a migration error and preserves every row, including metadata.
-    assert!(matches!(
-        error,
-        DbErr::Migration(message) if message.contains("crypto_remediation must be empty")
-    ));
+    // Then the transaction restores every original row, including IDs and timestamps.
+    assert!(
+        error
+            .to_string()
+            .contains("crypto_remediation_seed_rejected")
+    );
     assert_eq!(crypto_remediation_rows(ctx).await?, original);
-    Ok(())
+
+    // When the constraint is removed, the same migration can be retried successfully.
+    ctx.db
+        .execute_unprepared(
+            "ALTER TABLE crypto_remediation DROP CONSTRAINT crypto_remediation_seed_rejected",
+        )
+        .await?;
+    migrator.up(&ctx.db, Some(steps)).await?;
+    assert_crypto_remediation_source(ctx).await
 }
 
 /// Rollback compares all five source fields, preserving customized and foreign rows verbatim.

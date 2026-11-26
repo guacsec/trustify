@@ -171,8 +171,7 @@ The dataset is not a selectable evaluation profile and does not change the built
 === Bundled migration
 
 The dataset is embedded at build time; no startup file, environment-variable path, or upload is used.
-This is an initial seed, not a dataset replacement mechanism: therefore it does not overwrites existing data.
-If the table is nonempty, seeding fails without changing its contents; an administrator must explicitly resolve existing development data before retrying.
+The initial seed hydrates the cryptography remediation mappings with the default NIST bundled dataset.
 Normal migration history prevents seeding again on subsequent upgrades, so it does not reset later customizations.
 Rollback removes mappings whose five reference fields still match the bundled values, leaving changed and unrelated mappings untouched.
 No backup table is created, and rollback does not restore an earlier dataset.
