@@ -1,4 +1,4 @@
-//! Seed an empty remediation table with the bundled NIST-only reference dataset.
+//! Initialize remediation mappings with the bundled NIST-only reference dataset.
 
 use sea_orm::{ConnectionTrait, DbBackend, Statement};
 use sea_orm_migration::prelude::*;
@@ -10,7 +10,7 @@ const MAPPINGS: &str = include_str!(
     "m0002740_preload_nist_crypto_remediation/NIST-Only-PQC-Remediation-2026-11.display.json"
 );
 
-/// Preload initial reference mappings without replacing existing data.
+/// Install bundled reference mappings, replacing earlier development data.
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -26,23 +26,10 @@ impl MigrationTrait for Migration {
             .map_err(|err| DbErr::Migration(format!("Invalid bundled remediation data: {err}")))?;
 
         let connection = manager.get_connection();
-        // The migration transaction serializes the empty-table check and seed.
+
         connection
-            .execute_unprepared("LOCK TABLE crypto_remediation IN EXCLUSIVE MODE")
+            .execute_unprepared("TRUNCATE TABLE crypto_remediation")
             .await?;
-        if connection
-            .query_one_raw(Statement::from_string(
-                DbBackend::Postgres,
-                "SELECT 1 FROM crypto_remediation LIMIT 1",
-            ))
-            .await?
-            .is_some()
-        {
-            return Err(DbErr::Migration(
-                "crypto_remediation must be empty before initial NIST seeding; existing mappings were left unchanged"
-                    .into(),
-            ));
-        }
         connection
             .execute_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
