@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795624028023,
+  "lastUpdate": 1795715609113,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25397,6 +25397,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "2f9b4a566763c93c0073d66f1ab34b44568bbd53",
+          "message": "fix(crypto): no need to migrate existing data",
+          "timestamp": "2026-11-26T16:42:08Z",
+          "tree_id": "b91da683ba2e1c32ff5b9bdbf5577774dc7d087c",
+          "url": "https://github.com/guacsec/trustify/commit/2f9b4a566763c93c0073d66f1ab34b44568bbd53"
+        },
+        "date": 1795715606733,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 5,
             "unit": "s"
           }
         ]
