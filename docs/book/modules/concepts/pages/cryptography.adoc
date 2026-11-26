@@ -168,25 +168,15 @@ Trustify bundles 32 NIST-only reference mappings from `NIST-Only-PQC-Remediation
 This is locally assembled guidance drawn from NIST sources, including https://csrc.nist.gov/pubs/ir/8547/ipd[NIST IR 8547] (Transition to Post-Quantum Cryptography Standards), not a NIST-authored mapping or certification.
 The dataset is not a selectable evaluation profile and does not change the built-in policy evaluator or its compliance verdicts.
 
-=== Bundled data migration
+=== Bundled migration
 
-The versioned database data migration `m0002740_preload_nist_crypto_remediation` seeds an empty `crypto_remediation` table when database migrations first apply it.
+The versioned database migration `m0002740_preload_nist_crypto_remediation` seeds an empty `crypto_remediation` table when database migrations first apply it.
 The dataset is embedded at build time; no startup file, environment-variable path, or upload is used.
 This is an initial seed, not a dataset replacement mechanism: it neither merges with ANSSI or other mappings nor overwrites existing data.
 If the table is nonempty, seeding fails without changing its contents; an administrator must explicitly resolve existing development data before retrying.
 Normal migration history prevents seeding again on subsequent upgrades, so it does not reset later customizations.
 Rollback removes mappings whose five reference fields still match the bundled values, leaving changed and unrelated mappings untouched.
 No backup table is created, and rollback does not restore an earlier dataset.
-
-The standard data migration skip controls (`--skip` / `MIGRATION_DATA_SKIP` and `--skip-all` / `MIGRATION_DATA_SKIP_ALL`) can defer this migration.
-After database migrations have run, seed a still-empty table using the standard data migration CLI, with skip controls disabled for this migration:
-
-[source,bash]
-----
-trustd db data m0002740_preload_nist_crypto_remediation
-----
-
-Until the deferred preload runs, the bundled mappings have not been applied and any existing mappings remain unchanged.
 
 === Data model
 
