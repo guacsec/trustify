@@ -46,5 +46,6 @@ trustify-entity = { workspace = true }
 trustify-test-context = { workspace = true }
 
 anyhow = { workspace = true }
+rstest = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
