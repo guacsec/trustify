@@ -45,6 +45,13 @@ impl<'g> CyclonedxLoader<'g> {
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::default();
 
+        // A missing timestamp is valid (and stored as NULL), but an unparseable one
+        // silently drops the SBOM out of date-based analysis, so surface it.
+        if let Err(msg) = cyclonedx::parse_metadata_timestamp(&cdx) {
+            tracing::warn!("{msg}");
+            warnings.add(msg);
+        }
+
         let labels_updated = extract_labels(cdx.components.as_ref(), labels);
 
         tracing::info!(
@@ -279,6 +286,81 @@ mod test {
             .await?;
 
         assert_eq!(1, sbom_crypto::Entity::find().all(&ctx.db).await?.len());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn invalid_timestamp_warns(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let graph = Graph::new();
+        let mut doc: serde_json::Value =
+            serde_json::from_slice(&document_bytes("cyclonedx/application.cdx.json").await?)?;
+        doc["metadata"]["timestamp"] = serde_json::json!("not-a-timestamp");
+        let data = serde_json::to_vec(&doc)?;
+
+        let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
+
+        let result = ctx
+            .db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("invalid metadata.timestamp")),
+            "expected a timestamp warning, got: {:?}",
+            result.warnings
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn missing_timestamp_does_not_warn(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let graph = Graph::new();
+        let data = document_bytes("cyclonedx/application.cdx.json").await?;
+
+        let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
+
+        let result = ctx
+            .db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+
+        assert!(
+            !result
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("metadata.timestamp")),
+            "missing timestamp must not warn, got: {:?}",
+            result.warnings
+        );
 
         Ok(())
     }
