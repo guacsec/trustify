@@ -1746,6 +1746,60 @@ async fn query_sboms_by_ingested_time(ctx: &TrustifyContext) -> Result<(), anyho
     Ok(())
 }
 
+/// Listing SBOMs sorted by `published` must not fail on SBOMs without a
+/// timestamp, and unknown dates must sort last in either direction.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn list_sboms_sort_published_nulls_last(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents([
+        "cyclonedx/application.cdx.json",
+        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-02-17/1.46.0-26.el9_4-product.json",
+        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-04-08/1.46.0-27.el9_4-product.json",
+    ])
+    .await?;
+
+    for (direction, newer_first) in [("desc", true), ("asc", false)] {
+        let uri = format!(
+            "/api/v3/sbom?total=true&sort={}",
+            encode(&format!("published:{direction}"))
+        );
+        let request = TestRequest::get().uri(&uri).to_request();
+        let response = app.call_service(request).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "sort by published must tolerate an undated SBOM ({direction})"
+        );
+
+        let body: Value = actix_web::test::read_body_json(response).await;
+        assert_eq!(body["total"], 3);
+
+        let published: Vec<Option<&str>> = body["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .map(|item| item["published"].as_str())
+            .collect();
+        assert_eq!(published.len(), 3);
+
+        assert!(
+            published[2].is_none(),
+            "undated SBOM must sort last ({direction}): {published:?}"
+        );
+
+        let (first, second) = (published[0].expect("date"), published[1].expect("date"));
+        assert_eq!(
+            first > second,
+            newer_first,
+            "unexpected published order ({direction}): {published:?}"
+        );
+    }
+
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn query_sboms_by_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {

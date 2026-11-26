@@ -1,6 +1,6 @@
 use super::{Columns, Error};
 use sea_orm::{Order, QueryOrder};
-use sea_query::SimpleExpr;
+use sea_query::{NullOrdering, SimpleExpr};
 
 pub(crate) struct Sort {
     field: SimpleExpr,
@@ -9,7 +9,7 @@ pub(crate) struct Sort {
 
 impl Sort {
     pub(crate) fn order_by<T: QueryOrder>(self, stmt: T) -> T {
-        stmt.order_by(self.field, self.order)
+        stmt.order_by_with_nulls(self.field, self.order, NullOrdering::Last)
     }
     pub(crate) fn parse(s: &str, columns: &Columns) -> Result<Self, Error> {
         let lower = s.to_lowercase();
@@ -37,7 +37,7 @@ pub(crate) mod tests {
     use super::super::*;
     use super::*;
 
-    use sea_orm::ColumnType;
+    use sea_orm::{ColumnType, DbBackend, EntityTrait, QueryTrait};
     use sea_query::StringLen;
     use test_log::test;
 
@@ -92,6 +92,16 @@ pub(crate) mod tests {
             .is_err()
         );
 
+        Ok(())
+    }
+
+    #[test(tokio::test)]
+    async fn sorts_nulls_last() -> Result<(), anyhow::Error> {
+        let columns = advisory::Entity.columns();
+        let sort = Sort::parse("location:desc", &columns)?;
+        let stmt = sort.order_by(advisory::Entity::find());
+        let sql = stmt.build(DbBackend::Postgres).to_string();
+        assert!(sql.contains("NULLS LAST"), "expected NULLS LAST: {sql}");
         Ok(())
     }
 }

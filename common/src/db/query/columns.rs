@@ -466,7 +466,7 @@ mod tests {
 
         assert_eq!(
             clause(q("severity>medium").sort("severity:desc"))?,
-            r#""advisory"."score" > 6 ORDER BY "advisory"."score" DESC"#,
+            r#""advisory"."score" > 6 ORDER BY "advisory"."score" DESC NULLS LAST"#,
         );
         assert_eq!(
             clause(q("severity=medium"))?,
@@ -530,7 +530,7 @@ mod tests {
         );
         assert_eq!(
             clause(q("name=log4j").sort("name"))?,
-            r#"("advisory"."purl" ->> 'name') = 'log4j' ORDER BY "advisory"."purl" ->> 'name' ASC"#
+            r#"("advisory"."purl" ->> 'name') = 'log4j' ORDER BY "advisory"."purl" ->> 'name' ASC NULLS LAST"#
         );
         assert_eq!(
             clause(q("foo"))?,
@@ -569,7 +569,7 @@ mod tests {
             assert_eq!(
                 stmt.sql,
                 format!(
-                    r#"SELECT "advisory"."id" FROM "advisory" WHERE ({expression}) = $1 ORDER BY {expression} ASC"#
+                    r#"SELECT "advisory"."id" FROM "advisory" WHERE ({expression}) = $1 ORDER BY {expression} ASC NULLS LAST"#
                 ),
             );
             assert_eq!(stmt.values, Some(sea_query::Values(vec!["log'4j".into()])));
@@ -678,7 +678,7 @@ mod tests {
         );
         assert_eq!(
             clause(q("purl:name=log4j").sort(r"purl:name"))?,
-            r#"("advisory"."purl" ->> 'name') = 'log4j' ORDER BY "advisory"."purl" ->> 'name' ASC"#
+            r#"("advisory"."purl" ->> 'name') = 'log4j' ORDER BY "advisory"."purl" ->> 'name' ASC NULLS LAST"#
         );
         assert_eq!(
             clause(q("purl:pfx/app.first-name=carlos"))?,
