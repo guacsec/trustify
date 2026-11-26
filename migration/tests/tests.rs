@@ -569,21 +569,6 @@ async fn insert_crypto_remediations(
     Ok(rows)
 }
 
-/// Explicitly run the seed independently of schema migration history.
-async fn run_crypto_remediation(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    use migration::data::{Direction, Runner};
-
-    Runner {
-        database: ctx.db.clone().into(),
-        storage: ctx.storage.clone().into(),
-        direction: Direction::Up,
-        migrations: vec![CRYPTO_REMEDIATION_MIGRATION.into()],
-        options: Default::default(),
-    }
-    .run::<Migrator>()
-    .await
-}
-
 /// Fresh database migration seeds exactly the bundled 32 mappings with UUIDv7 IDs.
 #[test_context(TrustifyContext)]
 #[test_log::test(tokio::test)]
@@ -594,12 +579,10 @@ async fn crypto_remediation_preload_fresh(ctx: &TrustifyContext) -> anyhow::Resu
     assert_crypto_remediation_source(ctx).await
 }
 
-/// Empty-table seeding is reversible; history prevents reruns, while explicit reruns refuse data.
+/// Empty-table seeding is reversible, and migration history prevents reseeding.
 #[test_context(TrustifyContext)]
 #[test_log::test(tokio::test)]
 async fn crypto_remediation_preload_up_down_up(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    use sea_orm::DbErr;
-
     // Given an empty reference table immediately before the seed migration.
     let migrator = without_backfill(ctx);
     let steps = since(&migrator, &ctx.db, CRYPTO_REMEDIATION_MIGRATION).await?;
@@ -613,24 +596,14 @@ async fn crypto_remediation_preload_up_down_up(ctx: &TrustifyContext) -> anyhow:
     migrator.up(&ctx.db, None).await?;
     assert_eq!(crypto_remediation_rows(ctx).await?, seeded);
 
-    // When an operator explicitly reruns Up against the populated table.
-    let error = run_crypto_remediation(ctx).await.unwrap_err();
-
-    // Then it refuses the operation without changing any IDs, timestamps, or source values.
-    assert!(matches!(
-        error.downcast_ref::<DbErr>(),
-        Some(DbErr::Migration(message)) if message.contains("crypto_remediation must be empty")
-    ));
-    assert_eq!(crypto_remediation_rows(ctx).await?, seeded);
-
-    // When rolled back and reapplied, unchanged seed rows disappear and can be seeded again.
+    // Then rollback removes the unchanged seed and allows it to be applied again.
     migrator.down(&ctx.db, Some(steps)).await?;
     assert!(crypto_remediation_rows(ctx).await?.is_empty());
     migrator.up(&ctx.db, Some(steps)).await?;
     assert_crypto_remediation_source(ctx).await
 }
 
-/// Any preexisting mapping blocks both migration entry points without losing operator data.
+/// Any preexisting mapping blocks seeding without losing operator data.
 #[test_context(TrustifyContext)]
 #[rstest::rstest]
 #[case::foreign(vec![("foreign-only", None)])]
@@ -656,14 +629,6 @@ async fn crypto_remediation_preload_refuses_preexisting_data(
     assert!(matches!(
         error,
         DbErr::Migration(message) if message.contains("crypto_remediation must be empty")
-    ));
-    assert_eq!(crypto_remediation_rows(ctx).await?, original);
-
-    // When explicitly invoked through the data runner, the same refusal is lossless.
-    let error = run_crypto_remediation(ctx).await.unwrap_err();
-    assert!(matches!(
-        error.downcast_ref::<DbErr>(),
-        Some(DbErr::Migration(message)) if message.contains("crypto_remediation must be empty")
     ));
     assert_eq!(crypto_remediation_rows(ctx).await?, original);
     Ok(())
@@ -708,11 +673,13 @@ async fn crypto_remediation_preload_rollback_preserves_customizations(
     Ok(())
 }
 
-/// Skipping leaves an empty table untouched and allows explicit deferred seeding and rollback.
+/// The normal seed is not a separately runnable data migration and ignores data skip controls.
 #[test_context(TrustifyContext)]
 #[test_log::test(tokio::test)]
-async fn crypto_remediation_preload_can_be_deferred(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    // Given an empty reference table whose initial data seed will be skipped.
+async fn crypto_remediation_preload_is_normal(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use migration::data::MigratorWithData;
+
+    // Given an empty reference table and data migrations disabled.
     let migrator = without_backfill(ctx);
     let steps = since(&migrator, &ctx.db, CRYPTO_REMEDIATION_MIGRATION).await?;
     migrator.down(&ctx.db, Some(steps)).await?;
@@ -720,25 +687,20 @@ async fn crypto_remediation_preload_can_be_deferred(ctx: &TrustifyContext) -> an
     let skipping = Migrator::new(
         ctx.storage.clone(),
         Options {
-            skip: vec![CRYPTO_REMEDIATION_MIGRATION.into()],
+            skip_all: true,
             ..Default::default()
         },
     );
 
-    // When schema migration skips the seed, Up and Down both leave the table empty.
+    // When normal database migrations run.
     skipping.up(&ctx.db, Some(steps)).await?;
-    assert!(crypto_remediation_rows(ctx).await?.is_empty());
-    skipping.down(&ctx.db, Some(steps)).await?;
-    assert!(crypto_remediation_rows(ctx).await?.is_empty());
-    skipping.up(&ctx.db, Some(steps)).await?;
-    assert!(crypto_remediation_rows(ctx).await?.is_empty());
 
-    // When the deferred seed is run explicitly through the data runner.
-    run_crypto_remediation(ctx).await?;
-
-    // Then exactly the bundled source is installed, and ordinary rollback removes it.
+    // Then the seed still installs the bundled mappings and is absent from the data runner.
     assert_crypto_remediation_source(ctx).await?;
-    migrator.down(&ctx.db, Some(steps)).await?;
-    assert!(crypto_remediation_rows(ctx).await?.is_empty());
+    assert!(
+        !Migrator::data_migrations()
+            .iter()
+            .any(|migration| migration.name() == CRYPTO_REMEDIATION_MIGRATION)
+    );
     Ok(())
 }

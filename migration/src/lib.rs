@@ -252,7 +252,7 @@ impl MigratorExt for Migrator {
             .data(m0002710_backfill_advisory_assertions::Migration)
             .normal(m0002720_correlation_current_advisories::Migration)
             .normal(m0002730_cpe_vendor_product_version_index::Migration)
-            .data(m0002740_preload_nist_crypto_remediation::Migration)
+            .normal(m0002740_preload_nist_crypto_remediation::Migration)
     }
 }
 

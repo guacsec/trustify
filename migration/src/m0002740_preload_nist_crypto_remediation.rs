@@ -1,7 +1,6 @@
 //! Seed an empty remediation table with the bundled NIST-only reference dataset.
 
-use crate::data::{MigrationTraitWithData, SchemaDataManager};
-use sea_orm::{ConnectionTrait, DbBackend, Statement, TransactionTrait};
+use sea_orm::{ConnectionTrait, DbBackend, Statement};
 use sea_orm_migration::prelude::*;
 use serde_json::{Map, Value};
 use uuid::Uuid;
@@ -16,12 +15,8 @@ const MAPPINGS: &str = include_str!(
 pub struct Migration;
 
 #[async_trait::async_trait]
-impl MigrationTraitWithData for Migration {
-    async fn up(&self, manager: &SchemaDataManager) -> Result<(), DbErr> {
-        if manager.should_skip(self) {
-            return Ok(());
-        }
-
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let mut mappings: Vec<Map<String, Value>> = serde_json::from_str(MAPPINGS)
             .map_err(|err| DbErr::Migration(format!("Invalid bundled remediation data: {err}")))?;
         for mapping in &mut mappings {
@@ -30,11 +25,12 @@ impl MigrationTraitWithData for Migration {
         let mappings = serde_json::to_value(mappings)
             .map_err(|err| DbErr::Migration(format!("Invalid bundled remediation data: {err}")))?;
 
-        let tx = manager.get_connection().begin().await?;
-        // Serialize the empty-table check and seed; never merge with another dataset.
-        tx.execute_unprepared("LOCK TABLE crypto_remediation IN EXCLUSIVE MODE")
+        let connection = manager.get_connection();
+        // The migration transaction serializes the empty-table check and seed.
+        connection
+            .execute_unprepared("LOCK TABLE crypto_remediation IN EXCLUSIVE MODE")
             .await?;
-        if tx
+        if connection
             .query_one_raw(Statement::from_string(
                 DbBackend::Postgres,
                 "SELECT 1 FROM crypto_remediation LIMIT 1",
@@ -47,16 +43,17 @@ impl MigrationTraitWithData for Migration {
                     .into(),
             ));
         }
-        tx.execute_raw(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            include_str!("m0002740_preload_nist_crypto_remediation/up.sql"),
-            [mappings.into()],
-        ))
-        .await?;
-        tx.commit().await
+        connection
+            .execute_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                include_str!("m0002740_preload_nist_crypto_remediation/up.sql"),
+                [mappings.into()],
+            ))
+            .await?;
+        Ok(())
     }
 
-    async fn down(&self, manager: &SchemaDataManager) -> Result<(), DbErr> {
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let mappings: Value = serde_json::from_str(MAPPINGS)
             .map_err(|err| DbErr::Migration(format!("Invalid bundled remediation data: {err}")))?;
         // Remove unchanged default mappings only, not customized or unrelated rows.
