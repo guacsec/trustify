@@ -507,13 +507,15 @@ async fn rebuild(
         "INSERT INTO correlation_verdict_count SELECT $1::uuid, count(*) FILTER (WHERE status='affected'), count(*) FILTER (WHERE status='fixed'), count(*) FILTER (WHERE status='not_affected'), count(*) FILTER (WHERE status='under_investigation'), count(*) FILTER (WHERE status='none'), coalesce(sum(remediation_count), 0) FROM correlation_verdict v LEFT JOIN correlation_node_class c ON c.sbom_id=v.sbom_id AND c.representative_node_id=v.node_id WHERE v.sbom_id=$1 ON CONFLICT (sbom_id) DO UPDATE SET affected=excluded.affected, fixed=excluded.fixed, not_affected=excluded.not_affected, under_investigation=excluded.under_investigation, none=excluded.none, remediations=excluded.remediations",
         vec![id.into()],
     )).await?;
+    // Publish the revision we computed, even if newer inputs are already available. The
+    // revision mismatch keeps it pending without discarding work during continuous ingestion.
     let updated = writes.execute_raw(sql(
-        "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE revision=$2 AND resolver_version=$5)",
+        "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE resolver_version=$5)",
         vec![id.into(), revision.into(), input_revision.into(), Uuid::now_v7().into(), RESOLVER_VERSION.into()],
     )).await?;
     if updated.rows_affected() != 1 {
         return Err(Error::Conflict(
-            "the verdict revision changed during computation".into(),
+            "the verdict resolver version changed during computation".into(),
         ));
     }
     writes
