@@ -1,4 +1,4 @@
--- Initial seed only: the caller checks that the table is empty under an exclusive lock.
+-- The normal migration hydrates with mappings data.
 INSERT INTO crypto_remediation (
     id, algorithm_name, algorithm_primitive, replacement_name,
     replacement_standard, replacement_primitive
