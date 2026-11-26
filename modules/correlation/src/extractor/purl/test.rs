@@ -20,6 +20,7 @@ use trustify_common::{
 use trustify_entity::{
     correlation_evidence, correlation_evidence_context,
     correlation_evidence_context::ContextSource,
+    correlation_evidence_detail,
     correlation_option::{self, CorrelationOptionKey as EntityOptionKey},
 };
 use trustify_test_context::TrustifyContext;
@@ -59,10 +60,10 @@ type Evidence = (
 /// All PURL evidence of an SBOM (stated and derived by rules), sorted.
 async fn load_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
     let rules = rules(&ctx.db).await?;
-    let mut evidence = correlation_evidence::Entity::find()
-        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+    let mut evidence = correlation_evidence_detail::Entity::find()
+        .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
         .filter(
-            correlation_evidence::Column::Extractor.is_in(
+            correlation_evidence_detail::Column::Extractor.is_in(
                 [PLAIN, STREAM, DEFAULT]
                     .into_iter()
                     .chain(rules.iter().map(|r| r.id())),
@@ -1668,10 +1669,10 @@ async fn factors_of(
     ctx: &TrustifyContext,
     sbom_id: Uuid,
 ) -> anyhow::Result<Vec<(String, String, f64, Vec<ConfidenceFactor>)>> {
-    let mut result = correlation_evidence::Entity::find()
-        .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
-        .order_by_asc(correlation_evidence::Column::NodeId)
-        .order_by_asc(correlation_evidence::Column::Extractor)
+    let mut result = correlation_evidence_detail::Entity::find()
+        .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
+        .order_by_asc(correlation_evidence_detail::Column::NodeId)
+        .order_by_asc(correlation_evidence_detail::Column::Extractor)
         .all(&ctx.db)
         .await?
         .into_iter()

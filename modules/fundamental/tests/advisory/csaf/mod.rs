@@ -8,6 +8,7 @@ mod timeout;
 use csaf_rs::schema::csaf2_0::schema::{
     CommonSecurityAdvisoryFramework as Csaf, ProductIdT, Revision,
 };
+use time::format_description::well_known::Rfc3339;
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::{TrustifyContext, document_bytes};
 
@@ -116,14 +117,12 @@ async fn prepare_ps_state_change(
         },
         |mut csaf| {
             uptick_tracking(&mut csaf);
-            let next_release_date = time::OffsetDateTime::parse(
-                &csaf.document.tracking.current_release_date,
-                &time::format_description::well_known::Rfc3339,
-            )
-            .expect("test data has a valid release date")
-                + time::Duration::days(1);
+            let next_release_date =
+                time::OffsetDateTime::parse(&csaf.document.tracking.current_release_date, &Rfc3339)
+                    .expect("test data has a valid release date")
+                    + time::Duration::days(1);
             csaf.document.tracking.current_release_date = next_release_date
-                .format(&time::format_description::well_known::Rfc3339)
+                .format(&Rfc3339)
                 .expect("valid release date");
 
             let v = csaf

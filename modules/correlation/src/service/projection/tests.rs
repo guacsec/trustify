@@ -4,6 +4,7 @@ use crate::{
     model::FreshnessStatus,
     service::{extraction, freshness},
 };
+use rstest::rstest;
 use std::collections::BTreeSet;
 use test_context::test_context;
 use trustify_common::model::Paginated;
@@ -187,7 +188,7 @@ async fn snapshot_matches_resolver_and_is_readable_after_failed_refresh(
     assert_eq!(count[0], count[1]);
     assert_eq!(count[0].remediations, 1);
     tx.execute_raw(sql(
-        "UPDATE correlation_evidence SET matched_value='\"invalid\"'::jsonb WHERE sbom_id=$1",
+        "WITH invalid AS (INSERT INTO correlation_matched_value (id, value) VALUES (correlation_detail_id('\"invalid\"'), '\"invalid\"') ON CONFLICT (id) DO NOTHING) UPDATE correlation_evidence SET matched_value_id = correlation_detail_id('\"invalid\"') WHERE sbom_id=$1",
         vec![id.into()],
     ))
     .await?;
@@ -344,7 +345,7 @@ async fn batched_computation_and_workers_preserve_complete_groups(
     let id = fixture(ctx).await?;
     let tx = ctx.db.begin().await?;
     tx.execute_raw(sql("INSERT INTO sbom_node(sbom_id,node_id,name) SELECT $1,'batch-' || lpad(n::text,4,'0'),'Batch component' FROM generate_series(1,300) n",vec![id.into()])).await?;
-    tx.execute_raw(sql("INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),e.sbom_id,'batch-' || lpad(n::text,4,'0'),advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions FROM correlation_evidence e CROSS JOIN generate_series(1,300) n WHERE sbom_id=$1",vec![id.into()])).await?;
+    tx.execute_raw(sql("INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions) SELECT gen_random_uuid(),e.sbom_id,'batch-' || lpad(n::text,4,'0'),advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions FROM correlation_evidence e CROSS JOIN generate_series(1,300) n WHERE sbom_id=$1",vec![id.into()])).await?;
     tx.commit().await?;
     let db = db::ReadWrite::new(ctx.db.clone());
     // A claimed job is skipped; rolling its transaction back makes it available again.
@@ -424,7 +425,7 @@ async fn add_evidence(id: Uuid, node: &str, tx: &impl ConnectionTrait) -> anyhow
     ))
     .await?;
     tx.execute_raw(sql(
-        "INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),sbom_id,$2,advisory_id,vulnerability_id,status,confidence,extractor,matched_value,created_at,confidence_factors,source_assertions FROM correlation_evidence WHERE sbom_id=$1",
+        "INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions) SELECT gen_random_uuid(),sbom_id,$2,advisory_id,vulnerability_id,status,confidence,extractor,matched_value_id,created_at,confidence_factors_id,source_assertions FROM correlation_evidence WHERE sbom_id=$1",
         vec![id.into(), node.into()],
     ))
     .await?;
@@ -495,17 +496,29 @@ async fn evidence_changes_do_not_wait_for_a_computation(
 
 /// A computation publishes what its snapshot saw, and changes after it make the SBOM pending.
 #[test_context(TrustifyContext)]
+#[rstest]
 #[test_log::test(actix_web::test)]
-async fn computation_publishes_its_snapshot(ctx: &TrustifyContext) -> anyhow::Result<()> {
+async fn computation_publishes_its_snapshot(
+    ctx: &TrustifyContext,
+    #[values(false, true)] global_change: bool,
+) -> anyhow::Result<()> {
     let id = fixture(ctx).await?;
     let db = db::ReadWrite::new(ctx.db.clone());
 
     let reads = db.begin_read().await?;
     let seen = input_revision(id, &reads).await?;
-    add_evidence(id, "after-snapshot", &ctx.db).await?;
+    let revision = verdict_revision(&reads).await?;
+    if global_change {
+        ctx.db
+            .execute_unprepared(
+                "UPDATE correlation_verdict_revision SET revision=revision+1,changed_at=clock_timestamp()",
+            )
+            .await?;
+    } else {
+        add_evidence(id, "after-snapshot", &ctx.db).await?;
+    }
 
     let writes = ctx.db.begin().await?;
-    let revision = verdict_revision(&writes).await?;
     rebuild(id, revision, seen, BATCH_SIZE, None, &reads, &writes).await?;
     reads.rollback().await?;
     writes.commit().await?;
@@ -514,14 +527,58 @@ async fn computation_publishes_its_snapshot(ctx: &TrustifyContext) -> anyhow::Re
     assert!(!nodes.is_empty());
     assert!(!nodes.contains(&"after-snapshot".to_string()));
     assert_eq!(completed, seen);
-    assert!(current > seen);
+    assert_eq!(current > seen, !global_change);
+    let freshness = state(&[id], &ctx.db).await?.remove(&id).unwrap();
+    assert!(freshness.generation.is_some());
+    assert_eq!(freshness.completed_revision, Some(revision));
+    assert_eq!(freshness.required_revision > revision, global_change);
+    assert_eq!(freshness.status, FreshnessStatus::Stale);
+    assert_eq!(lag(&ctx.db.begin().await?).await?.failed, 0);
 
     // computed again, now with the change
     assert!(run_step(&db, &WorkerConfig::default()).await?);
     let mut expected = nodes;
-    expected.push("after-snapshot".to_string());
+    if !global_change {
+        expected.push("after-snapshot".to_string());
+    }
     expected.sort();
     assert_eq!(published(id, &ctx.db).await?, (expected, current, current));
+    assert_eq!(
+        state(&[id], &ctx.db).await?[&id].status,
+        FreshnessStatus::Current
+    );
+    Ok(())
+}
+
+/// A resolver upgrade during computation still prevents an incompatible publication.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn resolver_upgrade_during_computation_rejects_publication(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let id = fixture(ctx).await?;
+    let db = db::ReadWrite::new(ctx.db.clone());
+    assert!(run_step(&db, &WorkerConfig::default()).await?);
+    let before = state(&[id], &ctx.db).await?.remove(&id).unwrap();
+    let original = published(id, &ctx.db).await?;
+    let reads = db.begin_read().await?;
+    let seen = input_revision(id, &reads).await?;
+    let revision = verdict_revision(&reads).await?;
+    ctx.db
+        .execute_unprepared(
+            "UPDATE correlation_verdict_revision SET resolver_version=resolver_version+1,revision=revision+1",
+        )
+        .await?;
+
+    let writes = ctx.db.begin().await?;
+    let result = rebuild(id, revision, seen, BATCH_SIZE, None, &reads, &writes).await;
+    assert!(matches!(result, Err(Error::Conflict(_))));
+    writes.rollback().await?;
+    reads.rollback().await?;
+    assert_eq!(published(id, &ctx.db).await?, original);
+    let after = state(&[id], &ctx.db).await?.remove(&id).unwrap();
+    assert_eq!(after.generation, before.generation);
+    assert_eq!(after.status, FreshnessStatus::Stale);
     Ok(())
 }
 

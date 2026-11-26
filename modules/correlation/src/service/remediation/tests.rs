@@ -735,7 +735,7 @@ async fn evidence_requires_sources_and_repeated_extraction_preserves_remediation
         attempt.rollback().await?;
     }
     let attempt = tx.begin().await?;
-    assert!(attempt.execute_unprepared("INSERT INTO correlation_evidence (id, sbom_id, node_id, advisory_id, vulnerability_id, status, confidence, extractor) SELECT gen_random_uuid(), sbom_id, node_id, advisory_id, vulnerability_id, status, confidence, 'missing-sources' FROM correlation_evidence LIMIT 1").await.is_err());
+    assert!(attempt.execute_unprepared("INSERT INTO correlation_evidence (id, sbom_id, node_id, advisory_id, vulnerability_id, status, confidence, extractor, confidence_factors_id) SELECT gen_random_uuid(), sbom_id, node_id, advisory_id, vulnerability_id, status, confidence, 'missing-sources', confidence_factors_id FROM correlation_evidence LIMIT 1").await.is_err());
     attempt.rollback().await?;
 
     extractors.extract_for_sbom(id, &tx).await?;

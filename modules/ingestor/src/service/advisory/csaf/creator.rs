@@ -29,7 +29,10 @@ use csaf_rs::schema::csaf2_0::schema::{
     Remediation,
 };
 use sbom_walker::report::ReportSink;
-use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
+use sea_orm::{
+    ActiveEnum, ActiveValue::Set, ConnectionTrait, DbBackend, DbErr, EntityTrait, Statement,
+    TryIntoModel,
+};
 use sea_query::OnConflict;
 use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 use tracing::instrument;
@@ -631,12 +634,7 @@ impl<'a> StatusCreator<'a> {
                 .await?;
         }
 
-        for batch in package_statuses.chunked() {
-            purl_status::Entity::insert_many(batch)
-                .on_conflict_do_nothing()
-                .exec(connection)
-                .await?;
-        }
+        insert_purl_statuses(package_statuses, connection).await?;
 
         for batch in product_version_ranges.chunked() {
             product_version_range::Entity::insert_many(batch)
@@ -901,6 +899,104 @@ impl<'a> StatusCreator<'a> {
     }
 }
 
+/// Insert the collected PURL statuses with one array parameter per column.
+async fn insert_purl_statuses(
+    models: Vec<purl_status::ActiveModel>,
+    connection: &impl ConnectionTrait,
+) -> Result<(), DbErr> {
+    if models.is_empty() {
+        return Ok(());
+    }
+
+    let mut ids = Vec::with_capacity(models.len());
+    let mut advisory_ids = Vec::with_capacity(models.len());
+    let mut vulnerability_ids = Vec::with_capacity(models.len());
+    let mut status_ids = Vec::with_capacity(models.len());
+    let mut base_purl_ids = Vec::with_capacity(models.len());
+    let mut qualified_purl_ids = Vec::with_capacity(models.len());
+    let mut version_range_ids = Vec::with_capacity(models.len());
+    let mut context_cpe_ids = Vec::with_capacity(models.len());
+    let mut assertion_context_ids = Vec::with_capacity(models.len());
+    let mut defaults = Vec::with_capacity(models.len());
+    let mut source_providers = Vec::with_capacity(models.len());
+
+    // Build every array from the same rows to preserve alignment and UUID order.
+    for model in models {
+        let model = model.try_into_model()?;
+        ids.push(model.id);
+        advisory_ids.push(model.advisory_id);
+        vulnerability_ids.push(model.vulnerability_id);
+        status_ids.push(model.status_id);
+        base_purl_ids.push(model.base_purl_id);
+        // SeaORM's array binder requires non-null elements. Empty text represents SQL NULL;
+        // UUIDs and serialized JSON can never be empty, including the JSON value `null`.
+        qualified_purl_ids.push(
+            model
+                .qualified_purl_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+        );
+        version_range_ids.push(model.version_range_id);
+        context_cpe_ids.push(
+            model
+                .context_cpe_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+        );
+        assertion_context_ids.push(
+            model
+                .assertion_context_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+        );
+        defaults.push(model.is_default);
+        source_providers.push(
+            model
+                .source_provider
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+        );
+    }
+
+    connection
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
+INSERT INTO purl_status (
+    id, advisory_id, vulnerability_id, status_id, base_purl_id, qualified_purl_id,
+    version_range_id, context_cpe_id, assertion_context_id, is_default, source_provider
+)
+SELECT id, advisory_id, vulnerability_id, status_id, base_purl_id,
+       NULLIF(qualified_purl_id, '')::uuid, version_range_id,
+       NULLIF(context_cpe_id, '')::uuid, NULLIF(assertion_context_id, '')::uuid,
+       is_default, NULLIF(source_provider, '')::jsonb
+FROM unnest(
+    $1::uuid[], $2::uuid[], $3::text[], $4::uuid[], $5::uuid[], $6::text[],
+    $7::uuid[], $8::text[], $9::text[], $10::boolean[], $11::text[]
+) AS rows (
+    id, advisory_id, vulnerability_id, status_id, base_purl_id, qualified_purl_id,
+    version_range_id, context_cpe_id, assertion_context_id, is_default, source_provider
+)
+ON CONFLICT (id) DO NOTHING
+"#,
+            [
+                ids.into(),
+                advisory_ids.into(),
+                vulnerability_ids.into(),
+                status_ids.into(),
+                base_purl_ids.into(),
+                qualified_purl_ids.into(),
+                version_range_ids.into(),
+                context_cpe_ids.into(),
+                assertion_context_ids.into(),
+                defaults.into(),
+                source_providers.into(),
+            ],
+        ))
+        .await?;
+    Ok(())
+}
+
 const REMEDIATION_NAMESPACE: Uuid = Uuid::from_bytes([
     0x7a, 0x3b, 0x9c, 0x2d, 0x4e, 0x5f, 0x6a, 0x7b, 0x8c, 0x9d, 0xae, 0xbf, 0xc0, 0xd1, 0xe2, 0xf3,
 ]);
@@ -1083,3 +1179,6 @@ impl<'a> RemediationCreator<'a> {
         result
     }
 }
+
+#[cfg(test)]
+mod test;

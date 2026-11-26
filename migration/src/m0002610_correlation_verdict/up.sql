@@ -42,6 +42,19 @@ CREATE TABLE correlation_verdict (
 CREATE INDEX correlation_verdict_status ON correlation_verdict(status, sbom_id);
 CREATE INDEX correlation_verdict_vulnerability ON correlation_verdict(vulnerability_id, status, sbom_id);
 
+-- Verdict counts of each SBOM, written together with its verdicts. Counting the verdicts on
+-- read scans millions of rows for a page of large SBOMs. A verdict counts once per member of
+-- the class of its node.
+CREATE TABLE correlation_verdict_count (
+    sbom_id uuid PRIMARY KEY REFERENCES sbom(sbom_id) ON DELETE CASCADE,
+    affected bigint NOT NULL,
+    fixed bigint NOT NULL,
+    not_affected bigint NOT NULL,
+    under_investigation bigint NOT NULL,
+    none bigint NOT NULL,
+    remediations bigint NOT NULL
+);
+
 -- Marks each SBOM dirty once per call. Sorted ids keep the lock order stable across
 -- concurrent writers.
 CREATE FUNCTION correlation_verdict_dirty(ids uuid[]) RETURNS void LANGUAGE sql AS $$
@@ -81,7 +94,7 @@ END $$;
 
 SELECT correlation_verdict_create_triggers('correlation_evidence', 'correlation_verdict_evidence_changed', 'correlation_verdict_rows_changed');
 
-CREATE FUNCTION correlation_verdict_global_changed() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION correlation_verdict_global_changed() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     UPDATE correlation_verdict_revision SET revision = revision + 1, changed_at = clock_timestamp();
     RETURN NULL;

@@ -8,7 +8,7 @@ use super::{
     product_identifier::ProductIdentifierExtractor,
     purl::{PurlExtractor, ecosystem::Ecosystem},
     version::retain_in_range,
-    writer::EvidenceWriter,
+    writer::{EvidenceWriter, Target},
 };
 use crate::{
     compute::on_worker,
@@ -19,7 +19,7 @@ use crate::{
         tuning::DEFAULT_MATCH_BATCH,
     },
 };
-use sea_orm::DatabaseTransaction;
+use sea_orm::{DatabaseConnection, DatabaseTransaction};
 use std::{
     borrow::Borrow,
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -50,6 +50,9 @@ pub struct Extractors {
     chunk: usize,
     /// The number of matches of an SBOM held before their evidence is written.
     match_batch: usize,
+    /// The connection to store the details of evidence with, outside the extraction's
+    /// transaction, see [`Target::details`].
+    details: Option<DatabaseConnection>,
 }
 
 impl Default for Extractors {
@@ -71,6 +74,7 @@ impl Extractors {
             extractors,
             chunk: CHUNK,
             match_batch: DEFAULT_MATCH_BATCH,
+            details: None,
         }
     }
 
@@ -86,6 +90,23 @@ impl Extractors {
         Self {
             match_batch,
             ..self
+        }
+    }
+
+    /// Store the details shared by all evidence (see [`Target::details`]) with `connection`,
+    /// outside the extraction's transaction, instead of in it.
+    pub fn with_detail_connection(self, connection: DatabaseConnection) -> Self {
+        Self {
+            details: Some(connection),
+            ..self
+        }
+    }
+
+    /// Where the evidence of an extraction in `tx` is written to.
+    fn target<'a>(&'a self, tx: &'a DatabaseTransaction) -> Target<'a> {
+        Target {
+            tx,
+            details: self.details.as_ref(),
         }
     }
 
@@ -140,7 +161,7 @@ impl Extractors {
                     (index, total_chunks),
                     &mut scoper,
                     self.match_batch,
-                    tx,
+                    self.target(tx),
                 )
                 .await?;
                 done += 1;
@@ -193,7 +214,7 @@ impl Extractors {
             }
 
             let matches = retain_in_range(matches, tx).await?;
-            let count = write_scoped(matches, &mut scoper, tx).await?;
+            let count = write_scoped(matches, &mut scoper, self.target(tx)).await?;
 
             tracing::info!(extractor = extractor_id, %advisory_id, evidence_count = count, "extraction for advisory complete");
             total += count;
@@ -512,7 +533,7 @@ async fn extract_chunk(
     position: (usize, usize),
     scoper: &mut Scoper,
     match_batch: usize,
-    tx: &DatabaseTransaction,
+    target: Target<'_>,
 ) -> Result<usize, Error> {
     let span = Span::current();
     // the identifiers of a node are next to each other, see `node_chunks`
@@ -527,8 +548,10 @@ async fn extract_chunk(
             }
         }
     }
-    let mut writer = StreamWriter::new(&nodes, scoper, match_batch, tx);
-    extractor.match_parts(&components, &mut writer, tx).await?;
+    let mut writer = StreamWriter::new(&nodes, scoper, match_batch, target);
+    extractor
+        .match_parts(&components, &mut writer, target.tx)
+        .await?;
     writer.flush().await?;
 
     span.record("matches", writer.matches);
@@ -544,7 +567,7 @@ struct StreamWriter<'a> {
     nodes: &'a [NodeRef],
     scoper: &'a mut Scoper,
     match_batch: usize,
-    tx: &'a DatabaseTransaction,
+    target: Target<'a>,
     /// The matches not written yet, of complete nodes only: a node (index) and the assertions of
     /// its part, shared by the nodes of the part instead of a copy each.
     pending: Vec<(usize, Arc<[Arc<Assertion>]>)>,
@@ -561,13 +584,13 @@ impl<'a> StreamWriter<'a> {
         nodes: &'a [NodeRef],
         scoper: &'a mut Scoper,
         match_batch: usize,
-        tx: &'a DatabaseTransaction,
+        target: Target<'a>,
     ) -> Self {
         Self {
             nodes,
             scoper,
             match_batch,
-            tx,
+            target,
             pending: Vec::new(),
             held: 0,
             matches: 0,
@@ -594,9 +617,9 @@ impl<'a> StreamWriter<'a> {
                     .filter_map(move |index| Some((node.clone(), assertions.get(index)?.clone())))
             })
             .collect::<Vec<_>>();
-        let matches = retain_in_range(matches, self.tx).await?;
+        let matches = retain_in_range(matches, self.target.tx).await?;
         self.in_range += matches.len();
-        self.evidence += write_scoped(matches, self.scoper, self.tx).await?;
+        self.evidence += write_scoped(matches, self.scoper, self.target).await?;
         self.writes += 1;
         // the matches of a node are complete, so what's loaded for it isn't needed again
         self.scoper.forget_nodes();
@@ -636,7 +659,7 @@ impl MatchSink for StreamWriter<'_> {
 async fn write_scoped<N>(
     matches: Vec<(N, Arc<Assertion>)>,
     scoper: &mut Scoper,
-    tx: &DatabaseTransaction,
+    target: Target<'_>,
 ) -> Result<usize, Error>
 where
     N: Borrow<NodeRef> + Send + 'static,
@@ -646,7 +669,7 @@ where
             matches
                 .iter()
                 .map(|(node, assertion)| (node.borrow(), assertion.as_ref())),
-            tx,
+            target.tx,
         )
         .await?;
 
@@ -677,7 +700,7 @@ where
     })
     .await?;
     *scoper = moved;
-    writer.write(tx).await
+    writer.write(target).await
 }
 
 #[cfg(test)]
@@ -904,7 +927,7 @@ mod test {
     /// The evidence of an SBOM, as written.
     async fn evidence(sbom_id: Uuid, tx: &DatabaseTransaction) -> anyhow::Result<Vec<EvidenceRow>> {
         Ok(EvidenceRow::find_by_statement(sql(
-            "SELECT node_id, confidence, matched_value FROM correlation_evidence WHERE sbom_id = $1 ORDER BY id",
+            "SELECT node_id, confidence, matched_value FROM correlation_evidence_detail WHERE sbom_id = $1 ORDER BY id",
             vec![sbom_id.into()],
         ))
         .all(tx)
@@ -970,7 +993,8 @@ mod test {
         for match_batch in [usize::MAX, 1] {
             let tx = ctx.db.begin().await?;
             let mut scoper = Scoper::default();
-            let mut writer = StreamWriter::new(&nodes, &mut scoper, match_batch, &tx);
+            let mut writer =
+                StreamWriter::new(&nodes, &mut scoper, match_batch, Target::transaction(&tx));
             writer
                 .accept(MatchPart {
                     components: vec![0],

@@ -165,7 +165,7 @@ async fn freshness_migration_preserves_documents_and_resets_to_unknown(
     let id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
     ctx.ingest_document("csaf/cve-2023-33201.json").await?;
     // Seed evidence directly: this test exercises schema lifecycle, not extraction.
-    ctx.db.execute_unprepared("INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,created_at,confidence_factors,source_assertions) SELECT gen_random_uuid(),n.sbom_id,n.node_id,a.advisory_id,a.vulnerability_id,'affected',1,'purl',now(),'[]'::jsonb,jsonb_build_array(jsonb_build_object('kind','purl','id',a.id)) FROM sbom_node n CROSS JOIN purl_status a LIMIT 1").await?;
+    ctx.db.execute_unprepared("INSERT INTO correlation_confidence_factors(id,value) VALUES (correlation_detail_id('[]'),'[]') ON CONFLICT (id) DO NOTHING; INSERT INTO correlation_evidence(id,sbom_id,node_id,advisory_id,vulnerability_id,status,confidence,extractor,created_at,confidence_factors_id,source_assertions) SELECT gen_random_uuid(),n.sbom_id,n.node_id,a.advisory_id,a.vulnerability_id,'affected',1,'purl',now(),correlation_detail_id('[]'),jsonb_build_array(jsonb_build_object('kind','purl','id',a.id)) FROM sbom_node n CROSS JOIN purl_status a LIMIT 1").await?;
     assert_eq!(evidence_count(&ctx.db).await?, 1);
     let documents = sbom::Entity::find().all(&ctx.db).await?;
     let advisories = advisory::Entity::find().all(&ctx.db).await?;
@@ -292,12 +292,22 @@ async fn qualified_purl_relationship_upgrade_and_downgrade(
             status: Set(status),
             confidence: Set(1.0),
             extractor: Set("purl".into()),
-            matched_value: Set(Some(serde_json::json!({
-                "identifier": identifier,
-                "source_provider": {"identifiers": [format!("name:{provider}")]}
-            }))),
+            matched_value_id: Set(Some(
+                trustify_entity::correlation_matched_value::store(
+                    &ctx.db,
+                    serde_json::json!({
+                        "identifier": identifier,
+                        "source_provider": {"identifiers": [format!("name:{provider}")]}
+                    }),
+                )
+                .await?,
+            )),
             created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
-            confidence_factors: sea_orm::NotSet,
+            confidence_factors_id: Set(trustify_entity::correlation_confidence_factors::store(
+                &ctx.db,
+                serde_json::json!([]),
+            )
+            .await?),
             source_assertions: Set(serde_json::json!([{"kind": "purl", "id": rows[0].id}])),
         }
         .insert(&ctx.db)
@@ -423,9 +433,13 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
         status: Set(AssertionStatus::Affected),
         confidence: Set(0.8),
         extractor: Set("cpe".into()),
-        matched_value: Set(None),
+        matched_value_id: Set(None),
         created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
-        confidence_factors: Set(serde_json::json!([])),
+        confidence_factors_id: Set(trustify_entity::correlation_confidence_factors::store(
+            &ctx.db,
+            serde_json::json!([]),
+        )
+        .await?),
         source_assertions: Set(serde_json::to_value([SourceAssertionRef::Cpe(
             links[0].assertion_id,
         )])?),
@@ -494,5 +508,115 @@ async fn remediation_assertions_upgrade_and_downgrade(ctx: &TrustifyContext) -> 
             .unwrap(),
         evidence
     );
+    Ok(())
+}
+
+/// The details of evidence move to their own tables, stored once, and back, without changing the
+/// evidence as read.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn evidence_details_are_stored_once(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use sea_orm::{ActiveModelTrait, ConnectionTrait, DbBackend, FromQueryResult, Set, Statement};
+    use serde_json::json;
+    use trustify_entity::{
+        correlation_confidence_factors, correlation_evidence, correlation_matched_value,
+    };
+    use uuid::Uuid;
+
+    #[derive(Debug, PartialEq, FromQueryResult)]
+    struct Row {
+        node_id: String,
+        matched_value: Option<serde_json::Value>,
+        confidence_factors: serde_json::Value,
+    }
+    async fn rows(db: &sea_orm::DatabaseConnection, from: &str) -> anyhow::Result<Vec<Row>> {
+        Ok(Row::find_by_statement(Statement::from_string(
+            DbBackend::Postgres,
+            format!(
+                "SELECT node_id, matched_value, confidence_factors FROM {from} ORDER BY node_id"
+            ),
+        ))
+        .all(db)
+        .await?)
+    }
+    async fn count(db: &sea_orm::DatabaseConnection, table: &str) -> anyhow::Result<i64> {
+        let row = db
+            .query_one_raw(Statement::from_string(
+                DbBackend::Postgres,
+                format!("SELECT count(*) AS count FROM {table}"),
+            ))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no count"))?;
+        Ok(row.try_get("", "count")?)
+    }
+
+    let sbom_id = Uuid::parse_str(&ctx.ingest_document("spdx/simple.json").await?.id)?;
+    let advisory_id = Uuid::parse_str(&ctx.ingest_document("csaf/cve-2023-33201.json").await?.id)?;
+    let matched_value = json!({"identifier": "pkg:rpm/redhat/openssl", "origin": "stated"});
+    let factors = json!([{"factor": 0.9, "reason": {"kind": "purl"}}]);
+    for (node, matched_value) in [
+        ("a", Some(matched_value.clone())),
+        ("b", Some(matched_value.clone())),
+        ("c", None),
+    ] {
+        let matched_value_id = match matched_value {
+            Some(value) => Some(correlation_matched_value::store(&*ctx.db, value).await?),
+            None => None,
+        };
+        correlation_evidence::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            sbom_id: Set(sbom_id),
+            node_id: Set(node.into()),
+            advisory_id: Set(advisory_id),
+            vulnerability_id: Set("CVE-2023-33201".into()),
+            status: Set(correlation_evidence::AssertionStatus::Affected),
+            confidence: Set(0.9),
+            extractor: Set("purl".into()),
+            matched_value_id: Set(matched_value_id),
+            confidence_factors_id: Set(correlation_confidence_factors::store(
+                &*ctx.db,
+                factors.clone(),
+            )
+            .await?),
+            source_assertions: Set(json!([{"kind": "purl", "id": Uuid::new_v4()}])),
+            created_at: Set(sea_orm::prelude::TimeDateTimeWithTimeZone::UNIX_EPOCH),
+        }
+        .insert(&*ctx.db)
+        .await?;
+    }
+    let expected = vec![
+        Row {
+            node_id: "a".into(),
+            matched_value: Some(matched_value.clone()),
+            confidence_factors: factors.clone(),
+        },
+        Row {
+            node_id: "b".into(),
+            matched_value: Some(matched_value.clone()),
+            confidence_factors: factors.clone(),
+        },
+        Row {
+            node_id: "c".into(),
+            matched_value: None,
+            confidence_factors: factors.clone(),
+        },
+    ];
+    assert_eq!(
+        rows(&ctx.db, "correlation_evidence_detail").await?,
+        expected
+    );
+
+    let migrator = without_backfill(ctx);
+    let steps = since(&migrator, &ctx.db, "m0002740_correlation_evidence_details").await?;
+    migrator.down(&ctx.db, Some(steps)).await?;
+    assert_eq!(rows(&ctx.db, "correlation_evidence").await?, expected);
+
+    migrator.up(&ctx.db, Some(steps)).await?;
+    assert_eq!(
+        rows(&ctx.db, "correlation_evidence_detail").await?,
+        expected
+    );
+    assert_eq!(count(&ctx.db, "correlation_matched_value").await?, 1);
+    assert_eq!(count(&ctx.db, "correlation_confidence_factors").await?, 1);
     Ok(())
 }

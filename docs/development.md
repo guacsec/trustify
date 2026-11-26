@@ -6,6 +6,9 @@ If you haven't already, [get started with Rust](https://www.rust-lang.org/learn/
 
 See [CONVENTIONS.md](../CONVENTIONS.md) for coding standards, linting, and pre-commit workflow.
 
+See [Correlation performance measurements](correlation-performance.md) for the
+repeatable ingestion, extraction, and verdict benchmark.
+
 ### macOS: Shared Memory Limits
 
 Concurrent Postgres instances during testing can exhaust shared memory on macOS.

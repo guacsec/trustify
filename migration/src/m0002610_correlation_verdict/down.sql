@@ -26,6 +26,7 @@ DROP FUNCTION correlation_verdict_sbom_added();
 DROP FUNCTION correlation_verdict_global_changed();
 DROP FUNCTION correlation_verdict_rows_changed();
 DROP FUNCTION correlation_verdict_dirty(uuid[]);
+DROP TABLE correlation_verdict_count;
 DROP TABLE correlation_verdict;
 DROP TYPE verdict_status;
 DROP TABLE correlation_verdict_state;

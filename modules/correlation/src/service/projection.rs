@@ -6,6 +6,7 @@ use super::{
     tuning::WorkerConfig,
 };
 use crate::{
+    compute::on_worker,
     error::Error,
     model::{
         CurrentSbom, ResolutionRequest, SbomVerdictCounts, SbomVerdictPage, VerdictFreshness,
@@ -23,7 +24,11 @@ use trustify_common::{
     db::{self, DatabaseExt, limiter::LimiterAsModelTrait, pagination_cache::PaginationCache, sql},
     model::Pagination,
 };
-use trustify_entity::{correlation_node_class, correlation_verdict, correlation_verdict_freshness};
+use trustify_entity::{
+    correlation_node_class,
+    correlation_verdict::{self, VerdictStatus as StoredVerdictStatus},
+    correlation_verdict_count, correlation_verdict_freshness,
+};
 use uuid::Uuid;
 
 /// Bump in a migration together with changes to the default resolver's semantics.
@@ -102,10 +107,8 @@ impl CorrelationService {
             query = query.filter(correlation_verdict::Column::VulnerabilityId.eq(vuln));
         }
         if let Some(status) = status {
-            query = query.filter(
-                correlation_verdict::Column::Status
-                    .eq(correlation_verdict::VerdictStatus::from(status)),
-            );
+            query = query
+                .filter(correlation_verdict::Column::Status.eq(StoredVerdictStatus::from(status)));
         }
         // Include the generation in the shared limiter's bound-value cache key.
         let generation = freshness.generation.unwrap_or_default();
@@ -155,8 +158,8 @@ struct VerdictRow {
     snapshot: serde_json::Value,
 }
 
-/// Read published counts without materializing verdict payloads. A verdict counts once per member
-/// of the class of its node.
+/// Read the published counts, stored with the verdicts by [`rebuild`]. A verdict counts once per
+/// member of the class of its node.
 pub async fn counts(
     ids: &[Uuid],
     tx: &DatabaseTransaction,
@@ -166,23 +169,29 @@ pub async fn counts(
     }
     let states = state(ids, tx).await?;
     let extraction = freshness::for_sboms(tx, ids).await?;
-    let mut counts = HashMap::new();
-    for row in tx.query_all_raw(sql(
-        "SELECT v.sbom_id, count(*) FILTER (WHERE status='affected') affected, count(*) FILTER (WHERE status='fixed') fixed, count(*) FILTER (WHERE status='not_affected') not_affected, count(*) FILTER (WHERE status='under_investigation') under_investigation, count(*) FILTER (WHERE status='none') none, sum(remediation_count)::bigint remediations FROM correlation_verdict v LEFT JOIN correlation_node_class c ON c.sbom_id=v.sbom_id AND c.representative_node_id=v.node_id WHERE v.sbom_id=ANY($1) GROUP BY v.sbom_id",
+    let counts = correlation_verdict_count::Model::find_by_statement(sql(
+        "SELECT * FROM correlation_verdict_count WHERE sbom_id = ANY($1)",
         vec![ids.to_vec().into()],
-    )).await? {
-        let sbom_id = row.try_get("", "sbom_id")?;
-        counts.insert(sbom_id, SbomVerdictCounts {
-            sbom_id,
-            affected: row.try_get::<i64>("", "affected")? as u64,
-            fixed: row.try_get::<i64>("", "fixed")? as u64,
-            not_affected: row.try_get::<i64>("", "not_affected")? as u64,
-            under_investigation: row.try_get::<i64>("", "under_investigation")? as u64,
-            none: row.try_get::<i64>("", "none")? as u64,
-            remediations: row.try_get::<i64>("", "remediations")? as u64,
-            ..Default::default()
-        });
-    }
+    ))
+    .all(tx)
+    .await?
+    .into_iter()
+    .map(|row| {
+        (
+            row.sbom_id,
+            SbomVerdictCounts {
+                sbom_id: row.sbom_id,
+                affected: row.affected as u64,
+                fixed: row.fixed as u64,
+                not_affected: row.not_affected as u64,
+                under_investigation: row.under_investigation as u64,
+                none: row.none as u64,
+                remediations: row.remediations as u64,
+                ..Default::default()
+            },
+        )
+    })
+    .collect::<HashMap<_, _>>();
     Ok(ids
         .iter()
         .map(|id| SbomVerdictCounts {
@@ -403,23 +412,34 @@ async fn insert_verdicts(
         return Ok(());
     }
 
-    let mut nodes = Vec::with_capacity(verdicts.len());
-    let mut vulnerabilities = Vec::with_capacity(verdicts.len());
-    let mut statuses = Vec::with_capacity(verdicts.len());
-    let mut snapshots = Vec::with_capacity(verdicts.len());
-    let mut remediation_counts = Vec::with_capacity(verdicts.len());
-    for verdict in verdicts {
-        let distinct = verdict
-            .evidence
-            .iter()
-            .flat_map(|e| e.remediations.iter().map(move |r| (e.advisory_id, r)))
-            .collect::<HashSet<_>>();
-        nodes.push(verdict.component.node_id.clone());
-        vulnerabilities.push(verdict.vulnerability.id.clone());
-        statuses.push(correlation_verdict::VerdictStatus::from(verdict.status).to_value());
-        remediation_counts.push(distinct.len() as i64);
-        snapshots.push(serde_json::to_value(verdict).map_err(Error::MatchedValue)?);
-    }
+    // serializing thousands of snapshots is CPU-heavy, keep it off the async runtime
+    let (nodes, vulnerabilities, statuses, snapshots, remediation_counts) = on_worker(move || {
+        let mut nodes = Vec::with_capacity(verdicts.len());
+        let mut vulnerabilities = Vec::with_capacity(verdicts.len());
+        let mut statuses = Vec::with_capacity(verdicts.len());
+        let mut snapshots = Vec::with_capacity(verdicts.len());
+        let mut remediation_counts = Vec::with_capacity(verdicts.len());
+        for verdict in verdicts {
+            let distinct = verdict
+                .evidence
+                .iter()
+                .flat_map(|e| e.remediations.iter().map(move |r| (e.advisory_id, r)))
+                .collect::<HashSet<_>>();
+            remediation_counts.push(distinct.len() as i64);
+            snapshots.push(serde_json::to_value(&verdict).map_err(Error::MatchedValue)?);
+            statuses.push(StoredVerdictStatus::from(verdict.status).to_value());
+            nodes.push(verdict.component.node_id);
+            vulnerabilities.push(verdict.vulnerability.id);
+        }
+        Ok((
+            nodes,
+            vulnerabilities,
+            statuses,
+            snapshots,
+            remediation_counts,
+        ))
+    })
+    .await?;
 
     tx.execute_raw(sql(
         "INSERT INTO correlation_verdict (sbom_id, node_id, vulnerability_id, status, snapshot, remediation_count) \
@@ -473,7 +493,7 @@ async fn rebuild(
     for (batch, groups) in groups.chunks(batch_size.max(1)).enumerate() {
         let evidence = pagination::evidence_for_groups(id, groups, reads).await?;
         let verdicts = service
-            .verdicts(id, &request, &evidence, &mut snapshot, reads)
+            .verdicts(id, &request, evidence, &mut snapshot, reads)
             .await?;
         insert_verdicts(id, verdicts, writes).await?;
         if let Some(progress) = progress {
@@ -482,13 +502,20 @@ async fn rebuild(
                 .await;
         }
     }
+    // reading the counts must not scan the verdicts of every SBOM on a page
+    writes.execute_raw(sql(
+        "INSERT INTO correlation_verdict_count SELECT $1::uuid, count(*) FILTER (WHERE status='affected'), count(*) FILTER (WHERE status='fixed'), count(*) FILTER (WHERE status='not_affected'), count(*) FILTER (WHERE status='under_investigation'), count(*) FILTER (WHERE status='none'), coalesce(sum(remediation_count), 0) FROM correlation_verdict v LEFT JOIN correlation_node_class c ON c.sbom_id=v.sbom_id AND c.representative_node_id=v.node_id WHERE v.sbom_id=$1 ON CONFLICT (sbom_id) DO UPDATE SET affected=excluded.affected, fixed=excluded.fixed, not_affected=excluded.not_affected, under_investigation=excluded.under_investigation, none=excluded.none, remediations=excluded.remediations",
+        vec![id.into()],
+    )).await?;
+    // Publish the revision we computed, even if newer inputs are already available. The
+    // revision mismatch keeps it pending without discarding work during continuous ingestion.
     let updated = writes.execute_raw(sql(
-        "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE revision=$2 AND resolver_version=$5)",
+        "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE resolver_version=$5)",
         vec![id.into(), revision.into(), input_revision.into(), Uuid::now_v7().into(), RESOLVER_VERSION.into()],
     )).await?;
     if updated.rows_affected() != 1 {
         return Err(Error::Conflict(
-            "the verdict revision changed during computation".into(),
+            "the verdict resolver version changed during computation".into(),
         ));
     }
     writes

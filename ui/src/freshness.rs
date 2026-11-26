@@ -292,34 +292,34 @@ fn add_sample(samples: &mut PendingSamples, at: OffsetDateTime, pending: u64) {
     samples.push((at, pending));
 }
 
-/// Advisories finished per minute. Advisories added meanwhile raise the count, which isn't work
-/// done, so only decreases count. `None` until there is enough to tell.
+/// Net decrease in pending advisories per minute. Queue growth is a negative rate;
+/// completions cannot be inferred from queue size while new advisories arrive.
 fn advisory_rate(samples: &[(OffsetDateTime, u64)]) -> Option<f64> {
     let (first, last) = (samples.first()?.0, samples.last()?.0);
     let span = last - first;
     if span < RATE_MINIMUM {
         return None;
     }
-    let done = samples
-        .windows(2)
-        .map(|pair| pair[0].1.saturating_sub(pair[1].1))
-        .sum::<u64>();
-    Some(done as f64 / span.as_seconds_f64() * 60.0)
+    let decrease = samples.first()?.1 as f64 - samples.last()?.1 as f64;
+    Some(decrease / span.as_seconds_f64() * 60.0)
 }
 
-/// The rate of the advisory extraction, and how long the pending ones will take at that rate.
+/// Queue growth or shrinkage, and how long draining it would take at the net rate.
 fn rate_text(rate: Option<f64>, pending: u64) -> Option<String> {
     if pending == 0 {
         return None;
     }
     Some(match rate {
-        None => "Measuring the rate…".to_string(),
-        Some(rate) if rate <= 0.0 => format!(
-            "None finished in the last {} min",
-            RATE_WINDOW.whole_minutes()
+        None => "Measuring queue growth…".to_string(),
+        Some(rate) if rate < 0.0 => format!(
+            "Queue growing by about {} per minute; new advisories are arriving faster than extraction completes",
+            Number((-rate).round() as u64)
         ),
+        Some(0.0) => {
+            "Queue size unchanged; new arrivals may offset completed extractions".to_string()
+        }
         Some(rate) => format!(
-            "About {} per minute, {} remaining",
+            "Queue shrinking by about {} per minute, {} remaining at this rate",
             Number(rate.round() as u64),
             approximate(Duration::seconds_f64(pending as f64 / rate * 60.0))
         ),
@@ -610,31 +610,42 @@ mod test {
         add_sample(&mut samples, start, 1000);
         assert_eq!(advisory_rate(&samples), None);
 
-        // added advisories aren't work done
+        // New arrivals outweigh completed extractions, even with decreases between polls.
         add_sample(&mut samples, start + Duration::seconds(30), 990);
         add_sample(&mut samples, start + Duration::seconds(60), 1500);
         add_sample(&mut samples, start + Duration::seconds(120), 1480);
-        assert_eq!(advisory_rate(&samples), Some(15.0));
+        assert_eq!(advisory_rate(&samples), Some(-240.0));
 
         // old samples drop out of the window
         add_sample(&mut samples, start + Duration::minutes(10), 1480);
         add_sample(&mut samples, start + Duration::minutes(11), 1480);
         assert_eq!(samples.len(), 2);
         assert_eq!(advisory_rate(&samples), Some(0.0));
+
+        add_sample(&mut samples, start + Duration::minutes(12), 1360);
+        assert_eq!(advisory_rate(&samples), Some(60.0));
     }
 
     #[test]
     fn rate_texts() {
         assert_eq!(rate_text(Some(15.0), 0), None);
-        assert_eq!(rate_text(None, 5).as_deref(), Some("Measuring the rate…"));
+        assert_eq!(
+            rate_text(None, 5).as_deref(),
+            Some("Measuring queue growth…")
+        );
         assert_eq!(
             rate_text(Some(0.0), 5).as_deref(),
-            Some("None finished in the last 5 min")
+            Some("Queue size unchanged; new arrivals may offset completed extractions")
         );
-        assert!(
-            rate_text(Some(15.0), 1800)
-                .is_some_and(|text| text.ends_with("per minute, about 2 h 0 min remaining"))
+        assert_eq!(
+            rate_text(Some(-20.0), 5).as_deref(),
+            Some(
+                "Queue growing by about 20 per minute; new advisories are arriving faster than extraction completes"
+            )
         );
+        assert!(rate_text(Some(15.0), 1800).is_some_and(|text| {
+            text.ends_with("per minute, about 2 h 0 min remaining at this rate")
+        }));
     }
 
     #[test]

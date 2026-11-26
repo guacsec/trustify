@@ -28,6 +28,7 @@ use std::{
 };
 use test_context::test_context;
 use test_log::test;
+use time::format_description::well_known::Rfc3339;
 use trustify_common::{id::Id, model::PaginatedResults};
 use trustify_module_ingestor::{model::IngestResult, service::Format};
 use trustify_module_storage::service::{StorageBackend, StorageKey};
@@ -1724,8 +1725,7 @@ async fn query_sboms_by_ingested_time(ctx: &TrustifyContext) -> Result<(), anyho
 
     // Ingest 2 sbom's, capturing the time between each ingestion
     ctx.ingest_document("ubi9-9.2-755.1697625012.json").await?;
-    let t =
-        time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339)?;
+    let t = time::OffsetDateTime::now_utc().format(&Rfc3339)?;
     ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json")
         .await?;
 

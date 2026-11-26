@@ -20,6 +20,7 @@ use time::OffsetDateTime;
 use trustify_entity::{
     correlation_evidence::{self, AssertionStatus},
     correlation_evidence_context::{self, ContextSource},
+    correlation_evidence_detail,
 };
 use trustify_test_context::{TrustifyContext, document_bytes};
 use uuid::Uuid;
@@ -584,9 +585,13 @@ async fn evidence_produces_verdict(ctx: &TrustifyContext) -> anyhow::Result<()> 
 
         confidence: Set(0.95),
         extractor: Set("digest".to_string()),
-        matched_value: Set(None),
+        matched_value_id: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
-        confidence_factors: Set(serde_json::json!([])),
+        confidence_factors_id: Set(trustify_entity::correlation_confidence_factors::store(
+            &ctx.db,
+            serde_json::json!([]),
+        )
+        .await?),
         source_assertions: Set(serde_json::json!([{"kind": "digest", "id": Uuid::new_v4()}])),
     };
     evidence.insert(&ctx.db).await?;
@@ -627,9 +632,13 @@ async fn include_unmatched_returns_components_without_evidence(
 
         confidence: Set(0.9),
         extractor: Set("digest".to_string()),
-        matched_value: Set(None),
+        matched_value_id: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
-        confidence_factors: Set(serde_json::json!([])),
+        confidence_factors_id: Set(trustify_entity::correlation_confidence_factors::store(
+            &ctx.db,
+            serde_json::json!([]),
+        )
+        .await?),
         source_assertions: Set(serde_json::json!([{"kind": "digest", "id": Uuid::new_v4()}])),
     };
     evidence.insert(&ctx.db).await?;
@@ -1063,8 +1072,8 @@ async fn scenario(
 
         // each confidence is the product of its factors
         {
-            for evidence in correlation_evidence::Entity::find()
-                .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+            for evidence in correlation_evidence_detail::Entity::find()
+                .filter(correlation_evidence_detail::Column::SbomId.eq(sbom_id))
                 .all(&tx)
                 .await?
             {
