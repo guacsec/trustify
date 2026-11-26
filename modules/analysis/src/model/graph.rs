@@ -26,7 +26,7 @@ impl Deref for Node {
 pub struct BaseNode {
     pub sbom_id: Uuid,
     pub node_id: String,
-    pub published: OffsetDateTime,
+    pub published: Option<OffsetDateTime>,
 
     pub name: String,
 
@@ -96,7 +96,11 @@ impl Deref for ExternalNode {
     }
 }
 
-fn published_to_string(value: OffsetDateTime) -> String {
+fn published_to_string(value: Option<OffsetDateTime>) -> String {
+    let Some(value) = value else {
+        return String::new();
+    };
+
     let format = format_description!(
         "[year]-[month]-[day] [hour]:[minute]:[second][offset_hour sign:mandatory]"
     );

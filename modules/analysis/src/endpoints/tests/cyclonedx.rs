@@ -1,10 +1,14 @@
 use super::req::*;
 use crate::test::caller;
+use actix_http::{Request, StatusCode};
+use actix_web::test::TestRequest;
 use jsonpath_rust::JsonPath;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
+use trustify_test_context::{
+    TrustifyContext, call::CallService, document_bytes, subset::ContainsSubset,
+};
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -201,6 +205,86 @@ async fn resolve_cdx_external_reference(ctx: &TrustifyContext) -> Result<(), any
             }]
         }]
     })));
+
+    Ok(())
+}
+
+/// Assert that an analysis endpoint answers with HTTP 200 and a non-empty result set.
+async fn assert_analysis_ok(app: &impl CallService, uri: &str) -> Result<Value, anyhow::Error> {
+    let request: Request = TestRequest::get().uri(uri).to_request();
+    let response = app.call_service(request).await;
+    let status = response.status();
+    let body = actix_web::test::read_body(response).await;
+
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "{uri} must tolerate an SBOM without metadata.timestamp, got {status}: {}",
+        String::from_utf8_lossy(&body)
+    );
+
+    let response: Value = serde_json::from_slice(&body)?;
+    assert!(
+        response["total"].as_u64().unwrap_or(0) > 0,
+        "{uri} returned no matching components: {response:#?}"
+    );
+
+    Ok(response)
+}
+
+/// A valid CycloneDX SBOM may omit `metadata.timestamp`. `cyclonedx/application.cdx.json`
+/// is such a document: it was produced by the CycloneDX Maven plugin in reproducible-build
+/// mode (`cdx:reproducible: enabled`) and carries no timestamp.
+///
+/// Ingestion stores `published = NULL` for it. The analysis load path must tolerate that
+/// instead of failing to decode the row, which previously surfaced as an HTTP 500
+/// `{"error":"Internal"}`.
+///
+/// See the historical report in TC-2523 and the upstream bug tracked from TC-1883.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn cdx_without_metadata_timestamp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents(["cyclonedx/application.cdx.json"])
+        .await?;
+
+    assert_analysis_ok(
+        &app,
+        "/api/v3/analysis/component/spring-petclinic?total=true",
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// The `latest` selection path must also tolerate documents without a timestamp.
+///
+/// It needs a product/release pair to resolve a CPE context, so this reuses the real
+/// NetworkManager pair from the latest-filter tests and removes `metadata.timestamp`
+/// in memory, which is the shape reproducible-build producers emit.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn cdx_without_metadata_timestamp_latest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    const DIR: &str = "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-02-17/";
+    for name in [
+        "1.46.0-26.el9_4-product.json",
+        "1.46.0-26.el9_4-release.json",
+    ] {
+        let bytes = document_bytes(format!("{DIR}{name}")).await?;
+        let mut doc: Value = serde_json::from_slice(&bytes)?;
+        if let Some(metadata) = doc.get_mut("metadata").and_then(Value::as_object_mut) {
+            metadata.remove("timestamp");
+        }
+        ctx.ingest_json(doc).await?;
+    }
+
+    assert_analysis_ok(
+        &app,
+        "/api/v3/analysis/latest/component/NetworkManager-libnm-devel?total=true",
+    )
+    .await?;
 
     Ok(())
 }

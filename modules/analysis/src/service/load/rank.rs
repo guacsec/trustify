@@ -22,7 +22,10 @@ pub struct Row {
     /// name of the matched node
     pub name: String,
     /// publish time of the SBOM that matched
-    pub published: OffsetDateTime,
+    ///
+    /// `None` when the document did not provide a timestamp (which is valid for
+    /// CycloneDX, e.g. reproducible-build output from the Maven plugin).
+    pub published: Option<OffsetDateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,7 +35,7 @@ pub struct RankedSbom {
     #[cfg(test)]
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
-    pub sbom_date: OffsetDateTime,
+    pub sbom_date: Option<OffsetDateTime>,
     pub rank: Option<usize>,
 }
 
@@ -391,20 +394,36 @@ pub async fn resolve_sbom_cpes(
 
 // ─── Ranking ────────────────────────────────────────────────────────
 
+/// Compare publish dates for the ranking sort: newest first, unknown dates last.
+fn compare_dates_desc_nulls_last(
+    a: Option<OffsetDateTime>,
+    b: Option<OffsetDateTime>,
+) -> std::cmp::Ordering {
+    match (a, b) {
+        (Some(a), Some(b)) => b.cmp(&a),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
+}
+
 /// Assigns a rank to SBOMs within their specific CPE groups based on
 /// creation date which embodies the latest filter heuristics.
 ///
 /// Simulates a SQL Window Function:
-/// `DENSE_RANK() OVER (PARTITION BY (cpe_id, matched_name) ORDER BY sbom_date DESC)`.
+/// `DENSE_RANK() OVER (PARTITION BY (cpe_id, matched_name) ORDER BY sbom_date DESC NULLS LAST)`.
 ///
-/// 1. **Sort** by `cpe_id`, `name`, then `sbom_date` descending.
+/// SBOMs without a publish date (valid CycloneDX) sort after dated ones, so an
+/// unknown date can never win "latest". Two unknown dates tie with each other.
+///
+/// 1. **Sort** by `cpe_id`, `name`, then `sbom_date` descending, nulls last.
 /// 2. **Rank**: resets on group boundary, ties share rank, otherwise increments (dense rank).
 pub fn apply_rank(items: &mut [RankedSbom]) {
     items.sort_by(|a, b| {
         a.cpe_id
             .cmp(&b.cpe_id)
             .then(a.matched_name.cmp(&b.matched_name))
-            .then(b.sbom_date.cmp(&a.sbom_date))
+            .then_with(|| compare_dates_desc_nulls_last(a.sbom_date, b.sbom_date))
     });
 
     let mut current_rank = 1;
@@ -520,7 +539,19 @@ mod test {
             matched_name: name.to_string(),
             top_ancestor_sbom: Default::default(),
             cpe_id,
-            sbom_date: date,
+            sbom_date: Some(date),
+            rank: Some(rank),
+        }
+    }
+
+    /// Create a [`RankedSbom`] without a publish date for testing.
+    fn ranked_no_date(sbom: Uuid, name: &str, cpe_id: Uuid, rank: usize) -> RankedSbom {
+        RankedSbom {
+            matched_sbom_id: sbom,
+            matched_name: name.to_string(),
+            top_ancestor_sbom: Default::default(),
+            cpe_id,
+            sbom_date: None,
             rank: Some(rank),
         }
     }
@@ -621,7 +652,7 @@ mod test {
             sbom_id: product_id,
             node_id: "product-root".into(),
             name: "TestProduct".into(),
-            published: datetime!(2025-01-01 0:00 UTC),
+            published: Some(datetime!(2025-01-01 0:00 UTC)),
         }];
 
         let ranked = resolve_sbom_cpes(true, &ctx.db, rows).await?;
@@ -642,5 +673,30 @@ mod test {
         }
 
         Ok(())
+    }
+
+    /// SBOMs without a publish date rank after dated ones and tie with each other.
+    #[test]
+    fn apply_rank_nulls_last() {
+        let mut items = vec![
+            ranked_no_date(sbom(1), "a", cpe(1), 0),
+            ranked(sbom(2), "a", cpe(1), utc(2), 0),
+            ranked_no_date(sbom(3), "a", cpe(1), 0),
+            ranked(sbom(4), "a", cpe(1), utc(1), 0),
+        ];
+
+        apply_rank(&mut items);
+
+        // newest dated SBOM first, older dated SBOM second
+        assert_eq!(items[0].matched_sbom_id, sbom(2));
+        assert_eq!(items[0].rank, Some(1));
+        assert_eq!(items[1].matched_sbom_id, sbom(4));
+        assert_eq!(items[1].rank, Some(2));
+
+        // both undated SBOMs sort last and share a rank
+        assert_eq!(items[2].sbom_date, None);
+        assert_eq!(items[3].sbom_date, None);
+        assert_eq!(items[2].rank, Some(3));
+        assert_eq!(items[3].rank, Some(3));
     }
 }

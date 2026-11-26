@@ -51,7 +51,7 @@ use uuid::Uuid;
 pub struct Node {
     pub sbom_id: Uuid,
     pub document_id: Option<String>,
-    pub published: OffsetDateTime,
+    pub published: Option<OffsetDateTime>,
 
     pub node_id: String,
     pub node_name: String,
@@ -411,9 +411,11 @@ impl InnerService {
         let matched_sbom_ids = if let Some(days) = self.sbom_published_cutoff_days {
             let cutoff = OffsetDateTime::now_utc() - time::Duration::days(days.get() as i64);
             log::info!("SBOM published cutoff: {} ({}d ago)", cutoff, days);
+            // SBOMs with an unset publish date cannot be proven to fall within
+            // the cutoff window, so they are excluded when cutoff is enabled.
             let filtered: Vec<_> = matched_sbom_ids
                 .into_iter()
-                .filter(|row| row.published >= cutoff)
+                .filter(|row| row.published.is_some_and(|published| published >= cutoff))
                 .collect();
             log::debug!("SBOM IDs after published-date cutoff: {}", filtered.len());
             filtered
