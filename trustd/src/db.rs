@@ -8,6 +8,8 @@ use trustify_common::{config::Database, db};
 use trustify_infrastructure::otel::{Tracing, init_tracing};
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
+mod init;
+
 #[derive(clap::Args, Debug)]
 pub struct Run {
     #[command(subcommand)]
@@ -24,6 +26,10 @@ pub struct Run {
 #[derive(clap::Subcommand, Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum Command {
+    /// Ensure a database and application role exist, without running migrations
+    Provision(init::Provision),
+    /// Create or update importer configurations from a JSON object
+    Importers(init::Importers),
     /// Create database
     Create,
     /// Run migrations (up)
@@ -48,13 +54,31 @@ impl Run {
             storage,
             options,
         } = self;
-        let storage = storage.into_storage(false).await?;
-        let migrator = Migrator::new(storage.clone(), options.clone());
+        // Initialization jobs need only a database connection, not object storage.
         match command {
-            Command::Create => Run::create(database, &migrator).await,
-            Command::Migrate { up_to } => Run::migrate(database, up_to, &migrator).await,
-            Command::Refresh => Run::refresh(database, &migrator).await,
-            Command::Data(data) => data.run(Direction::Up, database, storage, options).await,
+            Command::Provision(provision) => provision.run(database).await,
+            Command::Importers(importers) => importers.run(database).await,
+            Command::Create => {
+                let migrator = Migrator::new(storage.into_storage(false).await?, options);
+                Run::create(database, &migrator).await
+            }
+            Command::Migrate { up_to } => {
+                let migrator = Migrator::new(storage.into_storage(false).await?, options);
+                Run::migrate(database, up_to, &migrator).await
+            }
+            Command::Refresh => {
+                let migrator = Migrator::new(storage.into_storage(false).await?, options);
+                Run::refresh(database, &migrator).await
+            }
+            Command::Data(data) => {
+                data.run(
+                    Direction::Up,
+                    database,
+                    storage.into_storage(false).await?,
+                    options,
+                )
+                .await
+            }
         }
     }
 
