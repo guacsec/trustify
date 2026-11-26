@@ -115,6 +115,57 @@ remote downloads, or contention between concurrent importers and workers. It use
 one worker and PostgreSQL's embedded-test settings, independently of Compose.
 `EXTERNAL_TEST_DB` is rejected to keep the workload isolated.
 
+## Evidence storage
+
+Every result includes `evidence_storage`: per-table row counts and PostgreSQL
+allocated sizes, plus their combined total. This includes `correlation_evidence`,
+`correlation_evidence_context`, and, where present, `correlation_matched_value`
+and `correlation_confidence_factors`. `table_bytes` includes TOAST storage and its
+indexes; `index_bytes` counts the table's own indexes. `total_bytes` includes both.
+Verdict snapshots and unrelated database tables are excluded.
+
+For a before/after comparison, enable a second measurement after `VACUUM FULL`
+rebuilds those tables and indexes:
+
+```sh
+RUST_LOG=error CORRELATION_BENCH_COMPACT_STORAGE=true \
+CORRELATION_BENCH_OUTPUT=/tmp/correlation-storage.jsonl \
+  cargo test --release -p trustify-module-correlation --test performance \
+  advisories_first -- --ignored --nocapture --test-threads=1
+```
+
+This reports both as-loaded and compacted sizes for the same 1.2 million evidence
+rows. Measurement and compaction run after the timed pipeline and validation, only
+in the disposable embedded database. The generated workload and existing timing
+boundaries are unchanged. Compare totals including all four tables; comparing only
+`correlation_evidence` would omit the new tables' cost. The synthetic workload's
+repetition determines the savings, so these figures are not a prediction for every
+production dataset.
+
+### Measured migration result
+
+With the default workload's 1,200,000 evidence rows, PostgreSQL 17.2 on macOS
+ARM64, applying `m0002740_correlation_evidence_details/up.sql` to the base
+revision (`fae850832`) gave these sizes after compacting both layouts:
+
+| Evidence storage | Before | After |
+|---|---:|---:|
+| Tables, including TOAST | 559.4 MiB | 276.3 MiB |
+| Indexes | 93.4 MiB | 93.4 MiB |
+| **Combined** | **652.8 MiB** | **369.7 MiB** |
+
+The combined reduction was **43.4% (283.1 MiB)**, including the two new tables:
+2,000 distinct matched values and one distinct set of confidence factors.
+As-loaded sizes were 678.8 MiB before and 369.8 MiB after the migration.
+The migration took 10.0 seconds in this run.
+
+This comparison used the same database and evidence rows, not separately generated
+datasets. The row count and sum of hashes of each row's canonical JSONB
+representation matched before migration and through `correlation_evidence_detail`
+after migration. Compaction and this integrity check ran outside pipeline timings.
+These figures measure evidence storage, excluding verdict snapshots, WAL, and
+temporary disk space needed while migrating.
+
 When changing document generation or measurement boundaries, bump
 `WORKLOAD_VERSION` and establish a new baseline. To measure an older revision,
 carry the identical benchmark onto that revision; do not compare different

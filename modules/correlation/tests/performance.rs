@@ -5,7 +5,7 @@
 
 use anyhow::{Context, ensure};
 use rstest::rstest;
-use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, FromQueryResult, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
@@ -216,6 +216,103 @@ async fn count(ctx: &TrustifyContext, statement: &str) -> anyhow::Result<i64> {
         .try_get_by_index(0)?)
 }
 
+#[derive(Serialize, FromQueryResult)]
+struct TableStorage {
+    table_name: String,
+    rows: i64,
+    /// Includes TOAST data/indexes and the table's auxiliary forks.
+    table_bytes: i64,
+    index_bytes: i64,
+    total_bytes: i64,
+}
+
+// Static statements also work on revisions without the two shared detail tables.
+const EVIDENCE_TABLES: [(&str, &str, &str); 4] = [
+    (
+        "correlation_evidence",
+        "SELECT count(*) FROM correlation_evidence",
+        "VACUUM (FULL, ANALYZE) correlation_evidence",
+    ),
+    (
+        "correlation_evidence_context",
+        "SELECT count(*) FROM correlation_evidence_context",
+        "VACUUM (FULL, ANALYZE) correlation_evidence_context",
+    ),
+    (
+        "correlation_matched_value",
+        "SELECT count(*) FROM correlation_matched_value",
+        "VACUUM (FULL, ANALYZE) correlation_matched_value",
+    ),
+    (
+        "correlation_confidence_factors",
+        "SELECT count(*) FROM correlation_confidence_factors",
+        "VACUUM (FULL, ANALYZE) correlation_confidence_factors",
+    ),
+];
+
+async fn table_storage(ctx: &TrustifyContext) -> anyhow::Result<Vec<TableStorage>> {
+    let mut tables = ctx
+        .db
+        .query_all_raw(sql(
+            "SELECT c.relname::text AS table_name, 0::bigint AS rows, \
+             pg_table_size(c.oid) AS table_bytes, pg_indexes_size(c.oid) AS index_bytes, \
+             pg_total_relation_size(c.oid) AS total_bytes \
+             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
+             WHERE n.nspname = current_schema() AND c.relkind = 'r' \
+             AND c.relname = ANY($1::text[]) ORDER BY c.relname",
+            [EVIDENCE_TABLES
+                .iter()
+                .map(|(name, _, _)| name.to_string())
+                .collect::<Vec<_>>()
+                .into()],
+        ))
+        .await?
+        .iter()
+        .map(|row| TableStorage::from_query_result(row, ""))
+        .collect::<Result<Vec<_>, _>>()?;
+    for (name, statement, _) in EVIDENCE_TABLES {
+        if let Some(table) = tables.iter_mut().find(|table| table.table_name == name) {
+            table.rows = count(ctx, statement).await?;
+        }
+    }
+    ensure!(
+        tables
+            .iter()
+            .any(|table| table.table_name == "correlation_evidence"),
+        "missing evidence table"
+    );
+    Ok(tables)
+}
+
+async fn evidence_storage(ctx: &TrustifyContext) -> anyhow::Result<Value> {
+    let as_loaded = table_storage(ctx).await?;
+    let compact = match env::var("CORRELATION_BENCH_COMPACT_STORAGE") {
+        Ok(value) => value
+            .parse::<bool>()
+            .context("CORRELATION_BENCH_COMPACT_STORAGE must be true or false")?,
+        Err(env::VarError::NotPresent) => false,
+        Err(err) => return Err(err.into()),
+    };
+    let compacted = if compact {
+        // Only this test's disposable embedded database is affected, after all timed work.
+        for (name, _, statement) in EVIDENCE_TABLES {
+            if as_loaded.iter().any(|table| table.table_name == name) {
+                ctx.db.execute_unprepared(statement).await?;
+            }
+        }
+        Some(table_storage(ctx).await?)
+    } else {
+        None
+    };
+    let total = |tables: &[TableStorage]| tables.iter().map(|table| table.total_bytes).sum::<i64>();
+    Ok(json!({
+        "as_loaded_total_bytes": total(&as_loaded),
+        "compacted_total_bytes": compacted.as_deref().map(total),
+        "as_loaded": as_loaded,
+        "compacted": compacted,
+    }))
+}
+
 fn command_output(program: &str, args: &[&str]) -> anyhow::Result<String> {
     let output = Command::new(program).args(args).output()?;
     ensure!(output.status.success(), "{program} {args:?} failed");
@@ -310,6 +407,11 @@ async fn correlation_pipeline(
         "incomplete verdict publication: {lag:?}"
     );
     tx.rollback().await?;
+    let storage = evidence_storage(ctx).await?;
+    eprintln!(
+        "Evidence storage: {} bytes including indexes and shared detail tables",
+        storage["as_loaded_total_bytes"]
+    );
     let report = json!({
         "workload_version": WORKLOAD_VERSION, "scenario": scenario, "workload": workload,
         "git_commit": command_output("git", &["rev-parse", "HEAD"] )?,
@@ -323,6 +425,7 @@ async fn correlation_pipeline(
         "extraction_seconds": measurements.iter().filter(|m| m.stage.starts_with("extract_")).map(|m| m.seconds).sum::<f64>(),
         "total_seconds": elapsed.as_secs_f64(), "measurements": measurements,
         "evidence": evidence, "verdicts": verdicts,
+        "evidence_storage": storage,
         "timestamp": time::OffsetDateTime::now_utc().unix_timestamp(),
     });
     let report = serde_json::to_string(&report)?;
