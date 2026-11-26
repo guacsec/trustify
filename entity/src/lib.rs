@@ -17,6 +17,7 @@ pub mod correlation_matched_value;
 pub mod correlation_node_class;
 pub mod correlation_option;
 pub mod correlation_verdict;
+pub mod correlation_verdict_count;
 pub mod correlation_verdict_freshness;
 pub mod cpe;
 pub mod cpe_status;

@@ -27,7 +27,7 @@ use trustify_common::{
 use trustify_entity::{
     correlation_node_class,
     correlation_verdict::{self, VerdictStatus as StoredVerdictStatus},
-    correlation_verdict_freshness,
+    correlation_verdict_count, correlation_verdict_freshness,
 };
 use uuid::Uuid;
 
@@ -158,8 +158,8 @@ struct VerdictRow {
     snapshot: serde_json::Value,
 }
 
-/// Read published counts without materializing verdict payloads. A verdict counts once per member
-/// of the class of its node.
+/// Read the published counts, stored with the verdicts by [`rebuild`]. A verdict counts once per
+/// member of the class of its node.
 pub async fn counts(
     ids: &[Uuid],
     tx: &DatabaseTransaction,
@@ -169,23 +169,29 @@ pub async fn counts(
     }
     let states = state(ids, tx).await?;
     let extraction = freshness::for_sboms(tx, ids).await?;
-    let mut counts = HashMap::new();
-    for row in tx.query_all_raw(sql(
-        "SELECT v.sbom_id, count(*) FILTER (WHERE status='affected') affected, count(*) FILTER (WHERE status='fixed') fixed, count(*) FILTER (WHERE status='not_affected') not_affected, count(*) FILTER (WHERE status='under_investigation') under_investigation, count(*) FILTER (WHERE status='none') none, sum(remediation_count)::bigint remediations FROM correlation_verdict v LEFT JOIN correlation_node_class c ON c.sbom_id=v.sbom_id AND c.representative_node_id=v.node_id WHERE v.sbom_id=ANY($1) GROUP BY v.sbom_id",
+    let counts = correlation_verdict_count::Model::find_by_statement(sql(
+        "SELECT * FROM correlation_verdict_count WHERE sbom_id = ANY($1)",
         vec![ids.to_vec().into()],
-    )).await? {
-        let sbom_id = row.try_get("", "sbom_id")?;
-        counts.insert(sbom_id, SbomVerdictCounts {
-            sbom_id,
-            affected: row.try_get::<i64>("", "affected")? as u64,
-            fixed: row.try_get::<i64>("", "fixed")? as u64,
-            not_affected: row.try_get::<i64>("", "not_affected")? as u64,
-            under_investigation: row.try_get::<i64>("", "under_investigation")? as u64,
-            none: row.try_get::<i64>("", "none")? as u64,
-            remediations: row.try_get::<i64>("", "remediations")? as u64,
-            ..Default::default()
-        });
-    }
+    ))
+    .all(tx)
+    .await?
+    .into_iter()
+    .map(|row| {
+        (
+            row.sbom_id,
+            SbomVerdictCounts {
+                sbom_id: row.sbom_id,
+                affected: row.affected as u64,
+                fixed: row.fixed as u64,
+                not_affected: row.not_affected as u64,
+                under_investigation: row.under_investigation as u64,
+                none: row.none as u64,
+                remediations: row.remediations as u64,
+                ..Default::default()
+            },
+        )
+    })
+    .collect::<HashMap<_, _>>();
     Ok(ids
         .iter()
         .map(|id| SbomVerdictCounts {
@@ -496,6 +502,11 @@ async fn rebuild(
                 .await;
         }
     }
+    // reading the counts must not scan the verdicts of every SBOM on a page
+    writes.execute_raw(sql(
+        "INSERT INTO correlation_verdict_count SELECT $1::uuid, count(*) FILTER (WHERE status='affected'), count(*) FILTER (WHERE status='fixed'), count(*) FILTER (WHERE status='not_affected'), count(*) FILTER (WHERE status='under_investigation'), count(*) FILTER (WHERE status='none'), coalesce(sum(remediation_count), 0) FROM correlation_verdict v LEFT JOIN correlation_node_class c ON c.sbom_id=v.sbom_id AND c.representative_node_id=v.node_id WHERE v.sbom_id=$1 ON CONFLICT (sbom_id) DO UPDATE SET affected=excluded.affected, fixed=excluded.fixed, not_affected=excluded.not_affected, under_investigation=excluded.under_investigation, none=excluded.none, remediations=excluded.remediations",
+        vec![id.into()],
+    )).await?;
     let updated = writes.execute_raw(sql(
         "UPDATE correlation_verdict_state SET completed_revision=$2,completed_input_revision=$3,generation=$4,completed_at=clock_timestamp(),attempts=0 WHERE sbom_id=$1 AND EXISTS (SELECT 1 FROM correlation_verdict_revision WHERE revision=$2 AND resolver_version=$5)",
         vec![id.into(), revision.into(), input_revision.into(), Uuid::now_v7().into(), RESOLVER_VERSION.into()],

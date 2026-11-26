@@ -49,6 +49,8 @@ async fn filter_sboms_by_published_verdict_before_pagination(
     ] {
         tx.execute_raw(sql("INSERT INTO correlation_verdict(sbom_id,node_id,vulnerability_id,status,snapshot,remediation_count) VALUES($1,$2,$3,$4::verdict_status,'{}',0)",vec![id.into(),node.into(),vulnerability.into(),status.into()])).await?;
     }
+    // the counts publication writes together with the verdicts
+    tx.execute_raw(sql("INSERT INTO correlation_verdict_count SELECT sbom_id, count(*) FILTER (WHERE status='affected'), count(*) FILTER (WHERE status='fixed'), 0, 0, 0, 0 FROM correlation_verdict WHERE sbom_id=ANY($1) GROUP BY sbom_id",vec![ids.clone().into()])).await?;
     let service = SbomService::new(PaginationCache::for_test());
     for total in [false, true] {
         for limit in [0, 1, 25] {

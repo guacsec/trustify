@@ -38,7 +38,7 @@ use trustify_common::{
     service::{Mappable, Resulting},
 };
 use trustify_entity::{
-    advisory, advisory_vulnerability, base_purl, correlation_verdict,
+    advisory, advisory_vulnerability, base_purl, correlation_verdict, correlation_verdict_count,
     correlation_verdict_freshness,
     cpe::{self, CpeDto},
     labels::Labels,
@@ -249,27 +249,44 @@ impl SbomService {
         let correlation =
             options.verdict_status.is_some() || options.verdict_vulnerability_id.is_some();
         if correlation {
-            let mut verdicts = correlation_verdict::Entity::find()
-                .select_only()
-                .column(correlation_verdict::Column::SbomId)
-                .filter(
-                    Expr::col((
-                        correlation_verdict::Entity,
-                        correlation_verdict::Column::SbomId,
-                    ))
-                    .equals((sbom::Entity, sbom::Column::SbomId)),
-                );
-            if let Some(status) = options.verdict_status {
-                verdicts = verdicts.filter(
-                    correlation_verdict::Column::Status
-                        .eq(correlation_verdict::VerdictStatus::from(status)),
-                );
-            }
-            if let Some(vulnerability) = &options.verdict_vulnerability_id {
-                verdicts =
-                    verdicts.filter(correlation_verdict::Column::VulnerabilityId.eq(vulnerability));
-            }
-            query = query.filter(Expr::exists(verdicts.into_query()));
+            let status = options
+                .verdict_status
+                .map(correlation_verdict::VerdictStatus::from);
+            let filter = if let Some(vulnerability) = &options.verdict_vulnerability_id {
+                let mut verdicts = correlation_verdict::Entity::find()
+                    .select_only()
+                    .column(correlation_verdict::Column::SbomId)
+                    .filter(
+                        Expr::col((
+                            correlation_verdict::Entity,
+                            correlation_verdict::Column::SbomId,
+                        ))
+                        .equals((sbom::Entity, sbom::Column::SbomId)),
+                    )
+                    .filter(correlation_verdict::Column::VulnerabilityId.eq(vulnerability));
+                if let Some(status) = status {
+                    verdicts = verdicts.filter(correlation_verdict::Column::Status.eq(status));
+                }
+                verdicts.into_query()
+            } else {
+                // the stored counts, instead of searching the verdicts of every SBOM
+                let mut counts = correlation_verdict_count::Entity::find()
+                    .select_only()
+                    .column(correlation_verdict_count::Column::SbomId)
+                    .filter(
+                        Expr::col((
+                            correlation_verdict_count::Entity,
+                            correlation_verdict_count::Column::SbomId,
+                        ))
+                        .equals((sbom::Entity, sbom::Column::SbomId)),
+                    );
+                if let Some(status) = status {
+                    counts =
+                        counts.filter(correlation_verdict_count::Column::for_status(status).gt(0));
+                }
+                counts.into_query()
+            };
+            query = query.filter(Expr::exists(filter));
             // Publication commits together with the snapshots, so cached totals cannot
             // outlive the generation that produced them, including across server instances.
             let row = connection
