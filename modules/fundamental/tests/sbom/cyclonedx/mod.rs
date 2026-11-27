@@ -197,6 +197,52 @@ async fn parse_cyclonedx_1dot7(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     .await
 }
 
+/// Test for TC-7514. This test is similar to `parse_cyclonedx_1dot7`.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn parse_cyclonedx_1dot7_valid_bom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    test_with_cyclonedx(
+        ctx,
+        "cyclonedx/valid-bom-1.7.json",
+        async move |WithContext { service, sbom, .. }| {
+            let described = service
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
+                .await?;
+
+            assert_eq!(1, described.items.len());
+
+            let package = &described.items[0];
+
+            assert_eq!(package.name, "Acme Application");
+            assert_eq!(package.version.as_deref(), Some("9.1.1"));
+            assert_eq!(0, package.purl.len());
+            assert!(package.cpe.is_empty());
+
+            let packages = service
+                .fetch_sbom_packages(
+                    sbom.sbom.sbom_id,
+                    Default::default(),
+                    Paginated {
+                        offset: 0,
+                        limit: 1,
+                        total: true,
+                    },
+                    &ctx.db,
+                )
+                .await?;
+
+            assert_eq!(Some(5), packages.total);
+
+            Ok(())
+        },
+    )
+    .await
+}
+
 #[instrument(skip(ctx, f))]
 pub async fn test_with_cyclonedx<F>(ctx: &TrustifyContext, sbom: &str, f: F) -> anyhow::Result<()>
 where
