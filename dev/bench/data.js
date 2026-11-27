@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795715609113,
+  "lastUpdate": 1795774448342,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25426,6 +25426,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 5,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "252b07c419d6870c24d03612368e2e61bdc40bac",
+          "message": " fix(corr): scope legacy RHEL vulnerability matches to package context                                                          Use RPM distro and release hints instead of relying solely on the SBOM's                                              describing CPE. Prevent missing root context from admitting unrelated                                                 product assertions, while retaining independent package-CPE matches.                                                                                                                                                                        Apply consistent scoping to details, severity counts, PURL advisories,                                                and vulnerability backlinks. Keep suggested fixes product-scoped and                                                  add synthetic regression coverage.                                                                                                                                                                                                          fixes: TC-7577",
+          "timestamp": "2026-11-27T08:43:31Z",
+          "tree_id": "1ae9326ca11f57a1650532556b000abbbcc05eee",
+          "url": "https://github.com/guacsec/trustify/commit/252b07c419d6870c24d03612368e2e61bdc40bac"
+        },
+        "date": 1795774445308,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
             "unit": "s"
           }
         ]
