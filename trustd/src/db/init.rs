@@ -1,13 +1,16 @@
 use anyhow::{Context, ensure};
 use hide::Hide;
 use sea_orm::{
-    ConnectionTrait, DbBackend, SqlxPostgresConnector, Statement, TransactionTrait,
-    sea_query::{PostgresQueryBuilder, QueryBuilder, QuotedBuilder},
+    ConnectionTrait, DbBackend, EntityTrait, Set, SqlxPostgresConnector, Statement, TransactionTrait,
+    sea_query::{OnConflict, PostgresQueryBuilder, QueryBuilder, QuotedBuilder},
 };
 use serde_json::Value;
 use sqlx::{AssertSqlSafe, ConnectOptions, Connection, postgres::PgPoolOptions, raw_sql};
 use std::{collections::BTreeMap, path::PathBuf, process::ExitCode};
+use time::OffsetDateTime;
 use trustify_common::{config::Database, db};
+use trustify_entity::importer;
+use uuid::Uuid;
 
 /// Administrative connection settings come from the usual TRUSTD_DB_* variables.
 #[derive(clap::Args, Debug, Clone)]
@@ -143,14 +146,20 @@ async fn upsert_importers(
 ) -> anyhow::Result<()> {
     let tx = db.begin().await?;
     for (name, configuration) in importers {
-        tx.execute_raw(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            "INSERT INTO importer (name, revision, state, last_change, configuration)
-             VALUES ($1, gen_random_uuid(), 0, now(), $2)
-             ON CONFLICT (name) DO UPDATE SET
-                 revision = EXCLUDED.revision, configuration = EXCLUDED.configuration",
-            [name.into(), configuration.into()],
-        ))
+        importer::Entity::insert(importer::ActiveModel {
+            name: Set(name),
+            revision: Set(Uuid::new_v4()),
+            state: Set(importer::State::Waiting),
+            last_change: Set(OffsetDateTime::now_utc()),
+            configuration: Set(configuration),
+            ..Default::default()
+        })
+        .on_conflict(
+            OnConflict::column(importer::Column::Name)
+                .update_columns([importer::Column::Revision, importer::Column::Configuration])
+                .to_owned(),
+        )
+        .exec(&tx)
         .await?;
     }
     tx.commit().await?;
@@ -234,7 +243,7 @@ mod tests {
             .unwrap();
         assert_eq!(original.try_get::<Value>("", "configuration")?, first[name]);
         // Existing runtime state must survive a configuration update.
-        db.execute_unprepared("UPDATE importer SET state = 2")
+        db.execute_unprepared("UPDATE importer SET state = 1")
             .await?;
         let updated = json!({name: {"description": "updated", "disabled": true}});
         tokio::fs::write(&file, serde_json::to_vec(&updated)?).await?;
@@ -248,7 +257,7 @@ mod tests {
             .unwrap();
         assert_eq!(row.try_get::<String>("", "name")?, name);
         assert_eq!(row.try_get::<Value>("", "configuration")?, updated[name]);
-        assert_eq!(row.try_get::<i32>("", "state")?, 2);
+        assert_eq!(row.try_get::<i32>("", "state")?, 1);
         assert_ne!(
             row.try_get::<String>("", "revision")?,
             original.try_get::<String>("", "revision")?
