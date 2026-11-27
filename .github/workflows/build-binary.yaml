@@ -158,7 +158,7 @@ jobs:
       - name: Build | Build
         shell: bash
         env:
-          POSTGRESQL_VERSION: "=17.2"
+          POSTGRESQL_VERSION: "=17.11.1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required for retrieving postgres
         run: |
           set -x
