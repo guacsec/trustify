@@ -2,7 +2,8 @@ use anyhow::{Context, ensure};
 use hide::Hide;
 use postgres_protocol::password::scram_sha_256;
 use sea_orm::{
-    ConnectionTrait, DbBackend, EntityTrait, Set, SqlxPostgresConnector, Statement, TransactionTrait,
+    ConnectionTrait, DbBackend, EntityTrait, Set, SqlxPostgresConnector, Statement,
+    TransactionTrait,
     sea_query::{OnConflict, PostgresQueryBuilder, QueryBuilder, QuotedBuilder},
 };
 use sqlx::{AssertSqlSafe, ConnectOptions, Connection, postgres::PgPoolOptions, raw_sql};
@@ -135,8 +136,8 @@ impl Importers {
             .context("read importer configurations")?;
         let importers: BTreeMap<String, ImporterConfiguration> = serde_json::from_slice(&content)
             .context(
-                "expected a JSON object mapping importer names to valid importer configurations",
-            )?;
+            "expected a JSON object mapping importer names to valid importer configurations",
+        )?;
         let db = db::Database::new(&database).await?;
         upsert_importers(&db, importers).await?;
         db.close().await?;
@@ -328,7 +329,10 @@ mod tests {
                 ))
                 .await?
                 .unwrap();
-            assert_eq!(unchanged.try_get::<Value>("", "configuration")?, updated[name]);
+            assert_eq!(
+                unchanged.try_get::<Value>("", "configuration")?,
+                updated[name]
+            );
             assert_eq!(
                 unchanged.try_get::<String>("", "revision")?,
                 row.try_get::<String>("", "revision")?
