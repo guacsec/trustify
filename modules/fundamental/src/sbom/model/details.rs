@@ -71,8 +71,12 @@ struct FixVersionEntry {
     advisory_id: Uuid,
     vulnerability_id: String,
     base_purl_id: Uuid,
+    context_cpe_id: Option<Uuid>,
     high_version: Option<String>,
 }
+
+/// Advisory, vulnerability, package and CPE identity of a fix.
+type FixVersionKey = (Uuid, String, Uuid, Option<Uuid>);
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SbomDetails {
@@ -132,7 +136,7 @@ impl SbomDetails {
         }
 
         query = query.filter(Expr::cust_with_values(
-            raw_sql::CONTEXT_CPE_FILTER_SQL,
+            raw_sql::context_cpe_filter_sql(),
             vec![sbom.sbom_id],
         ));
 
@@ -199,7 +203,7 @@ impl SbomDetails {
         // Raw SQL query 2: CPE-based vulnerability matching through
         // sbom_node_cpe_ref x cpe_status (package-level CPE identity,
         // populated by the CVE loader from affected[].cpes). Deliberately
-        // does not apply CONTEXT_CPE_FILTER_SQL: that filter encodes Red Hat
+        // does not apply context_cpe_filter_sql(): that filter encodes Red Hat
         // product-stream membership, which is unrelated to component-level
         // CPEs harvested from third-party SBOMs.
         let cpe_raw_results = tx
@@ -402,6 +406,7 @@ impl SbomDetails {
             .column_as(purl_status::Column::AdvisoryId, "advisory_id")
             .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
             .column_as(purl_status::Column::BasePurlId, "base_purl_id")
+            .column_as(purl_status::Column::ContextCpeId, "context_cpe_id")
             .column_as(version_range::Column::HighVersion, "high_version")
             .join(JoinType::Join, purl_status::Relation::Status.def())
             .join(JoinType::Join, purl_status::Relation::VersionRange.def())
@@ -424,9 +429,9 @@ impl SbomDetails {
             fix_version_entries.len()
         );
 
-        // Key by (advisory_id, vulnerability_id, base_purl_id) to avoid mixing fix versions
-        // from different packages that share the same advisory and vulnerability.
-        let mut fix_versions_map: BTreeMap<(Uuid, String, Uuid), Vec<String>> = BTreeMap::new();
+        // A matching RPM must not inherit another product's fix merely because
+        // that product shares the same advisory, vulnerability and package name.
+        let mut fix_versions_map: BTreeMap<FixVersionKey, Vec<String>> = BTreeMap::new();
         for entry in fix_version_entries {
             if let Some(version) = entry.high_version {
                 // Skip container image digests — only keep actual version strings
@@ -438,6 +443,7 @@ impl SbomDetails {
                         entry.advisory_id,
                         entry.vulnerability_id,
                         entry.base_purl_id,
+                        entry.context_cpe_id,
                     ))
                     .or_default();
                 if !versions.contains(&version) {
@@ -536,6 +542,9 @@ impl SbomDetails {
 pub struct SbomAdvisory {
     #[serde(flatten)]
     pub head: AdvisoryHead,
+    /// Status entries are scoped to a product context. A vulnerability and
+    /// status can occur more than once; deduplicate by vulnerability identifier
+    /// when counting vulnerabilities.
     pub status: Vec<SbomStatus>,
 }
 
@@ -545,10 +554,13 @@ impl SbomAdvisory {
     pub async fn from_models<C: ConnectionTrait>(
         statuses: Vec<QueryCatcher>,
         scores_map: &BTreeMap<(Uuid, String), Vec<advisory_vulnerability_score::Model>>,
-        fix_versions_map: &BTreeMap<(Uuid, String, Uuid), Vec<String>>,
+        fix_versions_map: &BTreeMap<FixVersionKey, Vec<String>>,
         tx: &C,
     ) -> Result<Vec<Self>, Error> {
         let mut advisories = BTreeMap::new();
+        // The response has one context per status. Never put packages and fixes
+        // from different product contexts under the first context encountered.
+        let mut status_indices = BTreeMap::<_, usize>::new();
 
         for each in statuses {
             let status_cpe = each
@@ -577,11 +589,15 @@ impl SbomAdvisory {
                     .ok_or(Error::Data("Failed to build advisories".to_string()))?
             };
 
-            let sbom_status = if let Some(status) = advisory.status.iter_mut().find(|status| {
-                status.status == each.status.slug
-                    && status.vulnerability.identifier == each.vulnerability.id
-            }) {
-                status
+            let context_cpe_id = each.context_cpe.as_ref().map(|cpe| cpe.id);
+            let status_key = (
+                each.advisory.id,
+                each.vulnerability.id.clone(),
+                each.status.slug.clone(),
+                context_cpe_id,
+            );
+            let index = if let Some(index) = status_indices.get(&status_key) {
+                *index
             } else {
                 let status = SbomStatus::new(
                     &each.advisory_vulnerability,
@@ -594,22 +610,39 @@ impl SbomAdvisory {
                         .get(&(each.advisory.id, each.vulnerability.id.clone()))
                         .cloned()
                         .unwrap_or_default(),
-                    fix_versions_map
-                        .get(&(
-                            each.advisory.id,
-                            each.vulnerability.id.clone(),
-                            each.base_purl_id.unwrap_or(Uuid::nil()),
-                        ))
-                        .cloned()
-                        .unwrap_or_default(),
+                    vec![],
                 )?;
+                let index = advisory.status.len();
                 advisory.status.push(status);
-                if let Some(status) = advisory.status.last_mut() {
-                    status
-                } else {
-                    return Err(Error::Data("failed to build advisory status".to_string()));
-                }
+                status_indices.insert(status_key, index);
+                index
             };
+            let sbom_status = &mut advisory.status[index];
+
+            // Every package contributes its applicable fixes, not only the row
+            // which created the status. Only genuinely context-free fixes are shared.
+            if let Some(base_purl_id) = each.base_purl_id {
+                let key = (
+                    each.advisory.id,
+                    each.vulnerability.id.clone(),
+                    base_purl_id,
+                    context_cpe_id,
+                );
+                sbom_status
+                    .fixed_versions
+                    .extend(fix_versions_map.get(&key).into_iter().flatten().cloned());
+                if key.3.is_some() {
+                    sbom_status.fixed_versions.extend(
+                        fix_versions_map
+                            .get(&(key.0, key.1, key.2, None))
+                            .into_iter()
+                            .flatten()
+                            .cloned(),
+                    );
+                }
+                sbom_status.fixed_versions.sort();
+                sbom_status.fixed_versions.dedup();
+            }
 
             sbom_status.packages.push(SbomPackage {
                 id: each.sbom_package.node_id.clone(),
