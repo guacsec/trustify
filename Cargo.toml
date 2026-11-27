@@ -110,6 +110,7 @@ parking_lot = "0.12"
 peak_alloc = "0.3.0"
 pem = "3"
 petgraph = { version = "0.8.0", features = ["serde-1"] }
+postgres-protocol = "0.6.12"
 quick-xml = "0.41.0"
 rand = "0.10.0"
 regex = "1.10.3"
