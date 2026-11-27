@@ -90,6 +90,7 @@ The CLI alternative provides predefined scope mappings that cannot be customized
           ],
           "read:document": [
             "ai",
+            "generate.sbom",
             "read.advisory",
             "read.exploit",
             "read.importer",

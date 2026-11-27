@@ -1,6 +1,8 @@
 mod cyclonedx;
 mod dot;
 mod latest_filters;
+#[cfg(feature = "latest_sbom_generation")]
+mod latest_generation;
 pub mod req;
 mod rh_variant;
 mod spdx;

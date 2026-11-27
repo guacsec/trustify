@@ -243,6 +243,25 @@ pub struct SbomListParams {
     pub verdict_status: Option<VerdictStatus>,
     /// Exact vulnerability ID; matches the same verdict as verdict_status.
     pub verdict_vulnerability_id: Option<String>,
+    /// Return a single composed SPDX document for the complete matching source set.
+    #[cfg(feature = "sbom_generation")]
+    #[serde(default)]
+    pub generate_sbom: bool,
+    /// Restrict the input SBOM formats. Defaults provisionally to both supported formats.
+    #[cfg(feature = "sbom_generation")]
+    #[serde(default)]
+    pub source_format: trustify_module_analysis::sbom_generation::SourceFormatFilter,
+    /// Include SBOMs assigned to descendant groups when generating.
+    #[cfg(feature = "sbom_generation")]
+    #[serde(default)]
+    pub include_group_descendants: bool,
+    /// Override output document metadata when generating.
+    #[cfg(feature = "sbom_generation")]
+    #[serde(default)]
+    pub document_name: Option<String>,
+    #[cfg(feature = "sbom_generation")]
+    #[serde(default)]
+    pub supplier: Option<String>,
 }
 
 mod v3 {
@@ -262,6 +281,7 @@ mod v3 {
         ),
         responses(
             (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary<SbomPackageSummary>>),
+            (status = 200, description = "Generated SPDX document when `generate_sbom=true`", body = String, content_type = "application/spdx+json"),
         ),
     )]
     #[get("/v3/sbom")]
@@ -275,6 +295,7 @@ mod v3 {
         capabilities: Option<web::Data<ActiveCapabilities>>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
         QsQuery(crypto_filter): QsQuery<CryptoFilterQuery>,
+        groups: Option<web::Data<SbomGroupService>>,
         authorizer: web::Data<Authorizer>,
         user: UserInformation,
     ) -> Result<impl Responder, Error> {
@@ -292,11 +313,48 @@ mod v3 {
             options.verdict_vulnerability_id = params.verdict_vulnerability_id;
         }
         if !group_filter.group.is_empty() {
-            options = options.groups(group_filter.group);
+            options = options.groups(group_filter.group.clone());
         }
         if !crypto_filter.crypto.is_empty() {
             options = options.crypto(crypto_filter.crypto);
         }
+
+        #[cfg(feature = "sbom_generation")]
+        if params.generate_sbom {
+            authorizer.require(&user, Permission::GenerateSbom)?;
+            if params.include_group_descendants && group_filter.group.is_empty() {
+                return Err(Error::bad_request(
+                    "include_group_descendants requires at least one group filter",
+                    None::<String>,
+                ));
+            }
+            let options = if params.include_group_descendants {
+                let groups = groups
+                    .as_ref()
+                    .ok_or_else(|| Error::Internal("SBOM group service is not available".into()))?;
+                let expanded = groups.expand_group_ids(&group_filter.group, &tx).await?;
+                options.groups(expanded)
+            } else {
+                options
+            };
+            let source_ids = fetch
+                .matching_sbom_ids(search.clone(), options, params.source_format, &tx)
+                .await?;
+            let generated = trustify_module_analysis::sbom_generation::generate_spdx(
+                &source_ids,
+                &trustify_module_analysis::sbom_generation::GenerationOptions {
+                    source_formats: params.source_format,
+                    document_name: params.document_name,
+                    supplier: params.supplier,
+                    target_cpe: None,
+                },
+                &tx,
+            )
+            .await?;
+            return Ok(generated_spdx_response(generated));
+        }
+        #[cfg(not(feature = "sbom_generation"))]
+        let _ = groups;
 
         let result = fetch
             .fetch_sboms::<_, SbomPackageSummary>(search, paginated, options, &tx)
@@ -304,6 +362,23 @@ mod v3 {
 
         Ok(HttpResponse::Ok().json(result))
     }
+}
+
+#[cfg(feature = "sbom_generation")]
+fn generated_spdx_response(
+    generated: trustify_module_analysis::sbom_generation::GeneratedSbom,
+) -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("application/spdx+json")
+        .insert_header((
+            "Content-Disposition",
+            "attachment; filename=trustify-generated.spdx.json",
+        ))
+        .insert_header((
+            "X-Trustify-SBOM-Incomplete",
+            generated.incomplete.to_string(),
+        ))
+        .body(generated.bytes)
 }
 
 /// Find all SBOMs containing the provided package.

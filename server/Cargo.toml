@@ -10,6 +10,11 @@ rust-version.workspace = true
 default = ["trustify-ui", "ui-console"]
 trustify-ui = ["trustify-module-ui/trustify-ui"]
 ui-console = ["dep:trustify-correlation-ui", "dep:actix-web-static-files"]
+sbom_generation = ["trustify-module-fundamental/sbom_generation"]
+latest_sbom_generation = [
+  "sbom_generation",
+  "trustify-module-analysis/latest_sbom_generation",
+]
 
 [dependencies]
 trustify-api = { workspace = true, features = ["openapi"] }

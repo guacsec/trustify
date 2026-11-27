@@ -26,6 +26,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "read:document",
         &[
             "ai",
+            "generate.sbom",
             "read.advisory",
             "read.correlationOption",
             "read.exploit",
@@ -73,4 +74,23 @@ pub fn default_scope_mappings() -> HashMap<String, Vec<String>> {
         .iter()
         .map(|(k, v)| (k.to_string(), v.iter().map(ToString::to_string).collect()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Permission;
+
+    #[test]
+    fn default_scope_mappings_grant_sbom_generation() {
+        let generate = Permission::GenerateSbom.to_string();
+        let mappings = default_scope_mappings();
+
+        assert!(
+            mappings
+                .values()
+                .any(|permissions| permissions.contains(&generate)),
+            "no default OIDC scope mapping grants `{generate}`: {mappings:?}"
+        );
+    }
 }

@@ -18,8 +18,12 @@ use actix_web::{
 };
 use flate2::bufread::GzDecoder;
 use futures::future::join_all;
+#[cfg(feature = "sbom_generation")]
+use regex::Regex;
 use rstest::rstest;
 use serde_json::{Value, json};
+#[cfg(feature = "sbom_generation")]
+use std::collections::HashSet;
 use std::{
     collections::HashMap,
     io::Read,
@@ -2651,6 +2655,478 @@ async fn list_sboms_advisory_summary(
         .map(|i| i["advisories"].clone())
         .collect::<Vec<_>>();
     assert_eq!(Value::Array(actual), expected);
+
+    Ok(())
+}
+
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_from_group_query_including_descendants(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let groups = create_groups(
+        &app,
+        vec![Group::new("generation-parent").group("generation-child")],
+    )
+    .await?;
+    let parent_id = locate_id(&groups, ["generation-parent"]);
+    let child_id = locate_id(&groups, ["generation-parent", "generation-child"]);
+
+    let upload = TestRequest::post()
+        .uri(&format!("/api/v3/sbom?group={child_id}"))
+        .set_payload(document_bytes("spdx/simple.json").await?)
+        .to_request();
+    let response = app.call_service(upload).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let normal_list: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v3/sbom?group={parent_id}"))
+                .to_request(),
+        )
+        .await;
+    assert!(
+        normal_list["items"]
+            .as_array()
+            .expect("items array")
+            .is_empty()
+    );
+
+    let request = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom?group={parent_id}&include_group_descendants=true&generate_sbom=true&source_format=spdx"
+        ))
+        .to_request();
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(actix_web::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/spdx+json")
+    );
+    let body = read_body(response).await;
+    let generated: Value = serde_json::from_slice(&body)?;
+    assert_eq!(generated["spdxVersion"], "SPDX-2.3");
+    assert_eq!(generated["SPDXID"], "SPDXRef-DOCUMENT");
+    assert!(
+        !generated["packages"]
+            .as_array()
+            .expect("packages array")
+            .is_empty()
+    );
+    assert!(
+        generated["packages"]
+            .as_array()
+            .expect("packages array")
+            .iter()
+            .any(|package| package["name"] == "A")
+    );
+
+    let excluded = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom?group={parent_id}&include_group_descendants=true&generate_sbom=true&source_format=cyclonedx"
+        ))
+        .to_request();
+    let response = app.call_service(excluded).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    Ok(())
+}
+
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_resolves_uuid_bom_links_and_preserves_sha3(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents([
+        "cyclonedx/sbom-generation/uuid-link-source.json",
+        "cyclonedx/sbom-generation/uuid-link-target.json",
+    ])
+    .await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=cyclonedx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("X-Trustify-SBOM-Incomplete")
+            .and_then(|value| value.to_str().ok()),
+        Some("false")
+    );
+
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+    let packages = generated["packages"].as_array().expect("packages array");
+    assert!(packages.iter().any(|package| {
+        package["name"] == "target-package"
+            && package["checksums"].as_array().is_some_and(|checksums| {
+                checksums
+                    .iter()
+                    .any(|checksum| checksum["algorithm"] == "SHA3-256")
+            })
+    }));
+    let source = packages
+        .iter()
+        .find(|package| package["name"] == "source-package")
+        .expect("source package");
+    let target = packages
+        .iter()
+        .find(|package| package["name"] == "target-package")
+        .expect("target package");
+    assert!(
+        generated["relationships"]
+            .as_array()
+            .is_some_and(|relations| {
+                relations.iter().any(|relation| {
+                    relation["spdxElementId"] == source["SPDXID"]
+                        && relation["relationshipType"] == "DEPENDS_ON"
+                        && relation["relatedSpdxElement"] == target["SPDXID"]
+                })
+            })
+    );
+
+    Ok(())
+}
+
+/// Checks that generated timestamps use the whole-second form required by SPDX 2.3.
+/// Why: SPDX validators and consumers reject fractional seconds, so the document
+/// cannot be consumed as valid SPDX 2.3 while they are present.
+/// Expected: `creationInfo.created` and every `annotationDate` match `YYYY-MM-DDThh:mm:ssZ`.
+/// Currently: they carry fractional seconds, e.g. `2026-11-18T14:25:37.992206543Z`
+/// (the test stops at `annotationDate`; `created` is the same value).
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_emits_whole_second_timestamps(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    // The product and component describe the same checksummed package under
+    // different names, so the aggregate document carries a diagnostic annotation.
+    ctx.ingest_documents([
+        "cyclonedx/rh/node-id-collision/product.json",
+        "cyclonedx/rh/node-id-collision/component.json",
+        "cyclonedx/rh/node-id-collision/decoy.json",
+    ])
+    .await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=cyclonedx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+
+    // SPDX 2.3 requires `YYYY-MM-DDThh:mm:ssZ`; fractional seconds are not valid.
+    let whole_second = Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")?;
+
+    let annotations = generated["annotations"]
+        .as_array()
+        .expect("incomplete document should carry annotations");
+    assert!(!annotations.is_empty());
+    for annotation in annotations {
+        let date = annotation["annotationDate"]
+            .as_str()
+            .expect("annotationDate");
+        assert!(
+            whole_second.is_match(date),
+            "annotationDate is not a whole-second SPDX timestamp: {date}"
+        );
+    }
+
+    let created = generated["creationInfo"]["created"]
+        .as_str()
+        .expect("creationInfo.created");
+    assert!(
+        whole_second.is_match(created),
+        "creationInfo.created is not a whole-second SPDX timestamp: {created}"
+    );
+
+    Ok(())
+}
+
+/// Checks that packages containing file nodes are marked as analyzed, and carry
+/// the fields SPDX 2.3 requires with `filesAnalyzed: true`.
+/// Why: `filesAnalyzed: false` alongside CONTAINS edges to files is contradictory:
+/// consumers cannot tell whether the file list is exhaustive or verified, and SPDX
+/// conformance checks fail. When `filesAnalyzed` is true the spec also requires
+/// `packageVerificationCode` and `licenseInfoFromFiles`, which consumers rely on
+/// for integrity verification and file-level licensing.
+/// Expected: such packages set `filesAnalyzed: true`, `packageVerificationCode`
+/// and `licenseInfoFromFiles`.
+/// Currently: every package is hardcoded to `filesAnalyzed: false`; for example
+/// `SPDXRef-Package-5 CONTAINS SPDXRef-File-2` is emitted with `filesAnalyzed: false`.
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_marks_packages_that_contain_files_as_analyzed(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents(["spdx/issue-552.json"]).await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=spdx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+
+    let packages = generated["packages"].as_array().expect("packages array");
+    let files: HashSet<&str> = generated["files"]
+        .as_array()
+        .expect("files array")
+        .iter()
+        .filter_map(|file| file["SPDXID"].as_str())
+        .collect();
+    assert!(!files.is_empty(), "fixture should contain file nodes");
+
+    let mut contains_file = 0;
+    for relationship in generated["relationships"]
+        .as_array()
+        .expect("relationships array")
+    {
+        if relationship["relationshipType"] != "CONTAINS" {
+            continue;
+        }
+        let (Some(element), Some(related)) = (
+            relationship["spdxElementId"].as_str(),
+            relationship["relatedSpdxElement"].as_str(),
+        ) else {
+            continue;
+        };
+        if !files.contains(related) {
+            continue;
+        }
+        contains_file += 1;
+        let package = packages
+            .iter()
+            .find(|package| package["SPDXID"] == element)
+            .unwrap_or_else(|| {
+                panic!("CONTAINS source {element} is not a package in the generated document")
+            });
+        assert_eq!(
+            package["filesAnalyzed"], true,
+            "package {element} CONTAINS file {related} but filesAnalyzed is false"
+        );
+    }
+    assert!(
+        contains_file > 0,
+        "fixture should produce CONTAINS relationships from a package to a file"
+    );
+
+    // SPDX 2.3 requires this information whenever filesAnalyzed is true.
+    for package in packages {
+        if package["filesAnalyzed"] == true {
+            assert!(
+                package["packageVerificationCode"].is_object(),
+                "package {} has filesAnalyzed=true without packageVerificationCode",
+                package["SPDXID"]
+            );
+            assert!(
+                package["licenseInfoFromFiles"].is_array(),
+                "package {} has filesAnalyzed=true without licenseInfoFromFiles",
+                package["SPDXID"]
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Checks licenses are validated against the SPDX license list, not just its grammar.
+/// Why: emitting a non-SPDX identifier as `licenseDeclared` makes the document
+/// non-conformant and misleads downstream license scanners into treating it as a
+/// real SPDX license; SPDX's sanctioned representation for unknown text is
+/// `NOASSERTION`, or a `LicenseRef` plus a diagnostic.
+/// Expected: `pubkey` (a real RPM license name, grammar-valid but not an SPDX ID)
+/// degrades to `NOASSERTION` or `LicenseRef-*`, and the document is marked incomplete.
+/// Currently: `licenseDeclared` is emitted verbatim as `pubkey`.
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_degrades_unknown_licenses_to_noassertion(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    // This image SBOM declares the RPM license name `pubkey` for gpg-pubkey.
+    // It parses as an SPDX license identifier but is not on the SPDX license list.
+    ctx.ingest_documents(["cyclonedx/rh/latest_filters/TC-2677/D52B5B9527D4447.json"])
+        .await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=cyclonedx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let incomplete = response
+        .headers()
+        .get("X-Trustify-SBOM-Incomplete")
+        .and_then(|value| value.to_str().ok())
+        .map(ToOwned::to_owned);
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+
+    // Incompleteness is signalled through this header and the document
+    // annotations, as it already is for unresolved external links. An unknown
+    // license identifier must follow the same mechanism.
+    assert_eq!(
+        incomplete.as_deref(),
+        Some("true"),
+        "an unknown license identifier must be reported as an incomplete diagnostic"
+    );
+    assert!(
+        generated["annotations"].is_array(),
+        "an incomplete document must carry annotations describing its diagnostics"
+    );
+
+    let packages: Vec<_> = generated["packages"]
+        .as_array()
+        .expect("packages array")
+        .iter()
+        .filter(|package| package["name"] == "gpg-pubkey")
+        .collect();
+    assert!(!packages.is_empty(), "fixture should contain gpg-pubkey");
+
+    for package in packages {
+        let declared = package["licenseDeclared"]
+            .as_str()
+            .expect("licenseDeclared");
+        assert!(
+            declared == "NOASSERTION" || declared.starts_with("LicenseRef-"),
+            "unknown license identifier `pubkey` was emitted verbatim as licenseDeclared: {declared}"
+        );
+    }
+
+    Ok(())
+}
+
+/// Checks that a source package supplier survives composition into the document.
+/// Why: supplier is provenance; collapsing it to `NOASSERTION` loses who built or
+/// shipped the package, which consumers use for origin and vulnerability
+/// attribution. SPDX accepts the `Organization:`/`Person:` form (or `NOASSERTION`).
+/// Expected: `shared-lib` keeps its `Red Hat` supplier, represented as
+/// `Organization: Red Hat` per SPDX 2.3.
+/// Currently: the supplier is discarded and emitted as `NOASSERTION`.
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_preserves_package_supplier(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents(["cyclonedx/rh/node-id-collision/product.json"])
+        .await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=cyclonedx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+
+    let package = generated["packages"]
+        .as_array()
+        .expect("packages array")
+        .iter()
+        .find(|package| package["name"] == "shared-lib")
+        .expect("shared-lib package");
+    // SPDX 2.3 requires a `Person:`, `Organization:`, or `NOASSERTION` supplier.
+    assert_eq!(
+        package["supplier"], "Organization: Red Hat",
+        "the source package supplier was discarded"
+    );
+
+    Ok(())
+}
+
+/// Checks that every `LicenseRef-*` used in the document is defined in
+/// `hasExtractedLicensingInfos`, as SPDX 2.3 requires.
+/// Why: a `LicenseRef-*` is only a pointer; without its definition the license text
+/// is unresolvable, so consumers cannot determine the package's actual license and
+/// the document is non-conformant.
+/// Expected: each used identifier appears in that section with the source definition.
+/// Currently: `LicenseRef-0`…`LicenseRef-9` and
+/// `LicenseRef-GPL-2.0-with-classpath-exception` are used, but the section is absent.
+#[cfg(feature = "sbom_generation")]
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn generate_spdx_defines_every_license_ref_it_uses(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    // The Quarkus BOMs carry `LicenseRef-*` identifiers plus the
+    // `hasExtractedLicensingInfos` section that defines them.
+    ctx.ingest_documents(["spdx/quarkus-bom-3.2.11.Final-redhat-00001.json"])
+        .await?;
+
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri("/api/v3/sbom?generate_sbom=true&source_format=spdx")
+                .to_request(),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let generated: Value = serde_json::from_slice(&read_body(response).await)?;
+
+    let license_ref = Regex::new(r"LicenseRef-[A-Za-z0-9.-]+")?;
+    let mut used = HashSet::new();
+    for package in generated["packages"].as_array().expect("packages array") {
+        for field in ["licenseDeclared", "licenseConcluded"] {
+            if let Some(text) = package[field].as_str() {
+                used.extend(license_ref.find_iter(text).map(|m| m.as_str().to_string()));
+            }
+        }
+    }
+    for file in generated["files"].as_array().expect("files array") {
+        for license in file["licenseInfoInFiles"].as_array().into_iter().flatten() {
+            if let Some(text) = license.as_str() {
+                used.extend(license_ref.find_iter(text).map(|m| m.as_str().to_string()));
+            }
+        }
+    }
+    assert!(
+        !used.is_empty(),
+        "fixture should cause the generated document to use LicenseRef identifiers"
+    );
+
+    let defined: HashSet<String> = generated["hasExtractedLicensingInfos"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|info| info["licenseId"].as_str())
+        .map(ToOwned::to_owned)
+        .collect();
+    let mut missing: Vec<_> = used.difference(&defined).cloned().collect();
+    missing.sort();
+    assert!(
+        missing.is_empty(),
+        "generated document uses {missing:?} without defining them in hasExtractedLicensingInfos"
+    );
 
     Ok(())
 }
