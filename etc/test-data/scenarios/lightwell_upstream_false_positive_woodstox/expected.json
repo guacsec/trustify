@@ -1,0 +1,26 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-36d9ed0bb47c794f.json",
+    "osv/GHSA-3f7h-mf4q-vrm4.json"
+  ],
+  "sboms": {
+    "sbom_upstream_false_positive_woodstox.cdx.json": {
+      "woodstox-6.2.2": {
+        "CVE-2022-40152": "affected",
+        "RHLW-2026-36d9ed0bb47c794f": "affected"
+      },
+      "woodstox-6.2.2-rhlw": {
+        "CVE-2022-40152": "affected"
+      }
+    },
+    "sbom_upstream_false_positive_woodstox.spdx.json": {
+      "SPDXRef-Package-woodstox-6.2.2": {
+        "CVE-2022-40152": "affected",
+        "RHLW-2026-36d9ed0bb47c794f": "affected"
+      },
+      "SPDXRef-Package-woodstox-6.2.2-rhlw": {
+        "CVE-2022-40152": "affected"
+      }
+    }
+  }
+}

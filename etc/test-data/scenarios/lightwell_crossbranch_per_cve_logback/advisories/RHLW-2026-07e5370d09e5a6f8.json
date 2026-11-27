@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.9.0",
+  "id": "RHLW-2026-07e5370d09e5a6f8",
+  "published": "2026-09-29T14:37:40Z",
+  "modified": "2026-09-29T14:37:40Z",
+  "severity": [
+    {
+      "type": "CVSS_V4",
+      "score": "CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:P/VC:L/VI:H/VA:L/SC:L/SI:H/SA:L/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:L/U:Clear"
+    }
+  ],
+  "references": [
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-12798",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-pr98-23f8-jwxv",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-12801",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-6v67-2wr5-gvf4",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/10xxx/CVE-2026-10532.json",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-10532",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://github.com/qos-ch/logback",
+      "type": "PACKAGE"
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-jhq6-gfmj-v8fx",
+      "type": "ADVISORY"
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-19880",
+      "type": "ADVISORY"
+    }
+  ],
+  "summary": "Lightwell Security Advisory: logback-core 1.5.9.rhlw-00031",
+  "details": "Red Hat Lightwell has released ch.qos.logback:logback-core 1.5.9.rhlw-00031 with backported fixes for CVE-2024-12798, CVE-2024-12801, CVE-2026-10532, and CVE-2026-19880.\n\nCVE-2024-12798: ACE vulnerability in JaninoEventEvaluator  by QOS.CH logback-core\n      upto including version 0.1 to 1.3.14 and\u00a01.4.0 to 1.5.12 in Java applications allows\n      attacker to execute arbitrary code by compromising an existing\n      logback configuration file or by injecting an environment variable\n      before program execution.\n\n\n\n\n\nMalicious logback configuration files can allow the attacker to execute \narbitrary code using the JaninoEventEvaluator extension.\n\n\n\nA successful attack requires the user to have write access to a \nconfiguration file. Alternatively, the attacker could inject a malicious \nenvironment variable pointing to a malicious configuration file. In both \ncases, the attack requires existing privilege.\n\nCVE-2024-12801: Server-Side Request Forgery (SSRF) in SaxEventRecorder by QOS.CH logback version 0.1 to 1.3.14 and 1.4.0 to 1.5.12\u00a0 on the Java platform, allows an attacker to \nforge requests by compromising logback configuration files in XML.\n\n\n\nThe attacks involves the modification of DOCTYPE declaration in\u00a0 XML configuration files.\n\nCVE-2026-10532: Logback deserialization whitelist bypass for Proxy objects\n\nCVE-2026-19880: Path-traversal vulnerability in QOS.CH Sarl Logback-classic on Java (logback-classic module) allows path-traversal vulnerability. More specifically, an \nMDC-based discriminator value flows unsanitized into a nested \nFileAppender path, letting an attacker who influences that MDC value \n(e.g. via an HTTP header)\n create and append log files outside the intended directory. \n\n\nThis issue affects Logback-classic: from 0.9.14 through 1.6.2.\n\nThis patched artifact is a drop-in replacement for ch.qos.logback:logback-core 1.5.9 from Maven Central.",
+  "upstream": [
+    "CVE-2024-12798",
+    "CVE-2024-12801",
+    "CVE-2026-10532",
+    "CVE-2026-19880",
+    "GHSA-pr98-23f8-jwxv",
+    "GHSA-6v67-2wr5-gvf4",
+    "GHSA-jhq6-gfmj-v8fx"
+  ],
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "Red Hat Lightwell:Maven",
+        "name": "ch.qos.logback:logback-core",
+        "purl": "pkg:maven/ch.qos.logback/logback-core"
+      },
+      "versions": [
+        "1.5.9"
+      ],
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            {
+              "introduced": "0"
+            },
+            {
+              "fixed": "1.5.9.rhlw-00031"
+            }
+          ]
+        }
+      ],
+      "database_specific": {
+        "lightwell": {
+          "backport_base_version": "1.5.9",
+          "remediated_version": "1.5.9.rhlw-00031",
+          "repository_url": "https://packages.redhat.com/lightwell/java/remediated/"
+        }
+      }
+    }
+  ],
+  "credits": [
+    {
+      "name": "Red Hat Lightwell",
+      "type": "REMEDIATION_DEVELOPER"
+    }
+  ]
+}

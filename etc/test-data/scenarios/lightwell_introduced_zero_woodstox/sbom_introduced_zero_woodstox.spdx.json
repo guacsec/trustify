@@ -1,0 +1,150 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "lightwell_introduced_zero_woodstox",
+  "documentNamespace": "https://trustify.test/lightwell_introduced_zero_woodstox",
+  "creationInfo": {
+    "licenseListVersion": "3.28",
+    "creators": [
+      "Organization: Red Hat",
+      "Tool: -"
+    ],
+    "created": "2026-11-13T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "lightwell_introduced_zero_woodstox",
+      "SPDXID": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "versionInfo": "1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-1.0.0",
+      "versionInfo": "1.0.0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@1.0.0"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-4.9.0",
+      "versionInfo": "4.9.0",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@4.9.0"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-5.0.2",
+      "versionInfo": "5.0.2",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@5.0.2"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-5.0.3",
+      "versionInfo": "5.0.3",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@5.0.3"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-5.0.3-rhlw",
+      "versionInfo": "5.0.3.rhlw-00001",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@5.0.3.rhlw-00001"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-1.0.0",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-4.9.0",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-5.0.2",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-5.0.3",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-5.0.3-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_introduced_zero_woodstox",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

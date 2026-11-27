@@ -1,0 +1,81 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "lightwell_crossbranch_per_cve_logback",
+  "documentNamespace": "https://trustify.test/lightwell_crossbranch_per_cve_logback",
+  "creationInfo": {
+    "licenseListVersion": "3.28",
+    "creators": [
+      "Organization: Red Hat",
+      "Tool: -"
+    ],
+    "created": "2026-11-13T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "lightwell_crossbranch_per_cve_logback",
+      "SPDXID": "SPDXRef-Package-Root-lightwell_crossbranch_per_cve_logback",
+      "versionInfo": "1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "logback-core",
+      "SPDXID": "SPDXRef-Package-logback-1.5.9",
+      "versionInfo": "1.5.9",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/ch.qos.logback/logback-core@1.5.9"
+        }
+      ]
+    },
+    {
+      "name": "logback-core",
+      "SPDXID": "SPDXRef-Package-logback-1.5.9-rhlw",
+      "versionInfo": "1.5.9.rhlw-00031",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/ch.qos.logback/logback-core@1.5.9.rhlw-00031"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-logback-1.5.9",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_crossbranch_per_cve_logback",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-logback-1.5.9-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_crossbranch_per_cve_logback",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_crossbranch_per_cve_logback",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

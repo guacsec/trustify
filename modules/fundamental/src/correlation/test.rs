@@ -3,8 +3,9 @@
 use actix_web::test::TestRequest;
 use rstest::rstest;
 use serde_json::json;
+use std::collections::BTreeMap;
 use test_context::test_context;
-use trustify_test_context::{TrustifyContext, call::CallService};
+use trustify_test_context::{TrustifyContext, call::CallService, document_bytes};
 
 use crate::{
     purl::model::details::purl::{PurlDetails, StatusContext},
@@ -1441,5 +1442,112 @@ async fn s18_crossproduct_curl_notaffected(
         mismatches.join("\n")
     );
 
+    Ok(())
+}
+
+// ===========================================================================
+// Lightwell OSV correlation scenarios (TC-7587)
+//
+// A second, independent view over `etc/test-data/scenarios/lightwell_*`: the
+// deprecated purl-oriented `/vulnerability/analyze` surface, which resolves
+// purls against advisories directly, without an SBOM or the correlation
+// service.
+//
+// The authoritative verdict map is each scenario's `expected.json`, consumed
+// by `modules/correlation/src/service/test.rs::scenario`. These cases derive
+// their expectations from that same file rather than restating them, so there
+// is one source of truth; each scenario's README explains what it encodes.
+// ===========================================================================
+
+/// A scenario's `expected.json`: the advisories to ingest, and, per SBOM, the verdicts keyed by
+/// node ID. Mirrors the `Scenario` struct in `modules/correlation/src/service/test.rs`.
+#[derive(serde::Deserialize)]
+struct LightwellScenario {
+    advisories: Vec<String>,
+    sboms: BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>,
+}
+
+/// Read a scenario's `expected.json` together with its CycloneDX SBOM, and pair every component
+/// purl with the vulnerability IDs expected on it (empty when the component must get no verdict).
+async fn lightwell_expectations(
+    scenario: &str,
+) -> anyhow::Result<(Vec<String>, Vec<(String, Vec<String>)>)> {
+    let base = format!("scenarios/{scenario}");
+    let expected: LightwellScenario =
+        serde_json::from_slice(&document_bytes(format!("{base}/expected.json")).await?)?;
+    let cdx = expected
+        .sboms
+        .keys()
+        .find(|name| name.ends_with(".cdx.json"))
+        .ok_or_else(|| anyhow::anyhow!("{scenario}: no CycloneDX SBOM in expected.json"))?;
+    let verdicts = &expected.sboms[cdx];
+    let sbom: serde_json::Value =
+        serde_json::from_slice(&document_bytes(format!("{base}/{cdx}")).await?)?;
+
+    let mut pairs = Vec::new();
+    for component in sbom["components"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("{scenario}: SBOM has no components"))?
+    {
+        let (Some(node), Some(purl)) = (component["bom-ref"].as_str(), component["purl"].as_str())
+        else {
+            anyhow::bail!("{scenario}: component without bom-ref or purl");
+        };
+        let mut ids = verdicts
+            .get(node)
+            .map(|v| v.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        ids.sort();
+        pairs.push((purl.to_string(), ids));
+    }
+    Ok((expected.advisories.clone(), pairs))
+}
+
+/// Verifies that the deprecated `/vulnerability/analyze` surface reports exactly the Lightwell
+/// verdicts recorded in each scenario's `expected.json` — including the components that must get
+/// none, which are the rows that actually exercise the advisory intervals (see plan §6.3).
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::lightwell_scoped_ecosystem("lightwell_scoped_ecosystem_woodstox")]
+#[case::lightwell_introduced_zero("lightwell_introduced_zero_woodstox")]
+#[case::lightwell_branch_isolation("lightwell_branch_isolation_woodstox")]
+#[case::lightwell_coverage_gap("lightwell_coverage_gap_woodstox")]
+#[case::lightwell_crossbranch_per_cve("lightwell_crossbranch_per_cve_logback")]
+#[case::lightwell_bundled_upstream("lightwell_bundled_upstream_spring-expression")]
+#[case::lightwell_pep440_local_version("lightwell_pep440_local_version_pypdf2")]
+#[case::lightwell_upstream_false_positive("lightwell_upstream_false_positive_woodstox")]
+#[case::lightwell_suffix_detection("lightwell_suffix_detection")]
+#[test_log::test(actix_web::test)]
+async fn lightwell_scenario_purl_analysis(
+    ctx: &TrustifyContext,
+    #[case] scenario: &str,
+) -> Result<(), anyhow::Error> {
+    // Given the scenario's advisories, ingested without any SBOM
+    let (advisories, expectations) = lightwell_expectations(scenario).await?;
+    for advisory in &advisories {
+        ctx.ingest_document(&resolve_advisory_path(&format!(
+            "scenarios/{scenario}/{advisory}"
+        )))
+        .await?;
+    }
+    let app = caller(ctx).await?;
+
+    // When every component purl in the scenario is analysed
+    let purls = expectations
+        .iter()
+        .map(|(purl, _)| purl.as_str())
+        .collect::<Vec<_>>();
+    let response = post_analyze(&app, &purls).await;
+
+    // Then each purl reports exactly the vulnerabilities its verdict map records
+    for (purl, expected) in &expectations {
+        let mut actual = analyze_cves(&response, purl)
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        actual.sort();
+        actual.dedup();
+        assert_eq!(&actual, expected, "{scenario}: {purl}");
+    }
     Ok(())
 }

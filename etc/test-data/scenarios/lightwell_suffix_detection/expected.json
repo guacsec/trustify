@@ -1,0 +1,31 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-403d1e66c95ef9bb.json",
+    "../../osv/RHLW-2026-02416b185203289c.json",
+    "../../osv/RHLW-2026-821eaab8409c2a61.json"
+  ],
+  "sboms": {
+    "sbom_suffix_detection.cdx.json": {
+      "woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      },
+      "netty-4.1.132": {
+        "RHLW-2026-02416b185203289c": "affected"
+      },
+      "pypdf2-3.0.1": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      }
+    },
+    "sbom_suffix_detection.spdx.json": {
+      "SPDXRef-Package-woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      },
+      "SPDXRef-Package-netty-4.1.132": {
+        "RHLW-2026-02416b185203289c": "affected"
+      },
+      "SPDXRef-Package-pypdf2-3.0.1": {
+        "RHLW-2026-821eaab8409c2a61": "affected"
+      }
+    }
+  }
+}

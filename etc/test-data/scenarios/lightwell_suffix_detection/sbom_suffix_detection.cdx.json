@@ -1,0 +1,72 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:7da2fd0f-4ab4-4895-835c-18f7dd0ed803",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-lightwell_suffix_detection",
+      "type": "application",
+      "name": "lightwell_suffix_detection",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "woodstox-6.0.3",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.0.3",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3"
+    },
+    {
+      "bom-ref": "woodstox-6.0.3-rhlw",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.0.3.rhlw-00001",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3.rhlw-00001"
+    },
+    {
+      "bom-ref": "netty-4.1.132",
+      "type": "library",
+      "name": "netty-codec-dns",
+      "version": "4.1.132.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final"
+    },
+    {
+      "bom-ref": "netty-4.1.132-rhlw",
+      "type": "library",
+      "name": "netty-codec-dns",
+      "version": "4.1.132.Final-rhlw-00002",
+      "purl": "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final-rhlw-00002"
+    },
+    {
+      "bom-ref": "pypdf2-3.0.1",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "3.0.1",
+      "purl": "pkg:pypi/pypdf2@3.0.1"
+    },
+    {
+      "bom-ref": "pypdf2-3.0.1-rhlw",
+      "type": "library",
+      "name": "pypdf2",
+      "version": "3.0.1+rhlw.1",
+      "purl": "pkg:pypi/pypdf2@3.0.1+rhlw.1"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-lightwell_suffix_detection",
+      "dependsOn": [
+        "woodstox-6.0.3",
+        "woodstox-6.0.3-rhlw",
+        "netty-4.1.132",
+        "netty-4.1.132-rhlw",
+        "pypdf2-3.0.1",
+        "pypdf2-3.0.1-rhlw"
+      ]
+    }
+  ]
+}

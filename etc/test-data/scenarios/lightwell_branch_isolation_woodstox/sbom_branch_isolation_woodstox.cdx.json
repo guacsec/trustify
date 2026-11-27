@@ -1,0 +1,56 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:5f332da3-9afe-41a5-8535-1c42b99b53b0",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-lightwell_branch_isolation_woodstox",
+      "type": "application",
+      "name": "lightwell_branch_isolation_woodstox",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "woodstox-5.0.3",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "5.0.3",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@5.0.3"
+    },
+    {
+      "bom-ref": "woodstox-6.0.3",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.0.3",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3"
+    },
+    {
+      "bom-ref": "woodstox-6.2.2",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.2.2",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.2.2"
+    },
+    {
+      "bom-ref": "woodstox-6.2.2-rhlw",
+      "type": "library",
+      "name": "woodstox-core",
+      "version": "6.2.2.rhlw-00004",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.2.2.rhlw-00004"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-lightwell_branch_isolation_woodstox",
+      "dependsOn": [
+        "woodstox-5.0.3",
+        "woodstox-6.0.3",
+        "woodstox-6.2.2",
+        "woodstox-6.2.2-rhlw"
+      ]
+    }
+  ]
+}

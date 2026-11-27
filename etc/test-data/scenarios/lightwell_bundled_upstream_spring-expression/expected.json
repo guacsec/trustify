@@ -1,0 +1,23 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-25544e781d50b856.json"
+  ],
+  "sboms": {
+    "sbom_bundled_upstream_spring-expression.cdx.json": {
+      "spring-expression-5.3.17": {
+        "RHLW-2026-25544e781d50b856": "affected"
+      },
+      "spring-expression-5.3.18": {
+        "RHLW-2026-25544e781d50b856": "affected"
+      }
+    },
+    "sbom_bundled_upstream_spring-expression.spdx.json": {
+      "SPDXRef-Package-spring-expression-5.3.17": {
+        "RHLW-2026-25544e781d50b856": "affected"
+      },
+      "SPDXRef-Package-spring-expression-5.3.18": {
+        "RHLW-2026-25544e781d50b856": "affected"
+      }
+    }
+  }
+}

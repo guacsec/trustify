@@ -1,0 +1,56 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:ad85190f-8cd8-472e-81c1-f1fdf2cf5e2e",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-lightwell_bundled_upstream_spring-expression",
+      "type": "application",
+      "name": "lightwell_bundled_upstream_spring-expression",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "spring-expression-5.3.17",
+      "type": "library",
+      "name": "spring-expression",
+      "version": "5.3.17",
+      "purl": "pkg:maven/org.springframework/spring-expression@5.3.17"
+    },
+    {
+      "bom-ref": "spring-expression-5.3.18",
+      "type": "library",
+      "name": "spring-expression",
+      "version": "5.3.18",
+      "purl": "pkg:maven/org.springframework/spring-expression@5.3.18"
+    },
+    {
+      "bom-ref": "spring-expression-5.3.18-rhlw",
+      "type": "library",
+      "name": "spring-expression",
+      "version": "5.3.18.rhlw-00010",
+      "purl": "pkg:maven/org.springframework/spring-expression@5.3.18.rhlw-00010"
+    },
+    {
+      "bom-ref": "spring-expression-5.3.19",
+      "type": "library",
+      "name": "spring-expression",
+      "version": "5.3.19",
+      "purl": "pkg:maven/org.springframework/spring-expression@5.3.19"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-lightwell_bundled_upstream_spring-expression",
+      "dependsOn": [
+        "spring-expression-5.3.17",
+        "spring-expression-5.3.18",
+        "spring-expression-5.3.18-rhlw",
+        "spring-expression-5.3.19"
+      ]
+    }
+  ]
+}

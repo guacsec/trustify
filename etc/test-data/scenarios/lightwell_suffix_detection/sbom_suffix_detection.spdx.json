@@ -1,0 +1,173 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "lightwell_suffix_detection",
+  "documentNamespace": "https://trustify.test/lightwell_suffix_detection",
+  "creationInfo": {
+    "licenseListVersion": "3.28",
+    "creators": [
+      "Organization: Red Hat",
+      "Tool: -"
+    ],
+    "created": "2026-11-13T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "lightwell_suffix_detection",
+      "SPDXID": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "versionInfo": "1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-6.0.3",
+      "versionInfo": "6.0.3",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3"
+        }
+      ]
+    },
+    {
+      "name": "woodstox-core",
+      "SPDXID": "SPDXRef-Package-woodstox-6.0.3-rhlw",
+      "versionInfo": "6.0.3.rhlw-00001",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.3.rhlw-00001"
+        }
+      ]
+    },
+    {
+      "name": "netty-codec-dns",
+      "SPDXID": "SPDXRef-Package-netty-4.1.132",
+      "versionInfo": "4.1.132.Final",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final"
+        }
+      ]
+    },
+    {
+      "name": "netty-codec-dns",
+      "SPDXID": "SPDXRef-Package-netty-4.1.132-rhlw",
+      "versionInfo": "4.1.132.Final-rhlw-00002",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/io.netty/netty-codec-dns@4.1.132.Final-rhlw-00002"
+        }
+      ]
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-3.0.1",
+      "versionInfo": "3.0.1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@3.0.1"
+        }
+      ]
+    },
+    {
+      "name": "pypdf2",
+      "SPDXID": "SPDXRef-Package-pypdf2-3.0.1-rhlw",
+      "versionInfo": "3.0.1+rhlw.1",
+      "supplier": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pypdf2@3.0.1+rhlw.1"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-6.0.3",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-woodstox-6.0.3-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-netty-4.1.132",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-netty-4.1.132-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-3.0.1",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pypdf2-3.0.1-rhlw",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-Root-lightwell_suffix_detection",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}

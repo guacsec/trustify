@@ -1,0 +1,31 @@
+{
+  "advisories": [
+    "advisories/RHLW-2026-dd8ed0b211be109b.json",
+    "advisories/RHLW-2026-403d1e66c95ef9bb.json",
+    "advisories/RHLW-2026-36d9ed0bb47c794f.json"
+  ],
+  "sboms": {
+    "sbom_branch_isolation_woodstox.cdx.json": {
+      "woodstox-5.0.3": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      },
+      "woodstox-6.2.2": {
+        "RHLW-2026-36d9ed0bb47c794f": "affected"
+      }
+    },
+    "sbom_branch_isolation_woodstox.spdx.json": {
+      "SPDXRef-Package-woodstox-5.0.3": {
+        "RHLW-2026-dd8ed0b211be109b": "affected"
+      },
+      "SPDXRef-Package-woodstox-6.0.3": {
+        "RHLW-2026-403d1e66c95ef9bb": "affected"
+      },
+      "SPDXRef-Package-woodstox-6.2.2": {
+        "RHLW-2026-36d9ed0bb47c794f": "affected"
+      }
+    }
+  }
+}
