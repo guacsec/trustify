@@ -16,6 +16,7 @@ trustify-db = { workspace = true }
 trustify-entity = { workspace = true }
 trustify-infrastructure = { workspace = true }
 trustify-migration = { workspace = true }
+trustify-module-importer = { workspace = true }
 trustify-module-storage = { workspace = true }
 trustify-server = { workspace = true }
 
@@ -23,6 +24,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 hide = { workspace = true }
 log = { workspace = true }
+postgres-protocol = { workspace = true }
 sea-orm = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
