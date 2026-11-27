@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795774448342,
+  "lastUpdate": 1795789097544,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -25455,6 +25455,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "db7f7f1d016f3993efa499543c6be9a600390392",
+          "message": "fix(tests): import RFC 3339 format for Clippy\n\nAssisted-by: Codex (GPT-6)",
+          "timestamp": "2026-11-27T13:16:56Z",
+          "tree_id": "e61b53a1d1c3bdc40319e15e89a895d67a01b309",
+          "url": "https://github.com/guacsec/trustify/commit/db7f7f1d016f3993efa499543c6be9a600390392"
+        },
+        "date": 1795789095647,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
