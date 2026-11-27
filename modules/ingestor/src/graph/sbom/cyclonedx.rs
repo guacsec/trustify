@@ -48,6 +48,24 @@ pub const CYCLONEDX_DOC_REF: &str = "CycloneDX-doc-ref";
 
 pub struct Information<'a>(pub &'a CycloneDx);
 
+/// Parse the CycloneDX `metadata.timestamp`.
+///
+/// Returns `Ok(None)` when the document has no timestamp (valid per the spec), and
+/// `Err` with a human-readable message when a timestamp is present but cannot be parsed.
+pub(crate) fn parse_metadata_timestamp(sbom: &CycloneDx) -> Result<Option<OffsetDateTime>, String> {
+    let Some(timestamp) = sbom
+        .metadata
+        .as_ref()
+        .and_then(|metadata| metadata.timestamp.as_ref())
+    else {
+        return Ok(None);
+    };
+
+    OffsetDateTime::parse(timestamp.as_ref(), &Iso8601::DEFAULT)
+        .map(Some)
+        .map_err(|err| format!("invalid metadata.timestamp '{timestamp}': {err}"))
+}
+
 fn from_contact(contact: &OrganizationalContact) -> Option<String> {
     match (&contact.name, &contact.email) {
         (Some(name), Some(email)) => Some(format!("{name} <{email}>")),
@@ -79,13 +97,7 @@ impl<'a> From<Information<'a>> for SbomInformation {
     fn from(value: Information<'a>) -> Self {
         let sbom = value.0;
 
-        let published = sbom
-            .metadata
-            .as_ref()
-            .and_then(|metadata| metadata.timestamp.as_ref())
-            .and_then(|timestamp| {
-                OffsetDateTime::parse(timestamp.as_ref(), &Iso8601::DEFAULT).ok()
-            });
+        let published = parse_metadata_timestamp(sbom).ok().flatten();
 
         let authors = sbom
             .metadata

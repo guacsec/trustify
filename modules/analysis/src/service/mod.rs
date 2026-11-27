@@ -32,7 +32,7 @@ use sea_orm::{
     ColumnTrait, DatabaseBackend, EntityOrSelect, EntityTrait, FromQueryResult, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, RelationTrait, Statement, prelude::ConnectionTrait,
 };
-use sea_query::JoinType;
+use sea_query::{JoinType, NullOrdering, Order};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
@@ -137,7 +137,11 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
             sbom_external_node::Relation::Sbom.def(),
         )
         .filter(sbom_external_node::Column::NodeId.eq(node_id))
-        .order_by_desc(trustify_entity::sbom::Column::Published)
+        .order_by_with_nulls(
+            trustify_entity::sbom::Column::Published,
+            Order::Desc,
+            NullOrdering::Last,
+        )
         .one(connection)
         .await?
     else {
@@ -176,7 +180,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
 
             // TIE-BREAKER: Order by published date to ensure we get the latest SPDX doc
             Ok(query
-                .order_by_desc(sbom::Column::Published)
+                .order_by_with_nulls(sbom::Column::Published, Order::Desc, NullOrdering::Last)
                 .one(connection)
                 .await?
                 .map(|entity| ResolvedSbom {
@@ -204,7 +208,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
 
             Ok(sbom::Entity::find()
                 .filter(sbom::Column::DocumentId.eq(external_doc_id))
-                .order_by_desc(sbom::Column::Published)
+                .order_by_with_nulls(sbom::Column::Published, Order::Desc, NullOrdering::Last)
                 .one(connection)
                 .await?
                 .map(|entity| ResolvedSbom {
