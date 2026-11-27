@@ -8031,6 +8031,10 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/SbomStatus'
+            description: |-
+              Status entries are scoped to a product context. A vulnerability and
+              status can occur more than once; deduplicate by vulnerability identifier
+              when counting vulnerabilities.
     SbomHead:
       type: object
       required:
