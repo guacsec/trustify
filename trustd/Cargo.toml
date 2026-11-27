@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 trustify-common = { workspace = true }
 trustify-db = { workspace = true }
+trustify-entity = { workspace = true }
 trustify-infrastructure = { workspace = true }
 trustify-migration = { workspace = true }
 trustify-module-storage = { workspace = true }
@@ -27,6 +28,8 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 postgresql_embedded = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+time = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 openssl = { workspace = true }
 libz-sys = { workspace = true }
 liblzma = { workspace = true }
